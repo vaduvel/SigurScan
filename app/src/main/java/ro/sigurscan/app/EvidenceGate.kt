@@ -17,6 +17,7 @@ enum class GateFinality {
 enum class EvidenceSource {
     LOCAL_EXTRACTOR,
     HTML_EXTRACTOR,
+    INFRA_ANALYZER,
     OFFICIAL_REGISTRY,
     ROMANIA_SCENARIO,
     GOOGLE_WEB_RISK,
@@ -32,6 +33,7 @@ enum class ProviderId {
     WEB_RISK,
     URLSCAN,
     VIRUSTOTAL,
+    INFRA,
     CLAIM_VERIFIER,
     OFFICIAL_REGISTRY,
     CORPUS,
@@ -68,6 +70,14 @@ enum class EvidenceCode {
     OFFER_CLAIM_CONFIRMED,
     OFFER_CLAIM_NOT_FOUND,
     OFFER_CLAIM_INCONCLUSIVE,
+    DOMAIN_AGE_SUSPICIOUS,
+    DOMAIN_AGE_VERY_RECENT,
+    TYPOSQUAT_LOOKALIKE,
+    HOMOGLYPH_DOMAIN,
+    PUNYCODE_HOST,
+    DGA_ENTROPY_HIGH,
+    URL_BEHAVIOUR_SUSPICIOUS,
+    URL_TRANSPORT_RISK,
     APK_DOWNLOAD_UNOFFICIAL,
     REMOTE_ACCESS_DOWNLOAD_UNOFFICIAL,
     BRAND_IMPERSONATION,
@@ -208,7 +218,9 @@ object EvidenceGatePolicy {
         EvidenceCode.PERSONAL_DATA_REQUEST,
         EvidenceCode.PAYMENT_REQUEST,
         EvidenceCode.HIDDEN_LINK_OFFICIAL_TO_UNOFFICIAL,
-        EvidenceCode.MARKETPLACE_RECEIVE_MONEY -> GateAction.NO_ENTER_DATA
+        EvidenceCode.MARKETPLACE_RECEIVE_MONEY,
+        EvidenceCode.HOMOGLYPH_DOMAIN,
+        EvidenceCode.DOMAIN_AGE_VERY_RECENT -> GateAction.NO_ENTER_DATA
 
         EvidenceCode.REPLY_WITH_CODE_REQUEST,
         EvidenceCode.MONEY_REQUEST,
@@ -240,6 +252,12 @@ object EvidenceGatePolicy {
         EvidenceCode.OFFER_CLAIM_CONFIRMED,
         EvidenceCode.OFFER_CLAIM_NOT_FOUND,
         EvidenceCode.OFFER_CLAIM_INCONCLUSIVE,
+        EvidenceCode.DOMAIN_AGE_SUSPICIOUS,
+        EvidenceCode.TYPOSQUAT_LOOKALIKE,
+        EvidenceCode.PUNYCODE_HOST,
+        EvidenceCode.DGA_ENTROPY_HIGH,
+        EvidenceCode.URL_BEHAVIOUR_SUSPICIOUS,
+        EvidenceCode.URL_TRANSPORT_RISK,
         EvidenceCode.BRAND_IMPERSONATION,
         EvidenceCode.OFFICIAL_DOMAIN_MISMATCH,
         EvidenceCode.HIDDEN_LINK_PRESENT,
@@ -414,6 +432,31 @@ class EvidenceGate(private val nowMillis: () -> Long = { System.currentTimeMilli
             ctx
         )
 
+        ctx.hasAny(EvidenceCode.TYPOSQUAT_LOOKALIKE, EvidenceCode.HOMOGLYPH_DOMAIN, EvidenceCode.PUNYCODE_HOST) &&
+            ctx.hasAny(
+                EvidenceCode.SENSITIVE_FORM_UNOFFICIAL,
+                EvidenceCode.CARD_REQUEST,
+                EvidenceCode.CVV_REQUEST,
+                EvidenceCode.OTP_REQUEST,
+                EvidenceCode.PASSWORD_REQUEST,
+                EvidenceCode.CNP_IBAN_REQUEST
+            ) -> final(
+            GateAction.DO_NOT_CONTINUE,
+            "LOOKALIKE_DOMAIN_SENSITIVE_REQUEST",
+            ctx.firstIds(
+                EvidenceCode.TYPOSQUAT_LOOKALIKE,
+                EvidenceCode.HOMOGLYPH_DOMAIN,
+                EvidenceCode.PUNYCODE_HOST,
+                EvidenceCode.SENSITIVE_FORM_UNOFFICIAL,
+                EvidenceCode.CARD_REQUEST,
+                EvidenceCode.CVV_REQUEST,
+                EvidenceCode.OTP_REQUEST,
+                EvidenceCode.PASSWORD_REQUEST,
+                EvidenceCode.CNP_IBAN_REQUEST
+            ),
+            ctx
+        )
+
         else -> null
     }
 
@@ -510,10 +553,57 @@ class EvidenceGate(private val nowMillis: () -> Long = { System.currentTimeMilli
             ctx
         )
 
+        ctx.hasAny(EvidenceCode.HOMOGLYPH_DOMAIN, EvidenceCode.DOMAIN_AGE_VERY_RECENT) &&
+            !ctx.hasAny(EvidenceCode.OFFICIAL_DOMAIN_EXACT, EvidenceCode.DELEGATED_DOMAIN_EXACT) -> final(
+            GateAction.NO_ENTER_DATA,
+            "UNOFFICIAL_HIGH_RISK_INFRASTRUCTURE",
+            ctx.firstIds(
+                EvidenceCode.HOMOGLYPH_DOMAIN,
+                EvidenceCode.DOMAIN_AGE_VERY_RECENT
+            ),
+            ctx
+        )
+
         ctx.has(EvidenceCode.HIDDEN_LINK_OFFICIAL_TO_UNOFFICIAL) -> final(
             GateAction.NO_ENTER_DATA,
             "DISGUISED_LINK",
             ctx.firstIds(EvidenceCode.HIDDEN_LINK_OFFICIAL_TO_UNOFFICIAL),
+            ctx
+        )
+
+        ctx.hasAny(
+            EvidenceCode.TYPOSQUAT_LOOKALIKE,
+            EvidenceCode.HOMOGLYPH_DOMAIN,
+            EvidenceCode.PUNYCODE_HOST,
+            EvidenceCode.DOMAIN_AGE_VERY_RECENT,
+            EvidenceCode.DGA_ENTROPY_HIGH,
+            EvidenceCode.URL_TRANSPORT_RISK
+        ) && ctx.hasAny(
+            EvidenceCode.CARD_REQUEST,
+            EvidenceCode.CVV_REQUEST,
+            EvidenceCode.OTP_REQUEST,
+            EvidenceCode.PASSWORD_REQUEST,
+            EvidenceCode.CNP_IBAN_REQUEST,
+            EvidenceCode.PERSONAL_DATA_REQUEST,
+            EvidenceCode.PAYMENT_REQUEST
+        ) -> final(
+            GateAction.NO_ENTER_DATA,
+            "INFRASTRUCTURE_RISK_WITH_SENSITIVE_REQUEST",
+            ctx.firstIds(
+                EvidenceCode.TYPOSQUAT_LOOKALIKE,
+                EvidenceCode.HOMOGLYPH_DOMAIN,
+                EvidenceCode.PUNYCODE_HOST,
+                EvidenceCode.DOMAIN_AGE_VERY_RECENT,
+                EvidenceCode.DGA_ENTROPY_HIGH,
+                EvidenceCode.URL_TRANSPORT_RISK,
+                EvidenceCode.CARD_REQUEST,
+                EvidenceCode.CVV_REQUEST,
+                EvidenceCode.OTP_REQUEST,
+                EvidenceCode.PASSWORD_REQUEST,
+                EvidenceCode.CNP_IBAN_REQUEST,
+                EvidenceCode.PERSONAL_DATA_REQUEST,
+                EvidenceCode.PAYMENT_REQUEST
+            ),
             ctx
         )
 
@@ -523,6 +613,14 @@ class EvidenceGate(private val nowMillis: () -> Long = { System.currentTimeMilli
     private fun verifyOfficial(ctx: EvalContext): GateResult? = when {
         ctx.hasAny(
             EvidenceCode.UNRESOLVED_SHORTLINK,
+            EvidenceCode.DOMAIN_AGE_SUSPICIOUS,
+            EvidenceCode.DOMAIN_AGE_VERY_RECENT,
+            EvidenceCode.TYPOSQUAT_LOOKALIKE,
+            EvidenceCode.HOMOGLYPH_DOMAIN,
+            EvidenceCode.PUNYCODE_HOST,
+            EvidenceCode.DGA_ENTROPY_HIGH,
+            EvidenceCode.URL_BEHAVIOUR_SUSPICIOUS,
+            EvidenceCode.URL_TRANSPORT_RISK,
             EvidenceCode.MARKETPLACE_RECEIVE_MONEY,
             EvidenceCode.COURIER_UNOFFICIAL_DOMAIN,
             EvidenceCode.PARCEL_TAX,
@@ -535,6 +633,14 @@ class EvidenceGate(private val nowMillis: () -> Long = { System.currentTimeMilli
             "BRAND_OR_AUTHORITY_CLAIM_NEEDS_VERIFICATION",
             ctx.firstIds(
                 EvidenceCode.UNRESOLVED_SHORTLINK,
+                EvidenceCode.DOMAIN_AGE_SUSPICIOUS,
+                EvidenceCode.DOMAIN_AGE_VERY_RECENT,
+                EvidenceCode.TYPOSQUAT_LOOKALIKE,
+                EvidenceCode.HOMOGLYPH_DOMAIN,
+                EvidenceCode.PUNYCODE_HOST,
+                EvidenceCode.DGA_ENTROPY_HIGH,
+                EvidenceCode.URL_BEHAVIOUR_SUSPICIOUS,
+                EvidenceCode.URL_TRANSPORT_RISK,
                 EvidenceCode.MARKETPLACE_RECEIVE_MONEY,
                 EvidenceCode.COURIER_UNOFFICIAL_DOMAIN,
                 EvidenceCode.PARCEL_TAX,
@@ -616,7 +722,12 @@ class EvidenceGate(private val nowMillis: () -> Long = { System.currentTimeMilli
                 EvidenceCode.WEBRISK_MATCH_SOCIAL_ENGINEERING_EXT,
                 EvidenceCode.URLSCAN_VERDICT_PHISHING,
                 EvidenceCode.URLSCAN_VERDICT_MALWARE,
-                EvidenceCode.VIRUSTOTAL_MALICIOUS_CONSENSUS
+                EvidenceCode.VIRUSTOTAL_MALICIOUS_CONSENSUS,
+                EvidenceCode.HOMOGLYPH_DOMAIN,
+                EvidenceCode.PUNYCODE_HOST,
+                EvidenceCode.TYPOSQUAT_LOOKALIKE,
+                EvidenceCode.DOMAIN_AGE_VERY_RECENT,
+                EvidenceCode.DOMAIN_AGE_SUSPICIOUS
             )
         ) return null
 
@@ -842,7 +953,6 @@ class EvidenceGate(private val nowMillis: () -> Long = { System.currentTimeMilli
             buildSet {
                 add(ProviderId.WEB_RISK)
                 add(ProviderId.URLSCAN)
-                add(ProviderId.VIRUSTOTAL)
                 if (requiresClaimVerification()) add(ProviderId.CLAIM_VERIFIER)
             }
         }

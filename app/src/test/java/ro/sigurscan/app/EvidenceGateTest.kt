@@ -390,6 +390,38 @@ class EvidenceGateTest {
     }
 
     @Test
+    fun officialDomainCanBeSafeWithoutVirusTotalWhenRequiredPillarsAreClean() {
+        val result = evaluate(
+            EvidenceCode.OFFICIAL_DOMAIN_EXACT,
+            EvidenceCode.NO_SENSITIVE_FORM,
+            EvidenceCode.WEBRISK_NO_MATCH,
+            EvidenceCode.URLSCAN_NO_CLASSIFICATION,
+            primaryUrl = "https://www.emag.ro/order/tracking",
+            finalUrl = "https://www.emag.ro/order/tracking",
+            providerStates = mapOf(
+                ProviderId.WEB_RISK to ProviderState(ProviderId.WEB_RISK, ProviderStatus.OK),
+                ProviderId.URLSCAN to ProviderState(ProviderId.URLSCAN, ProviderStatus.OK),
+                ProviderId.VIRUSTOTAL to ProviderState(ProviderId.VIRUSTOTAL, ProviderStatus.SKIPPED)
+            )
+        )
+
+        assertAction(GateAction.CONTINUE_WITH_CAUTION, result)
+    }
+
+    @Test
+    fun homoglyphSensitiveRequestIsDoNotContinue() {
+        val result = evaluate(
+            EvidenceCode.HOMOGLYPH_DOMAIN,
+            EvidenceCode.PUNYCODE_HOST,
+            EvidenceCode.CARD_REQUEST,
+            finalUrl = "https://xn--brand-login.example/card"
+        )
+
+        assertAction(GateAction.DO_NOT_CONTINUE, result)
+        assertEquals("LOOKALIKE_DOMAIN_SENSITIVE_REQUEST", result.reasonCodes.single())
+    }
+
+    @Test
     fun officialPromoCannotBeSafeUntilClaimVerifierCompletes() {
         val result = evaluate(
             EvidenceCode.OFFICIAL_DOMAIN_EXACT,
@@ -574,6 +606,15 @@ class EvidenceGateTest {
         EvidenceCode.OFFER_CLAIM_NOT_FOUND,
         EvidenceCode.OFFER_CLAIM_INCONCLUSIVE -> EvidenceSource.CLAIM_VERIFIER
 
+        EvidenceCode.DOMAIN_AGE_SUSPICIOUS,
+        EvidenceCode.DOMAIN_AGE_VERY_RECENT,
+        EvidenceCode.TYPOSQUAT_LOOKALIKE,
+        EvidenceCode.HOMOGLYPH_DOMAIN,
+        EvidenceCode.PUNYCODE_HOST,
+        EvidenceCode.DGA_ENTROPY_HIGH,
+        EvidenceCode.URL_BEHAVIOUR_SUSPICIOUS,
+        EvidenceCode.URL_TRANSPORT_RISK -> EvidenceSource.INFRA_ANALYZER
+
         EvidenceCode.OFFICIAL_DOMAIN_EXACT,
         EvidenceCode.DELEGATED_DOMAIN_EXACT,
         EvidenceCode.APPROVED_TRACKER_DOMAIN,
@@ -604,6 +645,7 @@ class EvidenceGateTest {
         EvidenceSource.GOOGLE_WEB_RISK -> ProviderId.WEB_RISK
         EvidenceSource.URLSCAN -> ProviderId.URLSCAN
         EvidenceSource.VIRUSTOTAL -> ProviderId.VIRUSTOTAL
+        EvidenceSource.INFRA_ANALYZER -> ProviderId.INFRA
         EvidenceSource.CLAIM_VERIFIER -> ProviderId.CLAIM_VERIFIER
         EvidenceSource.OFFICIAL_REGISTRY -> ProviderId.OFFICIAL_REGISTRY
         EvidenceSource.ROMANIA_SCENARIO -> ProviderId.CORPUS

@@ -50,6 +50,10 @@ def _derive_prediction(risk_score: int, risk_level: str, threshold: int) -> bool
 
 
 def _load_dataset_records(dataset_path: Path, max_rows: int | None = None) -> List[Dict[str, Any]]:
+    if not dataset_path.is_absolute():
+        candidate = ROOT_DIR / dataset_path
+        if candidate.exists():
+            dataset_path = candidate
     if not dataset_path.exists():
         raise FileNotFoundError(f"Dataset missing: {dataset_path}")
 

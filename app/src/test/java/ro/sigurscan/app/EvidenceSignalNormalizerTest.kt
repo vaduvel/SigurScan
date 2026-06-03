@@ -623,6 +623,89 @@ class EvidenceSignalNormalizerTest {
         })
     }
 
+    @Test
+    fun backendEvidenceMapsInfrastructureSignals() {
+        val snapshot = EvidenceSignalNormalizer.buildSnapshot(
+            EvidenceNormalizerInput(
+                inputKind = "unit_test",
+                channel = "text_with_url",
+                rawText = "Verifica https://brand-check.example/login",
+                primaryUrl = "https://brand-check.example/login",
+                finalUrl = "https://brand-check.example/login",
+                backendEvidence = mapOf(
+                    "extracted_urls" to listOf(
+                        mapOf(
+                            "final_url" to "https://brand-check.example/login",
+                            "domain_age_days" to 5
+                        )
+                    ),
+                    "url_behaviour" to mapOf(
+                        "https://brand-check.example/login" to listOf("redirect", "login")
+                    ),
+                    "url_transport" to mapOf(
+                        "https://brand-check.example/login" to mapOf("type" to "ip_hostname")
+                    )
+                )
+            )
+        )
+
+        assertCodes(
+            snapshot,
+            EvidenceCode.DOMAIN_AGE_VERY_RECENT,
+            EvidenceCode.URL_BEHAVIOUR_SUSPICIOUS,
+            EvidenceCode.URL_TRANSPORT_RISK
+        )
+    }
+
+    @Test
+    fun infraThreatIntelMapsHomoglyphTyposquatAndPunycode() {
+        val snapshot = normalize(
+            rawText = "Actualizare cont https://xn--bcr-secure.example/login",
+            finalUrl = "https://xn--bcr-secure.example/login",
+            threatIntel = listOf(
+                ThreatIntelSourceResult(
+                    source = "sigurscan_lexical",
+                    verdict = "typosquatting,punycode,homoglyph",
+                    severity = "high",
+                    details = "signals=typosquatting,punycode,homoglyph; domain_age_days=4"
+                )
+            )
+        )
+
+        assertCodes(
+            snapshot,
+            EvidenceCode.TYPOSQUAT_LOOKALIKE,
+            EvidenceCode.PUNYCODE_HOST,
+            EvidenceCode.HOMOGLYPH_DOMAIN,
+            EvidenceCode.DOMAIN_AGE_VERY_RECENT
+        )
+    }
+
+    @Test
+    fun confusableBrandHostStillProducesBrandImpersonation() {
+        val snapshot = normalize(
+            rawText = "Verifica aici contul tau.",
+            primaryUrl = "https://bсr-online.example/login",
+            finalUrl = "https://bсr-online.example/login",
+            threatIntel = listOf(
+                ThreatIntelSourceResult(
+                    source = "infra_homoglyph",
+                    verdict = "homoglyph",
+                    severity = "high",
+                    details = "brand=bcr"
+                )
+            ),
+            providerStates = completedUrlProviderStates()
+        )
+
+        assertCodes(
+            snapshot,
+            EvidenceCode.BRAND_IMPERSONATION,
+            EvidenceCode.OFFICIAL_DOMAIN_MISMATCH,
+            EvidenceCode.HOMOGLYPH_DOMAIN
+        )
+    }
+
     private fun normalize(
         rawText: String,
         htmlContent: String? = null,
@@ -631,7 +714,8 @@ class EvidenceSignalNormalizerTest {
         redirectChain: List<String> = emptyList(),
         threatIntel: List<ThreatIntelSourceResult> = emptyList(),
         virusTotalConfigured: Boolean = false,
-        providerStates: Map<ProviderId, ProviderState> = emptyMap()
+        providerStates: Map<ProviderId, ProviderState> = emptyMap(),
+        backendEvidence: Map<String, Any>? = null
     ): EvidenceSnapshot {
         val effectiveProviderStates = providerStates.ifEmpty {
             if (
@@ -650,6 +734,7 @@ class EvidenceSignalNormalizerTest {
                 redirectChain = redirectChain,
                 threatIntel = threatIntel,
                 providerStates = effectiveProviderStates,
+                backendEvidence = backendEvidence,
                 virusTotalConfigured = virusTotalConfigured
             )
         )

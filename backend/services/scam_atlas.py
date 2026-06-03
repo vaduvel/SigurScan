@@ -119,13 +119,13 @@ def _pattern_from_aliases(aliases: List[str]) -> str:
         cleaned = re.sub(r"\s+", " ", str(alias).strip().lower())
         if not cleaned:
             continue
-        tokenized = re.split(r"\\s\\+", re.escape(cleaned))
+        tokenized = [re.escape(part) for part in cleaned.split()]
         if not tokenized:
             continue
         tokenized = [part for part in tokenized if part]
         if not tokenized:
             continue
-        patterns.append(r"\\b" + r"\\s*".join(tokenized) + r"\\b")
+        patterns.append(r"\b" + r"\s*".join(tokenized) + r"\b")
     return "|".join(patterns)
 
 
@@ -211,7 +211,7 @@ DEFAULT_BRAND_KNOWLEDGE = {
     },
 }
 
-_brand_knowledge_path = _resolve_path(os.getenv("SCAM_ATLAS_BRAND_KNOWLEDGE_PATH"), "backend/data/brand_knowledge_pack.json")
+_brand_knowledge_path = _resolve_path(os.getenv("SCAM_ATLAS_BRAND_KNOWLEDGE_PATH"), "data/brand_knowledge_pack.json")
 _loaded_brand_knowledge = _load_json_map(_brand_knowledge_path, DEFAULT_BRAND_KNOWLEDGE)
 
 BRAND_REGISTRY: Dict[str, List[str]] = _merge_map_of_lists(
@@ -511,6 +511,54 @@ BRAND_MENTION_PATTERNS["Uber"] = re.compile(r'\buber\b|\buber\s*eats\b', re.IGNO
 BRAND_MENTION_PATTERNS["YOXO"] = re.compile(r'\byoxo\b|\bbuy[\s-]?back\s+yoxo\b', re.IGNORECASE)
 
 
+def _build_brand_mention_patterns(
+    brand_registry: Dict[str, List[str]],
+    aliases: Dict[str, List[str]],
+) -> Dict[str, re.Pattern]:
+    patterns: Dict[str, re.Pattern] = {}
+    for brand_name in brand_registry.keys():
+        candidates = aliases.get(brand_name, [])
+        candidates = _dedupe_preserve_order(candidates + [brand_name])
+        pattern = _pattern_from_aliases(candidates)
+        if pattern:
+            patterns[brand_name] = re.compile(pattern, re.IGNORECASE)
+    return patterns
+
+
+def _apply_loaded_brand_knowledge() -> None:
+    global BRAND_REGISTRY, BRAND_DOMAIN_EXCEPTIONS, TRUSTED_BASE_NAMES, BRAND_MENTION_PATTERNS, _loaded_aliases
+
+    loaded_registry = {
+        k: _coerce_str_list(v)
+        for k, v in _loaded_brand_knowledge.get("brand_registry", {}).items()
+        if isinstance(k, str)
+    }
+    loaded_exceptions = {
+        k: _coerce_str_list(v)
+        for k, v in _loaded_brand_knowledge.get("brand_domain_exceptions", {}).items()
+        if isinstance(k, str)
+    }
+    loaded_trusted_base_names = {
+        k: str(v)
+        for k, v in _loaded_brand_knowledge.get("trusted_base_names", {}).items()
+        if isinstance(k, str) and isinstance(v, str)
+    }
+    loaded_aliases = {
+        k: _coerce_str_list(v)
+        for k, v in _loaded_brand_knowledge.get("brand_aliases", {}).items()
+        if isinstance(k, str)
+    }
+
+    BRAND_REGISTRY = _merge_map_of_lists(BRAND_REGISTRY, loaded_registry)
+    BRAND_DOMAIN_EXCEPTIONS = _merge_map_of_lists(BRAND_DOMAIN_EXCEPTIONS, loaded_exceptions)
+    TRUSTED_BASE_NAMES = _merge_map_of_strings(TRUSTED_BASE_NAMES, loaded_trusted_base_names)
+    _loaded_aliases = _merge_aliases(_loaded_aliases, loaded_aliases)
+    BRAND_MENTION_PATTERNS = _build_brand_mention_patterns(BRAND_REGISTRY, _loaded_aliases)
+
+
+_apply_loaded_brand_knowledge()
+
+
 def _get_registrable_domain(extracted: "tldextract.ExtractResult") -> str:
     domain = getattr(extracted, "top_domain_under_public_suffix", "")
     if isinstance(domain, str) and domain.strip():
@@ -613,6 +661,11 @@ class ScamAtlasEngine:
             return False
         return bool(re.fullmatch(r"\d{1,3}(?:\.\d{1,3}){3}", hostname))
 
+    def _claimed_brand_base_candidates(self, claimed_brand: Optional[str]) -> List[str]:
+        if not claimed_brand:
+            return []
+        return [base for base, brand in TRUSTED_BASE_NAMES.items() if brand == claimed_brand]
+
     def detect_claimed_brand(self, text: str) -> Optional[str]:
         """
         Detects if a trusted brand name is mentioned in the text.
@@ -639,10 +692,8 @@ class ScamAtlasEngine:
                 hostname = (parsed.hostname or "").lower()
             if self._is_brand_allowed_domain(claimed_brand, reg_domain, hostname):
                 continue
-            # Check if the claimed brand's official domain is used (or trusted subdomain).
             if reg_domain or hostname:
-                if not self._is_whitelisted_domain(reg_domain, hostname=hostname):
-                    return True, reg_domain or hostname
+                return True, reg_domain or hostname
         return False, None
 
     def check_transport_and_dns_risk(
@@ -736,6 +787,7 @@ class ScamAtlasEngine:
         score_penalty = 0
         reasons = []
         claimed_brand_normalized = str(claimed_brand or "").strip().lower()
+        claimed_brand_bases = self._claimed_brand_base_candidates(claimed_brand)
         
         for url_info in urls:
             domains_to_check = set()
@@ -782,6 +834,27 @@ class ScamAtlasEngine:
                 ext = tldextract.extract(reg_domain)
                 base = ext.domain.lower()
                 if not base:
+                    continue
+
+                claim_typo_detected = False
+                if claimed_brand_bases and not self._is_brand_allowed_domain(claimed_brand, reg_domain):
+                    for t_base in claimed_brand_bases:
+                        dist = self.levenshtein_distance(base, t_base)
+                        is_typo = False
+                        if dist > 0:
+                            if len(t_base) > 4 and dist <= 2:
+                                is_typo = True
+                            elif len(t_base) <= 4 and dist <= 1:
+                                is_typo = True
+                        if is_typo:
+                            reasons.append(
+                                f"Detecție Typosquatting: Domeniul '{reg_domain}' este extrem de similar cu brandul oficial "
+                                f"'{claimed_brand}' (distanță Levenshtein {dist}) — posibilă deturnare către alt brand sau infrastructură de phishing"
+                            )
+                            score_penalty += 40
+                            claim_typo_detected = True
+                            break
+                if claim_typo_detected:
                     continue
                 
                 is_official = False

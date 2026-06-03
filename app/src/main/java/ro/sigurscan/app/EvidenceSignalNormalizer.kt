@@ -20,6 +20,8 @@ data class EvidenceNormalizerInput(
     val threatIntel: List<ThreatIntelSourceResult> = emptyList(),
     val providerStates: Map<ProviderId, ProviderState> = emptyMap(),
     val formActionUrl: String? = null,
+    val backendEvidence: Map<String, Any>? = null,
+    val backendReasons: List<String> = emptyList(),
     val completeness: EvidenceCompleteness? = null,
     val registryVersion: String = "local",
     val corpusVersion: String = "local",
@@ -59,7 +61,7 @@ object EvidenceSignalNormalizer {
         val htmlLinks = html?.let { HtmlLinkExtractor.extractHtmlLinks(it) }.orEmpty()
         val textUrls = extractUrls(rawForAnalysis)
         val formActionUrls = html?.let { extractFormActionUrls(it) }.orEmpty()
-        val allUrls = (input.extractedLinks + htmlLinks + textUrls)
+        val allUrls = (input.extractedLinks + htmlLinks + textUrls + listOfNotNull(input.primaryUrl, input.finalUrl, input.formActionUrl))
             .mapNotNull(::normalizeUrl)
             .distinct()
         val normalizedRedirectChain = input.redirectChain.mapNotNull(::normalizeUrl)
@@ -72,7 +74,7 @@ object EvidenceSignalNormalizer {
         val targetUrl = normalizedFinal ?: normalizedPrimary
         val primaryHost = hostOf(normalizedPrimary)
         val targetHost = hostOf(targetUrl)
-        val claimedBrands = detectClaimedBrands(normalizedText, rawForAnalysis)
+        val claimedBrands = detectClaimedBrands(normalizedText, rawForAnalysis, allUrls)
 
         val builder = SignalBuilder(targetHost ?: textTargetKey(normalizedText))
         addLocalSignals(
@@ -87,6 +89,11 @@ object EvidenceSignalNormalizer {
             primaryHost = primaryHost,
             targetHost = targetHost,
             claimedBrands = claimedBrands
+        )
+        addBackendInfrastructureSignals(
+            builder = builder,
+            backendEvidence = input.backendEvidence,
+            targetKey = targetHost ?: textTargetKey(normalizedText)
         )
         addScamKnowledgeSignals(
             builder = builder,
@@ -294,9 +301,45 @@ object EvidenceSignalNormalizer {
                 source.contains("urlscan") -> mapUrlscan(builder, item, text, targetKey)
                 source.contains("virustotal") || source == "vt" -> mapVirusTotal(builder, item, text, targetKey)
                 sourceKey.contains("aiofferwebcheck") || sourceKey.contains("offerclaim") -> mapOfferClaimVerifier(builder, item, text, targetKey)
+                sourceKey.contains("infrahomoglyph") || sourceKey.contains("infratyposquat") ||
+                    sourceKey.contains("infradomainage") || sourceKey.contains("infraentropy") ||
+                    sourceKey.contains("infrapunycode") || sourceKey.contains("infraurlbehaviour") ||
+                    sourceKey.contains("infraurltransport") || sourceKey.contains("sigurscanlexical") -> mapInfraThreatIntel(builder, text, targetKey)
                 sourceKey.contains("brandwarning") || sourceKey.contains("corpus") -> mapCorpus(builder, item, text, targetKey)
                 sourceKey.contains("rag") -> mapRag(builder, item, text, targetKey)
             }
+        }
+    }
+
+    private fun mapInfraThreatIntel(builder: SignalBuilder, text: String, targetKey: String) {
+        if (containsAny(text, "punycode", "idn")) {
+            builder.add(EvidenceSource.INFRA_ANALYZER, EvidenceCode.PUNYCODE_HOST, targetKey = targetKey, provider = ProviderId.INFRA)
+        }
+        if (containsAny(text, "homoglyph", "homogl")) {
+            builder.add(EvidenceSource.INFRA_ANALYZER, EvidenceCode.HOMOGLYPH_DOMAIN, targetKey = targetKey, provider = ProviderId.INFRA)
+        }
+        if (containsAny(text, "typosquatting", "lookalike", "mismatch critic")) {
+            builder.add(EvidenceSource.INFRA_ANALYZER, EvidenceCode.TYPOSQUAT_LOOKALIKE, targetKey = targetKey, provider = ProviderId.INFRA)
+        }
+        if (containsAny(text, "domain_age_days", "domeniu recent", "vechime de doar")) {
+            val ageDays = Regex("""(?:domain_age_days|vechime(?:\s+de)?(?:\s+doar)?)\D+(\d{1,5})""")
+                .find(text)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.toIntOrNull()
+            when {
+                ageDays != null && ageDays < 7 -> builder.add(EvidenceSource.INFRA_ANALYZER, EvidenceCode.DOMAIN_AGE_VERY_RECENT, targetKey = targetKey, provider = ProviderId.INFRA)
+                ageDays != null && ageDays < 30 -> builder.add(EvidenceSource.INFRA_ANALYZER, EvidenceCode.DOMAIN_AGE_SUSPICIOUS, targetKey = targetKey, provider = ProviderId.INFRA)
+            }
+        }
+        if (containsAny(text, "entropie", "entropy", "dga")) {
+            builder.add(EvidenceSource.INFRA_ANALYZER, EvidenceCode.DGA_ENTROPY_HIGH, targetKey = targetKey, provider = ProviderId.INFRA)
+        }
+        if (containsAny(text, "url_behaviour", "url behaviour")) {
+            builder.add(EvidenceSource.INFRA_ANALYZER, EvidenceCode.URL_BEHAVIOUR_SUSPICIOUS, targetKey = targetKey, provider = ProviderId.INFRA)
+        }
+        if (containsAny(text, "url_transport", "url transport", "ip_hostname", "http necriptat")) {
+            builder.add(EvidenceSource.INFRA_ANALYZER, EvidenceCode.URL_TRANSPORT_RISK, targetKey = targetKey, provider = ProviderId.INFRA)
         }
     }
 
@@ -438,6 +481,59 @@ object EvidenceSignalNormalizer {
         }
     }
 
+    private fun addBackendInfrastructureSignals(
+        builder: SignalBuilder,
+        backendEvidence: Map<String, Any>?,
+        targetKey: String
+    ) {
+        if (backendEvidence.isNullOrEmpty()) return
+
+        val extractedUrls = (backendEvidence["extracted_urls"] as? List<*>)
+            ?.filterIsInstance<Map<*, *>>()
+            .orEmpty()
+        val youngestDomainAge = extractedUrls
+            .mapNotNull { (it["domain_age_days"] as? Number)?.toInt() }
+            .minOrNull()
+
+        when {
+            youngestDomainAge != null && youngestDomainAge < 7 -> builder.add(
+                EvidenceSource.INFRA_ANALYZER,
+                EvidenceCode.DOMAIN_AGE_VERY_RECENT,
+                targetKey = targetKey,
+                provider = ProviderId.INFRA
+            )
+            youngestDomainAge != null && youngestDomainAge < 30 -> builder.add(
+                EvidenceSource.INFRA_ANALYZER,
+                EvidenceCode.DOMAIN_AGE_SUSPICIOUS,
+                targetKey = targetKey,
+                provider = ProviderId.INFRA
+            )
+        }
+
+        val urlBehaviour = backendEvidence["url_behaviour"] as? Map<*, *>
+        if (!urlBehaviour.isNullOrEmpty() && urlBehaviour.values.any { value ->
+                (value as? List<*>)?.isNotEmpty() == true
+            }
+        ) {
+            builder.add(
+                EvidenceSource.INFRA_ANALYZER,
+                EvidenceCode.URL_BEHAVIOUR_SUSPICIOUS,
+                targetKey = targetKey,
+                provider = ProviderId.INFRA
+            )
+        }
+
+        val urlTransport = backendEvidence["url_transport"] as? Map<*, *>
+        if (!urlTransport.isNullOrEmpty()) {
+            builder.add(
+                EvidenceSource.INFRA_ANALYZER,
+                EvidenceCode.URL_TRANSPORT_RISK,
+                targetKey = targetKey,
+                provider = ProviderId.INFRA
+            )
+        }
+    }
+
     private fun claimListsTargetAsOfficial(text: String, targetKey: String): Boolean {
         val target = normalizeDomain(targetKey)
         if (target.isBlank()) return false
@@ -554,10 +650,27 @@ object EvidenceSignalNormalizer {
         return mentionedOfficialDomain && hrefHosts.any { !isOfficialHost(it) && !isApprovedTrackerHost(it) }
     }
 
-    private fun detectClaimedBrands(normalizedText: String, rawForAnalysis: String): List<BrandPolicyLite> {
+    private fun detectClaimedBrands(
+        normalizedText: String,
+        rawForAnalysis: String,
+        urls: List<String>
+    ): List<BrandPolicyLite> {
         val normalizedRaw = normalizeText(rawForAnalysis)
+        val normalizedHosts = urls
+            .mapNotNull(::hostOf)
+            .joinToString(" ") { host ->
+                normalizeText(
+                    host.replace('.', ' ')
+                        .replace('-', ' ')
+                        .replace('_', ' ')
+                )
+            }
         return brandPolicies.filter { policy ->
-            policy.aliases.any { alias -> containsAlias(normalizedText, alias) || containsAlias(normalizedRaw, alias) }
+            policy.aliases.any { alias ->
+                containsAlias(normalizedText, alias) ||
+                    containsAlias(normalizedRaw, alias) ||
+                    containsAlias(normalizedHosts, alias)
+            }
         }
     }
 
@@ -628,6 +741,10 @@ object EvidenceSignalNormalizer {
             source.contains("urlscan") -> ProviderId.URLSCAN
             source.contains("virustotal") || source == "vt" -> ProviderId.VIRUSTOTAL
             sourceKey.contains("aiofferwebcheck") || sourceKey.contains("offerclaim") -> ProviderId.CLAIM_VERIFIER
+            sourceKey.contains("infrahomoglyph") || sourceKey.contains("infratyposquat") ||
+                sourceKey.contains("infradomainage") || sourceKey.contains("infraentropy") ||
+                sourceKey.contains("infrapunycode") || sourceKey.contains("infraurlbehaviour") ||
+                sourceKey.contains("infraurltransport") || sourceKey.contains("sigurscanlexical") -> ProviderId.INFRA
             sourceKey.contains("brandwarning") || sourceKey.contains("corpus") -> ProviderId.CORPUS
             sourceKey.contains("rag") -> ProviderId.RAG
             else -> null
@@ -649,9 +766,23 @@ object EvidenceSignalNormalizer {
 
     private fun hostOf(url: String?): String? {
         val normalized = normalizeUrl(url) ?: url ?: return null
-        return runCatching {
+        val parsedHost = runCatching {
             URI(normalized).host?.lowercase(Locale.US)?.removePrefix("www.")?.takeIf { it.isNotBlank() }
         }.getOrNull()
+        if (!parsedHost.isNullOrBlank()) return parsedHost
+
+        val authorityCandidate = normalized
+            .substringAfter("://", normalized)
+            .substringBefore('/')
+            .substringBefore('?')
+            .substringBefore('#')
+            .substringAfterLast('@')
+            .substringBefore(':')
+            .lowercase(Locale.US)
+            .removePrefix("www.")
+            .trim()
+
+        return authorityCandidate.takeIf { it.isNotBlank() }
     }
 
     private fun normalizeDomain(domain: String): String = domain.lowercase(Locale.US).removePrefix("www.")
@@ -706,10 +837,49 @@ object EvidenceSignalNormalizer {
     }
 
     private fun normalizeText(value: String): String {
-        val decomposed = Normalizer.normalize(value, Normalizer.Form.NFD)
+        val deconfused = replaceConfusableCharacters(value)
+        val decomposed = Normalizer.normalize(deconfused, Normalizer.Form.NFD)
         return decomposed
             .replace(Regex("\\p{Mn}+"), "")
             .lowercase(Locale.getDefault())
+    }
+
+    private fun replaceConfusableCharacters(value: String): String {
+        if (value.isBlank()) return value
+        return buildString(value.length) {
+            value.forEach { ch ->
+                append(
+                    when (ch) {
+                        'а' -> 'a'
+                        'е' -> 'e'
+                        'о' -> 'o'
+                        'р' -> 'p'
+                        'с' -> 'c'
+                        'у' -> 'y'
+                        'х' -> 'x'
+                        'і' -> 'i'
+                        'ј' -> 'j'
+                        'к' -> 'k'
+                        'м' -> 'm'
+                        'т' -> 't'
+                        'А' -> 'A'
+                        'Е' -> 'E'
+                        'О' -> 'O'
+                        'Р' -> 'P'
+                        'С' -> 'C'
+                        'Υ' -> 'Y'
+                        'Χ' -> 'X'
+                        'І' -> 'I'
+                        'Ј' -> 'J'
+                        'Κ', 'К' -> 'K'
+                        'Μ', 'М' -> 'M'
+                        'Τ', 'Т' -> 'T'
+                        'Β', 'В' -> 'B'
+                        else -> ch
+                    }
+                )
+            }
+        }
     }
 
     private fun containsAny(value: String, vararg needles: String): Boolean {

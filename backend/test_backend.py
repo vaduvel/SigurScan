@@ -28,7 +28,7 @@ from services.telemetry import (
     summarize_feedback_records,
     summarize_feedback_trend,
 )
-from services import url_reputation
+from services import scam_atlas, url_reputation
 from eval.evaluate import run_threshold_sweep
 from email import policy
 from email.message import EmailMessage
@@ -218,6 +218,38 @@ def test_provider_gate_marks_yoxo_official_clean_pillars_as_low_risk():
     assert result["risk_level"] == "low"
     assert result["risk_score"] == 10
     assert result["detected_family_id"] == "provider-gate-official-clean"
+
+
+def test_provider_gate_can_mark_official_destination_clean_without_virustotal():
+    analysis = {
+        "claimed_brand": "eMAG",
+        "risk_level": "medium",
+        "risk_score": 60,
+        "detected_family": "Ofertă verificată",
+        "evidence": {
+            "offer_claim_verification": {"status": "confirmed"},
+            "external_intel_summary": {
+                "google_web_risk": {"status": "clean", "verdict": "clean", "consulted": True},
+                "urlscan": {"status": "clean", "verdict": "clean", "consulted": True},
+            },
+        },
+    }
+    resolved_urls = [
+        {
+            "url": "https://www.emag.ro/order/tracking",
+            "final_url": "https://www.emag.ro/order/tracking",
+            "hostname": "www.emag.ro",
+            "final_hostname": "www.emag.ro",
+            "registered_domain": "emag.ro",
+            "final_registered_domain": "emag.ro",
+        }
+    ]
+
+    result = _apply_provider_gate_verdict(analysis, resolved_urls)
+
+    assert result["risk_level"] == "low"
+    assert result["detected_family_id"] == "provider-gate-official-clean"
+    assert "VirusTotal" not in result["evidence"]["provider_gate"]["missing_required_pillars"]
     assert result["evidence"]["provider_gate"]["official_destination"] is True
     assert result["evidence"]["provider_gate"]["legacy_score_ignored"] is True
 
@@ -1363,6 +1395,49 @@ def test_short_name_typosquatting_only_when_brand_claimed():
     assert any("typosquatting" in reason.lower() for reason in with_claim_result["reasons"])
 
 
+def test_provider_gate_uses_infrastructure_signals_for_lookalike_domain():
+    analysis = {
+        "claimed_brand": "BCR",
+        "risk_level": "high",
+        "risk_score": 84,
+        "detected_family": "Imitare brand",
+        "reasons": [
+            "Detecție Typosquatting: Domeniul 'bcr-login-secure.example' este extrem de similar cu brandul oficial 'BCR'",
+            "Solicitare date sensibile (card, CVC, PIN, cod de securitate)",
+        ],
+        "evidence": {
+            "has_domain_mismatch": True,
+            "extracted_urls": [
+                {
+                    "url": "https://bcr-login-secure.example/card",
+                    "final_url": "https://bcr-login-secure.example/card",
+                    "hostname": "bcr-login-secure.example",
+                    "final_hostname": "bcr-login-secure.example",
+                    "registered_domain": "bcr-login-secure.example",
+                    "final_registered_domain": "bcr-login-secure.example",
+                    "domain_age_days": 4,
+                }
+            ],
+            "external_intel_summary": {
+                "google_web_risk": {"status": "clean", "verdict": "clean", "consulted": True},
+                "urlscan": {"status": "clean", "verdict": "clean", "consulted": True},
+            },
+        },
+    }
+    resolved_urls = analysis["evidence"]["extracted_urls"]
+
+    result = _apply_provider_gate_verdict(analysis, resolved_urls)
+    summary = result["evidence"]["external_intel_summary"]
+
+    assert result["risk_level"] == "high"
+    assert result["detected_family_id"] in {
+        "provider-gate-lookalike-domain",
+        "provider-gate-decisive-structural-danger",
+    }
+    assert "sigurscan_lexical" in summary
+    assert "infra_domain_age" in summary
+
+
 def test_feedback_summary_infers_labels():
     print("Testing feedback summary auto label inference...")
     records = [
@@ -1960,6 +2035,32 @@ def test_scam_atlas_engine():
     print("Scam Atlas Rule Engine Tests: ALL PASS\n")
 
 
+def test_backend_scam_atlas_loads_romania_knowledge_pack_registry():
+    assert "Ghișeul.ro" in scam_atlas.BRAND_REGISTRY
+    assert "ghiseul.ro" in scam_atlas.BRAND_REGISTRY["Ghișeul.ro"]
+    assert "PPC Energie" in scam_atlas.BRAND_REGISTRY
+    assert "ppcenergy.ro" in scam_atlas.BRAND_REGISTRY["PPC Energie"]
+    assert "Orange / YOXO" in scam_atlas.BRAND_REGISTRY
+    assert "newsroom.orange.ro" in scam_atlas.BRAND_REGISTRY["Orange / YOXO"]
+    assert "ghiseul" in scam_atlas.TRUSTED_BASE_NAMES
+    assert scam_atlas.TRUSTED_BASE_NAMES["ghiseul"] == "Ghișeul.ro"
+
+    result = ScamAtlasEngine().analyze(
+        "Ghișeul.ro: mesaj informativ, intră manual pe portal pentru taxe locale.",
+        [
+            {
+                "url": "https://ghiseul.ro",
+                "final_url": "https://ghiseul.ro",
+                "final_hostname": "ghiseul.ro",
+                "final_registered_domain": "ghiseul.ro",
+            }
+        ],
+    )
+
+    assert result["claimed_brand"] == "Ghișeul.ro"
+    assert result["evidence"]["has_domain_mismatch"] is False
+
+
 def test_scam_atlas_regression_false_positives():
     print("Testing Scam Atlas FP regressions (hard_eval alignment)...")
     engine = ScamAtlasEngine()
@@ -2100,7 +2201,7 @@ def test_advanced_scam_detection_modules():
 
 
 def test_supabase_store_requires_server_only_credentials():
-    source = Path("services/supabase_store.py").read_text()
+    source = (Path(__file__).resolve().parent / "services" / "supabase_store.py").read_text()
 
     assert "SUPABASE_SERVICE_ROLE_KEY" in source
     assert "SUPABASE_ANON_KEY" not in source

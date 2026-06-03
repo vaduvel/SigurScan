@@ -1771,6 +1771,89 @@ def _is_decisive_structural_danger(
     return sensitive_intent and (risk_level in {"high", "critical", "dangerous"} or known_structural_family or bool(provider_error_names))
 
 
+def _collect_infrastructure_flags(
+    analysis: Dict[str, Any],
+    resolved_urls: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
+    reasons_text = " ".join(str(item) for item in analysis.get("reasons", []) if item).lower()
+    extracted_urls = evidence.get("extracted_urls") if isinstance(evidence.get("extracted_urls"), list) else resolved_urls
+    url_behaviour = evidence.get("url_behaviour") if isinstance(evidence.get("url_behaviour"), dict) else {}
+    url_transport = evidence.get("url_transport") if isinstance(evidence.get("url_transport"), dict) else {}
+
+    age_days = []
+    for item in extracted_urls or []:
+        if not isinstance(item, dict):
+            continue
+        value = item.get("domain_age_days")
+        try:
+            if value is not None:
+                age_days.append(int(value))
+        except (TypeError, ValueError):
+            continue
+
+    youngest_domain_age_days = min(age_days) if age_days else None
+    return {
+        "typosquat": "typosquatting" in reasons_text or "lookalike" in reasons_text or "mismatch critic" in reasons_text,
+        "homoglyph": "homoglif" in reasons_text or "homoglyph" in reasons_text,
+        "punycode": "punycode" in reasons_text or "idn/punycode" in reasons_text,
+        "dga_entropy": "entropie ridicat" in reasons_text or "entropie mare" in reasons_text or "entropy" in reasons_text or "dga" in reasons_text,
+        "very_new_domain": youngest_domain_age_days is not None and youngest_domain_age_days < 7,
+        "suspicious_domain_age": youngest_domain_age_days is not None and youngest_domain_age_days < 30,
+        "url_behaviour": bool(url_behaviour),
+        "url_transport": bool(url_transport),
+        "youngest_domain_age_days": youngest_domain_age_days,
+    }
+
+
+def _augment_summary_with_infra_flags(summary: Dict[str, Any], infra_flags: Dict[str, Any]) -> None:
+    lexical_labels: List[str] = []
+    if infra_flags.get("homoglyph"):
+        lexical_labels.append("homoglyph")
+    if infra_flags.get("punycode"):
+        lexical_labels.append("punycode")
+    if infra_flags.get("typosquat"):
+        lexical_labels.append("typosquatting")
+    if infra_flags.get("dga_entropy"):
+        lexical_labels.append("entropy")
+    if lexical_labels:
+        summary["sigurscan_lexical"] = {
+            "status": "suspicious",
+            "verdict": ",".join(lexical_labels),
+            "severity": "high" if any(label in {"homoglyph", "punycode", "typosquatting"} for label in lexical_labels) else "medium",
+            "consulted": True,
+            "details": "signals=" + ",".join(lexical_labels),
+        }
+
+    youngest_domain_age_days = infra_flags.get("youngest_domain_age_days")
+    if youngest_domain_age_days is not None and infra_flags.get("suspicious_domain_age"):
+        summary["infra_domain_age"] = {
+            "status": "suspicious",
+            "verdict": "very_new_domain" if infra_flags.get("very_new_domain") else "new_domain",
+            "severity": "high" if infra_flags.get("very_new_domain") else "medium",
+            "consulted": True,
+            "details": f"domain_age_days={youngest_domain_age_days}",
+        }
+
+    if infra_flags.get("url_behaviour"):
+        summary["infra_url_behaviour"] = {
+            "status": "suspicious",
+            "verdict": "url_behaviour",
+            "severity": "medium",
+            "consulted": True,
+            "details": "backend url_behaviour flags present",
+        }
+
+    if infra_flags.get("url_transport"):
+        summary["infra_url_transport"] = {
+            "status": "suspicious",
+            "verdict": "url_transport",
+            "severity": "medium",
+            "consulted": True,
+            "details": "backend url_transport flags present",
+        }
+
+
 def _apply_provider_gate_verdict(
     analysis: Dict[str, Any],
     resolved_urls: List[Dict[str, Any]],
@@ -1782,6 +1865,9 @@ def _apply_provider_gate_verdict(
     summary = evidence.get("external_intel_summary")
     if not isinstance(summary, dict):
         summary = {}
+    infra_flags = _collect_infrastructure_flags(analysis, resolved_urls)
+    _augment_summary_with_infra_flags(summary, infra_flags)
+    evidence["external_intel_summary"] = summary
 
     claimed_brand = str(analysis.get("claimed_brand") or "Nespecificat")
     has_urls = bool(resolved_urls)
@@ -1801,8 +1887,6 @@ def _apply_provider_gate_verdict(
     missing_required_pillars = []
     if has_urls and not web_risk_consulted:
         missing_required_pillars.append("Google Web Risk")
-    if has_urls and not vt_consulted:
-        missing_required_pillars.append("VirusTotal")
     if has_urls and not urlscan_consulted:
         missing_required_pillars.append("urlscan preview")
     if has_urls and not claim_consulted:
@@ -1829,6 +1913,7 @@ def _apply_provider_gate_verdict(
         "legacy_risk_level": legacy_risk_level,
         "offer_status": offer_status or "unknown",
         "legacy_score_ignored": True,
+        "infrastructure_flags": infra_flags,
     }
     provider_error_names = _required_pillar_error_names(pillars)
     decisive_structural_danger = _is_decisive_structural_danger(
@@ -1906,6 +1991,33 @@ def _apply_provider_gate_verdict(
             reasons = ["Linkul ajunge pe o destinatie validata si nu au aparut semnale de risc."]
             family = "Destinatie oficiala verificata"
             family_id = "provider-gate-official-clean"
+    elif has_urls and (
+        infra_flags.get("homoglyph") or infra_flags.get("punycode") or infra_flags.get("typosquat")
+    ) and (has_domain_mismatch or sensitive_request_signal):
+        risk_level = "high"
+        risk_score = max(86, legacy_risk_score)
+        reasons = [
+            "Domeniul final arată ca o imitare a unui brand oficial și mesajul cere o acțiune sensibilă sau nu corespunde canalului oficial."
+        ]
+        family = "Imitare de domeniu / typosquatting"
+        family_id = "provider-gate-lookalike-domain"
+    elif has_urls and (
+        infra_flags.get("homoglyph") or
+        infra_flags.get("punycode") or
+        infra_flags.get("typosquat") or
+        infra_flags.get("very_new_domain") or
+        infra_flags.get("suspicious_domain_age") or
+        infra_flags.get("dga_entropy") or
+        infra_flags.get("url_behaviour") or
+        infra_flags.get("url_transport")
+    ) and not official_destination:
+        risk_level = "medium"
+        risk_score = max(60, min(legacy_risk_score, 75))
+        reasons = [
+            "Destinația finală are semnale tehnice de infrastructură care cer verificare pe canalul oficial înainte de orice acțiune."
+        ]
+        family = "Semnale infrastructură"
+        family_id = "provider-gate-infrastructure-review"
     elif has_domain_mismatch or sensitive_request_signal:
         risk_level = "medium"
         risk_score = 55
@@ -1925,8 +2037,6 @@ def _apply_provider_gate_verdict(
         missing = []
         if not web_risk_consulted:
             missing.append("Google Web Risk")
-        if not vt_consulted:
-            missing.append("VirusTotal")
         if not urlscan_consulted:
             missing.append("urlscan preview")
         if missing:

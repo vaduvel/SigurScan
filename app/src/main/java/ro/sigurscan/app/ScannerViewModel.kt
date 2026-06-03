@@ -868,23 +868,6 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         ).associateBy { it.provider }
     }
 
-    private fun backendGateResultFromScanResponse(response: ScanResponse): GateResult {
-        val normalized = (response.userRiskLevel ?: response.riskLevel).lowercase(Locale.US)
-        val action = when {
-            normalized in setOf("safe", "low") -> GateAction.CONTINUE_WITH_CAUTION
-            normalized in setOf("dangerous", "high", "critical") -> GateAction.DO_NOT_CONTINUE
-            else -> GateAction.VERIFY_OFFICIAL
-        }
-        return GateResult(
-            action = action,
-            finality = GateFinality.FINAL,
-            reasonCodes = listOf("BACKEND_ORCHESTRATED_VERDICT"),
-            decisiveSignalIds = emptyList(),
-            supportingSignalIds = emptyList(),
-            asyncExpected = false
-        )
-    }
-
     private fun buildAssessmentFromBackendScanResponse(
         response: ScanResponse,
         rawInput: String,
@@ -959,15 +942,18 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 redirectChain = chain,
                 threatIntel = threatIntel,
                 providerStates = providerStates,
+                backendEvidence = evidence,
+                backendReasons = response.reasons ?: emptyList(),
                 completeness = EvidenceCompleteness.FULL,
                 registryVersion = BrandKnowledgeRegistry.registryVersion(),
                 corpusVersion = BrandKnowledgeRegistry.corpusVersion(),
                 virusTotalConfigured = VIRUS_TOTAL_API_KEY.isNotBlank()
             )
         )
+        val gateResult = evidenceGate.evaluate(snapshot)
         return result.withGate(
             snapshot = snapshot,
-            gateResult = backendGateResultFromScanResponse(response),
+            gateResult = gateResult,
             rawInput = rawInput,
             mergedThreatIntel = threatIntel
         )
