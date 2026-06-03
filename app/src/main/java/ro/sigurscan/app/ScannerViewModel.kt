@@ -744,6 +744,8 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                     response.extractedUrls ?: emptyList()
                 }
                 val firstUrlEntry = extractedUrls.firstOrNull()
+                val backendPrimaryUrl = pickPrimaryThreatIntelUrl(response, rawInput)
+                    .takeIf { it.isNotBlank() }
 
                 val intelSummary = evidence?.get("external_intel_summary") as? Map<*, *>
                 val reputation = if (intelSummary.isNullOrEmpty()) "Curat (Nicio raportare)" else "Semnalat de ${intelSummary.size} surse"
@@ -755,14 +757,19 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                     else -> "$ageDays zile"
                 }
 
-                val resolvedFinalUrl = firstUrlEntry?.get("final_url")?.toString() ?: ""
+                val resolvedFinalUrl = normalizeCandidateUrl(firstUrlEntry?.get("final_url")?.toString())
+                    ?: backendPrimaryUrl
+                    ?: ""
                 val aiVerdict = response.aiVerdict ?: "Analiză automată finalizată"
 
-                val chain = mapList(firstUrlEntry?.get("redirect_chain")).mapNotNull { it["url"]?.toString() }
+                val chain = mapList(firstUrlEntry?.get("redirect_chain"))
+                    .mapNotNull { normalizeCandidateUrl(it["url"]?.toString()) }
+                    .ifEmpty { listOfNotNull(backendPrimaryUrl) }
                 val threatIntel = buildThreatIntel(evidence, response)
                 val threatIntelTargetUrl = resolvedFinalUrl.ifBlank {
                     firstUrlEntry?.get("url")?.toString()
                         ?: firstUrlEntry?.get("final_url")?.toString()
+                        ?: backendPrimaryUrl
                         ?: urls.firstOrNull()
                         ?: ""
                 }
@@ -803,7 +810,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 val guardedResult = applyEvidenceGate(
                     current = result,
                     rawInput = rawInput,
-                    primaryUrl = threatIntelTargetUrl.takeIf { it.isNotBlank() } ?: urls.firstOrNull(),
+                    primaryUrl = backendPrimaryUrl ?: threatIntelTargetUrl.takeIf { it.isNotBlank() } ?: urls.firstOrNull(),
                     finalUrl = visualEvidenceUrl.takeIf { it.isNotBlank() },
                     redirectChain = chain,
                     threatIntel = threatIntel,
@@ -2143,7 +2150,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
-    private fun pickPrimaryThreatIntelUrl(response: ScanResponse): String {
+    private fun pickPrimaryThreatIntelUrl(response: ScanResponse, rawText: String = text): String {
         val candidates = linkedSetOf<String>()
 
         response.extractedUrls?.forEach { item ->
@@ -2158,15 +2165,22 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         mapList(evidenceMap?.get("extracted_urls")).forEach { item ->
             pickUrlFromMap(item)?.let { candidates.add(it) }
         }
+        mapList(evidenceMap?.get("resolved_urls")).forEach { item ->
+            pickUrlFromMap(item)?.let { candidates.add(it) }
+        }
 
         evidenceMap?.let { map ->
             listOf("url", "final_url", "redirect_url", "source_url", "destination_url").forEach { key ->
                 val candidate = map[key]?.toString()
                 normalizeCandidateUrl(candidate)?.let { candidates.add(it) }
             }
+            val intelSummary = map["external_intel_summary"] as? Map<*, *>
+            intelSummary?.values?.filterIsInstance<Map<*, *>>()?.forEach { sourcePayload ->
+                normalizeCandidateUrl(sourcePayload["url_example"]?.toString())?.let { candidates.add(it) }
+            }
         }
 
-        extractUrls(text).forEach {
+        extractUrls(rawText).forEach {
             normalizeCandidateUrl(it)?.let { candidates.add(it) }
                 ?: if (it.startsWith("www.", ignoreCase = true)) {
                     candidates.add(normalizeUrl(it))
@@ -2177,7 +2191,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
 
         return PrimaryUrlPicker.pick(
             candidates = candidates,
-            rawText = text
+            rawText = rawText
         )
     }
 
