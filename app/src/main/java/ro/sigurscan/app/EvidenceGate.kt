@@ -603,6 +603,7 @@ class EvidenceGate(private val nowMillis: () -> Long = { System.currentTimeMilli
         if (!hasOfficialDestination) return null
         if (!ctx.has(EvidenceCode.NO_SENSITIVE_FORM)) return null
         if (ctx.targetUrl().isNullOrBlank()) return null
+        if (!ctx.hasCompletedRequiredPillars()) return null
         if (ctx.snapshot.completeness == EvidenceCompleteness.LOCAL_ONLY) return null
         if (ctx.hasAny(
                 EvidenceCode.SENSITIVE_FORM_UNOFFICIAL,
@@ -644,7 +645,8 @@ class EvidenceGate(private val nowMillis: () -> Long = { System.currentTimeMilli
 
         val reason = when {
             ctx.isAsyncPending() -> "PROVIDERS_PENDING_FOR_TARGET"
-            ctx.providersUnavailable() -> "PROVIDERS_UNAVAILABLE"
+            ctx.hasRequiredPillarFailure() || ctx.providersUnavailable() -> "PROVIDERS_UNAVAILABLE"
+            ctx.targetNeedsFinalUrlResolution() -> "FINAL_URL_NOT_RESOLVED"
             ctx.targetUrl().isNullOrBlank() -> "PILLARS_NOT_RUN"
             else -> "PROVIDERS_NOT_RUN_FOR_TARGET"
         }
@@ -655,7 +657,8 @@ class EvidenceGate(private val nowMillis: () -> Long = { System.currentTimeMilli
     private fun providerReviewGateResult(ctx: EvalContext, reason: String): GateResult {
         val asyncExpected = ctx.isAsyncPending() || reason in setOf(
             "PROVIDERS_PENDING_FOR_TARGET",
-            "PROVIDERS_NOT_RUN_FOR_TARGET"
+            "PROVIDERS_NOT_RUN_FOR_TARGET",
+            "FINAL_URL_NOT_RESOLVED"
         )
         return GateResult(
             action = GateAction.INSUFFICIENT_EVIDENCE,
@@ -814,15 +817,33 @@ class EvidenceGate(private val nowMillis: () -> Long = { System.currentTimeMilli
                 !hasCompletedRequiredPillars()
             }
         }
-        private fun hasCompletedRequiredPillars(): Boolean {
-            val required = buildSet {
+        fun hasCompletedRequiredPillars(): Boolean {
+            if (targetNeedsFinalUrlResolution()) return false
+            return required.all { provider ->
+                snapshot.providerStates[provider]?.status == ProviderStatus.OK
+            }
+        }
+        fun targetNeedsFinalUrlResolution(): Boolean =
+            !targetUrl().isNullOrBlank() &&
+                snapshot.formActionUrl.isNullOrBlank() &&
+                snapshot.finalUrl.isNullOrBlank()
+
+        fun hasRequiredPillarFailure(): Boolean {
+            return required.any { provider ->
+                snapshot.providerStates[provider]?.status in setOf(
+                    ProviderStatus.ERROR,
+                    ProviderStatus.TIMEOUT,
+                    ProviderStatus.RATE_LIMITED,
+                    ProviderStatus.SKIPPED
+                )
+            }
+        }
+        private val required: Set<ProviderId> by lazy {
+            buildSet {
                 add(ProviderId.WEB_RISK)
                 add(ProviderId.URLSCAN)
                 add(ProviderId.VIRUSTOTAL)
                 if (requiresClaimVerification()) add(ProviderId.CLAIM_VERIFIER)
-            }
-            return required.all { provider ->
-                snapshot.providerStates[provider]?.status == ProviderStatus.OK
             }
         }
         private fun requiresClaimVerification(): Boolean {

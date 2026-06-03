@@ -299,13 +299,16 @@ class EvidenceGateTest {
     }
 
     @Test
-    fun unresolvedShortlinkIsVerifyOfficial() {
+    fun unresolvedShortlinkWaitsForFinalUrlResolution() {
         val result = evaluate(
             EvidenceCode.UNRESOLVED_SHORTLINK,
             primaryUrl = "https://short.example/abc"
         )
 
-        assertAction(GateAction.VERIFY_OFFICIAL, result)
+        assertAction(GateAction.INSUFFICIENT_EVIDENCE, result)
+        assertEquals(GateFinality.PROVISIONAL, result.finality)
+        assertTrue(result.asyncExpected)
+        assertEquals("FINAL_URL_NOT_RESOLVED", result.unknownReason)
     }
 
     @Test
@@ -384,6 +387,70 @@ class EvidenceGateTest {
 
         assertAction(GateAction.CONTINUE_WITH_CAUTION, result)
         assertEquals("Sigur", result.userLabel)
+    }
+
+    @Test
+    fun officialPromoCannotBeSafeUntilClaimVerifierCompletes() {
+        val result = evaluate(
+            EvidenceCode.OFFICIAL_DOMAIN_EXACT,
+            EvidenceCode.NO_SENSITIVE_FORM,
+            EvidenceCode.PROMO_TEXT,
+            EvidenceCode.WEBRISK_NO_MATCH,
+            EvidenceCode.URLSCAN_NO_CLASSIFICATION,
+            EvidenceCode.VIRUSTOTAL_LOW_OR_NO_DETECTION,
+            primaryUrl = "https://smyk.ro/catalogul-ziua-copilului",
+            finalUrl = "https://smyk.ro/catalogul-ziua-copilului",
+            providerStates = mapOf(
+                ProviderId.WEB_RISK to ProviderState(ProviderId.WEB_RISK, ProviderStatus.OK),
+                ProviderId.URLSCAN to ProviderState(ProviderId.URLSCAN, ProviderStatus.OK),
+                ProviderId.VIRUSTOTAL to ProviderState(ProviderId.VIRUSTOTAL, ProviderStatus.OK),
+                ProviderId.CLAIM_VERIFIER to ProviderState(ProviderId.CLAIM_VERIFIER, ProviderStatus.PENDING)
+            )
+        )
+
+        assertAction(GateAction.INSUFFICIENT_EVIDENCE, result)
+        assertEquals(GateFinality.PROVISIONAL, result.finality)
+        assertTrue(result.asyncExpected)
+        assertEquals("PROVIDERS_PENDING_FOR_TARGET", result.unknownReason)
+    }
+
+    @Test
+    fun officialDomainCannotBeSafeUntilUrlscanCompletes() {
+        val result = evaluate(
+            EvidenceCode.OFFICIAL_DOMAIN_EXACT,
+            EvidenceCode.NO_SENSITIVE_FORM,
+            EvidenceCode.WEBRISK_NO_MATCH,
+            EvidenceCode.VIRUSTOTAL_LOW_OR_NO_DETECTION,
+            primaryUrl = "https://smyk.ro/catalogul-ziua-copilului",
+            finalUrl = "https://smyk.ro/catalogul-ziua-copilului",
+            providerStates = mapOf(
+                ProviderId.WEB_RISK to ProviderState(ProviderId.WEB_RISK, ProviderStatus.OK),
+                ProviderId.URLSCAN to ProviderState(ProviderId.URLSCAN, ProviderStatus.PENDING),
+                ProviderId.VIRUSTOTAL to ProviderState(ProviderId.VIRUSTOTAL, ProviderStatus.OK)
+            )
+        )
+
+        assertAction(GateAction.INSUFFICIENT_EVIDENCE, result)
+        assertEquals(GateFinality.PROVISIONAL, result.finality)
+        assertTrue(result.asyncExpected)
+        assertEquals("PROVIDERS_PENDING_FOR_TARGET", result.unknownReason)
+    }
+
+    @Test
+    fun officialDomainCannotBeSafeUntilFinalUrlIsResolved() {
+        val result = evaluate(
+            EvidenceCode.OFFICIAL_DOMAIN_EXACT,
+            EvidenceCode.NO_SENSITIVE_FORM,
+            EvidenceCode.WEBRISK_NO_MATCH,
+            EvidenceCode.URLSCAN_NO_CLASSIFICATION,
+            EvidenceCode.VIRUSTOTAL_LOW_OR_NO_DETECTION,
+            primaryUrl = "https://smyk.ro/catalogul-ziua-copilului"
+        )
+
+        assertAction(GateAction.INSUFFICIENT_EVIDENCE, result)
+        assertEquals(GateFinality.PROVISIONAL, result.finality)
+        assertTrue(result.asyncExpected)
+        assertEquals("FINAL_URL_NOT_RESOLVED", result.unknownReason)
     }
 
     @Test
