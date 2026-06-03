@@ -1684,7 +1684,100 @@ def _official_destination_confirmed(resolved_urls: List[Dict[str, Any]], claimed
     return False
 
 
-def _apply_provider_gate_verdict(analysis: Dict[str, Any], resolved_urls: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _has_decisive_sensitive_intent(text: str) -> bool:
+    normalized = _normalise_obfuscated_text(text or "").lower()
+    money_or_delivery_markers = (
+        "taxa",
+        "taxă",
+        "vamala",
+        "vamală",
+        "neachit",
+        "plata",
+        "plată",
+        "achita",
+        "achită",
+        "card",
+        "cvv",
+        "cvc",
+        "iban",
+        "otp",
+        "parola",
+        "parolă",
+        "pin",
+        "login",
+        "autent",
+        "cnp",
+        "reprogram",
+        "relivrare",
+        "livrare",
+        "colet",
+        "awb",
+    )
+    return any(marker in normalized for marker in money_or_delivery_markers)
+
+
+def _required_pillar_error_names(pillars: Optional[Dict[str, Dict[str, Any]]]) -> List[str]:
+    if not isinstance(pillars, dict):
+        return []
+    names: List[str] = []
+    for name, pillar in pillars.items():
+        if not isinstance(pillar, dict):
+            continue
+        if pillar.get("required", True) and str(pillar.get("status") or "").lower() == "error":
+            names.append(name)
+    return names
+
+
+def _is_decisive_structural_danger(
+    analysis: Dict[str, Any],
+    resolved_urls: List[Dict[str, Any]],
+    *,
+    raw_text: str = "",
+    pillars: Optional[Dict[str, Dict[str, Any]]] = None,
+) -> bool:
+    if not resolved_urls:
+        return False
+
+    evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
+    claimed_brand = str(analysis.get("claimed_brand") or "Nespecificat")
+    if _official_destination_confirmed(resolved_urls, claimed_brand):
+        return False
+
+    has_domain_mismatch = bool(evidence.get("has_domain_mismatch"))
+    risk_level = str(analysis.get("risk_level") or "").lower()
+    family_id = str(analysis.get("detected_family_id") or "").lower()
+    family = str(analysis.get("detected_family") or "").lower()
+    reasons_text = " ".join(str(item) for item in analysis.get("reasons", []) if item)
+    combined_text = " ".join([raw_text or "", reasons_text, family_id, family])
+
+    if not has_domain_mismatch:
+        return False
+
+    sensitive_intent = _has_decisive_sensitive_intent(combined_text)
+    known_structural_family = any(
+        marker in f"{family_id} {family}"
+        for marker in (
+            "curier",
+            "fan",
+            "posta",
+            "anaf",
+            "banca",
+            "revolut",
+            "olx",
+            "marketplace",
+        )
+    )
+    provider_error_names = _required_pillar_error_names(pillars)
+    return sensitive_intent and (risk_level in {"high", "critical", "dangerous"} or known_structural_family or bool(provider_error_names))
+
+
+def _apply_provider_gate_verdict(
+    analysis: Dict[str, Any],
+    resolved_urls: List[Dict[str, Any]],
+    *,
+    raw_text: str = "",
+    pillars: Optional[Dict[str, Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
     evidence = analysis.setdefault("evidence", {})
     summary = evidence.get("external_intel_summary")
     if not isinstance(summary, dict):
@@ -1737,6 +1830,13 @@ def _apply_provider_gate_verdict(analysis: Dict[str, Any], resolved_urls: List[D
         "offer_status": offer_status or "unknown",
         "legacy_score_ignored": True,
     }
+    provider_error_names = _required_pillar_error_names(pillars)
+    decisive_structural_danger = _is_decisive_structural_danger(
+        analysis,
+        resolved_urls,
+        raw_text=raw_text,
+        pillars=pillars,
+    )
 
     if not has_urls:
         if has_domain_mismatch or sensitive_request_signal or bad_provider:
@@ -1767,6 +1867,21 @@ def _apply_provider_gate_verdict(analysis: Dict[str, Any], resolved_urls: List[D
         reasons = ["Scanarea a gasit semnale clare de risc pe destinatie."]
         family = "Risc confirmat"
         family_id = "provider-gate-bad-provider"
+    elif decisive_structural_danger:
+        risk_level = "high"
+        risk_score = max(88, legacy_risk_score)
+        unavailable = ", ".join(provider_error_names) if provider_error_names else ""
+        reasons = [
+            (
+                "Mesajul pretinde un brand cunoscut, dar linkul ajunge pe un domeniu neoficial și cere plată/date sau acțiune sensibilă."
+                + (f" Un pilon tehnic nu a putut scana complet destinația: {unavailable}." if unavailable else "")
+            )
+        ]
+        family = "Impostură brand cu acțiune sensibilă"
+        family_id = "provider-gate-decisive-structural-danger"
+        provider_gate["finalized_with_provider_error"] = bool(provider_error_names)
+        if provider_error_names:
+            provider_gate["provider_errors_used_as_signal"] = provider_error_names
     elif has_urls and missing_required_pillars:
         risk_level = "medium"
         risk_score = 50
@@ -3065,6 +3180,59 @@ def _orchestrated_status_payload(job: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _orchestrated_can_finalize_result(job: Dict[str, Any], pillars: Dict[str, Dict[str, Any]]) -> bool:
+    if _all_required_pillars_ok(pillars):
+        return True
+    analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
+    resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
+    return _is_decisive_structural_danger(
+        analysis,
+        resolved_urls,
+        raw_text=str(job.get("redacted_text") or ""),
+        pillars=pillars,
+    )
+
+
+async def _finalize_orchestrated_job_if_ready(job: Dict[str, Any], request: Request) -> Dict[str, Any]:
+    pillars = _build_orchestrated_pillars(job)
+    if isinstance(job.get("result"), dict) or not _orchestrated_can_finalize_result(job, pillars):
+        return job
+
+    analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
+    resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
+    _apply_provider_gate_verdict(
+        analysis,
+        resolved_urls,
+        raw_text=str(job.get("redacted_text") or ""),
+        pillars=pillars,
+    )
+    ai_explanation = await _build_ai_explanation_async(job.get("redacted_text", ""), analysis, resolved_urls)
+    scan_id = job["scan_id"]
+    response_payload = _build_scan_response(
+        "scan",
+        analysis,
+        job.get("redacted_text", ""),
+        ai_explanation,
+        scan_id=scan_id,
+        extra_fields=job.get("extra_fields") if isinstance(job.get("extra_fields"), dict) else {},
+    )
+    response_payload.setdefault("evidence", {}).setdefault("orchestration", {})
+    response_payload["evidence"]["orchestration"] = {
+        "pillars": pillars,
+        "preview": job.get("preview", {}),
+    }
+    job["result"] = response_payload
+    _emit_scan_event(
+        scan_id=scan_id,
+        scan_payload=response_payload,
+        analysis=analysis,
+        resolved_urls=resolved_urls,
+        input_channel=job.get("input_type", "text"),
+        source_channel=job.get("source_channel"),
+    )
+    return job
+
+
 async def _submit_orchestrated_urlscan(
     url: str,
     payload: OrchestratedScanRequest,
@@ -3212,6 +3380,7 @@ async def _create_orchestrated_job(payload: OrchestratedScanRequest, request: Re
         },
         "extra_fields": extra_fields,
     }
+    job = await _finalize_orchestrated_job_if_ready(job, request)
     _persist_orchestrated_job(job)
     return job
 
@@ -3246,36 +3415,7 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
             if isinstance(summary, dict):
                 summary["urlscan"] = _urlscan_provider_payload(result)
 
-    pillars = _build_orchestrated_pillars(job)
-    if _all_required_pillars_ok(pillars) and not isinstance(job.get("result"), dict):
-        analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
-        resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
-        _apply_provider_gate_verdict(analysis, resolved_urls)
-        ai_explanation = await _build_ai_explanation_async(job.get("redacted_text", ""), analysis, resolved_urls)
-        scan_id = job["scan_id"]
-        response_payload = _build_scan_response(
-            "scan",
-            analysis,
-            job.get("redacted_text", ""),
-            ai_explanation,
-            scan_id=scan_id,
-            extra_fields=job.get("extra_fields") if isinstance(job.get("extra_fields"), dict) else {},
-        )
-        response_payload.setdefault("evidence", {}).setdefault("orchestration", {})
-        response_payload["evidence"]["orchestration"] = {
-            "pillars": pillars,
-            "preview": job.get("preview", {}),
-        }
-        job["result"] = response_payload
-        _emit_scan_event(
-            scan_id=scan_id,
-            scan_payload=response_payload,
-            analysis=analysis,
-            resolved_urls=resolved_urls,
-            input_channel=job.get("input_type", "text"),
-            source_channel=job.get("source_channel"),
-        )
-    return job
+    return await _finalize_orchestrated_job_if_ready(job, request)
 
 
 @app.post("/v1/scan/orchestrated")

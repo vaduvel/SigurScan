@@ -417,6 +417,107 @@ def _clean_external_intel_for_resolved_urls(resolved_urls, *args, **kwargs):
     return output
 
 
+def _clean_web_risk_and_vt_for_resolved_urls(resolved_urls, *args, **kwargs):
+    output = {}
+    for entry in resolved_urls:
+        final_url = entry.get("final_url") or entry.get("url")
+        if not final_url:
+            continue
+        output[final_url] = {
+            "verdict": "clean",
+            "risk_score": 0,
+            "sources": {
+                "google_web_risk": {"status": "clean", "consulted": True, "score": 0, "threat_type": "unknown"},
+                "virustotal": {"status": "clean", "consulted": True, "score": 0, "threat_type": "unknown"},
+            },
+        }
+    return output
+
+
+def _fake_fan_relivrare_scan(urls):
+    resolved = []
+    for raw_url in urls:
+        resolved.append(
+            {
+                "url": raw_url,
+                "original_url": raw_url,
+                "final_url": "https://fancurier-relivrare.com/plata",
+                "hostname": "fancurier-relivrare.com",
+                "final_hostname": "fancurier-relivrare.com",
+                "registered_domain": "fancurier-relivrare.com",
+                "final_registered_domain": "fancurier-relivrare.com",
+                "redirect_chain": [{"url": raw_url}],
+                "redirect_count": 0,
+                "shortener_count": 0,
+                "uses_shortener": False,
+                "detected_soft_redirects": [],
+                "domain_age_days": None,
+                "domain_created_date": None,
+                "has_mx_records": False,
+                "success": False,
+                "error": "DNS lookup failed",
+            }
+        )
+    return resolved
+
+
+async def _fake_inconclusive_offer_claim(text, analysis, resolved_urls):
+    offer_claim = {
+        "provider": "ai_offer_web_check",
+        "status": "inconclusive",
+        "verdict": "inconclusive",
+        "severity": "unknown",
+        "summary": "Nu exista confirmare oficiala pentru claim.",
+        "details": "Nu exista confirmare oficiala pentru claim.",
+        "confidence": 30,
+        "claimed_brand": analysis.get("claimed_brand") or "FAN Courier",
+        "official_domains": ["fancourier.ro", "selfawb.ro"],
+        "evidence_urls": [],
+        "method": "test",
+        "official_source_found": False,
+    }
+    app_main._attach_offer_claim_verification(analysis, offer_claim)
+    return offer_claim
+
+
+def _fake_urlscan_post_rejects_domain(url, headers, json, timeout):
+    return _FakeUrlscanResponse(status_code=400, payload={"message": "bad domain"})
+
+
+def test_orchestrated_fan_payment_scam_finalizes_dangerous_when_urlscan_rejects_domain(monkeypatch):
+    client = TestClient(app_main.app)
+    message = (
+        "FanCourier: Coletul dvs. nr. 8842231 nu a putut fi livrat — taxă vamală neachitată 3,50 RON. "
+        "Reprogramați livrarea: https://fancurier-relivrare.com/plata"
+    )
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
+        patched.setattr(app_main, "ENABLE_CLOUD_AI_EXPLANATION", False)
+        patched.setattr(app_main, "URLSCAN_API_KEY", "server-only-key")
+        patched.setattr(app_main, "_safe_scan_url_list", _fake_fan_relivrare_scan)
+        patched.setattr(app_main, "_gather_external_intel_safe", _clean_web_risk_and_vt_for_resolved_urls)
+        patched.setattr(app_main, "_enrich_offer_claim_verification_async", _fake_inconclusive_offer_claim)
+        patched.setattr(app_main.requests, "post", _fake_urlscan_post_rejects_domain)
+
+        response = client.post(
+            "/v1/scan/orchestrated",
+            json={"input_type": "text", "text": message, "source_channel": "android_native"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "complete"
+    assert payload["pillars"]["google_web_risk"]["status"] == "ok"
+    assert payload["pillars"]["virustotal"]["status"] == "ok"
+    assert payload["pillars"]["urlscan"]["status"] == "error"
+    assert payload["preview"]["screenshot_url"] is None
+    assert payload["result"]["user_risk_label"] == "PERICULOS"
+    assert payload["result"]["risk_level"] == "high"
+    assert payload["result"]["detected_family_id"] == "provider-gate-decisive-structural-danger"
+    assert payload["result"]["evidence"]["provider_gate"]["finalized_with_provider_error"] is True
+
+
 def test_user_risk_level_labels():
     assert _user_risk_level_label("critical") == "PERICULOS"
     assert _user_risk_level_label("high") == "PERICULOS"
