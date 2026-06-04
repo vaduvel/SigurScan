@@ -915,7 +915,11 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             safeActions = response.safeActions ?: emptyList(),
             keyDangers = response.keyDangers ?: emptyList(),
             originalText = rawInput,
-            serverInfo = "Scanarea completă a fost finalizată.",
+            serverInfo = if (response.isFinal == false) {
+                "Avem un verdict provizoriu. Continuăm verificarea preview-ului securizat."
+            } else {
+                "Scanarea completă a fost finalizată."
+            },
             redirectChain = chain,
             finalUrl = visualEvidenceUrl.takeIf { it.isNotBlank() },
             offerAnalysis = response.offerAnalysis,
@@ -1026,14 +1030,23 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         publishAssessmentResult(existingScanId ?: response.scanId, updated)
     }
 
+    private fun shouldContinueOrchestratedPolling(response: OrchestratedScanResponse): Boolean {
+        val status = response.status?.lowercase(Locale.US)
+        if (status == "complete") return false
+        return status == "scanning" ||
+                status == "ready" ||
+                response.result == null ||
+                response.result.isFinal == false
+    }
+
     private suspend fun runBackendOrchestratedScan(rawInput: String, htmlPayload: String?, urls: List<String>) {
         val preliminary = startBackendOrchestratedPendingAssessment(rawInput, urls)
         var response = api.startOrchestratedScan(orchestratedRequest(rawInput, htmlPayload, urls))
         publishOrchestratedResponse(response, rawInput, urls, preliminary?.scanId)
 
         var attempts = 0
-        val maxAttempts = 18
-        while (response.result == null && response.status?.lowercase(Locale.US) == "scanning" && attempts < maxAttempts) {
+        val maxAttempts = 32
+        while (shouldContinueOrchestratedPolling(response) && attempts < maxAttempts) {
             attempts += 1
             kotlinx.coroutines.delay(5000)
             response = api.getOrchestratedScan(response.scanId)

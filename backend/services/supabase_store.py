@@ -64,6 +64,31 @@ def _post_json(table: str, payload: Dict[str, Any], prefer: str = "return=minima
         return
 
 
+def _patch_json(
+    table: str,
+    payload: Dict[str, Any],
+    params: Dict[str, Any],
+    prefer: str = "return=minimal",
+) -> List[Dict[str, Any]]:
+    if not is_supabase_enabled():
+        return []
+    try:
+        response = requests.patch(
+            _table_url(table),
+            headers=_headers(prefer),
+            params=params,
+            json=payload,
+            timeout=SUPABASE_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        if not response.content:
+            return []
+        data = response.json()
+    except Exception:
+        return []
+    return data if isinstance(data, list) else []
+
+
 def _get_json(table: str, params: Dict[str, Any]) -> List[Dict[str, Any]]:
     if not is_supabase_enabled():
         return []
@@ -194,23 +219,58 @@ def save_reputation_cache(cache: Dict[str, Any]) -> None:
         _post_json("url_reputation_cache", row, "resolution=merge-duplicates,return=minimal")
 
 
-def save_scan_job(job: Dict[str, Any]) -> None:
+def save_scan_job(job: Dict[str, Any]) -> bool:
     if not is_supabase_enabled() or not isinstance(job, dict):
-        return
+        return True
     scan_id = job.get("scan_id")
     if not scan_id:
-        return
+        return False
+    storage_updated_at = job.get("_storage_updated_at")
+    persisted_payload = dict(job)
+    persisted_payload.pop("_storage_updated_at", None)
     expires_at = _ts_to_iso(job.get("expires_at"))
     row = {
         "scan_id": scan_id,
         "status": job.get("status", "scanning"),
         "input_type": job.get("input_type", "unknown"),
         "source_channel": job.get("source_channel"),
-        "payload": job,
+        "payload": persisted_payload,
     }
     if expires_at:
         row["expires_at"] = expires_at
-    _post_json("scan_jobs", row, "resolution=merge-duplicates,return=minimal")
+    if isinstance(storage_updated_at, str) and storage_updated_at.strip():
+        rows = _patch_json(
+            "scan_jobs",
+            row,
+            {
+                "scan_id": f"eq.{scan_id}",
+                "updated_at": f"eq.{storage_updated_at}",
+            },
+            "return=representation",
+        )
+        if not rows:
+            return False
+        updated_at = rows[0].get("updated_at")
+        if isinstance(updated_at, str):
+            job["_storage_updated_at"] = updated_at
+        return True
+
+    try:
+        response = requests.post(
+            _table_url("scan_jobs"),
+            headers=_headers("resolution=merge-duplicates,return=representation"),
+            json=row,
+            timeout=SUPABASE_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        data = response.json() if response.content else []
+        if isinstance(data, list) and data:
+            updated_at = data[0].get("updated_at")
+            if isinstance(updated_at, str):
+                job["_storage_updated_at"] = updated_at
+        return True
+    except Exception:
+        return False
 
 
 def load_scan_job(scan_id: str) -> Optional[Dict[str, Any]]:
@@ -219,7 +279,7 @@ def load_scan_job(scan_id: str) -> Optional[Dict[str, Any]]:
     rows = _get_json(
         "scan_jobs",
         {
-            "select": "payload",
+            "select": "payload,updated_at",
             "scan_id": f"eq.{scan_id}",
             "limit": "1",
         },
@@ -227,4 +287,9 @@ def load_scan_job(scan_id: str) -> Optional[Dict[str, Any]]:
     if not rows:
         return None
     payload = rows[0].get("payload")
-    return payload if isinstance(payload, dict) else None
+    if not isinstance(payload, dict):
+        return None
+    updated_at = rows[0].get("updated_at")
+    if isinstance(updated_at, str):
+        payload["_storage_updated_at"] = updated_at
+    return payload

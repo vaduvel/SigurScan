@@ -53,6 +53,7 @@ data class ScanResponse(
     @SerializedName("scan_id") val scanId: String,
     @SerializedName("risk_score") val riskScore: Int,
     @SerializedName("risk_level") val riskLevel: String,
+    @SerializedName("is_final") val isFinal: Boolean? = null,
     @SerializedName("user_risk_level") val userRiskLevel: String? = null,
     @SerializedName("user_risk_label") val userRiskLabel: String? = null,
     @SerializedName("detected_family") val detectedFamily: String? = null,

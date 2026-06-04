@@ -29,7 +29,7 @@ from services.telemetry import (
     summarize_feedback_records,
     summarize_feedback_trend,
 )
-from services import scam_atlas, url_reputation
+from services import scam_atlas, supabase_store, url_reputation
 from eval.evaluate import run_threshold_sweep
 from email import policy
 from email.message import EmailMessage
@@ -496,7 +496,42 @@ def _fake_urlscan_get_clean_without_screenshot(url, headers, timeout, **kwargs):
     return _FakeUrlscanResponse(status_code=404, payload={"message": "screenshot not ready"})
 
 
-def test_orchestrated_text_scan_waits_for_urlscan_preview_before_safe(monkeypatch):
+def _fake_urlscan_get_malicious(url, headers, timeout, **kwargs):
+    if "result/urlscan-yoxo-1" in url:
+        return _FakeUrlscanResponse(
+            payload={
+                "task": {"url": "https://buyback.yoxo.ro/"},
+                "page": {
+                    "url": "https://evil-phishing.test/login",
+                    "ip": "203.0.113.66",
+                    "country": "RO",
+                    "server": "nginx",
+                },
+                "verdicts": {
+                    "overall": {
+                        "malicious": True,
+                        "suspicious": True,
+                        "score": 100,
+                        "categories": ["phishing"],
+                    }
+                },
+                "brands": ["YOXO"],
+            }
+        )
+    return _FakeUrlscanResponse(content=b"\x89PNG\r\n", headers={"content-type": "image/png"})
+
+
+def _poll_orchestrated(client: TestClient, scan_id: str, count: int = 1):
+    payload = None
+    response = None
+    for _ in range(count):
+        response = client.get(f"/v1/scan/orchestrated/{scan_id}")
+        assert response.status_code == 200
+        payload = response.json()
+    return response, payload
+
+
+def test_orchestrated_post_accepts_without_running_providers(monkeypatch):
     client = TestClient(app_main.app)
     message = (
         "Ai un telefon sau o tableta pe care nu le mai folosesti? "
@@ -507,10 +542,21 @@ def test_orchestrated_text_scan_waits_for_urlscan_preview_before_safe(monkeypatc
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
         patched.setattr(app_main, "URLSCAN_API_KEY", "server-only-key")
-        patched.setattr(app_main, "_safe_scan_url_list", _fake_yoxo_safe_scan)
-        patched.setattr(app_main, "_gather_external_intel_safe", _clean_external_intel_for_resolved_urls)
-        patched.setattr(app_main, "_enrich_offer_claim_verification_async", _fake_confirmed_offer_claim)
-        patched.setattr(app_main.requests, "post", _fake_urlscan_post)
+        patched.setattr(
+            app_main,
+            "_safe_scan_url_list",
+            lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("POST must not resolve URLs")),
+        )
+        patched.setattr(
+            app_main,
+            "_gather_external_intel_safe",
+            lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("POST must not call providers")),
+        )
+        patched.setattr(
+            app_main.requests,
+            "post",
+            lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("POST must not submit urlscan")),
+        )
 
         response = client.post(
             "/v1/scan/orchestrated",
@@ -522,12 +568,12 @@ def test_orchestrated_text_scan_waits_for_urlscan_preview_before_safe(monkeypatc
     assert payload["status"] == "scanning"
     assert payload["scan_id"].startswith("orch_")
     assert payload["result"] is None
-    assert payload["pillars"]["final_url"]["status"] == "ok"
-    assert payload["pillars"]["google_web_risk"]["status"] == "ok"
-    assert payload["pillars"]["virustotal"]["status"] == "ok"
-    assert payload["pillars"]["claim_verifier"]["status"] == "ok"
+    assert payload["pillars"]["final_url"]["status"] == "pending"
+    assert payload["pillars"]["google_web_risk"]["status"] == "pending"
+    assert payload["pillars"]["virustotal"]["status"] == "pending"
+    assert payload["pillars"]["claim_verifier"]["status"] == "not_required"
     assert payload["pillars"]["urlscan"]["status"] == "pending"
-    assert payload["preview"]["screenshot_url"]
+    assert payload["preview"]["screenshot_url"] is None
 
 
 def test_orchestrated_text_scan_completes_safe_after_urlscan_preview(monkeypatch):
@@ -551,19 +597,19 @@ def test_orchestrated_text_scan_completes_safe_after_urlscan_preview(monkeypatch
             "/v1/scan/orchestrated",
             json={"input_type": "text", "text": message, "source_channel": "android_native"},
         ).json()
-        response = client.get(f"/v1/scan/orchestrated/{start['scan_id']}")
+        response, payload = _poll_orchestrated(client, start["scan_id"], count=4)
 
     assert response.status_code == 200
-    payload = response.json()
     assert payload["status"] == "complete"
     assert payload["pillars"]["urlscan"]["status"] == "ok"
     assert payload["preview"]["screenshot_url"]
     assert payload["result"]["user_risk_label"] == "SIGUR"
     assert payload["result"]["risk_level"] == "low"
+    assert payload["result"]["is_final"] is True
     assert payload["result"]["evidence"]["provider_gate"]["urlscan_consulted"] is True
 
 
-def test_orchestrated_scan_waits_when_urlscan_result_exists_but_screenshot_is_not_ready(monkeypatch):
+def test_orchestrated_scan_finalizes_when_urlscan_report_exists_but_screenshot_is_not_ready(monkeypatch):
     client = TestClient(app_main.app)
     message = (
         "Ai un telefon sau o tableta pe care nu le mai folosesti? "
@@ -584,16 +630,53 @@ def test_orchestrated_scan_waits_when_urlscan_result_exists_but_screenshot_is_no
             "/v1/scan/orchestrated",
             json={"input_type": "text", "text": message, "source_channel": "android_native"},
         ).json()
-        response = client.get(f"/v1/scan/orchestrated/{start['scan_id']}")
+        response, payload = _poll_orchestrated(client, start["scan_id"], count=4)
 
     assert response.status_code == 200
-    payload = response.json()
     assert payload["status"] == "scanning"
     assert payload["pillars"]["urlscan"]["status"] == "pending"
-    assert payload["result"] is None
+    assert payload["result"]["user_risk_label"] == "SIGUR"
+    assert payload["result"]["risk_level"] == "low"
+    assert payload["result"]["is_final"] is False
 
 
-def test_orchestrated_scan_times_out_urlscan_screenshot_as_suspect(monkeypatch):
+def test_orchestrated_urlscan_late_risk_upgrades_provisional_safe_verdict(monkeypatch):
+    client = TestClient(app_main.app)
+    message = (
+        "Ai un telefon sau o tableta pe care nu le mai folosesti? "
+        "Acum le poti transforma rapid in bani cu serviciul de buy-back YOXO. "
+        "Afla cat valoreaza dispozitivul tau si incepe procesul chiar acum: buyback.yoxo.ro"
+    )
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
+        patched.setattr(app_main, "ENABLE_CLOUD_AI_EXPLANATION", False)
+        patched.setattr(app_main, "URLSCAN_API_KEY", "server-only-key")
+        patched.setattr(app_main, "_safe_scan_url_list", _fake_yoxo_safe_scan)
+        patched.setattr(app_main, "_gather_external_intel_safe", _clean_external_intel_for_resolved_urls)
+        patched.setattr(app_main, "_enrich_offer_claim_verification_async", _fake_confirmed_offer_claim)
+        patched.setattr(app_main.requests, "post", _fake_urlscan_post)
+        patched.setattr(app_main.requests, "get", _fake_urlscan_get_malicious)
+
+        start = client.post(
+            "/v1/scan/orchestrated",
+            json={"input_type": "text", "text": message, "source_channel": "android_native"},
+        ).json()
+        _, provisional = _poll_orchestrated(client, start["scan_id"], count=2)
+        _, upgraded = _poll_orchestrated(client, start["scan_id"], count=2)
+
+    assert provisional["status"] == "scanning"
+    assert provisional["result"]["user_risk_label"] == "SIGUR"
+    assert provisional["result"]["is_final"] is False
+    assert upgraded["status"] == "complete"
+    assert upgraded["pillars"]["urlscan"]["status"] == "ok"
+    assert upgraded["result"]["user_risk_label"] == "PERICULOS"
+    assert upgraded["result"]["risk_level"] == "high"
+    assert upgraded["result"]["is_final"] is True
+    assert upgraded["result"]["evidence"]["provider_gate"]["urlscan_consulted"] is True
+
+
+def test_orchestrated_scan_keeps_clean_verdict_when_urlscan_screenshot_times_out(monkeypatch):
     client = TestClient(app_main.app)
     message = (
         "Ai primit produsul Flanco. Dorim sa fim mai buni pentru tine, "
@@ -615,17 +698,17 @@ def test_orchestrated_scan_times_out_urlscan_screenshot_as_suspect(monkeypatch):
             "/v1/scan/orchestrated",
             json={"input_type": "text", "text": message, "source_channel": "android_native"},
         ).json()
+        _poll_orchestrated(client, start["scan_id"], count=3)
         app_main._ORCHESTRATED_SCAN_JOBS[start["scan_id"]]["created_at"] -= 5
-        response = client.get(f"/v1/scan/orchestrated/{start['scan_id']}")
+        response, payload = _poll_orchestrated(client, start["scan_id"], count=1)
 
     assert response.status_code == 200
-    payload = response.json()
     assert payload["status"] == "complete"
     assert payload["pillars"]["urlscan"]["status"] == "error"
     assert "captura" in payload["pillars"]["urlscan"]["details"].lower()
-    assert payload["result"]["user_risk_label"] == "SUSPECT"
-    assert payload["result"]["risk_level"] == "medium"
-    assert payload["result"]["detected_family_id"] == "provider-gate-partial-pillars"
+    assert payload["result"]["user_risk_label"] == "SIGUR"
+    assert payload["result"]["risk_level"] == "low"
+    assert payload["result"]["is_final"] is True
 
 
 def _clean_external_intel_for_resolved_urls(resolved_urls, *args, **kwargs):
@@ -784,13 +867,13 @@ def test_orchestrated_fan_payment_scam_finalizes_dangerous_when_urlscan_rejects_
         patched.setattr(app_main, "_enrich_offer_claim_verification_async", _fake_inconclusive_offer_claim)
         patched.setattr(app_main.requests, "post", _fake_urlscan_post_rejects_domain)
 
-        response = client.post(
+        start = client.post(
             "/v1/scan/orchestrated",
             json={"input_type": "text", "text": message, "source_channel": "android_native"},
-        )
+        ).json()
+        response, payload = _poll_orchestrated(client, start["scan_id"], count=3)
 
     assert response.status_code == 200
-    payload = response.json()
     assert payload["status"] == "complete"
     assert payload["pillars"]["google_web_risk"]["status"] == "ok"
     assert payload["pillars"]["virustotal"]["status"] == "ok"
@@ -799,7 +882,6 @@ def test_orchestrated_fan_payment_scam_finalizes_dangerous_when_urlscan_rejects_
     assert payload["result"]["user_risk_label"] == "PERICULOS"
     assert payload["result"]["risk_level"] == "high"
     assert payload["result"]["detected_family_id"] == "provider-gate-decisive-structural-danger"
-    assert payload["result"]["evidence"]["provider_gate"]["finalized_with_provider_error"] is True
 
 
 def test_orchestrated_hard_malicious_provider_finalizes_even_when_urlscan_rejects(monkeypatch):
@@ -814,17 +896,17 @@ def test_orchestrated_hard_malicious_provider_finalizes_even_when_urlscan_reject
         patched.setattr(app_main, "_enrich_offer_claim_verification_async", _fake_inconclusive_offer_claim)
         patched.setattr(app_main.requests, "post", _fake_urlscan_post_rejects_domain)
 
-        response = client.post(
+        start = client.post(
             "/v1/scan/orchestrated",
             json={
                 "input_type": "url",
                 "url": "https://testsafebrowsing.appspot.com/s/phishing.html",
                 "source_channel": "android_native",
             },
-        )
+        ).json()
+        response, payload = _poll_orchestrated(client, start["scan_id"], count=3)
 
     assert response.status_code == 200
-    payload = response.json()
     assert payload["status"] == "complete"
     assert payload["pillars"]["google_web_risk"]["status"] == "ok"
     assert payload["pillars"]["virustotal"]["status"] == "ok"
@@ -2606,6 +2688,89 @@ def test_supabase_store_requires_server_only_credentials():
     assert "SUPABASE_ANON_KEY" not in source
     assert "hslqboubacrdhatmqcky.supabase.co" not in source
     assert "eyJhbGci" not in source
+
+
+class _FakeSupabaseResponse:
+    def __init__(self, data):
+        self._data = data
+        self.content = json.dumps(data).encode("utf-8")
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self._data
+
+
+def test_supabase_scan_job_load_attaches_storage_timestamp(monkeypatch):
+    with monkeypatch.context() as patched:
+        patched.setattr(supabase_store, "SUPABASE_URL", "https://example.supabase.co")
+        patched.setattr(supabase_store, "SUPABASE_SERVICE_ROLE_KEY", "server-only-key")
+        patched.setattr(
+            supabase_store.requests,
+            "get",
+            lambda *args, **kwargs: _FakeSupabaseResponse(
+                [
+                    {
+                        "payload": {"scan_id": "orch_test", "status": "scanning"},
+                        "updated_at": "2026-06-04T10:00:00+00:00",
+                    }
+                ]
+            ),
+        )
+
+        job = supabase_store.load_scan_job("orch_test")
+
+    assert job["scan_id"] == "orch_test"
+    assert job["_storage_updated_at"] == "2026-06-04T10:00:00+00:00"
+
+
+def test_supabase_scan_job_save_uses_optimistic_concurrency(monkeypatch):
+    calls = []
+
+    def fake_patch(*args, **kwargs):
+        calls.append(kwargs)
+        return _FakeSupabaseResponse([{"updated_at": "2026-06-04T10:00:01+00:00"}])
+
+    with monkeypatch.context() as patched:
+        patched.setattr(supabase_store, "SUPABASE_URL", "https://example.supabase.co")
+        patched.setattr(supabase_store, "SUPABASE_SERVICE_ROLE_KEY", "server-only-key")
+        patched.setattr(supabase_store.requests, "patch", fake_patch)
+
+        job = {
+            "scan_id": "orch_test",
+            "status": "scanning",
+            "payload_field": "value",
+            "_storage_updated_at": "2026-06-04T10:00:00+00:00",
+        }
+        saved = supabase_store.save_scan_job(job)
+
+    assert saved is True
+    assert calls[0]["params"]["scan_id"] == "eq.orch_test"
+    assert calls[0]["params"]["updated_at"] == "eq.2026-06-04T10:00:00+00:00"
+    assert "_storage_updated_at" not in calls[0]["json"]["payload"]
+    assert job["_storage_updated_at"] == "2026-06-04T10:00:01+00:00"
+
+
+def test_supabase_scan_job_save_reports_concurrency_conflict(monkeypatch):
+    with monkeypatch.context() as patched:
+        patched.setattr(supabase_store, "SUPABASE_URL", "https://example.supabase.co")
+        patched.setattr(supabase_store, "SUPABASE_SERVICE_ROLE_KEY", "server-only-key")
+        patched.setattr(
+            supabase_store.requests,
+            "patch",
+            lambda *args, **kwargs: _FakeSupabaseResponse([]),
+        )
+
+        saved = supabase_store.save_scan_job(
+            {
+                "scan_id": "orch_test",
+                "status": "scanning",
+                "_storage_updated_at": "2026-06-04T10:00:00+00:00",
+            }
+        )
+
+    assert saved is False
 
 
 def test_backend_security_defaults_are_launch_safe():

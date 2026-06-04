@@ -1670,7 +1670,23 @@ def _provider_reason_has_sensitive_request_signal(reasons: List[str]) -> bool:
 
 def _has_bad_provider_verdict(summary: Dict[str, Any]) -> bool:
     provider_names = ("google_web_risk", "virustotal", "urlscan", "urlscan.io", "urlhaus")
-    return any(_source_status(summary, name) in {"malicious", "suspicious", "phishing", "malware"} for name in provider_names)
+    bad_tokens = ("malicious", "suspicious", "phishing", "phish", "malware")
+    benign_phrases = ("no malicious", "not malicious", "no classification", "no malicious classification")
+    for name in provider_names:
+        raw = summary.get(name)
+        if not isinstance(raw, dict):
+            continue
+        status = str(raw.get("status") or "").strip().lower()
+        if status in {"clean", "no_match", "no-match", "unknown", "missing", "error"}:
+            continue
+        if any(token in status for token in bad_tokens):
+            return True
+        verdict = str(raw.get("verdict") or raw.get("threat_type") or "").strip().lower()
+        if any(phrase in verdict for phrase in benign_phrases):
+            continue
+        if any(token in verdict for token in bad_tokens):
+            return True
+    return False
 
 
 def _official_destination_confirmed(resolved_urls: List[Dict[str, Any]], claimed_brand: str) -> bool:
@@ -1978,8 +1994,6 @@ def _apply_provider_gate_verdict(
     missing_required_pillars = []
     if has_urls and not web_risk_consulted:
         missing_required_pillars.append("Google Web Risk")
-    if has_urls and not urlscan_consulted:
-        missing_required_pillars.append("urlscan preview")
     if has_urls and not claim_consulted:
         missing_required_pillars.append("verificare oferta/claim")
     consulted_sources = [
@@ -3229,14 +3243,26 @@ ORCHESTRATED_JOB_TTL_SECONDS = int(os.getenv("ORCHESTRATED_JOB_TTL_SECONDS", "90
 ORCHESTRATED_URLSCAN_PENDING_TIMEOUT_SECONDS = int(
     os.getenv("ORCHESTRATED_URLSCAN_PENDING_TIMEOUT_SECONDS", "120")
 )
+ORCHESTRATED_REQUIRED_PILLAR_TIMEOUT_SECONDS = int(
+    os.getenv("ORCHESTRATED_REQUIRED_PILLAR_TIMEOUT_SECONDS", "90")
+)
 _ORCHESTRATED_SCAN_JOBS: Dict[str, Dict[str, Any]] = {}
+_ORCHESTRATED_SCAN_LOCKS: Dict[str, asyncio.Lock] = {}
 
 
-def _persist_orchestrated_job(job: Dict[str, Any]) -> None:
+def _persist_orchestrated_job(job: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(job, dict) or not job.get("scan_id"):
-        return
-    _ORCHESTRATED_SCAN_JOBS[str(job["scan_id"])] = job
-    supabase_store.save_scan_job(job)
+        return job
+    scan_id = str(job["scan_id"])
+    saved = supabase_store.save_scan_job(job)
+    if saved is False:
+        reloaded = supabase_store.load_scan_job(scan_id)
+        if isinstance(reloaded, dict):
+            _ORCHESTRATED_SCAN_JOBS[scan_id] = reloaded
+            return reloaded
+        return job
+    _ORCHESTRATED_SCAN_JOBS[scan_id] = job
+    return job
 
 
 def _load_orchestrated_job(scan_id: str) -> Optional[Dict[str, Any]]:
@@ -3259,6 +3285,7 @@ def _prune_orchestrated_jobs() -> None:
     ]
     for scan_id in expired:
         _ORCHESTRATED_SCAN_JOBS.pop(scan_id, None)
+        _ORCHESTRATED_SCAN_LOCKS.pop(scan_id, None)
 
 
 def _pillar(status: str, *, required: bool = True, details: str = "", ref: Optional[str] = None) -> Dict[str, Any]:
@@ -3276,7 +3303,7 @@ def _pillar(status: str, *, required: bool = True, details: str = "", ref: Optio
 def _provider_pillar_from_summary(summary: Dict[str, Any], source_name: str) -> Dict[str, Any]:
     raw = summary.get(source_name)
     if not isinstance(raw, dict):
-        return _pillar("error", details=f"{source_name} nu a returnat rezultat.")
+        return _pillar("pending", details=f"{source_name} asteapta scanarea.")
     status = _source_status(summary, source_name)
     consulted = bool(raw.get("consulted", False))
     if consulted and status not in {"missing", "unknown", "error"}:
@@ -3318,6 +3345,8 @@ def _build_orchestrated_pillars(job: Dict[str, Any]) -> Dict[str, Dict[str, Any]
     evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
     summary = evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {}
     resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
+    raw_urls = job.get("urls") if isinstance(job.get("urls"), list) else []
+    has_urls = bool(raw_urls or resolved_urls)
     final_url = job.get("primary_final_url") or _first_final_url(resolved_urls)
 
     claim = evidence.get("offer_claim_verification") if isinstance(evidence.get("offer_claim_verification"), dict) else {}
@@ -3328,20 +3357,31 @@ def _build_orchestrated_pillars(job: Dict[str, Any]) -> Dict[str, Dict[str, Any]
     urlscan_status = str(urlscan_state.get("status") or "").strip().lower()
     screenshot_ready = bool(urlscan_state.get("screenshot_ready"))
     if urlscan_status == "finished" and screenshot_ready:
-        urlscan_pillar = _pillar("ok", details=str(urlscan_state.get("verdict") or "finished"), ref=urlscan_state.get("uuid"))
+        urlscan_pillar = _pillar("ok", required=False, details=str(urlscan_state.get("verdict") or "finished"), ref=urlscan_state.get("uuid"))
     elif urlscan_status == "finished":
-        urlscan_pillar = _pillar("pending", details="urlscan result este gata, captura inca se proceseaza.", ref=urlscan_state.get("uuid"))
+        urlscan_pillar = _pillar("pending", required=False, details="urlscan result este gata, captura inca se proceseaza.", ref=urlscan_state.get("uuid"))
+    elif urlscan_status == "skipped" and not has_urls:
+        urlscan_pillar = _pillar("not_required", required=False, details="nu exista URL pentru preview")
     elif urlscan_status in {"error", "timeout", "rate_limited", "skipped"}:
-        urlscan_pillar = _pillar("error", details=str(urlscan_state.get("details") or urlscan_status), ref=urlscan_state.get("uuid"))
+        urlscan_pillar = _pillar("error", required=False, details=str(urlscan_state.get("details") or urlscan_status), ref=urlscan_state.get("uuid"))
     elif urlscan_state.get("uuid"):
-        urlscan_pillar = _pillar("pending", details="urlscan preview este in procesare.", ref=urlscan_state.get("uuid"))
+        urlscan_pillar = _pillar("pending", required=False, details="urlscan preview este in procesare.", ref=urlscan_state.get("uuid"))
     else:
-        urlscan_pillar = _pillar("error", details="urlscan preview nu a pornit.")
+        urlscan_pillar = _pillar("pending", required=False, details="urlscan preview nu a pornit.")
+
+    if not has_urls:
+        final_url_pillar = _pillar("not_required", required=False, details="mesajul nu contine URL verificabil")
+        web_risk_pillar = _pillar("not_required", required=False, details="nu exista URL pentru Web Risk")
+        virustotal_pillar = _pillar("not_required", required=False, details="nu exista URL pentru VirusTotal")
+    else:
+        final_url_pillar = _pillar("ok" if final_url else "pending", details=str(final_url or "se rezolva destinatia finala"))
+        web_risk_pillar = _provider_pillar_from_summary(summary, "google_web_risk")
+        virustotal_pillar = _provider_pillar_from_summary(summary, "virustotal")
 
     return {
-        "final_url": _pillar("ok" if final_url else "pending", details=str(final_url or "se rezolva destinatia finala")),
-        "google_web_risk": _provider_pillar_from_summary(summary, "google_web_risk"),
-        "virustotal": _provider_pillar_from_summary(summary, "virustotal"),
+        "final_url": final_url_pillar,
+        "google_web_risk": web_risk_pillar,
+        "virustotal": virustotal_pillar,
         "urlscan": urlscan_pillar,
         "claim_verifier": _pillar(
             "ok" if claim_status in {"confirmed", "not_found", "inconclusive", "skipped"} else ("pending" if claim_required else "not_required"),
@@ -3373,6 +3413,15 @@ def _urlscan_pending_has_timed_out(job: Dict[str, Any]) -> bool:
     return int(time.time()) - created_at >= ORCHESTRATED_URLSCAN_PENDING_TIMEOUT_SECONDS
 
 
+def _urlscan_enhancement_done(job: Dict[str, Any]) -> bool:
+    raw_urls = job.get("urls") if isinstance(job.get("urls"), list) else []
+    if not raw_urls:
+        return True
+    urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
+    status = str(urlscan_state.get("status") or "").strip().lower()
+    return status in {"finished", "error", "timeout", "rate_limited", "skipped"}
+
+
 def _baseline_pillars_ready_without_urlscan(pillars: Dict[str, Dict[str, Any]]) -> bool:
     required_names = ("final_url", "google_web_risk", "virustotal", "claim_verifier")
     for name in required_names:
@@ -3382,6 +3431,51 @@ def _baseline_pillars_ready_without_urlscan(pillars: Dict[str, Dict[str, Any]]) 
         if pillar.get("required", True) and pillar.get("status") != "ok":
             return False
     return True
+
+
+def _orchestrated_required_pillars_timed_out(job: Dict[str, Any]) -> bool:
+    created_at = int(job.get("created_at") or int(time.time()))
+    return int(time.time()) - created_at >= ORCHESTRATED_REQUIRED_PILLAR_TIMEOUT_SECONDS
+
+
+def _mark_required_pillars_timeout(job: Dict[str, Any]) -> Dict[str, Any]:
+    analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) and job.get("analysis") else {}
+    if not analysis:
+        analysis = {
+            "risk_score": 50,
+            "risk_level": "medium",
+            "detected_family": "Verificare incompletă",
+            "detected_family_id": "provider-gate-required-timeout",
+            "claimed_brand": "Nespecificat",
+            "reasons": [
+                "Nu am putut finaliza piloanele obligatorii in timpul maxim permis.",
+            ],
+            "safe_actions": [
+                "Nu introduce date sensibile până nu verifici pe canalul oficial.",
+            ],
+            "evidence": {
+                "external_intel_summary": {},
+                "provider_gate": {
+                    "version": "provider_gate_v1",
+                    "risk_level": "medium",
+                    "risk_score": 50,
+                    "reason": "Piloanele obligatorii nu au finalizat la timp.",
+                    "required_timeout": True,
+                },
+            },
+        }
+    else:
+        analysis["risk_score"] = max(int(analysis.get("risk_score") or 0), 50)
+        analysis["risk_level"] = "medium"
+        analysis["detected_family"] = "Verificare incompletă"
+        analysis["detected_family_id"] = "provider-gate-required-timeout"
+        analysis["reasons"] = [
+            "Nu am putut finaliza piloanele obligatorii in timpul maxim permis.",
+        ]
+        analysis.setdefault("evidence", {}).setdefault("provider_gate", {})["required_timeout"] = True
+    job["analysis"] = analysis
+    job["pipeline_stage"] = "done"
+    return job
 
 
 def _first_final_url(resolved_urls: List[Dict[str, Any]]) -> Optional[str]:
@@ -3421,10 +3515,17 @@ def _select_primary_resolved_url(resolved_urls: List[Dict[str, Any]], analysis: 
 def _urlscan_provider_payload(summary: Dict[str, Any]) -> Dict[str, Any]:
     verdict = str(summary.get("verdict") or "").strip()
     severity = str(summary.get("severity") or "unknown").strip().lower()
+    verdict_lower = verdict.lower()
     normalized_status = "clean"
-    if severity == "high" or any(token in verdict.lower() for token in ("malicious", "phishing", "malware")):
+    benign_verdict = any(
+        phrase in verdict_lower
+        for phrase in ("no malicious", "not malicious", "no classification", "no malicious classification")
+    )
+    if not benign_verdict and (
+        severity == "high" or any(token in verdict_lower for token in ("malicious", "phishing", "malware"))
+    ):
         normalized_status = "malicious"
-    elif severity == "medium" or "suspicious" in verdict.lower():
+    elif not benign_verdict and (severity == "medium" or "suspicious" in verdict_lower):
         normalized_status = "suspicious"
 
     return {
@@ -3444,12 +3545,14 @@ def _orchestrated_status_payload(job: Dict[str, Any]) -> Dict[str, Any]:
     pillars = _build_orchestrated_pillars(job)
     preview = job.get("preview") if isinstance(job.get("preview"), dict) else {}
     result = job.get("result") if isinstance(job.get("result"), dict) else None
-    if result is not None:
+    if result is not None and result.get("is_final", True) is not False and _urlscan_enhancement_done(job):
         status = "complete"
-    elif _has_required_pillar_error(pillars):
-        status = "incomplete"
+    elif result is not None:
+        status = "scanning"
     elif _all_required_pillars_ok(pillars):
         status = "ready"
+    elif _has_required_pillar_error(pillars):
+        status = "incomplete"
     else:
         status = "scanning"
     job["status"] = status
@@ -3459,6 +3562,8 @@ def _orchestrated_status_payload(job: Dict[str, Any]) -> Dict[str, Any]:
         "status_message": (
             "Scanarea este finalizata."
             if status == "complete"
+            else "Avem un verdict provizoriu; continuam verificarea semnalelor non-blocking."
+            if result is not None
             else "Scanarea continua pana cand pilonii necesari returneaza date."
             if status == "scanning"
             else "Scanarea nu are toti pilonii necesari pentru verdict sigur."
@@ -3470,6 +3575,8 @@ def _orchestrated_status_payload(job: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _orchestrated_can_finalize_result(job: Dict[str, Any], pillars: Dict[str, Dict[str, Any]]) -> bool:
+    if str(job.get("pipeline_stage") or "").strip().lower() == "done":
+        return True
     if _all_required_pillars_ok(pillars):
         return True
     analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
@@ -3494,9 +3601,23 @@ def _orchestrated_can_finalize_result(job: Dict[str, Any], pillars: Dict[str, Di
     return False
 
 
+def _orchestrated_result_is_final(job: Dict[str, Any], analysis: Dict[str, Any]) -> bool:
+    risk_level = str(analysis.get("risk_level") or "").strip().lower()
+    if risk_level in {"high", "critical", "dangerous"}:
+        return True
+    urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
+    urlscan_status = str(urlscan_state.get("status") or "").strip().lower()
+    if not (job.get("urls") if isinstance(job.get("urls"), list) else []):
+        return True
+    return urlscan_status in {"finished", "error", "timeout", "rate_limited", "skipped"}
+
+
 async def _finalize_orchestrated_job_if_ready(job: Dict[str, Any], request: Request) -> Dict[str, Any]:
     pillars = _build_orchestrated_pillars(job)
-    if isinstance(job.get("result"), dict) or not _orchestrated_can_finalize_result(job, pillars):
+    existing_result = job.get("result") if isinstance(job.get("result"), dict) else None
+    if existing_result and existing_result.get("is_final", True) is not False:
+        return job
+    if not _orchestrated_can_finalize_result(job, pillars):
         return job
 
     analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
@@ -3522,6 +3643,7 @@ async def _finalize_orchestrated_job_if_ready(job: Dict[str, Any], request: Requ
         "pillars": pillars,
         "preview": job.get("preview", {}),
     }
+    response_payload["is_final"] = _orchestrated_result_is_final(job, analysis)
     job["result"] = response_payload
     _emit_scan_event(
         scan_id=scan_id,
@@ -3634,30 +3756,15 @@ def _build_orchestrated_text_context(payload: OrchestratedScanRequest) -> Dict[s
     }
 
 
-async def _create_orchestrated_job(payload: OrchestratedScanRequest, request: Request) -> Dict[str, Any]:
+async def _create_orchestrated_job(payload: OrchestratedScanRequest) -> Dict[str, Any]:
     context = _build_orchestrated_text_context(payload)
-    urls = context["urls"]
-    resolved_urls = _safe_scan_url_list(urls)
     redacted_text = redact_pii(context["raw_text"])
-    analysis = _analyze_with_reputation(redacted_text, resolved_urls, fast_reputation=True)
-    analysis.setdefault("evidence", {})["source_channel"] = context["source_channel"]
-    await _enrich_offer_claim_verification_async(redacted_text, analysis, resolved_urls)
-    claim_required = _claim_verifier_required(analysis)
-
-    primary_entry = _select_primary_resolved_url(resolved_urls, analysis)
-    primary_final_url = None
-    if primary_entry:
-        primary_final_url = primary_entry.get("final_url") or primary_entry.get("url") or primary_entry.get("original_url")
-
     scan_id = _new_scan_id("orch")
-    urlscan_state: Dict[str, Any] = {"status": "skipped", "details": "Nu exista URL pentru preview."}
-    if primary_final_url:
-        urlscan_state = await _submit_orchestrated_urlscan(str(primary_final_url), payload, request)
-
+    urls = list(context.get("urls") or [])
     extra_fields = dict(context.get("extra_fields") or {})
     extra_fields.update(
         {
-            "resolved_urls": resolved_urls,
+            "resolved_urls": [],
             "orchestrated": True,
         }
     )
@@ -3666,79 +3773,160 @@ async def _create_orchestrated_job(payload: OrchestratedScanRequest, request: Re
         "created_at": int(time.time()),
         "expires_at": int(time.time()) + ORCHESTRATED_JOB_TTL_SECONDS,
         "status": "scanning",
+        "pipeline_stage": "queued",
         "input_type": context["input_type"],
         "source_channel": context["source_channel"],
+        "urls": urls,
         "redacted_text": redacted_text,
-        "analysis": analysis,
-        "resolved_urls": resolved_urls,
-        "primary_final_url": primary_final_url,
-        "claim_verifier_required": claim_required,
-        "urlscan": urlscan_state,
+        "analysis": {},
+        "resolved_urls": [],
+        "primary_final_url": None,
+        "claim_verifier_required": False,
+        "urlscan": (
+            {"status": "queued", "details": "urlscan preview asteapta rezolvarea URL-ului."}
+            if urls
+            else {"status": "skipped", "details": "Nu exista URL pentru preview."}
+        ),
         "preview": {
-            "screenshot_url": urlscan_state.get("screenshot_url"),
-            "report_url": urlscan_state.get("report_url"),
-            "final_url": primary_final_url,
+            "screenshot_url": None,
+            "report_url": None,
+            "final_url": None,
         },
         "extra_fields": extra_fields,
+        "sandbox_options": {
+            "visibility": payload.visibility,
+            "country": payload.country,
+            "customagent": payload.customagent,
+        },
     }
-    job = await _finalize_orchestrated_job_if_ready(job, request)
-    _persist_orchestrated_job(job)
+    job = _persist_orchestrated_job(job)
     return job
 
 
 async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Dict[str, Any]:
+    stage = str(job.get("pipeline_stage") or "queued").strip().lower()
+    existing_result = job.get("result") if isinstance(job.get("result"), dict) else None
+    if not existing_result and _orchestrated_required_pillars_timed_out(job):
+        job = _mark_required_pillars_timeout(job)
+        return await _finalize_orchestrated_job_if_ready(job, request)
+
+    if stage == "queued":
+        urls = job.get("urls") if isinstance(job.get("urls"), list) else []
+        resolved_urls = _safe_scan_url_list([str(url) for url in urls if str(url).strip()])
+        job["resolved_urls"] = resolved_urls
+        job.setdefault("extra_fields", {})["resolved_urls"] = resolved_urls
+        job["pipeline_stage"] = "resolved"
+        job = _persist_orchestrated_job(job)
+        return job
+
+    if stage == "resolved":
+        redacted_text = str(job.get("redacted_text") or "")
+        resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
+        analysis = _analyze_with_reputation(redacted_text, resolved_urls, fast_reputation=True)
+        analysis.setdefault("evidence", {})["source_channel"] = job.get("source_channel")
+        await _enrich_offer_claim_verification_async(redacted_text, analysis, resolved_urls)
+        claim_required = _claim_verifier_required(analysis)
+
+        primary_entry = _select_primary_resolved_url(resolved_urls, analysis)
+        primary_final_url = None
+        if primary_entry:
+            primary_final_url = primary_entry.get("final_url") or primary_entry.get("url") or primary_entry.get("original_url")
+
+        job["analysis"] = analysis
+        job["claim_verifier_required"] = claim_required
+        job["primary_final_url"] = primary_final_url
+        preview = job.setdefault("preview", {})
+        preview["final_url"] = primary_final_url
+        job["pipeline_stage"] = "analysis_ready"
+        job = _persist_orchestrated_job(job)
+        return await _finalize_orchestrated_job_if_ready(job, request)
+
+    if stage == "analysis_ready":
+        primary_final_url = job.get("primary_final_url")
+        urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
+        urlscan_status = str(urlscan_state.get("status") or "").strip().lower()
+        if primary_final_url and urlscan_status in {"queued", "", "skipped"}:
+            options = job.get("sandbox_options") if isinstance(job.get("sandbox_options"), dict) else {}
+            urlscan_payload = OrchestratedScanRequest(
+                input_type=str(job.get("input_type") or "text"),
+                source_channel=str(job.get("source_channel") or "android_native"),
+                visibility=options.get("visibility") or URLSCAN_VISIBILITY_DEFAULT,
+                country=options.get("country") or URLSCAN_COUNTRY_DEFAULT or None,
+                customagent=options.get("customagent") or URLSCAN_CUSTOM_AGENT_DEFAULT or None,
+            )
+            job["urlscan"] = await _submit_orchestrated_urlscan(str(primary_final_url), urlscan_payload, request)
+            preview = job.setdefault("preview", {})
+            preview["screenshot_url"] = job["urlscan"].get("screenshot_url")
+            preview["report_url"] = job["urlscan"].get("report_url")
+            preview["final_url"] = primary_final_url
+        elif not primary_final_url:
+            job["urlscan"] = {"status": "skipped", "details": "Nu exista URL pentru preview."}
+        job["pipeline_stage"] = "urlscan_submitted"
+        job = _persist_orchestrated_job(job)
+        return await _finalize_orchestrated_job_if_ready(job, request)
+
     urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
     if urlscan_state.get("uuid") and str(urlscan_state.get("status") or "").lower() == "pending":
-        result = await get_urlscan_result(str(urlscan_state["uuid"]), request)
-        if str(result.get("status") or "").lower() != "pending":
-            screenshot_ready = await _urlscan_screenshot_is_ready(str(urlscan_state["uuid"]))
-            urlscan_state.update(result)
-            urlscan_state["screenshot_ready"] = screenshot_ready
-            urlscan_state["status"] = "finished" if screenshot_ready else "pending"
-            if not screenshot_ready:
-                urlscan_state["details"] = "urlscan result este gata, dar captura paginii finale inca nu este disponibila."
-                if _urlscan_pending_has_timed_out(job):
-                    urlscan_state["status"] = "timeout"
-                    urlscan_state["details"] = (
-                        "urlscan result este gata, dar captura paginii finale nu a finalizat "
-                        "in timpul maxim permis."
-                    )
+        try:
+            result = await get_urlscan_result(str(urlscan_state["uuid"]), request)
+        except HTTPException as exc:
+            urlscan_state["status"] = "error"
+            urlscan_state["details"] = str(exc.detail)
             job["urlscan"] = urlscan_state
-            preview = job.setdefault("preview", {})
-            preview["screenshot_url"] = result.get("screenshot_url") or preview.get("screenshot_url")
-            preview["report_url"] = result.get("report_url") or preview.get("report_url")
-            preview["final_url"] = result.get("final_url") or preview.get("final_url")
-            if result.get("final_url"):
-                job["primary_final_url"] = result.get("final_url")
-                resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
-                if resolved_urls:
-                    resolved_urls[0]["final_url"] = result.get("final_url")
-                    resolved_urls[0]["final_hostname"] = urllib.parse.urlparse(str(result.get("final_url"))).hostname
-                    resolved_urls[0]["final_registered_domain"] = _extract_domain_root(resolved_urls[0].get("final_hostname"))
+            result = None
+        if result is not None:
+            if str(result.get("status") or "").lower() != "pending":
+                screenshot_ready = await _urlscan_screenshot_is_ready(str(urlscan_state["uuid"]))
+                urlscan_state.update(result)
+                urlscan_state["screenshot_ready"] = screenshot_ready
+                urlscan_state["status"] = "finished" if screenshot_ready else "pending"
+                if not screenshot_ready:
+                    urlscan_state["details"] = "urlscan result este gata, dar captura inca se proceseaza."
+                    if _urlscan_pending_has_timed_out(job):
+                        urlscan_state["status"] = "timeout"
+                        urlscan_state["details"] = (
+                            "urlscan result este gata, dar captura paginii finale nu a finalizat "
+                            "in timpul maxim permis."
+                        )
+                job["urlscan"] = urlscan_state
+                preview = job.setdefault("preview", {})
+                preview["screenshot_url"] = result.get("screenshot_url") or preview.get("screenshot_url")
+                preview["report_url"] = result.get("report_url") or preview.get("report_url")
+                preview["final_url"] = result.get("final_url") or preview.get("final_url")
+                if result.get("final_url"):
+                    job["primary_final_url"] = result.get("final_url")
+                    resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
+                    if resolved_urls:
+                        resolved_urls[0]["final_url"] = result.get("final_url")
+                        resolved_urls[0]["final_hostname"] = urllib.parse.urlparse(str(result.get("final_url"))).hostname
+                        resolved_urls[0]["final_registered_domain"] = _extract_domain_root(resolved_urls[0].get("final_hostname"))
 
-            analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
-            evidence = analysis.setdefault("evidence", {})
-            summary = evidence.setdefault("external_intel_summary", {})
-            if isinstance(summary, dict) and urlscan_state.get("status") == "finished":
-                summary["urlscan"] = _urlscan_provider_payload(result)
-            elif isinstance(summary, dict) and urlscan_state.get("status") == "timeout":
-                summary["urlscan"] = {
-                    "status": "error",
-                    "verdict": "preview_timeout",
-                    "severity": "medium",
-                    "consulted": False,
-                    "details": urlscan_state.get("details", "urlscan preview timeout"),
-                    "report_url": urlscan_state.get("report_url"),
-                    "screenshot_url": urlscan_state.get("screenshot_url"),
-                }
+                analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
+                evidence = analysis.setdefault("evidence", {})
+                summary = evidence.setdefault("external_intel_summary", {})
+                if isinstance(summary, dict):
+                    summary["urlscan"] = _urlscan_provider_payload(result)
+                    if urlscan_state.get("status") == "timeout":
+                        summary["urlscan"]["status"] = "error"
+                        summary["urlscan"]["verdict"] = "preview_timeout"
+                        summary["urlscan"]["consulted"] = False
+                        summary["urlscan"]["details"] = urlscan_state.get("details", "urlscan preview timeout")
+            elif _urlscan_pending_has_timed_out(job):
+                urlscan_state["status"] = "timeout"
+                urlscan_state["details"] = (
+                    "urlscan preview nu a finalizat captura in timpul maxim permis; "
+                    "verdictul ramane bazat pe piloanele blocking."
+                )
+                job["urlscan"] = urlscan_state
         elif _urlscan_pending_has_timed_out(job):
             urlscan_state["status"] = "timeout"
             urlscan_state["details"] = (
                 "urlscan preview nu a finalizat captura in timpul maxim permis; "
-                "verdictul nu poate fi SIGUR pe baza acestui pilon."
+                "verdictul ramane bazat pe piloanele blocking."
             )
             job["urlscan"] = urlscan_state
 
+    job = _persist_orchestrated_job(job)
     return await _finalize_orchestrated_job_if_ready(job, request)
 
 
@@ -3746,26 +3934,27 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
 async def start_orchestrated_scan(payload: OrchestratedScanRequest, request: Request):
     """
     Starts the product-grade scan pipeline:
-    intake -> URL extraction/final URL -> Web Risk/VT -> urlscan preview -> claim verifier -> gate.
-    It does not return a final safe verdict while required pillars are still pending.
+    intake -> persistent queued scan_id. Provider work is advanced idempotently by GET polling.
     """
     _prune_orchestrated_jobs()
-    job = await _create_orchestrated_job(payload, request)
+    job = await _create_orchestrated_job(payload)
     response = _orchestrated_status_payload(job)
-    _persist_orchestrated_job(job)
+    job = _persist_orchestrated_job(job)
     return response
 
 
 @app.get("/v1/scan/orchestrated/{scan_id}")
 async def get_orchestrated_scan(scan_id: str, request: Request):
     _prune_orchestrated_jobs()
-    job = _load_orchestrated_job(scan_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Scanarea nu a fost gasita sau a expirat.")
-    job = await _refresh_orchestrated_job(job, request)
-    response = _orchestrated_status_payload(job)
-    _persist_orchestrated_job(job)
-    return response
+    lock = _ORCHESTRATED_SCAN_LOCKS.setdefault(scan_id, asyncio.Lock())
+    async with lock:
+        job = _load_orchestrated_job(scan_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Scanarea nu a fost gasita sau a expirat.")
+        job = await _refresh_orchestrated_job(job, request)
+        response = _orchestrated_status_payload(job)
+        job = _persist_orchestrated_job(job)
+        return response
 
 
 @app.post("/v1/sandbox/urlscan")
