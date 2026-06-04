@@ -1208,14 +1208,14 @@ def test_orchestrated_urlscan_final_url_can_downgrade_stale_structural_danger(mo
         "resolved_urls": [
             {
                 "url": "https://yoxo.onelink.me/f8ly/ijiwsfwu",
-                "final_url": "https://apps.apple.com/us/app/yoxo-voce-internet-roaming/id1481946568",
+                "final_url": "https://yoxo.onelink.me/f8ly/ijiwsfwu",
                 "hostname": "yoxo.onelink.me",
-                "final_hostname": "apps.apple.com",
+                "final_hostname": "yoxo.onelink.me",
                 "registered_domain": "onelink.me",
-                "final_registered_domain": "apple.com",
+                "final_registered_domain": "onelink.me",
             }
         ],
-        "primary_final_url": "https://apps.apple.com/us/app/yoxo-voce-internet-roaming/id1481946568",
+        "primary_final_url": "https://yoxo.onelink.me/f8ly/ijiwsfwu",
         "claim_verifier_required": True,
         "urlscan": {
             "uuid": "urlscan-yoxo-app-store",
@@ -1257,6 +1257,7 @@ def test_orchestrated_urlscan_final_url_can_downgrade_stale_structural_danger(mo
     assert job["result"]["risk_level"] == "low"
     assert job["result"]["detected_family_id"] == "provider-gate-official-clean"
     assert job["result"]["evidence"]["provider_gate"]["official_destination"] is True
+    assert job["resolved_urls"][0]["final_hostname"] == "apps.apple.com"
 
 
 def test_orchestrated_urlscan_reservation_reclaims_after_ttl(monkeypatch):

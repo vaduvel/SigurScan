@@ -3978,6 +3978,43 @@ def _orchestrated_result_fingerprint(
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
+def _sync_resolved_urls_with_urlscan_final(job: Dict[str, Any]) -> None:
+    if not isinstance(job, dict):
+        return
+    analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
+    evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
+    summary = evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {}
+    urlscan_summary = summary.get("urlscan") if isinstance(summary.get("urlscan"), dict) else {}
+    preview = job.get("preview") if isinstance(job.get("preview"), dict) else {}
+    final_url = str(urlscan_summary.get("final_url") or preview.get("final_url") or "").strip()
+    if not final_url:
+        return
+
+    parsed = urllib.parse.urlparse(final_url)
+    final_hostname = (parsed.hostname or "").lower()
+    final_registered_domain = _extract_domain_root(final_hostname)
+    resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
+    if not resolved_urls:
+        original_url = (job.get("urls") or [final_url])[0] if isinstance(job.get("urls"), list) and job.get("urls") else final_url
+        resolved_urls = [{"url": original_url, "original_url": original_url}]
+        job["resolved_urls"] = resolved_urls
+    if resolved_urls:
+        entry = resolved_urls[0]
+        if isinstance(entry, dict):
+            entry["final_url"] = final_url
+            entry["final_hostname"] = final_hostname
+            entry["final_registered_domain"] = final_registered_domain
+            if not entry.get("hostname"):
+                original_url = str(entry.get("url") or entry.get("original_url") or "")
+                entry["hostname"] = (urllib.parse.urlparse(original_url).hostname or "").lower()
+            if not entry.get("registered_domain"):
+                entry["registered_domain"] = _extract_domain_root(entry.get("hostname"))
+    job["primary_final_url"] = final_url
+    extra_fields = job.setdefault("extra_fields", {})
+    if isinstance(extra_fields, dict):
+        extra_fields["resolved_urls"] = resolved_urls
+
+
 def _persist_orchestrated_job(job: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(job, dict) or not job.get("scan_id"):
         return job
@@ -4372,6 +4409,7 @@ def _orchestrated_result_is_final(job: Dict[str, Any], analysis: Dict[str, Any])
 
 
 async def _finalize_orchestrated_job_if_ready(job: Dict[str, Any], request: Request) -> Dict[str, Any]:
+    _sync_resolved_urls_with_urlscan_final(job)
     pillars = _build_orchestrated_pillars(job)
     existing_result = job.get("result") if isinstance(job.get("result"), dict) else None
     if existing_result and existing_result.get("is_final", True) is not False:
