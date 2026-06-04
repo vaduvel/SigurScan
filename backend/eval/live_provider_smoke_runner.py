@@ -151,7 +151,16 @@ def _run_case(base_url: str, case: LiveSmokeCase, poll_interval: float, timeout:
             "error": f"Blocked reserved live target token: {blocked}",
         }
 
-    started = _post_scan(base_url, case, timeout)
+    try:
+        started = _post_scan(base_url, case, timeout)
+    except requests.RequestException as exc:
+        return {
+            "id": case.case_id,
+            "title": case.title,
+            "passed": False,
+            "error": f"POST failed: {type(exc).__name__}: {exc}",
+        }
+
     scan_id = str(started.get("scan_id") or "").strip()
     if not scan_id:
         return {
@@ -162,7 +171,17 @@ def _run_case(base_url: str, case: LiveSmokeCase, poll_interval: float, timeout:
             "post_response": started,
         }
 
-    final_payload = _poll_scan(base_url, scan_id, case.max_seconds, poll_interval, timeout)
+    try:
+        final_payload = _poll_scan(base_url, scan_id, case.max_seconds, poll_interval, timeout)
+    except requests.RequestException as exc:
+        return {
+            "id": case.case_id,
+            "title": case.title,
+            "scan_id": scan_id,
+            "passed": False,
+            "error": f"poll failed: {type(exc).__name__}: {exc}",
+        }
+
     result = final_payload.get("result") if isinstance(final_payload.get("result"), dict) else {}
     label = str(result.get("user_risk_label") or "NECUNOSCUT")
     preview = final_payload.get("preview") if isinstance(final_payload.get("preview"), dict) else {}
@@ -209,7 +228,7 @@ def main() -> int:
     parser.add_argument("--output", default="build/reports/live_provider_smoke.json")
     parser.add_argument("--case", action="append", help="Run only selected case id. Repeat for multiple cases.")
     parser.add_argument("--poll-interval", type=float, default=3.0)
-    parser.add_argument("--timeout", type=float, default=12.0)
+    parser.add_argument("--timeout", type=float, default=60.0)
     parser.add_argument("--dry-run", action="store_true", help="Print selected cases without calling live providers.")
     args = parser.parse_args()
 

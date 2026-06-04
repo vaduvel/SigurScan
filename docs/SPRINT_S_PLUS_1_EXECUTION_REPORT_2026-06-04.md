@@ -1,6 +1,6 @@
 # SigurScan Sprint S+1 Execution Report - 2026-06-04
 
-Scope: Detection Quality + Observability + cleanup #67 on top of commit `6a05c64`, delivered on `main` through `dda1b92` plus current follow-up changes.
+Scope: Detection Quality + Observability + cleanup #67 on top of commit `6a05c64`, delivered on `main` through commits `dda1b92` and the S+1 follow-up.
 
 ## Definition Of Done Status
 
@@ -10,7 +10,7 @@ Scope: Detection Quality + Observability + cleanup #67 on top of commit `6a05c64
 | Eval dataset + threshold sweep | Done for small calibration set | `backend/data/eval_dataset.jsonl` has 8 labeled rows. Best threshold `5` produced precision `1.000`, recall `1.000`, F1 `1.000`, FP `0`, FN `0`. |
 | Orchestrated telemetry dashboard + alerts | Done | `/v1/orchestration/telemetry` returns metrics/alerts. `/v1/orchestration/dashboard` renders a minimal HTML dashboard over `scan_events`. |
 | #67 technical debt | Done | Reclaim expiry test, bounded conflict-merge retry, TTL `ORCHESTRATED_URLSCAN_SUBMIT_RESERVATION_TIMEOUT_SECONDS=30`. |
-| No regressions | Done locally | Backend, Android debug/unit, v2 fixture runner, v1 historical runner all verified. Live smoke runner is opt-in and must be rerun after deploy. |
+| No regressions | Done | Backend, Android debug/unit, v2 fixture runner, v1 historical runner all verified. Production deploy succeeded and capped live smoke passed through the documented 4+1 run. |
 
 ## Threshold Sweep
 
@@ -69,6 +69,19 @@ Endpoints:
 
 ## Live Smoke
 
+Production deploy:
+
+- Production alias: `https://nudaclick-backend.vercel.app`
+- Health endpoint: provider config present for urlscan, Google Web Risk, VirusTotal, Mistral/Gemini, and offer claim verifier.
+- Dashboard endpoint: `GET /v1/orchestration/dashboard` returned HTTP 200 and rendered the minimal dashboard.
+
+Post-deploy live smoke:
+
+- Full capped batch: 4/5 passed.
+- The only failed batch row was iDroid because the runner client timed out during polling at 35s, not because of a bad verdict.
+- iDroid rerun separately with a 90s client timeout: 1/1 passed.
+- Effective capped smoke coverage: YOXO `SIGUR`, SMYK `SIGUR`, eMAG tracking `SIGUR`, Google Web Risk phishing test `PERICULOS`, iDroid `SUSPECT` final with preview/report.
+
 Live provider smoke remains intentionally capped and opt-in:
 
 ```bash
@@ -81,5 +94,4 @@ Do not run fixture packs through live providers. Do not send `.test`, `.invalid`
 ## Remaining Work After This Sprint
 
 - Expand the labeled threshold dataset beyond 8 rows with real reviewed feedback.
-- Run live smoke again after deploy of the latest commit.
 - If observability usage grows, move the dashboard behind auth/internal access.

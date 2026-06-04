@@ -7,6 +7,39 @@ Scope: production backend `https://nudaclick-backend.vercel.app`, real provider 
 - Deployed urlscan hard-provider finalize fix.
 - Deployed urlscan tag sanitization fix.
 - Deployed urlscan pending screenshot timeout fix.
+- Deployed Sprint S+1 dashboard/evaluation follow-up to production alias `https://nudaclick-backend.vercel.app`.
+
+## Post-Deploy S+1 Smoke
+
+Command:
+
+```bash
+SIGURSCAN_RUN_LIVE_PROVIDER_SMOKE=1 python3 backend/eval/live_provider_smoke_runner.py --base-url https://nudaclick-backend.vercel.app --output build/reports/live_provider_smoke_2026-06-04_post_deploy.json --poll-interval 3 --timeout 35
+```
+
+Result:
+
+- Full capped batch: 4/5 passed.
+- YOXO buyback: `SIGUR`, complete, preview available.
+- SMYK catalog: `SIGUR`, complete, preview available.
+- eMAG tracking: `SIGUR`, complete, preview available.
+- Google Web Risk phishing test URL: `PERICULOS`, complete.
+- iDroid status: runner client timed out while polling at 35s.
+
+Follow-up iDroid-only command:
+
+```bash
+SIGURSCAN_RUN_LIVE_PROVIDER_SMOKE=1 python3 backend/eval/live_provider_smoke_runner.py --base-url https://nudaclick-backend.vercel.app --case live_idroid_status --output build/reports/live_provider_smoke_idroid_2026-06-04_post_deploy.json --poll-interval 5 --timeout 90
+```
+
+Result:
+
+- iDroid status: 1/1 passed.
+- Verdict: `SUSPECT`.
+- Final URL: `https://idroid.ro/verifica-status/`.
+- Preview/report available.
+
+Interpretation: the product pipeline passed the capped smoke set. The first iDroid batch failure was runner timeout sensitivity, not a wrong provider/gate result.
 
 ## Cases
 
