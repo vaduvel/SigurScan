@@ -1,0 +1,634 @@
+[
+  {
+    "brand_id": "anaf",
+    "display_name": "ANAF",
+    "official_domains": [
+      "anaf.ro"
+    ],
+    "official_apps_or_channels": [
+      "Spațiul Privat Virtual pe anaf.ro",
+      "Comunicate ANAF pe anaf.ro"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "dnsc_anaf_phishing_email_2025",
+        "url": "https://dnsc.ro/citeste/alerta-phishing-e-mail-anaf",
+        "published": "2025-03-20",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "anaf_email_fals_2025",
+        "url": "https://www.anaf.ro/anaf/internet/ANAF/comunicate/",
+        "published": "2025-10-13",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "high",
+    "notes": "Nu whitelista domenii fiscale secundare fără intrare explicită. Pentru e-Factura/MF folosește registry separat."
+  },
+  {
+    "brand_id": "ministerul_finantelor",
+    "display_name": "Ministerul Finanțelor",
+    "official_domains": [
+      "mfinante.gov.ro"
+    ],
+    "official_apps_or_channels": [
+      "mfinante.gov.ro"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "official_home",
+        "url": "https://mfinante.gov.ro/",
+        "published": "official domain",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "medium",
+    "notes": "Registry domain-only; nu există în pack never_ask_for explicit."
+  },
+  {
+    "brand_id": "bnr",
+    "display_name": "Banca Națională a României",
+    "official_domains": [
+      "bnro.ro"
+    ],
+    "official_apps_or_channels": [
+      "bnro.ro"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "official_home",
+        "url": "https://www.bnro.ro/",
+        "published": "official domain",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "sigurantaonline_uniti_escrocherii",
+        "url": "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+        "published": "2026-03 (campanie; dată exactă pagină neconfirmată)",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "medium",
+    "notes": "Domeniu oficial; scenariile BNR/cont sigur vin din SiguranțaOnline/DNSC/Poliția, nu dintr-o listă de domenii scam."
+  },
+  {
+    "brand_id": "dnsc",
+    "display_name": "DNSC",
+    "official_domains": [
+      "dnsc.ro",
+      "pnrisc.dnsc.ro"
+    ],
+    "official_apps_or_channels": [
+      "dnsc.ro",
+      "PNRISC",
+      "telefon 1911 (verifică pe dnsc.ro înainte de afișare user-facing)"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "dnsc_uniti_2026",
+        "url": "https://www.dnsc.ro/citeste/comunicat-de-presa-dnsc-politia-romana-arb-si-mastercard-lanseaza-campania-national-uniti-impotriva-escrocheriilor",
+        "published": "2026-03-24",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "dnsc_voteaza_adeline_2025",
+        "url": "https://www.dnsc.ro/citeste/alerta-frauda-de-tip-voteaza-pe-adeline",
+        "published": "2025-01-15",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "high",
+    "notes": "Surse de threat intel și educație; nu trata orice URL care conține dnsc ca oficial fără registrable domain exact."
+  },
+  {
+    "brand_id": "sigurantaonline",
+    "display_name": "SiguranțaOnline.ro",
+    "official_domains": [
+      "sigurantaonline.ro"
+    ],
+    "official_apps_or_channels": [
+      "sigurantaonline.ro"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "sigurantaonline_uniti_escrocherii",
+        "url": "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+        "published": "2026-03 (campanie; dată exactă pagină neconfirmată)",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "high",
+    "notes": "Sursă de corpus/taxonomie, nu sursă de verdict final."
+  },
+  {
+    "brand_id": "fan_courier",
+    "display_name": "FAN Courier",
+    "official_domains": [
+      "fancourier.ro"
+    ],
+    "official_apps_or_channels": [
+      "fancourier.ro",
+      "aplicația FAN Courier din store-uri oficiale"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "fan_smishing_2026",
+        "url": "https://www.fancourier.ro/alerta-de-smishing/",
+        "published": "2026-02-11",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "fan_sms_locker_2025",
+        "url": "https://www.fancourier.ro/en/attention-sms-phishing-attempt/",
+        "published": "2025-08-29",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "fan_update_info_2025",
+        "url": "https://www.fancourier.ro/en/attention-phishing-attempt-via-sms/",
+        "published": "2025-10-30",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "high",
+    "notes": "Pentru tracking real, preferă final domain fancourier.ro. Nu whitelista domenii cu fan/fanbox în nume dacă nu sunt în registry."
+  },
+  {
+    "brand_id": "posta_romana",
+    "display_name": "Poșta Română",
+    "official_domains": [
+      "posta-romana.ro"
+    ],
+    "official_apps_or_channels": [
+      "posta-romana.ro"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "posta_phishing_sms",
+        "url": "https://www.posta-romana.ro/a1941/stiri/o-noua-tentativa-de-phishing-prin-sms-in-numele-postei-romane.html",
+        "published": "2025-06 (dată exactă în pagină neconfirmată)",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "posta_phishing_2023",
+        "url": "https://www.posta-romana.ro/a1742/stiri/noi-actiuni-de-inselaciune-online-in-numele-postei-romane.html",
+        "published": "2023-11-23",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "high",
+    "notes": "Domeniu oficial conține cratimă: posta-romana.ro; lookalike fără cratimă nu e oficial."
+  },
+  {
+    "brand_id": "sameday",
+    "display_name": "SAMEDAY",
+    "official_domains": [
+      "sameday.ro"
+    ],
+    "official_apps_or_channels": [
+      "sameday.ro",
+      "SAMEDAY App",
+      "easybox prin SAMEDAY App"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "sameday_fraudulent_message",
+        "url": "https://sameday.ro/cand-un-mesaj-pare-fraudulos-cel-mai-probabil-asa-este/",
+        "published": "dată publicării neconfirmată în pagină",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "sameday_app_google_play",
+        "url": "https://play.google.com/store/apps/details?id=com.sameday.client.mobile",
+        "published": "continuous app listing",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "high",
+    "notes": "Extinderea păstrării coletului este în aplicația oficială; solicitări de plată prin SMS/social sunt semnale suspecte."
+  },
+  {
+    "brand_id": "cargus",
+    "display_name": "Cargus",
+    "official_domains": [
+      "cargus.ro"
+    ],
+    "official_apps_or_channels": [
+      "cargus.ro",
+      "aplicația/contul oficial dacă este verificat separat"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "cargus_electronic_fraud",
+        "url": "https://www.cargus.ro/en/blog/cargus-recommendations-regarding-possible-electronic-fraud/",
+        "published": "2023-02-08",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "medium",
+    "notes": "Sursa este recomandare generală; nu produce never_ask_for hard complet."
+  },
+  {
+    "brand_id": "olx",
+    "display_name": "OLX România",
+    "official_domains": [
+      "olx.ro"
+    ],
+    "official_apps_or_channels": [
+      "olx.ro",
+      "OLX app",
+      "Ajutor OLX"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "olx_help_false_links",
+        "url": "https://ajutor.olx.ro/olxhelpro/s/article/ai-grija-la-linkurile-false-pentru-articole-platite-recunoaste-semnalele-unui-atac-de-phishing-V7",
+        "published": "dată publicare neconfirmată",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "dnsc_olx_2021",
+        "url": "https://dnsc.ro/citeste/alerta-tentativa-de-frauda-olx",
+        "published": "2021-12-17",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "high",
+    "notes": "Nu whitelista pagini de încasare pe domenii non-olx; cererea de card/CVV ca să primești bani este high risk."
+  },
+  {
+    "brand_id": "emag",
+    "display_name": "eMAG",
+    "official_domains": [
+      "emag.ro",
+      "marketplace.emag.ro"
+    ],
+    "official_apps_or_channels": [
+      "emag.ro",
+      "eMAG app",
+      "Marketplace eMAG seller portal"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "emag_otp_seller",
+        "url": "https://marketplace.emag.ro/infocenter/emag-academy/contul-meu/contul-meu-profil/cum-obtii-prin-sms-codul-de-autentificare-in-contul-emag/",
+        "published": "dată publicare neconfirmată",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "medium",
+    "notes": "Sursa confirmă OTP legitim pentru seller login; nu este alertă fraudă generală. Marketing/link sub buton nu este suficient singur pentru Periculos."
+  },
+  {
+    "brand_id": "altex",
+    "display_name": "Altex",
+    "official_domains": [
+      "altex.ro"
+    ],
+    "official_apps_or_channels": [
+      "altex.ro"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "altex_security",
+        "url": "https://altex.ro/securitatea-protectia-datelor-caracter-personal/pag/",
+        "published": "dată publicare neconfirmată",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "medium",
+    "notes": "Sursă de ghidaj phishing, nu alertă de campanie specifică 2025-2026."
+  },
+  {
+    "brand_id": "revolut",
+    "display_name": "Revolut",
+    "official_domains": [
+      "revolut.com"
+    ],
+    "official_apps_or_channels": [
+      "Revolut app",
+      "revolut.com",
+      "help.revolut.com"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "revolut_text_scams_2026",
+        "url": "https://www.revolut.com/blog/post/text-scams-are-spiking-heres-how-to-spot-them/",
+        "published": "2026-03-03",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "revolut_safe_account_2026",
+        "url": "https://www.revolut.com/en-RO/blog/post/how-to-know-its-really-revolut-calling/",
+        "published": "2026-03-10",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "high",
+    "notes": "Pentru România, domeniul public revolut.com/en-RO este valid; acțiunile de securitate trebuie verificate în aplicația oficială."
+  },
+  {
+    "brand_id": "bcr",
+    "display_name": "BCR",
+    "official_domains": [
+      "bcr.ro"
+    ],
+    "official_apps_or_channels": [
+      "George app",
+      "bcr.ro",
+      "support.direct@bcr.ro pentru verificare"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "bcr_securizezi_contul_2025",
+        "url": "https://www.bcr.ro/ro/news-hub/blog/noutati/cum-iti-securizezi-contul-online",
+        "published": "2025-09-15",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "bcr_plati_online_2026",
+        "url": "https://www.bcr.ro/ro/news-hub/blog/noutati/cum-faci-plati-online-in-siguranta-prin-internet-banking",
+        "published": "2026-05-27 (aprox. din indexare)",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "high",
+    "notes": "Atenție: BCR are fluxuri legitime de PIN prin SMS pentru cazuri specifice; nu transforma orice mențiune PIN în Periculos fără context."
+  },
+  {
+    "brand_id": "bt",
+    "display_name": "Banca Transilvania",
+    "official_domains": [
+      "bancatransilvania.ro"
+    ],
+    "official_apps_or_channels": [
+      "BT Pay",
+      "NeoBT",
+      "bancatransilvania.ro"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "bt_nu_va_cere_2025",
+        "url": "https://www.bancatransilvania.ro/news/noutati/bt-nu-va-cere-niciodata-aceste-lucruri",
+        "published": "2025-08-25",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "bt_siguranta_online",
+        "url": "https://www.bancatransilvania.ro/siguranta-online",
+        "published": "continuous page; dată exactă neconfirmată",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "high",
+    "notes": "BT are sursă oficială foarte bună pentru never_ask_for."
+  },
+  {
+    "brand_id": "ing",
+    "display_name": "ING România",
+    "official_domains": [
+      "ing.ro"
+    ],
+    "official_apps_or_channels": [
+      "ING Home'Bank app",
+      "ing.ro"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "ing_phishing_smishing_2025",
+        "url": "https://ing.ro/ing-in-romania/informatii-utile/securitate/phishing-smishing",
+        "published": "2025-03-26",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "ing_spoofing_2025",
+        "url": "https://ing.ro/ing-in-romania/informatii-utile/securitate/spoofing",
+        "published": "2025-03-26",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "high",
+    "notes": "Nu considera legitim link de instalare Home'Bank din SMS/e-mail/WhatsApp."
+  },
+  {
+    "brand_id": "raiffeisen",
+    "display_name": "Raiffeisen Bank România",
+    "official_domains": [
+      "raiffeisen.ro"
+    ],
+    "official_apps_or_channels": [
+      "Raiffeisen Smart Mobile",
+      "Raiffeisen Online",
+      "raiffeisen.ro"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "raiffeisen_phishing",
+        "url": "https://www.raiffeisen.ro/ro/imm/in-sprijinul-tau/asistenta/despre-phishing.html",
+        "published": "dată publicare neconfirmată",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "high",
+    "notes": "Never ask pentru parolă/PIN/card prin email/SMS este sursă oficială."
+  },
+  {
+    "brand_id": "orange_yoxo",
+    "display_name": "Orange / YOXO",
+    "official_domains": [
+      "orange.ro",
+      "yoxo.ro"
+    ],
+    "official_apps_or_channels": [
+      "My Orange",
+      "YOXO app",
+      "orange.ro",
+      "yoxo.ro"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "orange_prevenire_frauda",
+        "url": "https://www.orange.ro/prevenire-frauda/",
+        "published": "continuous page; dată exactă neconfirmată",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "orange_smishing_2026",
+        "url": "https://www.orange.ro/help/articole/cum-sa-recunosti-si-sa-eviti-tentativele-de-frauda-prin-sms-smishing",
+        "published": "2026-02-15",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "yoxo_prevenire_frauda",
+        "url": "https://www.yoxo.ro/prevenire-frauda/",
+        "published": "continuous page; dată exactă neconfirmată",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "high",
+    "notes": "Include ambele branduri pentru anti-fraudă; buyback YOXO trebuie verificat pe site/app oficial, nu prin linkuri primite."
+  },
+  {
+    "brand_id": "vodafone",
+    "display_name": "Vodafone România",
+    "official_domains": [
+      "vodafone.ro"
+    ],
+    "official_apps_or_channels": [
+      "My Vodafone",
+      "vodafone.ro"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "vodafone_frauda",
+        "url": "https://www.vodafone.ro/frauda/",
+        "published": "continuous page; dată exactă neconfirmată",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "medium",
+    "notes": "Sursă generală. Never_ask_for complet pentru Vodafone România este marcat candidate/medium dacă nu există afirmație explicită în pagina principală."
+  },
+  {
+    "brand_id": "digi",
+    "display_name": "DIGI / RCS & RDS",
+    "official_domains": [
+      "digi.ro"
+    ],
+    "official_apps_or_channels": [
+      "digi.ro",
+      "cont DIGI",
+      "aplicații DIGI oficiale"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "digi_factura_electronica",
+        "url": "https://www.digi.ro/asistenta/modalitati-de-plata",
+        "published": "continuous page; dată exactă neconfirmată",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "high",
+    "notes": "Există fluxuri legitime de factură electronică/SMS; cere date sensibile pentru premii = suspect/periculos doar cu combinații."
+  },
+  {
+    "brand_id": "hidroelectrica",
+    "display_name": "Hidroelectrica",
+    "official_domains": [
+      "hidroelectrica.ro"
+    ],
+    "official_apps_or_channels": [
+      "hidroelectrica.ro",
+      "contul/aplicația oficială dacă este verificat separat"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "hidroelectrica_frauda_2026",
+        "url": "https://www.hidroelectrica.ro/press-release/1d738954-4c1b-1ad9-c046-4d0d6001e187",
+        "published": "2026-03-09",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "hidroelectrica_frauda_2023",
+        "url": "https://www.hidroelectrica.ro/press-release/be34ffdd-821e-5bed-e6c1-1868bbf7cb79",
+        "published": "2023-09-29",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "high",
+    "notes": "Nu solicită investiții prin reclame/platforme/social/telefon și nu cere date bancare pe acele canale."
+  },
+  {
+    "brand_id": "ppc",
+    "display_name": "PPC România",
+    "official_domains": [
+      "ppcenergy.ro"
+    ],
+    "official_apps_or_channels": [
+      "MyPPC",
+      "ppcenergy.ro"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "ppc_fraud_sms",
+        "url": "https://www.facebook.com/ppcromaniaofficial/photos/%EF%B8%8Fv%C4%83-inform%C4%83m-cu-privire-la-o-tentativ%C4%83-de-fraud%C4%83-prin-sms%EF%B8%8F%EF%B8%8F-o-parte-dintre-clien/5603998899623165/",
+        "published": "community/social official post; dată exactă neconfirmată",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "medium",
+    "notes": "Sursa este social oficială; folosește ca semnal medium și false-positive guard pentru facturi reale."
+  },
+  {
+    "brand_id": "eon",
+    "display_name": "E.ON România",
+    "official_domains": [
+      "eon.ro"
+    ],
+    "official_apps_or_channels": [
+      "E.ON Myline",
+      "eon.ro"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "eon_phishing_media",
+        "url": "https://www.eon.ro/",
+        "published": "not a scam alert; official domain only",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "low",
+    "notes": "Registry domain-only; nu există în acest pack sursă oficială never_ask_for. Nu crea reguli hard pentru E.ON din ipoteze."
+  },
+  {
+    "brand_id": "ghiseul",
+    "display_name": "Ghișeul.ro",
+    "official_domains": [
+      "ghiseul.ro"
+    ],
+    "official_apps_or_channels": [
+      "ghiseul.ro"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "ghiseul_adr_2026",
+        "url": "https://www.mediafax.ro/stirile-zilei/avertizare-de-phishing-pe-platforma-ghiseul-ro-cum-sa-nu-cazi-in-plasa-hackerilor-23733114",
+        "published": "2026-05-07",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "ghiseul_rri_2026",
+        "url": "https://www.rri.ro/actualitate/stiri/avertisment-asupra-unei-campanii-de-phishing-pentru-utilizatorii-platformei-ghiseul-ro-id1015124.html",
+        "published": "2026-05-08",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "confidence": "medium",
+    "notes": "Declarația vine prin ADR/DNSC via media; suficient pentru warning, dar preferă sursă ADR directă când o ai."
+  }
+]

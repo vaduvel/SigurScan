@@ -1,0 +1,1014 @@
+[
+  {
+    "scenario_id": "RO2025_FAN_LOCKER_WHATSAPP",
+    "family": "delivery_phishing",
+    "names_used_in_romania": [
+      "FAN locker",
+      "colet blocat",
+      "alege FANBOX",
+      "cod WhatsApp"
+    ],
+    "channels": [
+      "SMS",
+      "WhatsApp",
+      "HTML email"
+    ],
+    "claimed_brand_or_role": "FAN Courier",
+    "typical_text_patterns": [
+      "alege locker",
+      "coletul nu poate fi livrat",
+      "verifică livrarea",
+      "introdu codul WhatsApp",
+      "taxă mică"
+    ],
+    "requested_asset": [
+      "card",
+      "cvv",
+      "otp",
+      "whatsapp_code"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "fan_smishing_2026",
+        "url": "https://www.fancourier.ro/alerta-de-smishing/",
+        "published": "2026-02-11",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "fan_sms_locker_2025",
+        "url": "https://www.fancourier.ro/en/attention-sms-phishing-attempt/",
+        "published": "2025-08-29",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "fan_update_info_2025",
+        "url": "https://www.fancourier.ro/en/attention-phishing-attempt-via-sms/",
+        "published": "2025-10-30",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [
+      {
+        "source_id": "reddit_fan_context",
+        "url": "https://www.reddit.com/r/Romania/comments/1q32xuu/ce_fac_dac%C4%83_era_s%C4%83_iau_%C8%9Beap%C4%83/",
+        "published": "community/noisy; dată exactă neconfirmată",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "max_verdict_supported_without_provider_scan": "SUSPECT",
+    "max_verdict_supported_with_provider_scan": "PERICULOS",
+    "acceptance_test_idea": "SMS .test cu FANBOX, link neoficial, sandbox form card + WhatsApp code.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  },
+  {
+    "scenario_id": "RO2025_POSTA_TAXA_CARD",
+    "family": "delivery_phishing",
+    "names_used_in_romania": [
+      "Poșta Română taxă livrare",
+      "adresă incompletă",
+      "taxe vamale false"
+    ],
+    "channels": [
+      "SMS",
+      "email",
+      "PDF"
+    ],
+    "claimed_brand_or_role": "Poșta Română",
+    "typical_text_patterns": [
+      "coletul nu poate fi livrat",
+      "adresă incorectă",
+      "plătește taxa",
+      "completează date card"
+    ],
+    "requested_asset": [
+      "card",
+      "cvv",
+      "banking_pin",
+      "money_transfer"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "posta_phishing_sms",
+        "url": "https://www.posta-romana.ro/a1941/stiri/o-noua-tentativa-de-phishing-prin-sms-in-numele-postei-romane.html",
+        "published": "2025-06 (dată exactă în pagină neconfirmată)",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "posta_phishing_2023",
+        "url": "https://www.posta-romana.ro/a1742/stiri/noi-actiuni-de-inselaciune-online-in-numele-postei-romane.html",
+        "published": "2023-11-23",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [],
+    "max_verdict_supported_without_provider_scan": "SUSPECT",
+    "max_verdict_supported_with_provider_scan": "PERICULOS",
+    "acceptance_test_idea": "PDF/email .test cu logo mimat și formular de card în sandbox.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  },
+  {
+    "scenario_id": "RO2025_ANAF_RAMBRUSARE_SPV",
+    "family": "tax_refund",
+    "names_used_in_romania": [
+      "ANAF rambursare taxe",
+      "SPV fals",
+      "neregularitate declarații"
+    ],
+    "channels": [
+      "email",
+      "HTML email",
+      "PDF",
+      "SMS"
+    ],
+    "claimed_brand_or_role": "ANAF",
+    "typical_text_patterns": [
+      "rambursare taxe",
+      "portal ANAF",
+      "neregularitate identificată",
+      "remedierea situației",
+      "introdu date card"
+    ],
+    "requested_asset": [
+      "card",
+      "cvv",
+      "cnp",
+      "password",
+      "iban"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "dnsc_anaf_phishing_email_2025",
+        "url": "https://dnsc.ro/citeste/alerta-phishing-e-mail-anaf",
+        "published": "2025-03-20",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "anaf_email_fals_2025",
+        "url": "https://www.anaf.ro/anaf/internet/ANAF/comunicate/",
+        "published": "2025-10-13",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [],
+    "max_verdict_supported_without_provider_scan": "SUSPECT",
+    "max_verdict_supported_with_provider_scan": "PERICULOS",
+    "acceptance_test_idea": "Email HTML .test cu buton ascuns spre portal-anaf-rambursare.test și form card/CNP.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  },
+  {
+    "scenario_id": "RO2026_GHISEUL_AMENDA_SMS",
+    "family": "tax_refund",
+    "names_used_in_romania": [
+      "Ghișeul.ro amendă",
+      "obligație de plată",
+      "amenzi circulație false"
+    ],
+    "channels": [
+      "SMS",
+      "email"
+    ],
+    "claimed_brand_or_role": "Ghișeul.ro / autoritate publică",
+    "typical_text_patterns": [
+      "obligație de plată",
+      "plătește amenda",
+      "actualizează date",
+      "evită penalizări"
+    ],
+    "requested_asset": [
+      "card",
+      "cnp",
+      "password"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "ghiseul_adr_2026",
+        "url": "https://www.mediafax.ro/stirile-zilei/avertizare-de-phishing-pe-platforma-ghiseul-ro-cum-sa-nu-cazi-in-plasa-hackerilor-23733114",
+        "published": "2026-05-07",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "ghiseul_rri_2026",
+        "url": "https://www.rri.ro/actualitate/stiri/avertisment-asupra-unei-campanii-de-phishing-pentru-utilizatorii-platformei-ghiseul-ro-id1015124.html",
+        "published": "2026-05-08",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [],
+    "max_verdict_supported_without_provider_scan": "SUSPECT",
+    "max_verdict_supported_with_provider_scan": "PERICULOS",
+    "acceptance_test_idea": "SMS .test cu amendă și link de plată; provider clean dar local brand warning + form card = PERICULOS.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  },
+  {
+    "scenario_id": "RO2026_BNR_POLITIE_CONT_SIGUR",
+    "family": "official_phone",
+    "names_used_in_romania": [
+      "BNR",
+      "Poliția",
+      "cont sigur",
+      "transfer bani către BNR"
+    ],
+    "channels": [
+      "phone",
+      "WhatsApp transcript",
+      "SMS"
+    ],
+    "claimed_brand_or_role": "BNR/Poliție/bancă",
+    "typical_text_patterns": [
+      "contul tău este compromis",
+      "mută banii într-un cont sigur",
+      "nu închide",
+      "te transfer la poliție",
+      "BNR"
+    ],
+    "requested_asset": [
+      "money_transfer",
+      "iban",
+      "password",
+      "remote_access"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "sigurantaonline_uniti_escrocherii",
+        "url": "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+        "published": "2026-03 (campanie; dată exactă pagină neconfirmată)",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "ing_spoofing_2025",
+        "url": "https://ing.ro/ing-in-romania/informatii-utile/securitate/spoofing",
+        "published": "2025-03-26",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "revolut_safe_account_2026",
+        "url": "https://www.revolut.com/en-RO/blog/post/how-to-know-its-really-revolut-calling/",
+        "published": "2026-03-10",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [
+      {
+        "source_id": "reddit_bnr_police",
+        "url": "https://www.reddit.com/r/Romania/comments/1r7hlxp/atentie_la_fraude_ca_devin_tot_mai_bine_gandite/",
+        "published": "community/noisy; dată exactă neconfirmată",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "max_verdict_supported_without_provider_scan": "SUSPECT",
+    "max_verdict_supported_with_provider_scan": "PERICULOS",
+    "acceptance_test_idea": "Transcript lipit manual: BNR + cont sigur + IBAN .example; fără provider = SUSPECT, cu cont/domain/campanie confirmată = PERICULOS.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  },
+  {
+    "scenario_id": "RO2025_CREDIT_FRAUDULOS",
+    "family": "official_phone",
+    "names_used_in_romania": [
+      "credit fraudulos",
+      "credit pe numele tău",
+      "banca/poliția"
+    ],
+    "channels": [
+      "phone",
+      "SMS",
+      "WhatsApp transcript"
+    ],
+    "claimed_brand_or_role": "bancă/poliție",
+    "typical_text_patterns": [
+      "s-a făcut un credit pe numele dvs",
+      "date compromise",
+      "verificare urgentă",
+      "confirmă codul",
+      "instalează aplicația"
+    ],
+    "requested_asset": [
+      "otp",
+      "password",
+      "remote_access",
+      "safe_account_transfer"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "sigurantaonline_uniti_escrocherii",
+        "url": "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+        "published": "2026-03 (campanie; dată exactă pagină neconfirmată)",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "bt_nu_va_cere_2025",
+        "url": "https://www.bancatransilvania.ro/news/noutati/bt-nu-va-cere-niciodata-aceste-lucruri",
+        "published": "2025-08-25",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "ing_spoofing_2025",
+        "url": "https://ing.ro/ing-in-romania/informatii-utile/securitate/spoofing",
+        "published": "2025-03-26",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [],
+    "max_verdict_supported_without_provider_scan": "SUSPECT",
+    "max_verdict_supported_with_provider_scan": "PERICULOS",
+    "acceptance_test_idea": "Call transcript cu credit fraudulos + cod OTP/remote access; fără URL final = SUSPECT/NO_REPLY-equivalent, cu APK/link = PERICULOS.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  },
+  {
+    "scenario_id": "RO2025_WHATSAPP_VOTEAZA_ADELINE",
+    "family": "account_takeover",
+    "names_used_in_romania": [
+      "Votează pe Adeline",
+      "sondaj/vot copil",
+      "concurs"
+    ],
+    "channels": [
+      "WhatsApp",
+      "SMS"
+    ],
+    "claimed_brand_or_role": "contact cunoscut/concurs fals",
+    "typical_text_patterns": [
+      "vă rog să o votați",
+      "Adeline",
+      "sondaj",
+      "introdu codul WhatsApp"
+    ],
+    "requested_asset": [
+      "whatsapp_code",
+      "otp"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "dnsc_voteaza_adeline_2025",
+        "url": "https://www.dnsc.ro/citeste/alerta-frauda-de-tip-voteaza-pe-adeline",
+        "published": "2025-01-15",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [],
+    "max_verdict_supported_without_provider_scan": "SUSPECT",
+    "max_verdict_supported_with_provider_scan": "PERICULOS",
+    "acceptance_test_idea": "WhatsApp text + link .test + cod WhatsApp; corpus match + form code = PERICULOS.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  },
+  {
+    "scenario_id": "RO2026_WHATSAPP_PETITIE",
+    "family": "account_takeover",
+    "names_used_in_romania": [
+      "Petiția",
+      "adăpost animale",
+      "semnează petiția"
+    ],
+    "channels": [
+      "WhatsApp"
+    ],
+    "claimed_brand_or_role": "contact compromis/petiție falsă",
+    "typical_text_patterns": [
+      "semnează petiția",
+      "prietena mea lucrează acolo",
+      "cod de verificare",
+      "WhatsApp"
+    ],
+    "requested_asset": [
+      "whatsapp_code",
+      "personal_data"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "sigurantaonline_uniti_escrocherii",
+        "url": "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+        "published": "2026-03 (campanie; dată exactă pagină neconfirmată)",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [],
+    "max_verdict_supported_without_provider_scan": "SUSPECT",
+    "max_verdict_supported_with_provider_scan": "PERICULOS",
+    "acceptance_test_idea": "WhatsApp .test cu petiție și cod WhatsApp; fără URL provider = SUSPECT; cu form code = PERICULOS.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  },
+  {
+    "scenario_id": "RO2026_TELEFON_STRICAT",
+    "family": "urgency_big",
+    "names_used_in_romania": [
+      "telefon stricat",
+      "mamă/tată/copil",
+      "număr nou"
+    ],
+    "channels": [
+      "WhatsApp",
+      "SMS"
+    ],
+    "claimed_brand_or_role": "copil/nepot/membru familie",
+    "typical_text_patterns": [
+      "mi s-a stricat telefonul",
+      "ăsta e numărul meu nou",
+      "salvează-l",
+      "am nevoie urgent de bani",
+      "trimite la prieten"
+    ],
+    "requested_asset": [
+      "money_transfer",
+      "iban"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "sigurantaonline_uniti_escrocherii",
+        "url": "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+        "published": "2026-03 (campanie; dată exactă pagină neconfirmată)",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [],
+    "max_verdict_supported_without_provider_scan": "SUSPECT",
+    "max_verdict_supported_with_provider_scan": "SUSPECT",
+    "acceptance_test_idea": "Text-only: expected final verdict SUSPECT, nu PERICULOS fără provider/campanie confirmată; user action: nu răspunde, sună numărul vechi.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  },
+  {
+    "scenario_id": "RO2026_ACCIDENT_NEPOT",
+    "family": "urgency_big",
+    "names_used_in_romania": [
+      "metoda accidentul",
+      "nepotul la ananghie",
+      "voce clonată"
+    ],
+    "channels": [
+      "phone",
+      "WhatsApp transcript",
+      "SMS"
+    ],
+    "claimed_brand_or_role": "nepot/copil/doctor/poliție",
+    "typical_text_patterns": [
+      "accident",
+      "spital",
+      "avocat",
+      "urgent bani",
+      "nu spune nimănui",
+      "parola de familie"
+    ],
+    "requested_asset": [
+      "money_transfer",
+      "iban"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "sigurantaonline_uniti_escrocherii",
+        "url": "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+        "published": "2026-03 (campanie; dată exactă pagină neconfirmată)",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "dnsc_uniti_2026",
+        "url": "https://www.dnsc.ro/citeste/comunicat-de-presa-dnsc-politia-romana-arb-si-mastercard-lanseaza-campania-national-uniti-impotriva-escrocheriilor",
+        "published": "2026-03-24",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [
+      {
+        "source_id": "reddit_accident",
+        "url": "https://www.reddit.com/r/Romania/comments/jele42/metoda_accidentul/",
+        "published": "community/noisy; dată exactă neconfirmată",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "max_verdict_supported_without_provider_scan": "SUSPECT",
+    "max_verdict_supported_with_provider_scan": "SUSPECT",
+    "acceptance_test_idea": "Transcript text-only; max SUSPECT dacă nu există link/cont/campanie confirmată.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  },
+  {
+    "scenario_id": "RO2025_OLX_PRIMESTI_BANI_CARD",
+    "family": "marketplace_escrow",
+    "names_used_in_romania": [
+      "OLX articole plătite",
+      "ca să primești banii introdu cardul",
+      "cumpărător rapid"
+    ],
+    "channels": [
+      "WhatsApp",
+      "SMS",
+      "email"
+    ],
+    "claimed_brand_or_role": "OLX/cumpărător/curier",
+    "typical_text_patterns": [
+      "am plătit produsul",
+      "primești banii",
+      "introdu cardul",
+      "CVV",
+      "3D Secure",
+      "cod SMS"
+    ],
+    "requested_asset": [
+      "card",
+      "cvv",
+      "otp"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "olx_help_false_links",
+        "url": "https://ajutor.olx.ro/olxhelpro/s/article/ai-grija-la-linkurile-false-pentru-articole-platite-recunoaste-semnalele-unui-atac-de-phishing-V7",
+        "published": "dată publicare neconfirmată",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "dnsc_olx_2021",
+        "url": "https://dnsc.ro/citeste/alerta-tentativa-de-frauda-olx",
+        "published": "2021-12-17",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "bcr_olx_buyers",
+        "url": "https://www.bcr.ro/ro/persoane-fizice/informatii-utile/securitate/cumparatori-rapizi-pe-olx",
+        "published": "dată publicare neconfirmată",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [],
+    "max_verdict_supported_without_provider_scan": "SUSPECT",
+    "max_verdict_supported_with_provider_scan": "PERICULOS",
+    "acceptance_test_idea": "WhatsApp buyer + olx-plata.test + form card/CVV/OTP.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  },
+  {
+    "scenario_id": "RO2026_HIDRO_INVESTITII_FALSE",
+    "family": "overnight_gain",
+    "names_used_in_romania": [
+      "Hidroelectrica investiții",
+      "Hidroelectrica Edge",
+      "acțiuni garantate"
+    ],
+    "channels": [
+      "social ads",
+      "WhatsApp",
+      "email",
+      "phone"
+    ],
+    "claimed_brand_or_role": "Hidroelectrica / broker",
+    "typical_text_patterns": [
+      "câștig garantat",
+      "acțiuni Hidroelectrica",
+      "platformă de investiții",
+      "consilier",
+      "depozit minim"
+    ],
+    "requested_asset": [
+      "card",
+      "iban",
+      "money_transfer",
+      "cnp"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "hidroelectrica_frauda_2026",
+        "url": "https://www.hidroelectrica.ro/press-release/1d738954-4c1b-1ad9-c046-4d0d6001e187",
+        "published": "2026-03-09",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "hidroelectrica_frauda_2023",
+        "url": "https://www.hidroelectrica.ro/press-release/be34ffdd-821e-5bed-e6c1-1868bbf7cb79",
+        "published": "2023-09-29",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [],
+    "max_verdict_supported_without_provider_scan": "SUSPECT",
+    "max_verdict_supported_with_provider_scan": "PERICULOS",
+    "acceptance_test_idea": "Ad/email .test cu promisiuni câștig + formular/card/transfer.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  },
+  {
+    "scenario_id": "RO2026_CRYPTO_BROKER_REMOTE",
+    "family": "remote_access_investment",
+    "names_used_in_romania": [
+      "broker crypto",
+      "AnyDesk",
+      "TeamViewer",
+      "QuickSupport",
+      "trading AI"
+    ],
+    "channels": [
+      "phone",
+      "WhatsApp",
+      "email"
+    ],
+    "claimed_brand_or_role": "broker/investment consultant",
+    "typical_text_patterns": [
+      "randament garantat",
+      "instalează AnyDesk",
+      "îți arăt eu",
+      "retrage profit",
+      "taxă de retragere"
+    ],
+    "requested_asset": [
+      "remote_access",
+      "crypto",
+      "money_transfer",
+      "card"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "sigurantaonline_uniti_escrocherii",
+        "url": "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+        "published": "2026-03 (campanie; dată exactă pagină neconfirmată)",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "bt_nu_va_cere_2025",
+        "url": "https://www.bancatransilvania.ro/news/noutati/bt-nu-va-cere-niciodata-aceste-lucruri",
+        "published": "2025-08-25",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "ing_phishing_smishing_2025",
+        "url": "https://ing.ro/ing-in-romania/informatii-utile/securitate/phishing-smishing",
+        "published": "2025-03-26",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [],
+    "max_verdict_supported_without_provider_scan": "SUSPECT",
+    "max_verdict_supported_with_provider_scan": "PERICULOS",
+    "acceptance_test_idea": "Transcript + link .test la APK/remote access; remote access + investment = PERICULOS.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  },
+  {
+    "scenario_id": "RO2026_APK_BANCAR_FALS",
+    "family": "remote_access_investment",
+    "names_used_in_romania": [
+      "APK bancar fals",
+      "update securitate",
+      "HomeBank din link"
+    ],
+    "channels": [
+      "SMS",
+      "WhatsApp",
+      "email",
+      "QR"
+    ],
+    "claimed_brand_or_role": "bancă/telecom/security team",
+    "typical_text_patterns": [
+      "instalează aplicația",
+      "actualizare securitate",
+      "apk",
+      "link primit",
+      "dezinstalează aplicația veche"
+    ],
+    "requested_asset": [
+      "apk",
+      "password",
+      "otp",
+      "remote_access"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "ing_phishing_smishing_2025",
+        "url": "https://ing.ro/ing-in-romania/informatii-utile/securitate/phishing-smishing",
+        "published": "2025-03-26",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "bt_nu_va_cere_2025",
+        "url": "https://www.bancatransilvania.ro/news/noutati/bt-nu-va-cere-niciodata-aceste-lucruri",
+        "published": "2025-08-25",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [],
+    "max_verdict_supported_without_provider_scan": "SUSPECT",
+    "max_verdict_supported_with_provider_scan": "PERICULOS",
+    "acceptance_test_idea": "QR/link .test către .apk; expected PERICULOS după local structural + provider skip/clean.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  },
+  {
+    "scenario_id": "RO2026_LOTERIE_BONUS_CAZINO",
+    "family": "overnight_gain",
+    "names_used_in_romania": [
+      "Loteria Română falsă",
+      "bonus cazino",
+      "ai câștigat"
+    ],
+    "channels": [
+      "SMS",
+      "email",
+      "social ads"
+    ],
+    "claimed_brand_or_role": "loterie/casino/fake brand",
+    "typical_text_patterns": [
+      "ai câștigat",
+      "bonus",
+      "depunere pentru activare",
+      "claim prize"
+    ],
+    "requested_asset": [
+      "card",
+      "money_transfer",
+      "cnp"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "sigurantaonline_uniti_escrocherii",
+        "url": "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+        "published": "2026-03 (campanie; dată exactă pagină neconfirmată)",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [],
+    "max_verdict_supported_without_provider_scan": "SUSPECT",
+    "max_verdict_supported_with_provider_scan": "PERICULOS",
+    "acceptance_test_idea": "Email promo .test cu premiu + card/CNP; marketing-only nu e PERICULOS, premiu + card form da.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  },
+  {
+    "scenario_id": "RO2026_JOB_TASK_SCAM",
+    "family": "overnight_gain",
+    "names_used_in_romania": [
+      "job/task scam",
+      "like-uri plătite",
+      "muncă de acasă",
+      "comision task"
+    ],
+    "channels": [
+      "WhatsApp",
+      "Telegram",
+      "SMS",
+      "email"
+    ],
+    "claimed_brand_or_role": "recrutor/HR fals/platformă task",
+    "typical_text_patterns": [
+      "câștigă zilnic",
+      "task simplu",
+      "depozit pentru comision",
+      "VIP level",
+      "retragere blocată"
+    ],
+    "requested_asset": [
+      "money_transfer",
+      "crypto",
+      "iban"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "sigurantaonline_uniti_escrocherii",
+        "url": "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+        "published": "2026-03 (campanie; dată exactă pagină neconfirmată)",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [],
+    "max_verdict_supported_without_provider_scan": "SUSPECT",
+    "max_verdict_supported_with_provider_scan": "PERICULOS",
+    "acceptance_test_idea": "WhatsApp text-only = SUSPECT; cu link payment/crypto form = PERICULOS.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  },
+  {
+    "scenario_id": "RO2026_FACTURI_UTILITATI_FALSE",
+    "family": "tax_refund",
+    "names_used_in_romania": [
+      "factură utilități falsă",
+      "Digi/PPC/E.ON",
+      "restanță urgentă"
+    ],
+    "channels": [
+      "email",
+      "SMS",
+      "PDF",
+      "QR"
+    ],
+    "claimed_brand_or_role": "furnizor utilități/telecom",
+    "typical_text_patterns": [
+      "factura restantă",
+      "suspendare servicii",
+      "plată urgentă",
+      "descarcă factura",
+      "QR plată"
+    ],
+    "requested_asset": [
+      "card",
+      "iban",
+      "password"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "digi_factura_electronica",
+        "url": "https://www.digi.ro/asistenta/modalitati-de-plata",
+        "published": "continuous page; dată exactă neconfirmată",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "ppc_fraud_sms",
+        "url": "https://www.facebook.com/ppcromaniaofficial/photos/%EF%B8%8Fv%C4%83-inform%C4%83m-cu-privire-la-o-tentativ%C4%83-de-fraud%C4%83-prin-sms%EF%B8%8F%EF%B8%8F-o-parte-dintre-clien/5603998899623165/",
+        "published": "community/social official post; dată exactă neconfirmată",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [],
+    "max_verdict_supported_without_provider_scan": "SUSPECT",
+    "max_verdict_supported_with_provider_scan": "PERICULOS",
+    "acceptance_test_idea": "PDF/email .test cu QR/link de plată către domeniu neoficial + card form.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  },
+  {
+    "scenario_id": "RO2026_TELECOM_BUYBACK_FAKE",
+    "family": "overnight_gain",
+    "names_used_in_romania": [
+      "YOXO/Orange buyback fals",
+      "telefon gratuit",
+      "voucher"
+    ],
+    "channels": [
+      "SMS",
+      "email",
+      "social ads"
+    ],
+    "claimed_brand_or_role": "Orange/YOXO/telecom",
+    "typical_text_patterns": [
+      "buyback",
+      "voucher",
+      "validare cont",
+      "introdu date bancare",
+      "cod reîncărcare"
+    ],
+    "requested_asset": [
+      "card",
+      "password",
+      "otp",
+      "topup_code"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "orange_prevenire_frauda",
+        "url": "https://www.orange.ro/prevenire-frauda/",
+        "published": "continuous page; dată exactă neconfirmată",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "yoxo_prevenire_frauda",
+        "url": "https://www.yoxo.ro/prevenire-frauda/",
+        "published": "continuous page; dată exactă neconfirmată",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [],
+    "max_verdict_supported_without_provider_scan": "SUSPECT",
+    "max_verdict_supported_with_provider_scan": "PERICULOS",
+    "acceptance_test_idea": "Link .test mimând buyback, cere card/password; real buyback pe orange/yoxo official = SIGUR/SUSPECT după claim verifier.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  },
+  {
+    "scenario_id": "RO2026_RETAIL_GIVEAWAY_FAKE",
+    "family": "overnight_gain",
+    "names_used_in_romania": [
+      "eMAG/Altex giveaway",
+      "premiu",
+      "sondaj recompensă"
+    ],
+    "channels": [
+      "SMS",
+      "email",
+      "social ads",
+      "QR"
+    ],
+    "claimed_brand_or_role": "eMAG/Altex/retail",
+    "typical_text_patterns": [
+      "ai câștigat",
+      "ofertă limitată",
+      "plătește transport",
+      "completează card",
+      "sondaj"
+    ],
+    "requested_asset": [
+      "card",
+      "cvv",
+      "cnp"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "altex_security",
+        "url": "https://altex.ro/securitatea-protectia-datelor-caracter-personal/pag/",
+        "published": "dată publicare neconfirmată",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "emag_otp_seller",
+        "url": "https://marketplace.emag.ro/infocenter/emag-academy/contul-meu/contul-meu-profil/cum-obtii-prin-sms-codul-de-autentificare-in-contul-emag/",
+        "published": "dată publicare neconfirmată",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [],
+    "max_verdict_supported_without_provider_scan": "SUSPECT",
+    "max_verdict_supported_with_provider_scan": "PERICULOS",
+    "acceptance_test_idea": "Marketing-only = not PERICULOS; prize + non-official domain + card/CVV = PERICULOS.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  },
+  {
+    "scenario_id": "RO2026_BANK_EDUCATION_CAMPAIGN_CONFUSION",
+    "family": "official_phone",
+    "names_used_in_romania": [
+      "campanie educațională bancară",
+      "newsletter securitate",
+      "nu divulga coduri"
+    ],
+    "channels": [
+      "email",
+      "SMS"
+    ],
+    "claimed_brand_or_role": "bancă",
+    "typical_text_patterns": [
+      "nu divulga codul",
+      "informații de securitate",
+      "campanie educațională"
+    ],
+    "requested_asset": [
+      "none"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "bt_siguranta_online",
+        "url": "https://www.bancatransilvania.ro/siguranta-online",
+        "published": "continuous page; dată exactă neconfirmată",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "ing_phishing_smishing_2025",
+        "url": "https://ing.ro/ing-in-romania/informatii-utile/securitate/phishing-smishing",
+        "published": "2025-03-26",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "raiffeisen_phishing",
+        "url": "https://www.raiffeisen.ro/ro/imm/in-sprijinul-tau/asistenta/despre-phishing.html",
+        "published": "dată publicare neconfirmată",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [],
+    "max_verdict_supported_without_provider_scan": "SIGUR",
+    "max_verdict_supported_with_provider_scan": "SIGUR",
+    "acceptance_test_idea": "False-positive guard: email educațional oficial cu link oficial; nu marca Periculos doar pentru cuvinte ca PIN/CVV/OTP.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  },
+  {
+    "scenario_id": "RO2026_OTP_LEGIT_CONTEXT",
+    "family": "account_takeover",
+    "names_used_in_romania": [
+      "OTP legitim",
+      "cod autentificare",
+      "nu divulga codul"
+    ],
+    "channels": [
+      "SMS"
+    ],
+    "claimed_brand_or_role": "bancă/eMAG/Revolut",
+    "typical_text_patterns": [
+      "codul tău este",
+      "nu divulga",
+      "login inițiat de tine"
+    ],
+    "requested_asset": [
+      "otp"
+    ],
+    "hard_evidence_sources": [
+      {
+        "source_id": "emag_otp_seller",
+        "url": "https://marketplace.emag.ro/infocenter/emag-academy/contul-meu/contul-meu-profil/cum-obtii-prin-sms-codul-de-autentificare-in-contul-emag/",
+        "published": "dată publicare neconfirmată",
+        "accessed": "2026-06-04"
+      },
+      {
+        "source_id": "revolut_text_scams_2026",
+        "url": "https://www.revolut.com/blog/post/text-scams-are-spiking-heres-how-to-spot-them/",
+        "published": "2026-03-03",
+        "accessed": "2026-06-04"
+      }
+    ],
+    "community_noisy_sources": [],
+    "max_verdict_supported_without_provider_scan": "SIGUR",
+    "max_verdict_supported_with_provider_scan": "SIGUR",
+    "acceptance_test_idea": "False-positive guard: mesaj OTP care spune să nu divulgi codul, fără cerere de reply/link.",
+    "campaign_status": "documented_or_historic; live activity requires provider/community evidence",
+    "notes": "Corpus/RAG similarity-only nu produce PERICULOS singur; PERICULOS cere provider/sandbox/domain/form/campanie confirmată."
+  }
+]

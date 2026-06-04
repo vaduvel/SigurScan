@@ -62,6 +62,7 @@ object MailShareInputAssembler {
             host == known || host.endsWith(".$known")
         }
         if (!isKnownWebmailHost) return false
+        if (host == "mail.yahoo.com") return true
 
         val path = normalized.substringAfter(host, "")
         val looksLikeResource = listOf(".js", ".css", ".map", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".woff", ".woff2")

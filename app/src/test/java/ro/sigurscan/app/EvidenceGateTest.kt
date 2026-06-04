@@ -429,6 +429,48 @@ class EvidenceGateTest {
     }
 
     @Test
+    fun skippedOptionalPillarsDoNotBlockOfficialCleanUrlWhenNoClaimIsRequired() {
+        val result = evaluate(
+            EvidenceCode.OFFICIAL_DOMAIN_EXACT,
+            EvidenceCode.NO_SENSITIVE_FORM,
+            EvidenceCode.WEBRISK_NO_MATCH,
+            EvidenceCode.URLSCAN_NO_CLASSIFICATION,
+            primaryUrl = "https://www.emag.ro/order/tracking",
+            finalUrl = "https://www.emag.ro/order/tracking",
+            providerStates = mapOf(
+                ProviderId.WEB_RISK to ProviderState(ProviderId.WEB_RISK, ProviderStatus.OK),
+                ProviderId.URLSCAN to ProviderState(ProviderId.URLSCAN, ProviderStatus.OK),
+                ProviderId.VIRUSTOTAL to ProviderState(ProviderId.VIRUSTOTAL, ProviderStatus.SKIPPED, note = "not_required"),
+                ProviderId.CLAIM_VERIFIER to ProviderState(ProviderId.CLAIM_VERIFIER, ProviderStatus.SKIPPED, note = "not_required")
+            )
+        )
+
+        assertAction(GateAction.CONTINUE_WITH_CAUTION, result)
+        assertEquals(GateFinality.FINAL, result.finality)
+    }
+
+    @Test
+    fun localSensitiveSignalsWithUrlWaitForRequiredProviderPillars() {
+        val result = evaluate(
+            EvidenceCode.CARD_REQUEST,
+            EvidenceCode.PAYMENT_REQUEST,
+            EvidenceCode.MARKETING_URGENCY,
+            primaryUrl = "https://promo.example.test/plata",
+            providerStates = mapOf(
+                ProviderId.WEB_RISK to ProviderState(ProviderId.WEB_RISK, ProviderStatus.PENDING),
+                ProviderId.URLSCAN to ProviderState(ProviderId.URLSCAN, ProviderStatus.PENDING),
+                ProviderId.CLAIM_VERIFIER to ProviderState(ProviderId.CLAIM_VERIFIER, ProviderStatus.PENDING)
+            ),
+            completeness = EvidenceCompleteness.PARTIAL_ONLINE
+        )
+
+        assertAction(GateAction.INSUFFICIENT_EVIDENCE, result)
+        assertEquals(GateFinality.PROVISIONAL, result.finality)
+        assertTrue(result.asyncExpected)
+        assertEquals("PROVIDERS_PENDING_FOR_TARGET", result.unknownReason)
+    }
+
+    @Test
     fun homoglyphSensitiveRequestIsDoNotContinue() {
         val result = evaluate(
             EvidenceCode.HOMOGLYPH_DOMAIN,

@@ -1,0 +1,170 @@
+{
+  "schema_version": "1.0.0",
+  "generated_for": "SigurScan",
+  "generated_at": "2026-06-04",
+  "purpose": "Torture tests for the HTML email parser / link extractor. Each case asserts what the parser should EXTRACT (final actionable URL, display-vs-href mismatch, punycode, obfuscation). Extraction signals alone do not decide verdict; the gate combines them.",
+  "rules": {
+    "scam_hosts": "All non-benign hosts use .test/.invalid/.example.",
+    "insufficient_alone": "display_vs_href_mismatch / tracking / button alone are not sufficient for PERICULOS."
+  },
+  "tests": [
+    {
+      "id": "ht_display_vs_href_mismatch",
+      "title": "Anchor text shows official domain but href points elsewhere",
+      "html": "<a href=\"https://secure-login.test/bcr\">www.bcr.ro</a>",
+      "expected": {
+        "final_url": "https://secure-login.test/bcr",
+        "display_text": "www.bcr.ro",
+        "display_vs_href_mismatch": true,
+        "signals": ["DISPLAY_HREF_MISMATCH"]
+      }
+    },
+    {
+      "id": "ht_button_under_link",
+      "title": "Styled button wrapping a link",
+      "html": "<table><tr><td><a href=\"https://promo.test/x\" style=\"display:block;background:#f60;padding:12px\">Revendica</a></td></tr></table>",
+      "expected": {
+        "final_url": "https://promo.test/x",
+        "is_button": true,
+        "signals": ["LINK_UNDER_BUTTON"]
+      }
+    },
+    {
+      "id": "ht_punycode_href",
+      "title": "Punycode host in href",
+      "html": "<a href=\"https://xn--bcr-9na.test/login\">Autentificare</a>",
+      "expected": {
+        "final_url": "https://xn--bcr-9na.test/login",
+        "is_punycode": true,
+        "signals": ["PUNYCODE_HOST"]
+      }
+    },
+    {
+      "id": "ht_cyrillic_homoglyph_href",
+      "title": "Cyrillic homoglyph in host (visual latin lookalike)",
+      "html": "<a href=\"https://b\u0441r-online.test/\">bcr-online.ro</a>",
+      "expected": {
+        "final_url": "https://b\u0441r-online.test/",
+        "contains_non_latin_in_host": true,
+        "skeleton_host": "bcr-online.test",
+        "signals": ["HOMOGLYPH_HOST", "DISPLAY_HREF_MISMATCH"]
+      }
+    },
+    {
+      "id": "ht_zero_width_in_host",
+      "title": "Zero-width characters inside the host",
+      "html": "<a href=\"https://fan\u200bcourier-update.test/awb\">Detalii livrare</a>",
+      "expected": {
+        "final_url_normalized": "https://fancourier-update.test/awb",
+        "stripped_zero_width": true,
+        "signals": ["OBFUSCATED_HOST", "TYPOSQUAT_CANDIDATE"]
+      }
+    },
+    {
+      "id": "ht_data_uri",
+      "title": "data: URI used as link target",
+      "html": "<a href=\"data:text/html;base64,PHNjcmlwdD5sb2NhdGlvbj0naHR0cHM6Ly9ldmlsLnRlc3QnPC9zY3JpcHQ+\">Continua</a>",
+      "expected": {
+        "scheme": "data",
+        "decoded_contains_redirect": true,
+        "decoded_redirect_host": "evil.test",
+        "signals": ["DATA_URI", "OBFUSCATED_REDIRECT"]
+      }
+    },
+    {
+      "id": "ht_meta_refresh",
+      "title": "Hidden meta refresh redirect",
+      "html": "<html><head><meta http-equiv=\"refresh\" content=\"0;url=https://phish.test/go\"></head><body>Redirecting...</body></html>",
+      "expected": {
+        "final_url": "https://phish.test/go",
+        "redirect_type": "meta_refresh",
+        "signals": ["META_REFRESH_REDIRECT"]
+      }
+    },
+    {
+      "id": "ht_js_location_redirect",
+      "title": "JS location redirect in inline script",
+      "html": "<script>window.location='https://phish.test/login';</script>",
+      "expected": {
+        "final_url": "https://phish.test/login",
+        "redirect_type": "js_location",
+        "signals": ["JS_REDIRECT"]
+      }
+    },
+    {
+      "id": "ht_hidden_prefilled_form",
+      "title": "Hidden card form prefilled and auto-submitting",
+      "html": "<form action=\"https://collect.test/card\" method=\"post\" style=\"display:none\"><input name=\"card\"><input name=\"cvv\"></form>",
+      "expected": {
+        "form_action_host": "collect.test",
+        "has_card_field": true,
+        "has_cvv_field": true,
+        "is_hidden": true,
+        "signals": ["SENSITIVE_FORM", "HIDDEN_FORM", "CARD_REQUEST"]
+      }
+    },
+    {
+      "id": "ht_tracking_pixel_only",
+      "title": "Tracking pixel + tracking link (benign-ish)",
+      "html": "<img src=\"https://open.list-manage.com/track/open?id=1\" width=\"1\" height=\"1\"><a href=\"https://click.email/track?url=https%3A%2F%2Fwww.emag.ro\">Vezi</a>",
+      "expected": {
+        "final_url": "https://www.emag.ro",
+        "has_tracking_pixel": true,
+        "signals": ["TRACKING_PIXEL", "TRACKING_LINK"],
+        "note": "Not sufficient for PERICULOS alone."
+      }
+    },
+    {
+      "id": "ht_nested_redirect_param",
+      "title": "Open-redirect style nested url= parameter",
+      "html": "<a href=\"https://www.emag.ro/out?url=https%3A%2F%2Fphish.test%2Fpay\">Plateste</a>",
+      "expected": {
+        "host": "www.emag.ro",
+        "nested_redirect_host": "phish.test",
+        "signals": ["OPEN_REDIRECT_PARAM", "NESTED_URL"],
+        "note": "Resolve nested target; final actionable host is phish.test if redirect followed."
+      }
+    },
+    {
+      "id": "ht_rtl_override",
+      "title": "RTL override character to disguise extension",
+      "html": "<a href=\"https://drive.test/factura\u202egpj.exe\">factura.pdf</a>",
+      "expected": {
+        "contains_bidi_override": true,
+        "true_extension": ".exe",
+        "display_suggests": ".pdf",
+        "signals": ["BIDI_OVERRIDE", "EXECUTABLE_ATTACHMENT"]
+      }
+    },
+    {
+      "id": "ht_multiple_anchors_pick_action",
+      "title": "Many anchors; must pick the primary action link",
+      "html": "<a href=\"https://www.fancourier.ro\">Acasa</a><a href=\"https://fancourier-awb.test/track\" style=\"font-size:20px;font-weight:bold\">Urmareste coletul</a><a href=\"https://www.fancourier.ro/contact\">Contact</a>",
+      "expected": {
+        "primary_action_url": "https://fancourier-awb.test/track",
+        "benign_anchors": ["https://www.fancourier.ro", "https://www.fancourier.ro/contact"],
+        "signals": ["MIXED_ANCHORS", "TYPOSQUAT_CANDIDATE"]
+      }
+    },
+    {
+      "id": "ht_encoded_entities_host",
+      "title": "HTML-entity-encoded host",
+      "html": "<a href=\"https://&#112;hish.test/login\">Login</a>",
+      "expected": {
+        "final_url_decoded": "https://phish.test/login",
+        "signals": ["ENTITY_ENCODED_HOST", "OBFUSCATED_HOST"]
+      }
+    },
+    {
+      "id": "ht_ip_literal_host",
+      "title": "Raw IP literal as host",
+      "html": "<a href=\"http://192.0.2.10/bcr/login\">Autentificare BCR</a>",
+      "expected": {
+        "host": "192.0.2.10",
+        "is_ip_literal": true,
+        "is_http_not_https": true,
+        "signals": ["IP_LITERAL_HOST", "NO_TLS", "BRAND_IN_PATH"]
+      }
+    }
+  ]
+}

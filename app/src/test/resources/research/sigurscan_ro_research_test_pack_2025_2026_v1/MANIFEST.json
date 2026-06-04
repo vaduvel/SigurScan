@@ -1,0 +1,40 @@
+{
+  "files": {
+    "official_registry_updates.json": {
+      "records": 24
+    },
+    "brand_warnings.json": {
+      "records": 16
+    },
+    "scenario_corpus.json": {
+      "records": 21
+    },
+    "false_positive_guard_tests.json": {
+      "records": 50
+    },
+    "html_email_parser_torture_tests.json": {
+      "records": 40
+    },
+    "live_provider_smoke_tests.json": {
+      "records": 20
+    },
+    "source_index.json": {
+      "records": 41
+    },
+    "PACK_METADATA.json": {
+      "records": 5
+    }
+  },
+  "readme": "README.md",
+  "sha256": {
+    "official_registry_updates.json": "1bcfdfc2c99e2ae64bf775d707db9c3131e0fe9bffa36310629f9396a9066981",
+    "brand_warnings.json": "6958c34d3d061200e3044849bff76141d530dc526678500ec85d92f8c21f8fc9",
+    "scenario_corpus.json": "63cd6e47fcab18fc58c3dd9248a6c6cbd1740e581c53cee501327d48a107e33f",
+    "false_positive_guard_tests.json": "c44f97e16e21bc285ec1af79a4200d6987f6a8645978de2455a47b195b500b12",
+    "html_email_parser_torture_tests.json": "0e8efe4881940910c938531bb77f59eb321822401ec3351037d4d0915ee29eeb",
+    "live_provider_smoke_tests.json": "707cdb08e113173dd63c822c71aead21f78484aa47e61496e9adee87f0221d21",
+    "source_index.json": "045b2742148d31b57d8ac5d6a09db23b6b13f4eefd085f1a73645c49a5bd396d",
+    "PACK_METADATA.json": "3fa6e345c5b9b98c27098153a7e34f206da2e85105f0d1c57b5f043913158cd4",
+    "README.md": "80ffb2110cfbcec448ccdbac8e6cdc1c21096efe671bf875139942263b4f8acb"
+  }
+}

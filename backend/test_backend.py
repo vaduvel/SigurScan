@@ -593,6 +593,41 @@ def test_orchestrated_scan_waits_when_urlscan_result_exists_but_screenshot_is_no
     assert payload["result"] is None
 
 
+def test_orchestrated_scan_times_out_urlscan_screenshot_as_suspect(monkeypatch):
+    client = TestClient(app_main.app)
+    message = (
+        "Ai primit produsul Flanco. Dorim sa fim mai buni pentru tine, "
+        "acorda-ne un calificativ pentru livrare cu un clic aici: https://t.postis.io/9kj8p"
+    )
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
+        patched.setattr(app_main, "ENABLE_CLOUD_AI_EXPLANATION", False)
+        patched.setattr(app_main, "URLSCAN_API_KEY", "server-only-key")
+        patched.setattr(app_main, "ORCHESTRATED_URLSCAN_PENDING_TIMEOUT_SECONDS", 1)
+        patched.setattr(app_main, "_safe_scan_url_list", _fake_yoxo_safe_scan)
+        patched.setattr(app_main, "_gather_external_intel_safe", _clean_web_risk_and_vt_for_resolved_urls)
+        patched.setattr(app_main, "_enrich_offer_claim_verification_async", _fake_inconclusive_offer_claim)
+        patched.setattr(app_main.requests, "post", _fake_urlscan_post)
+        patched.setattr(app_main.requests, "get", _fake_urlscan_get_clean_without_screenshot)
+
+        start = client.post(
+            "/v1/scan/orchestrated",
+            json={"input_type": "text", "text": message, "source_channel": "android_native"},
+        ).json()
+        app_main._ORCHESTRATED_SCAN_JOBS[start["scan_id"]]["created_at"] -= 5
+        response = client.get(f"/v1/scan/orchestrated/{start['scan_id']}")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "complete"
+    assert payload["pillars"]["urlscan"]["status"] == "error"
+    assert "captura" in payload["pillars"]["urlscan"]["details"].lower()
+    assert payload["result"]["user_risk_label"] == "SUSPECT"
+    assert payload["result"]["risk_level"] == "medium"
+    assert payload["result"]["detected_family_id"] == "provider-gate-partial-pillars"
+
+
 def _clean_external_intel_for_resolved_urls(resolved_urls, *args, **kwargs):
     output = {}
     for entry in resolved_urls:
@@ -626,6 +661,61 @@ def _clean_web_risk_and_vt_for_resolved_urls(resolved_urls, *args, **kwargs):
             },
         }
     return output
+
+
+def _malicious_web_risk_and_vt_for_resolved_urls(resolved_urls, *args, **kwargs):
+    output = {}
+    for entry in resolved_urls:
+        final_url = entry.get("final_url") or entry.get("url")
+        if not final_url:
+            continue
+        output[final_url] = {
+            "verdict": "malicious",
+            "risk_score": 95,
+            "sources": {
+                "google_web_risk": {
+                    "status": "malicious",
+                    "verdict": "malicious",
+                    "consulted": True,
+                    "score": 95,
+                    "threat_type": "SOCIAL_ENGINEERING",
+                },
+                "virustotal": {
+                    "status": "malicious",
+                    "verdict": "malicious",
+                    "consulted": True,
+                    "score": 90,
+                    "threat_type": "malicious",
+                },
+            },
+        }
+    return output
+
+
+def _fake_google_test_phishing_scan(urls):
+    resolved = []
+    for raw_url in urls:
+        resolved.append(
+            {
+                "url": raw_url,
+                "original_url": raw_url,
+                "final_url": "https://testsafebrowsing.appspot.com/s/phishing.html",
+                "hostname": "testsafebrowsing.appspot.com",
+                "final_hostname": "testsafebrowsing.appspot.com",
+                "registered_domain": "appspot.com",
+                "final_registered_domain": "appspot.com",
+                "redirect_chain": [{"url": raw_url}],
+                "redirect_count": 0,
+                "shortener_count": 0,
+                "uses_shortener": False,
+                "detected_soft_redirects": [],
+                "domain_age_days": None,
+                "domain_created_date": None,
+                "has_mx_records": False,
+                "success": True,
+            }
+        )
+    return resolved
 
 
 def _fake_fan_relivrare_scan(urls):
@@ -710,6 +800,39 @@ def test_orchestrated_fan_payment_scam_finalizes_dangerous_when_urlscan_rejects_
     assert payload["result"]["risk_level"] == "high"
     assert payload["result"]["detected_family_id"] == "provider-gate-decisive-structural-danger"
     assert payload["result"]["evidence"]["provider_gate"]["finalized_with_provider_error"] is True
+
+
+def test_orchestrated_hard_malicious_provider_finalizes_even_when_urlscan_rejects(monkeypatch):
+    client = TestClient(app_main.app)
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
+        patched.setattr(app_main, "ENABLE_CLOUD_AI_EXPLANATION", False)
+        patched.setattr(app_main, "URLSCAN_API_KEY", "server-only-key")
+        patched.setattr(app_main, "_safe_scan_url_list", _fake_google_test_phishing_scan)
+        patched.setattr(app_main, "_gather_external_intel_safe", _malicious_web_risk_and_vt_for_resolved_urls)
+        patched.setattr(app_main, "_enrich_offer_claim_verification_async", _fake_inconclusive_offer_claim)
+        patched.setattr(app_main.requests, "post", _fake_urlscan_post_rejects_domain)
+
+        response = client.post(
+            "/v1/scan/orchestrated",
+            json={
+                "input_type": "url",
+                "url": "https://testsafebrowsing.appspot.com/s/phishing.html",
+                "source_channel": "android_native",
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "complete"
+    assert payload["pillars"]["google_web_risk"]["status"] == "ok"
+    assert payload["pillars"]["virustotal"]["status"] == "ok"
+    assert payload["pillars"]["urlscan"]["status"] == "error"
+    assert payload["result"]["user_risk_label"] == "PERICULOS"
+    assert payload["result"]["risk_level"] == "high"
+    assert payload["result"]["detected_family_id"] == "provider-gate-bad-provider"
+    assert payload["result"]["evidence"]["provider_gate"]["urlscan_consulted"] is False
 
 
 def test_user_risk_level_labels():
@@ -1044,6 +1167,33 @@ def test_urlscan_sandbox_submit_accepts_scan_persona(monkeypatch):
     assert response.status_code == 200
     assert captured["json"]["country"] == "ro"
     assert captured["json"]["customagent"] == mobile_agent
+
+
+def test_urlscan_sandbox_sanitizes_long_source_channel_tag(monkeypatch):
+    client = TestClient(app_main.app)
+    captured = {}
+
+    def fake_post(url, headers, json, timeout):
+        captured["json"] = json
+        return _FakeUrlscanResponse(payload={"uuid": "scan-tags"})
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "URLSCAN_API_KEY", "server-only-key")
+        patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
+        patched.setattr(app_main.requests, "post", fake_post)
+        response = client.post(
+            "/v1/sandbox/urlscan",
+            json={
+                "url": "https://example.com/",
+                "source_channel": "Codex Live Big Pillars YOXO 20260604 !!! very long",
+            },
+        )
+
+    assert response.status_code == 200
+    tags = captured["json"]["tags"]
+    assert tags[:2] == ["sigurscan", "android"]
+    assert len(tags[2]) <= 32
+    assert tags[2] == "codex-live-big-pillars-yoxo-20"
 
 
 def test_urlscan_sandbox_result_summarizes_malicious_payload(monkeypatch):

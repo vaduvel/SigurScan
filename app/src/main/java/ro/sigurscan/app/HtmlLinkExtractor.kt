@@ -677,6 +677,7 @@ object HtmlLinkExtractor {
             normalizeCandidateUrl(variant)?.let { normalized ->
                 output.add(normalized)
                 unwrapRedirectWrapper(normalized)?.let(output::add)
+                extractNestedUrlTargets(normalized).forEach(output::add)
             }
         }
 
@@ -812,6 +813,36 @@ object HtmlLinkExtractor {
         unwrapYahooRedirect(url)?.let { return it }
 
         return null
+    }
+
+    private fun extractNestedUrlTargets(url: String): List<String> {
+        val redirectKeys = setOf(
+            "url",
+            "u",
+            "uri",
+            "redirect",
+            "redirect_url",
+            "return",
+            "return_url",
+            "target",
+            "destination",
+            "dest",
+            "next",
+            "continue",
+            "to",
+            "link",
+            "href"
+        )
+        val output = linkedSetOf<String>()
+        extractQueryParams(url).forEach { (key, value) ->
+            if (key in redirectKeys) {
+                normalizeCandidateUrl(value)?.let(output::add)
+            }
+            urlMatches(value).forEach { candidate ->
+                normalizeCandidateUrl(candidate)?.let(output::add)
+            }
+        }
+        return output.toList()
     }
 
     private fun extractHost(url: String): String {

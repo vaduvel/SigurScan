@@ -1,0 +1,584 @@
+[
+  {
+    "test_id": "HTML_001_VISIBLE_OFFICIAL_BUTTON",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a class='btn' href='https://www.emag.ro/campaign'>Vezi oferta</a>",
+    "expected_extracted_targets": [
+      "www.emag.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "notes": "basic button official",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_002_HIDDEN_LINK_UNDER_BUTTON_FAKE",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a style='display:block' href='https://anaf-rambursare.test/login'>Intră în SPV</a>",
+    "expected_extracted_targets": [
+      "anaf-rambursare.test"
+    ],
+    "expected_final_verdict": "PERICULOS",
+    "notes": "claimed ANAF + fake domain; provider sandbox form card in CI",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "card_form,cnp_form",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_003_DISPLAY_DOMAIN_DIFFERS_HREF",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href='https://posta-plata.test/taxa'>https://www.posta-romana.ro/track</a>",
+    "expected_extracted_targets": [
+      "posta-plata.test"
+    ],
+    "expected_final_verdict": "PERICULOS",
+    "notes": "displayed official but href fake + fee/payment context",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "card_form",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_004_MULTIPLE_LINKS_PRIMARY_SUSPICIOUS",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href='https://www.anaf.ro'>ANAF</a><a class='cta' href='https://anaf-restituire.test/card'>Solicită rambursarea</a>",
+    "expected_extracted_targets": [
+      "www.anaf.ro",
+      "anaf-restituire.test"
+    ],
+    "expected_final_verdict": "PERICULOS",
+    "notes": "PrimaryUrlPicker must prefer CTA suspicious over footer official",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "card_form",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_005_TRACKING_PIXEL_IGNORED",
+    "input_type": "html_email",
+    "html_mime_fragment": "<img src='https://trk.example/p.gif?id=1'><a href='https://www.fancourier.ro/awb-tracking'>Urmărește coletul</a>",
+    "expected_extracted_targets": [
+      "trk.example",
+      "www.fancourier.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "notes": "Do not choose pixel as primary URL",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_006_COMMENT_OBFUSCATED_URL",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href='https://fan<!--x-->box-livrare.test/awb'>Alege locker</a>",
+    "expected_extracted_targets": [
+      "fanbox-livrare.test"
+    ],
+    "expected_final_verdict": "PERICULOS",
+    "notes": "Parser should normalize/comment-strip safely",
+    "mocked_provider_results_for_ci": {
+      "urlscan": "whatsapp_code_form,card_form",
+      "web_risk": "NO_MATCH"
+    }
+  },
+  {
+    "test_id": "HTML_007_HTML_ENTITY_HREF",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href='https://olx-plata.test/receive?sum=250&amp;cur=RON'>Primește banii</a>",
+    "expected_extracted_targets": [
+      "olx-plata.test"
+    ],
+    "expected_final_verdict": "PERICULOS",
+    "notes": "Decode &amp; and detect receive-money card context",
+    "mocked_provider_results_for_ci": {
+      "urlscan": "card_cvv_otp_form",
+      "web_risk": "NO_MATCH"
+    }
+  },
+  {
+    "test_id": "HTML_008_RELATIVE_URL_NO_BASE",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href='/reset'>Resetare parolă</a>",
+    "expected_extracted_targets": [],
+    "expected_final_verdict": "SUSPECT",
+    "notes": "Relative URL without base cannot be sent to provider",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_009_BASE_TAG_OFFICIAL",
+    "input_type": "html_email",
+    "html_mime_fragment": "<base href='https://www.ing.ro/'><a href='/ing-in-romania/informatii-utile/securitate/phishing-smishing'>Securitate</a>",
+    "expected_extracted_targets": [
+      "www.ing.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "notes": "Resolve relative URL via base tag",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_010_BASE_TAG_FAKE",
+    "input_type": "html_email",
+    "html_mime_fragment": "<base href='https://homebank-update.test/'><a href='/login'>Actualizează HomeBank</a>",
+    "expected_extracted_targets": [
+      "homebank-update.test"
+    ],
+    "expected_final_verdict": "PERICULOS",
+    "notes": "Resolve base tag; fake ING-like login",
+    "mocked_provider_results_for_ci": {
+      "urlscan": "login_form",
+      "web_risk": "NO_MATCH"
+    }
+  },
+  {
+    "test_id": "HTML_011_META_REFRESH_FAKE",
+    "input_type": "html_email",
+    "html_mime_fragment": "<meta http-equiv='refresh' content='0;url=https://bt-deblocare.test/login'><p>BT Pay</p>",
+    "expected_extracted_targets": [
+      "bt-deblocare.test"
+    ],
+    "expected_final_verdict": "PERICULOS",
+    "notes": "Extract meta refresh target",
+    "mocked_provider_results_for_ci": {
+      "urlscan": "login_card_form",
+      "web_risk": "NO_MATCH"
+    }
+  },
+  {
+    "test_id": "HTML_012_JS_LOCATION_FAKE",
+    "input_type": "html_email",
+    "html_mime_fragment": "<script>location.href='https://revolut-support.test/case'</script>",
+    "expected_extracted_targets": [
+      "revolut-support.test"
+    ],
+    "expected_final_verdict": "SUSPECT",
+    "notes": "Static extraction can flag JS location; no hard periculos without form/provider",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_013_FORM_ACTION_FAKE",
+    "input_type": "html_email",
+    "html_mime_fragment": "<form action='https://raiffeisen-online.test/auth'><input name='parola'><button>Continuă</button></form>",
+    "expected_extracted_targets": [
+      "raiffeisen-online.test"
+    ],
+    "expected_final_verdict": "PERICULOS",
+    "notes": "Extract form action; bank + password",
+    "mocked_provider_results_for_ci": {
+      "urlscan": "login_form",
+      "web_risk": "NO_MATCH"
+    }
+  },
+  {
+    "test_id": "HTML_014_FORM_ACTION_OFFICIAL_EDU",
+    "input_type": "html_email",
+    "html_mime_fragment": "<form action='https://www.raiffeisen.ro/search'><input name='q' value='phishing'></form>",
+    "expected_extracted_targets": [
+      "www.raiffeisen.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "notes": "Official search form not auth/card",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_015_CSS_BACKGROUND_URL",
+    "input_type": "html_email",
+    "html_mime_fragment": "<div style=\"background-image:url('https://tracking.example/bg.png')\"></div><a href='https://altex.ro'>Altex</a>",
+    "expected_extracted_targets": [
+      "tracking.example",
+      "altex.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "notes": "CSS image URL should not override visible official CTA",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_016_PUNYCODE_LOOKALIKE",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href='https://xn--emg-9la.test/premiu'>eMAG premiu</a>",
+    "expected_extracted_targets": [
+      "xn--emg-9la.test"
+    ],
+    "expected_final_verdict": "PERICULOS",
+    "notes": "Punycode/lookalike + prize + card form in provider",
+    "mocked_provider_results_for_ci": {
+      "urlscan": "card_form",
+      "web_risk": "NO_MATCH"
+    }
+  },
+  {
+    "test_id": "HTML_017_HOMOGLYPH_TEXT",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href='https://emag.example/premiu'>еMAG Voucher</a>",
+    "expected_extracted_targets": [
+      "emag.example"
+    ],
+    "expected_final_verdict": "SUSPECT",
+    "notes": "Cyrillic e in display text; example reserved, skip provider; no periculos without form",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_018_DATA_URL_BUTTON",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href='data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg=='>Deschide factura</a>",
+    "expected_extracted_targets": [],
+    "expected_final_verdict": "SUSPECT",
+    "notes": "Do not send data: URL to providers; local structural suspicious",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_019_FILE_ATTACHMENT_LINK",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href='file:///sdcard/Download/factura.pdf'>Factura</a>",
+    "expected_extracted_targets": [],
+    "expected_final_verdict": "SUSPECT",
+    "notes": "No provider call for file://; local import only",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_020_MAILTO_LINK",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href='mailto:suport@example.com'>Contact</a>",
+    "expected_extracted_targets": [],
+    "expected_final_verdict": "SIGUR",
+    "notes": "mailto is not URL target for web providers",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_021_TEL_LINK",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href='tel:+40123456789'>Sună suport</a>",
+    "expected_extracted_targets": [],
+    "expected_final_verdict": "SUSPECT",
+    "notes": "tel link should not be web-scanned; if unknown support context, suspect only",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_022_LONG_QUERY_SENSITIVE",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href='https://example.com/reset?email=maria.popescu%40example.com&token=ABC123&otp=123456'>Resetare</a>",
+    "expected_extracted_targets": [
+      "example.com"
+    ],
+    "expected_final_verdict": "SUSPECT",
+    "notes": "Redact query before any provider; maybe skip urlscan",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_023_NESTED_BUTTON_ANCHOR",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href='https://posta-taxa.test/pay'><button>Confirmă adresa</button></a>",
+    "expected_extracted_targets": [
+      "posta-taxa.test"
+    ],
+    "expected_final_verdict": "PERICULOS",
+    "notes": "Button nested in anchor fake delivery",
+    "mocked_provider_results_for_ci": {
+      "urlscan": "card_form",
+      "web_risk": "NO_MATCH"
+    }
+  },
+  {
+    "test_id": "HTML_024_IMAGE_MAP_AREA",
+    "input_type": "html_email",
+    "html_mime_fragment": "<map name='m'><area href='https://hidro-invest.test/start' alt='Investește'></map><img usemap='#m'>",
+    "expected_extracted_targets": [
+      "hidro-invest.test"
+    ],
+    "expected_final_verdict": "PERICULOS",
+    "notes": "Extract image map area href",
+    "mocked_provider_results_for_ci": {
+      "urlscan": "investment_deposit_form",
+      "web_risk": "NO_MATCH"
+    }
+  },
+  {
+    "test_id": "HTML_025_TABLE_LAYOUT_NEWSLETTER",
+    "input_type": "html_email",
+    "html_mime_fragment": "<table><tr><td><a href='https://www.emag.ro/oferta'>Cumpără acum</a></td></tr></table>",
+    "expected_extracted_targets": [
+      "www.emag.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "notes": "Legacy email layout official",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_026_HIDDEN_CTA_DISPLAY_NONE",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a style='display:none' href='https://bt-login.test'>hidden</a><a href='https://www.bancatransilvania.ro'>BT</a>",
+    "expected_extracted_targets": [
+      "bt-login.test",
+      "www.bancatransilvania.ro"
+    ],
+    "expected_final_verdict": "SUSPECT",
+    "notes": "Hidden fake link exists but not visible; should be signal, not instant periculos without sensitive form/provider",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_027_ARIA_LABEL_MISMATCH",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a aria-label='ANAF SPV' href='https://anaf-card.test'>Continuă</a>",
+    "expected_extracted_targets": [
+      "anaf-card.test"
+    ],
+    "expected_final_verdict": "PERICULOS",
+    "notes": "ARIA/text brand claim + fake domain",
+    "mocked_provider_results_for_ci": {
+      "urlscan": "card_cnp_form",
+      "web_risk": "NO_MATCH"
+    }
+  },
+  {
+    "test_id": "HTML_028_URL_IN_TEXT_NOT_HREF",
+    "input_type": "html_email",
+    "html_mime_fragment": "<p>Accesează https://fanbox-livrare.test pentru locker</p>",
+    "expected_extracted_targets": [
+      "fanbox-livrare.test"
+    ],
+    "expected_final_verdict": "SUSPECT",
+    "notes": "Text URL extraction; without provider form max suspect",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_029_MANY_URLS_ONE_BAD",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href='https://www.anaf.ro'>ANAF</a><a href='https://facebook.com'>Social</a><a href='https://anaf-rambursare.test'>Rambursare</a>",
+    "expected_extracted_targets": [
+      "www.anaf.ro",
+      "facebook.com",
+      "anaf-rambursare.test"
+    ],
+    "expected_final_verdict": "PERICULOS",
+    "notes": "PrimaryUrlPicker should choose suspicious refund link",
+    "mocked_provider_results_for_ci": {
+      "urlscan": "card_form",
+      "web_risk": "NO_MATCH"
+    }
+  },
+  {
+    "test_id": "HTML_030_WEBMAIL_WRAPPER_ONLY",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href='https://mail.google.com/mail/u/0/#inbox/abc'>Deschide în Gmail</a>",
+    "expected_extracted_targets": [
+      "mail.google.com"
+    ],
+    "expected_final_verdict": "SUSPECT",
+    "notes": "Webmail shell only; not enough evidence",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_031_REDIRECT_PARAM_FINAL_OFFICIAL",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href='https://redirect.example/click?u=https%3A%2F%2Fwww.orange.ro%2Fprevenire-frauda%2F'>Detalii</a>",
+    "expected_extracted_targets": [
+      "redirect.example",
+      "www.orange.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "notes": "Decode redirect param and final official",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_032_REDIRECT_PARAM_FINAL_FAKE",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href='https://redirect.example/click?u=https%3A%2F%2Forange-premii.test%2Fcard'>Claim</a>",
+    "expected_extracted_targets": [
+      "redirect.example",
+      "orange-premii.test"
+    ],
+    "expected_final_verdict": "PERICULOS",
+    "notes": "Decode redirect param to fake sensitive target",
+    "mocked_provider_results_for_ci": {
+      "urlscan": "card_form",
+      "web_risk": "NO_MATCH"
+    }
+  },
+  {
+    "test_id": "HTML_033_XMLNS_WORD_HTML",
+    "input_type": "html_email",
+    "html_mime_fragment": "<html xmlns:o='urn:schemas-microsoft-com:office:office'><v:roundrect href='https://posta-taxa.test/pay'>Plătește</v:roundrect></html>",
+    "expected_extracted_targets": [
+      "posta-taxa.test"
+    ],
+    "expected_final_verdict": "PERICULOS",
+    "notes": "Outlook/VML buttons often hide href",
+    "mocked_provider_results_for_ci": {
+      "urlscan": "card_form",
+      "web_risk": "NO_MATCH"
+    }
+  },
+  {
+    "test_id": "HTML_034_MIXED_CASE_SCHEME_HOST",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href='HTTPS://WWW.FANCOURIER.RO/AWB-TRACKING'>Tracking</a>",
+    "expected_extracted_targets": [
+      "www.fancourier.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "notes": "Normalize scheme/host lower-case",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_035_NON_HTTP_SCHEMES",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href='whatsapp://send?text=cod'>Trimite pe WhatsApp</a><a href='https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/'>Info</a>",
+    "expected_extracted_targets": [
+      "sigurantaonline.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "notes": "Non-http scheme ignored for provider; official info link extracted",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_036_ATTACHMENT_FILENAME_ONLY",
+    "input_type": "html_email",
+    "html_mime_fragment": "<p>Factura atasata: factura_Orange.pdf</p>",
+    "expected_extracted_targets": [],
+    "expected_final_verdict": "SUSPECT",
+    "notes": "No URL; requires attachment parsing",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_037_BASE64_TEXT_URL",
+    "input_type": "html_email",
+    "html_mime_fragment": "<p>aHR0cHM6Ly9vbHgtcGxhdGEudGVzdA==</p>",
+    "expected_extracted_targets": [],
+    "expected_final_verdict": "SUSPECT",
+    "notes": "Do not blindly decode arbitrary base64 into URL for provider; signal maybe",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_038_HREF_WITH_SPACES",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href=' https://www.ghiseul.ro '>Ghișeul</a>",
+    "expected_extracted_targets": [
+      "www.ghiseul.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "notes": "Trim whitespace",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  },
+  {
+    "test_id": "HTML_039_LINK_WITH_ZERO_WIDTH",
+    "input_type": "html_email",
+    "html_mime_fragment": "<a href='https://po​sta-taxa.test/pay'>Poșta</a>",
+    "expected_extracted_targets": [
+      "posta-taxa.test"
+    ],
+    "expected_final_verdict": "PERICULOS",
+    "notes": "Normalize zero-width chars",
+    "mocked_provider_results_for_ci": {
+      "urlscan": "card_form",
+      "web_risk": "NO_MATCH"
+    }
+  },
+  {
+    "test_id": "HTML_040_META_CANONICAL_FAKE",
+    "input_type": "html_email",
+    "html_mime_fragment": "<link rel='canonical' href='https://hidro-invest.test'><a href='https://www.hidroelectrica.ro'>Hidro</a>",
+    "expected_extracted_targets": [
+      "hidro-invest.test",
+      "www.hidroelectrica.ro"
+    ],
+    "expected_final_verdict": "SUSPECT",
+    "notes": "Canonical fake should be captured but visible official dominates unless context/form says otherwise",
+    "mocked_provider_results_for_ci": {
+      "web_risk": "NO_MATCH",
+      "urlscan": "not_run_or_clean",
+      "virustotal": "not_run"
+    }
+  }
+]

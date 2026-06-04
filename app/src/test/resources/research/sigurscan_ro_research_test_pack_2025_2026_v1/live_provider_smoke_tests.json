@@ -1,0 +1,337 @@
+[
+  {
+    "id": "LIVE_001_EMAG_OFFICIAL",
+    "input": "https://www.emag.ro/",
+    "input_type": "url",
+    "should_call_urlscan": true,
+    "should_call_web_risk": true,
+    "should_call_virustotal": false,
+    "should_redact_before_external": false,
+    "expected_final_url_behavior": "final host should remain emag.ro or www.emag.ro; redirects acceptable within official infrastructure",
+    "expected_preview_behavior": "urlscan screenshot/preview should be available eventually or pending without failing test",
+    "expected_user_action_range": [
+      "SIGUR",
+      "SUSPECT"
+    ],
+    "why_safe_to_run_live": "major official retail site; no PII; no malware/phishing target",
+    "max_timeout_seconds": 30
+  },
+  {
+    "id": "LIVE_002_ANAF_OFFICIAL",
+    "input": "https://www.anaf.ro/",
+    "input_type": "url",
+    "should_call_urlscan": true,
+    "should_call_web_risk": true,
+    "should_call_virustotal": false,
+    "should_redact_before_external": false,
+    "expected_final_url_behavior": "official anaf.ro domain; redirects within ANAF portal are acceptable",
+    "expected_preview_behavior": "preview may be heavy/portal-like; pending/partial is acceptable",
+    "expected_user_action_range": [
+      "SIGUR",
+      "SUSPECT"
+    ],
+    "why_safe_to_run_live": "official tax authority domain; no PII",
+    "max_timeout_seconds": 30
+  },
+  {
+    "id": "LIVE_003_FAN_OFFICIAL",
+    "input": "https://www.fancourier.ro/awb-tracking/",
+    "input_type": "url",
+    "should_call_urlscan": true,
+    "should_call_web_risk": true,
+    "should_call_virustotal": false,
+    "should_redact_before_external": false,
+    "expected_final_url_behavior": "final host should be fancourier.ro/www.fancourier.ro",
+    "expected_preview_behavior": "screenshot should show official FAN page or consent/cookie page",
+    "expected_user_action_range": [
+      "SIGUR",
+      "SUSPECT"
+    ],
+    "why_safe_to_run_live": "official courier tracking page; no real AWB supplied",
+    "max_timeout_seconds": 30
+  },
+  {
+    "id": "LIVE_004_BT_OFFICIAL",
+    "input": "https://www.bancatransilvania.ro/siguranta-online",
+    "input_type": "url",
+    "should_call_urlscan": true,
+    "should_call_web_risk": true,
+    "should_call_virustotal": false,
+    "should_redact_before_external": false,
+    "expected_final_url_behavior": "official bancatransilvania.ro domain",
+    "expected_preview_behavior": "screenshot should be valid or pending",
+    "expected_user_action_range": [
+      "SIGUR",
+      "SUSPECT"
+    ],
+    "why_safe_to_run_live": "official bank security education page; no credentials",
+    "max_timeout_seconds": 30
+  },
+  {
+    "id": "LIVE_005_POSTA_OFFICIAL",
+    "input": "https://www.posta-romana.ro/",
+    "input_type": "url",
+    "should_call_urlscan": true,
+    "should_call_web_risk": true,
+    "should_call_virustotal": false,
+    "should_redact_before_external": false,
+    "expected_final_url_behavior": "official posta-romana.ro domain",
+    "expected_preview_behavior": "screenshot available/pending accepted",
+    "expected_user_action_range": [
+      "SIGUR",
+      "SUSPECT"
+    ],
+    "why_safe_to_run_live": "official domain; no PII",
+    "max_timeout_seconds": 30
+  },
+  {
+    "id": "LIVE_006_DNSC_OFFICIAL",
+    "input": "https://www.dnsc.ro/",
+    "input_type": "url",
+    "should_call_urlscan": true,
+    "should_call_web_risk": true,
+    "should_call_virustotal": false,
+    "should_redact_before_external": false,
+    "expected_final_url_behavior": "official dnsc.ro",
+    "expected_preview_behavior": "preview screenshot should be acceptable",
+    "expected_user_action_range": [
+      "SIGUR",
+      "SUSPECT"
+    ],
+    "why_safe_to_run_live": "official cybersecurity authority site",
+    "max_timeout_seconds": 30
+  },
+  {
+    "id": "LIVE_007_GHISEUL_OFFICIAL",
+    "input": "https://www.ghiseul.ro/",
+    "input_type": "url",
+    "should_call_urlscan": true,
+    "should_call_web_risk": true,
+    "should_call_virustotal": false,
+    "should_redact_before_external": false,
+    "expected_final_url_behavior": "official ghiseul.ro",
+    "expected_preview_behavior": "preview may be blocked/partial; do not fail if pending",
+    "expected_user_action_range": [
+      "SIGUR",
+      "SUSPECT"
+    ],
+    "why_safe_to_run_live": "official public payments portal homepage; no transaction details",
+    "max_timeout_seconds": 30
+  },
+  {
+    "id": "LIVE_008_EXAMPLE_COM",
+    "input": "https://example.com/",
+    "input_type": "url",
+    "should_call_urlscan": true,
+    "should_call_web_risk": true,
+    "should_call_virustotal": true,
+    "should_redact_before_external": false,
+    "expected_final_url_behavior": "final remains example.com",
+    "expected_preview_behavior": "urlscan screenshot should usually be valid",
+    "expected_user_action_range": [
+      "SIGUR",
+      "SUSPECT"
+    ],
+    "why_safe_to_run_live": "IANA reserved example domain; benign smoke target",
+    "max_timeout_seconds": 30
+  },
+  {
+    "id": "LIVE_009_EXAMPLE_ORG_VT_LOW",
+    "input": "https://example.org/",
+    "input_type": "url",
+    "should_call_urlscan": false,
+    "should_call_web_risk": true,
+    "should_call_virustotal": true,
+    "should_redact_before_external": false,
+    "expected_final_url_behavior": "not applicable if urlscan skipped",
+    "expected_preview_behavior": "no preview required",
+    "expected_user_action_range": [
+      "SIGUR",
+      "SUSPECT"
+    ],
+    "why_safe_to_run_live": "IANA example domain; low/no detections expected but not asserted",
+    "max_timeout_seconds": 20
+  },
+  {
+    "id": "LIVE_010_HTTPBIN_HTML_SCREENSHOT",
+    "input": "https://httpbin.org/html",
+    "input_type": "url",
+    "should_call_urlscan": true,
+    "should_call_web_risk": true,
+    "should_call_virustotal": true,
+    "should_redact_before_external": false,
+    "expected_final_url_behavior": "final remains httpbin.org/html",
+    "expected_preview_behavior": "screenshot should show simple HTML page or provider pending",
+    "expected_user_action_range": [
+      "SIGUR",
+      "SUSPECT"
+    ],
+    "why_safe_to_run_live": "well-known benign test endpoint",
+    "max_timeout_seconds": 30
+  },
+  {
+    "id": "LIVE_011_HTTPBIN_REDIRECT_TO_EXAMPLE",
+    "input": "https://httpbin.org/redirect-to?url=https%3A%2F%2Fexample.com%2F",
+    "input_type": "url",
+    "should_call_urlscan": true,
+    "should_call_web_risk": true,
+    "should_call_virustotal": false,
+    "should_redact_before_external": false,
+    "expected_final_url_behavior": "redirect chain should end at example.com",
+    "expected_preview_behavior": "preview final or redirect page acceptable",
+    "expected_user_action_range": [
+      "SIGUR",
+      "SUSPECT"
+    ],
+    "why_safe_to_run_live": "benign redirect endpoint to IANA example domain",
+    "max_timeout_seconds": 30
+  },
+  {
+    "id": "LIVE_012_HTTPBIN_DELAY_TIMEOUT",
+    "input": "https://httpbin.org/delay/5",
+    "input_type": "url",
+    "should_call_urlscan": true,
+    "should_call_web_risk": true,
+    "should_call_virustotal": false,
+    "should_redact_before_external": false,
+    "expected_final_url_behavior": "final remains httpbin.org/delay/5 if completed",
+    "expected_preview_behavior": "pending/timeout must produce provisional UI, not crash",
+    "expected_user_action_range": [
+      "SUSPECT",
+      "SIGUR"
+    ],
+    "why_safe_to_run_live": "benign delay endpoint to test pending/timeout",
+    "max_timeout_seconds": 8
+  },
+  {
+    "id": "LIVE_013_RESERVED_TEST_SKIP",
+    "input": "https://provider-smoke-skip.test/path",
+    "input_type": "url",
+    "should_call_urlscan": false,
+    "should_call_web_risk": false,
+    "should_call_virustotal": false,
+    "should_redact_before_external": false,
+    "expected_final_url_behavior": "provider calls skipped due reserved .test",
+    "expected_preview_behavior": "no preview; local-only result",
+    "expected_user_action_range": [
+      "SUSPECT"
+    ],
+    "why_safe_to_run_live": "reserved .test must not be sent live",
+    "max_timeout_seconds": 3
+  },
+  {
+    "id": "LIVE_014_RESERVED_INVALID_SKIP",
+    "input": "https://example.invalid/pay",
+    "input_type": "url",
+    "should_call_urlscan": false,
+    "should_call_web_risk": false,
+    "should_call_virustotal": false,
+    "should_redact_before_external": false,
+    "expected_final_url_behavior": "provider calls skipped due reserved .invalid",
+    "expected_preview_behavior": "no preview",
+    "expected_user_action_range": [
+      "SUSPECT"
+    ],
+    "why_safe_to_run_live": "reserved invalid domain; skip live providers",
+    "max_timeout_seconds": 3
+  },
+  {
+    "id": "LIVE_015_SENSITIVE_QUERY_REDACT",
+    "input": "https://example.com/reset?email=maria.popescu%40example.com&phone=%2B40700111222&token=TEST_TOKEN_ABC&otp=123456",
+    "input_type": "url",
+    "should_call_urlscan": false,
+    "should_call_web_risk": true,
+    "should_call_virustotal": false,
+    "should_redact_before_external": true,
+    "expected_final_url_behavior": "external submission must remove/redact email, phone, token, otp query params before Web Risk; urlscan skipped",
+    "expected_preview_behavior": "no screenshot because sensitive reset-like URL",
+    "expected_user_action_range": [
+      "SUSPECT"
+    ],
+    "why_safe_to_run_live": "fake PII on example.com; tests redaction/skip, not threat intel",
+    "max_timeout_seconds": 8
+  },
+  {
+    "id": "LIVE_016_PROVIDER_CLEAN_LOCAL_SENSITIVE",
+    "input": "Mesaj: Revolut nu îți va cere codul. Un necunoscut îți cere: trimite codul OTP 123456 aici. Link info: https://example.com/security",
+    "input_type": "paste_text",
+    "should_call_urlscan": false,
+    "should_call_web_risk": true,
+    "should_call_virustotal": false,
+    "should_redact_before_external": true,
+    "expected_final_url_behavior": "example.com clean/unknown likely; local text asks OTP",
+    "expected_preview_behavior": "no preview required",
+    "expected_user_action_range": [
+      "SUSPECT"
+    ],
+    "why_safe_to_run_live": "safe example URL and fake OTP; tests conflict-safe provider clean + local sensitive structure without using malicious URL",
+    "max_timeout_seconds": 8
+  },
+  {
+    "id": "LIVE_017_ORANGE_OFFICIAL",
+    "input": "https://www.orange.ro/prevenire-frauda/",
+    "input_type": "url",
+    "should_call_urlscan": true,
+    "should_call_web_risk": true,
+    "should_call_virustotal": false,
+    "should_redact_before_external": false,
+    "expected_final_url_behavior": "official orange.ro",
+    "expected_preview_behavior": "valid screenshot/pending",
+    "expected_user_action_range": [
+      "SIGUR",
+      "SUSPECT"
+    ],
+    "why_safe_to_run_live": "official anti-fraud page",
+    "max_timeout_seconds": 30
+  },
+  {
+    "id": "LIVE_018_HIDRO_OFFICIAL",
+    "input": "https://www.hidroelectrica.ro/",
+    "input_type": "url",
+    "should_call_urlscan": true,
+    "should_call_web_risk": true,
+    "should_call_virustotal": false,
+    "should_redact_before_external": false,
+    "expected_final_url_behavior": "official hidroelectrica.ro",
+    "expected_preview_behavior": "preview available/pending",
+    "expected_user_action_range": [
+      "SIGUR",
+      "SUSPECT"
+    ],
+    "why_safe_to_run_live": "official company domain; no investment form",
+    "max_timeout_seconds": 30
+  },
+  {
+    "id": "LIVE_019_SAMEDAY_OFFICIAL",
+    "input": "https://sameday.ro/",
+    "input_type": "url",
+    "should_call_urlscan": true,
+    "should_call_web_risk": true,
+    "should_call_virustotal": false,
+    "should_redact_before_external": false,
+    "expected_final_url_behavior": "official sameday.ro",
+    "expected_preview_behavior": "preview available/pending",
+    "expected_user_action_range": [
+      "SIGUR",
+      "SUSPECT"
+    ],
+    "why_safe_to_run_live": "official courier domain",
+    "max_timeout_seconds": 30
+  },
+  {
+    "id": "LIVE_020_NO_URL_TEXT_ONLY",
+    "input": "Bună, sunt fiul tău, am telefon nou. Am nevoie urgent de 500 lei. Sună-mă pe numărul vechi dacă vrei să verifici.",
+    "input_type": "paste_text",
+    "should_call_urlscan": false,
+    "should_call_web_risk": false,
+    "should_call_virustotal": false,
+    "should_redact_before_external": true,
+    "expected_final_url_behavior": "no URL extracted; providers skipped",
+    "expected_preview_behavior": "no preview; text-only provisional/local result",
+    "expected_user_action_range": [
+      "SUSPECT"
+    ],
+    "why_safe_to_run_live": "no external URL, fake content; verifies no provider spam for social scam text",
+    "max_timeout_seconds": 3
+  }
+]

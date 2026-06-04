@@ -1,0 +1,186 @@
+{
+  "schema_version": "1.0.0",
+  "generated_for": "SigurScan",
+  "generated_at": "2026-06-04",
+  "region": "RO",
+  "period": "2025-2026",
+  "notes": "Official/published scam warnings per brand. lure_structure describes the pattern STRUCTURALLY (no 1:1 copy of real commercial emails). Use to seed brandwarning signals and analyst expectations, NOT as sole decisional ground truth.",
+  "warnings": [
+    {
+      "id": "warn_anaf_email_neregularitate",
+      "brandId": "anaf",
+      "channel": "email",
+      "title": "Fake ANAF email about a fiscal 'irregularity'",
+      "modus_operandi": "Email claims a 'possible irregularity identified in submitted fiscal declarations' and pushes the user to follow steps / open a link to 'fix' it, leading to a credential/card harvesting page.",
+      "lure_structure": {
+        "sender_spoof": "display name 'ANAF' from unrelated address (observed e.g. a generic non-anaf.ro mailbox)",
+        "subject_theme": "neregularitate in declaratiile fiscale",
+        "urgency": "remediere imediata pentru a evita consecinte",
+        "call_to_action": "acceseaza link / urmeaza pasi"
+      },
+      "observed_indicators": ["sender_domain_not_official", "link_to_non_anaf_domain", "requests_personal_or_card_data"],
+      "official_advice": "Check notifications only inside SPV on anaf.ro; if none, the message is fake. ANAF does not request card payments by email.",
+      "sourceRefs": ["src_dnsc_anaf_phishing", "src_anaf_comunicat_13oct2025", "src_cybershield_anaf"],
+      "classification": "official",
+      "confidence": "high",
+      "first_seen": "2025-03-20",
+      "last_seen": "2025-10-13"
+    },
+    {
+      "id": "warn_min_finante_identity",
+      "brandId": "anaf",
+      "channel": "email",
+      "title": "Campaign using the identity of the Minister of Finance",
+      "modus_operandi": "Messages impersonate a public official to add authority and redirect users to fraudulent sites requesting personal/financial data.",
+      "lure_structure": {
+        "authority_impersonation": "named public official",
+        "call_to_action": "open link -> fraudulent data-collection site"
+      },
+      "observed_indicators": ["authority_impersonation", "link_to_non_official_domain", "requests_personal_data"],
+      "sourceRefs": ["src_dnsc_min_finante"],
+      "classification": "official",
+      "confidence": "high",
+      "first_seen": "2025-07-29"
+    },
+    {
+      "id": "warn_fancourier_data_error",
+      "brandId": "fanCourier",
+      "channel": "sms",
+      "title": "Fake FAN Courier 'shipment cannot be completed due to data errors'",
+      "modus_operandi": "SMS claims the shipment cannot be completed because of data errors and urges the user to click a link to 'update information'; link goes to a lookalike domain harvesting card data.",
+      "lure_structure": {
+        "theme": "colet blocat / date eronate",
+        "call_to_action": "actualizeaza datele prin link",
+        "domain_trick": "slightly altered company name / unusual TLD / extra words"
+      },
+      "observed_indicators": ["shortened_or_lookalike_url", "non_official_tld", "requests_card_data"],
+      "official_advice": "Check shipment only on fancourier.ro or in the app. FAN never asks for card data; only name and IBAN are safe to share.",
+      "sourceRefs": ["src_fancourier_phishing_oct2025", "src_fancourier_smishing"],
+      "classification": "official",
+      "confidence": "high",
+      "first_seen": "2023-05-03",
+      "last_seen": "2025-10-30"
+    },
+    {
+      "id": "warn_fancourier_whatsapp_takeover",
+      "brandId": "fanCourier",
+      "channel": "sms",
+      "title": "FAN Courier SMS leading to WhatsApp account takeover",
+      "modus_operandi": "SMS says a parcel is linked to the user's number and asks to choose a locker; the page imitates FAN Courier but redirects to a malicious domain whose immediate objective is WhatsApp account takeover.",
+      "lure_structure": {
+        "theme": "colet legat de numarul tau / alege lockerul",
+        "call_to_action": "deschide pagina -> redirect malitios"
+      },
+      "observed_indicators": ["redirect_to_malicious_domain", "lookalike_branding", "account_takeover_objective"],
+      "sourceRefs": ["src_bitdefender_fancourier"],
+      "classification": "community",
+      "confidence": "medium",
+      "first_seen": "2025"
+    },
+    {
+      "id": "warn_posta_romana_sms",
+      "brandId": "postaRomana",
+      "channel": "sms",
+      "title": "Fake Posta Romana SMS asking to complete delivery data",
+      "modus_operandi": "SMS appears to be from Posta Romana asking the recipient to access a SHORT URL to complete personal data needed for a parcel delivery; the page visually imitates the official site and collects personal/financial data.",
+      "lure_structure": {
+        "theme": "completeaza date pentru livrare colet",
+        "call_to_action": "acceseaza short URL",
+        "domain_trick": "short URL redirect to visually-cloned page"
+      },
+      "observed_indicators": ["shortened_url", "visual_clone", "requests_personal_or_financial_data"],
+      "sourceRefs": ["src_posta_phishing_iun2025"],
+      "classification": "official",
+      "confidence": "high",
+      "first_seen": "2025-06-16"
+    },
+    {
+      "id": "warn_olx_livrare_card",
+      "brandId": "olx",
+      "channel": "web",
+      "title": "Fake 'Livrare prin OLX' / paid-item link requesting card data",
+      "modus_operandi": "After agreeing to a transaction, the scammer sends a fake link mimicking 'Livrare prin OLX' where the SELLER is asked for card details and balance, supposedly to RECEIVE money. Often paired with fake FAN Courier/Sameday delivery links.",
+      "lure_structure": {
+        "theme": "primesti banii pentru articolul vandut",
+        "call_to_action": "introdu datele cardului pentru a primi plata",
+        "domain_trick": "lookalike OLX/courier domain off official"
+      },
+      "observed_indicators": ["seller_asked_for_card_to_receive", "lookalike_domain", "links_chained_with_fake_courier"],
+      "official_advice": "You never need card data or balance to RECEIVE money. Keep communication inside OLX.",
+      "sourceRefs": ["src_olx_help_phishing", "src_dnsc_olx", "src_lockpub_olx"],
+      "classification": "official",
+      "confidence": "high",
+      "first_seen": "2021-12-17",
+      "last_seen": "2026-04-28"
+    },
+    {
+      "id": "warn_bank_spoofing_vishing",
+      "brandId": "bcr",
+      "channel": "voice",
+      "title": "Bank spoofing/vishing (BCR/BRD/ING/BT/CEC/Raiffeisen)",
+      "modus_operandi": "Callers spoof bank/BNR caller-ID and claim a loan/transaction was made in the victim's name, then extract personal/card data or OTP under pretexts (confirm/cancel request).",
+      "lure_structure": {
+        "theme": "imprumut/tranzactie suspecta pe numele tau",
+        "call_to_action": "confirma datele / citeste codul SMS"
+      },
+      "observed_indicators": ["caller_id_spoof", "requests_otp", "requests_card_or_personal_data", "pressure_urgency"],
+      "official_advice": "Banks never ask for full card number, CVV, OTP or internet-banking password. Hang up and call the bank's official number.",
+      "sourceRefs": ["src_banks_spoofing", "src_bcr_phone_fraud", "src_evz_bank_alert", "src_united_against_scams"],
+      "classification": "official",
+      "confidence": "high",
+      "first_seen": "2025"
+    },
+    {
+      "id": "warn_investment_platform",
+      "brandId": "anaf",
+      "channel": "web",
+      "title": "Spoofing/phishing/vishing investment-platform scam",
+      "modus_operandi": "After a user signs up on a fake platform, attackers show fabricated growth of 'invested' sums to lure further deposits; uses spoofing/phishing/vishing.",
+      "lure_structure": {
+        "theme": "investitii cu randament garantat",
+        "call_to_action": "depune fonduri / continua investitia"
+      },
+      "observed_indicators": ["fabricated_returns", "requests_deposits", "spoofed_contact"],
+      "sourceRefs": ["src_dnsc_investment"],
+      "classification": "official",
+      "confidence": "medium",
+      "first_seen": "2025"
+    },
+    {
+      "id": "warn_blackfriday_retail",
+      "brandId": "emag",
+      "channel": "email",
+      "title": "Black Friday voucher/prize lures impersonating retailers",
+      "modus_operandi": "Seasonal phishing promising vouchers (e.g. 500-1000 EUR), phones or 'test packages', hosted even on legitimate cloud storage to bypass spam filters; uses urgency and emoji.",
+      "lure_structure": {
+        "theme": "voucher/premiu Black Friday",
+        "call_to_action": "revendica premiul prin link",
+        "hosting_trick": "abuse of legitimate cloud storage"
+      },
+      "observed_indicators": ["prize_bait", "urgency", "link_to_non_official_or_cloud_host"],
+      "note_for_engine": "Marketing/prize text alone is NOT sufficient for PERICULOS; requires corroborating infra/credential-harvest signals.",
+      "sourceRefs": ["src_bitdefender_blackfriday"],
+      "classification": "community",
+      "confidence": "medium",
+      "first_seen": "2025-10-11",
+      "last_seen": "2025-11-10"
+    },
+    {
+      "id": "warn_dedeman_anniversary",
+      "brandId": "dedeman",
+      "channel": "web",
+      "title": "Anniversary/gift lookalike impersonating Dedeman (T7-style)",
+      "modus_operandi": "Lookalike domain (e.g. dedeman-aniversare.<tld>) presents an 'anniversary gift' to harvest data; primarily marketing-styled.",
+      "lure_structure": {
+        "theme": "aniversare / cadou de la brand",
+        "domain_trick": "brand-anniversary lookalike domain"
+      },
+      "observed_indicators": ["brand_in_subdomain_or_path", "marketing_prize_text"],
+      "note_for_engine": "BRAND_IMPERSONATION + marketing only => max SUSPECT/VERIFY_OFFICIAL; needs sensitive-form or infra signal for PERICULOS.",
+      "sourceRefs": ["src_bitdefender_blackfriday"],
+      "classification": "hypothesis",
+      "confidence": "low",
+      "first_seen": "2025"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "pack_name": "sigurscan_ro_research_test_pack_2025_2026_v1",
+  "created_at": "2026-06-04",
+  "scope": "Romania 2025-2026 knowledge/test layer for SigurScan corpus, registry, parser, provider smoke tests.",
+  "verdicts_allowed": [
+    "SIGUR",
+    "SUSPECT",
+    "PERICULOS"
+  ],
+  "hard_rules": [
+    "Marketing text, hidden links, tracking links or shorteners are not sufficient alone for PERICULOS.",
+    "Scam URLs in CI fixtures use .test/.invalid/.example only.",
+    "Community/noisy sources are acceptance-test/pattern-discovery only, not hard evidence.",
+    "Corpus/RAG similarity-only max verdict is SUSPECT unless combined with provider/sandbox/confirmed campaign/domain evidence."
+  ]
+}

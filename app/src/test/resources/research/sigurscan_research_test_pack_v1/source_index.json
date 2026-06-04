@@ -1,0 +1,286 @@
+{
+  "schema_version": "1.0.0",
+  "generated_for": "SigurScan",
+  "generated_at": "2026-06-04",
+  "accessed_date_default": "2026-06-04",
+  "confidence_legend": {
+    "high": "Primary/official source (authority or brand's own site).",
+    "medium": "Reputable press or security vendor.",
+    "low": "Community/forum/aggregator or single-report."
+  },
+  "classification_legend": {
+    "official": "Authority (DNSC/ANAF) or brand-owned communication.",
+    "vendor": "Security vendor research/blog.",
+    "press": "News media.",
+    "community": "Forum/social/aggregator.",
+    "reference": "Standards/testing reference resource."
+  },
+  "sources": [
+    {
+      "id": "src_dnsc_anaf_phishing",
+      "title": "ALERTA: Phishing E-mail ANAF",
+      "publisher": "DNSC",
+      "url": "https://dnsc.ro/citeste/alerta-phishing-e-mail-anaf",
+      "published_date": "2025-03-20",
+      "accessed_date": "2026-06-04",
+      "classification": "official",
+      "confidence": "high"
+    },
+    {
+      "id": "src_dnsc_min_finante",
+      "title": "ALERTA: Campanie frauduloasa care foloseste identitatea ministrului de finante",
+      "publisher": "DNSC",
+      "url": "https://www.dnsc.ro/citeste/alerta-campanie-frauduloasa-care-foloseste-identitatea-ministrului-de-finante",
+      "published_date": "2025-07-29",
+      "accessed_date": "2026-06-04",
+      "classification": "official",
+      "confidence": "high"
+    },
+    {
+      "id": "src_dnsc_investment",
+      "title": "ALERTA: Atacuri de tip spoofing/phishing/vishing asupra utilizatorilor din Romania",
+      "publisher": "DNSC",
+      "url": "https://dnsc.ro/citeste/alerta-atacuri-de-tip-spoofing-phishing-vishing-asupra-utilizatorilor-din-romania",
+      "published_date": null,
+      "accessed_date": "2026-06-04",
+      "classification": "official",
+      "confidence": "medium"
+    },
+    {
+      "id": "src_dnsc_olx",
+      "title": "Tentativa de frauda pe platforme marketplace (OLX, Publi24)",
+      "publisher": "DNSC / CERT-RO",
+      "url": "https://dnsc.ro/citeste/alerta-tentativa-de-frauda-olx",
+      "published_date": "2021-12-17",
+      "accessed_date": "2026-06-04",
+      "classification": "official",
+      "confidence": "medium",
+      "notes": "Older alert; MO still active per 2025-2026 OLX/press reports."
+    },
+    {
+      "id": "src_anaf_official",
+      "title": "ANAF - site oficial",
+      "publisher": "ANAF",
+      "url": "https://www.anaf.ro/",
+      "published_date": null,
+      "accessed_date": "2026-06-04",
+      "classification": "official",
+      "confidence": "high"
+    },
+    {
+      "id": "src_anaf_comunicat_13oct2025",
+      "title": "ANAF comunicat: email fals (ion@impal.ro) - posibila neregularitate in declaratiile fiscale",
+      "publisher": "ANAF",
+      "url": "https://www.anaf.ro/anaf/internet/ANAF/comunicate",
+      "published_date": "2025-10-13",
+      "accessed_date": "2026-06-04",
+      "classification": "official",
+      "confidence": "high",
+      "notes": "PDF: static.anaf.ro/static/3/Anaf/20251013150022_com_1051 email fals13oct2025.pdf"
+    },
+    {
+      "id": "src_cybershield_anaf",
+      "title": "Campanie de phishing in numele ANAF: 'Actualizare date fiscale necesara'",
+      "publisher": "CyberShield",
+      "url": "https://www.cybershield.org/campanie-de-phishing-in-numele-anaf-actualizare-date-fiscale-necesara",
+      "published_date": "2025-10-12",
+      "accessed_date": "2026-06-04",
+      "classification": "vendor",
+      "confidence": "medium"
+    },
+    {
+      "id": "src_fancourier_smishing",
+      "title": "SMiShing alert! - FAN Courier",
+      "publisher": "FAN Courier",
+      "url": "https://www.fancourier.ro/en/smishing-alert/",
+      "published_date": "2023-05-03",
+      "accessed_date": "2026-06-04",
+      "classification": "official",
+      "confidence": "high",
+      "notes": "States only name + IBAN are safe to share; never card data. Official tracking: fancourier.ro/awb-tracking/"
+    },
+    {
+      "id": "src_fancourier_phishing_oct2025",
+      "title": "Attention! Phishing Attempt via SMS - FAN Courier (shipment data errors)",
+      "publisher": "FAN Courier",
+      "url": "https://www.fancourier.ro/en/attention-phishing-attempt-via-sms/",
+      "published_date": "2025-10-30",
+      "accessed_date": "2026-06-04",
+      "classification": "official",
+      "confidence": "high"
+    },
+    {
+      "id": "src_bitdefender_fancourier",
+      "title": "FAN Courier SMS Scam Targets 1 Million Romanians (WhatsApp takeover)",
+      "publisher": "Bitdefender",
+      "url": "https://www.bitdefender.com/en-us/blog/hotforsecurity/fan-courier-sms-scam-targets-1-million-romanians-in-massive-whatsapp-takeover-campaign",
+      "published_date": null,
+      "accessed_date": "2026-06-04",
+      "classification": "vendor",
+      "confidence": "medium"
+    },
+    {
+      "id": "src_posta_phishing_iun2025",
+      "title": "O noua tentativa de phishing prin SMS in numele Postei Romane",
+      "publisher": "Posta Romana",
+      "url": "https://www.posta-romana.ro/a1941/stiri/o-noua-tentativa-de-phishing-prin-sms-in-numele-postei-romane.html",
+      "published_date": "2025-06-16",
+      "accessed_date": "2026-06-04",
+      "classification": "official",
+      "confidence": "high"
+    },
+    {
+      "id": "src_olx_help_phishing",
+      "title": "Ai grija la linkurile false pentru 'articole platite'! (Livrare prin OLX)",
+      "publisher": "OLX.ro (Help)",
+      "url": "https://ajutor.olx.ro/olxhelpro/s/article/ai-grija-la-linkurile-false-pentru-articole-platite-recunoaste-semnalele-unui-atac-de-phishing-V7",
+      "published_date": null,
+      "accessed_date": "2026-06-04",
+      "classification": "official",
+      "confidence": "high"
+    },
+    {
+      "id": "src_lockpub_olx",
+      "title": "OLX Romania Scam Prevention",
+      "publisher": "lock.pub",
+      "url": "https://lock.pub/en/blog/olx-romania-scam-prevention",
+      "published_date": null,
+      "accessed_date": "2026-06-04",
+      "classification": "community",
+      "confidence": "low"
+    },
+    {
+      "id": "src_lockpub_courier",
+      "title": "Fan Courier and Sameday Fake SMS: How to Spot Delivery Scams",
+      "publisher": "lock.pub",
+      "url": "https://lock.pub/en/blog/fan-courier-sameday-fake-sms",
+      "published_date": null,
+      "accessed_date": "2026-06-04",
+      "classification": "community",
+      "confidence": "low"
+    },
+    {
+      "id": "src_banks_spoofing",
+      "title": "Banci tinta fraudelor cibernetice: spoofing ING/BRD, phishing BCR",
+      "publisher": "BankingNews",
+      "url": "https://bankingnews.ro/banci-fraude-cibernetice-spoofing.html",
+      "published_date": null,
+      "accessed_date": "2026-06-04",
+      "classification": "press",
+      "confidence": "medium"
+    },
+    {
+      "id": "src_bcr_phone_fraud",
+      "title": "Daca primesti un telefon de la BCR, ar putea fi o frauda",
+      "publisher": "Bancherul",
+      "url": "https://www.bancherul.ro/daca-primesti-un-telefon-de-la-bcr-ar-putea-fi-o-frauda/",
+      "published_date": null,
+      "accessed_date": "2026-06-04",
+      "classification": "press",
+      "confidence": "medium"
+    },
+    {
+      "id": "src_evz_bank_alert",
+      "title": "Alerta bancara la Raiffeisen, BCR, ING, BT si CEC",
+      "publisher": "EVZ",
+      "url": "https://evz.ro/alera-bancara-la-raiffeisen-bcr-ing-bt-si-cec-aveti-mare-grija-miercuri.html",
+      "published_date": null,
+      "accessed_date": "2026-06-04",
+      "classification": "press",
+      "confidence": "low"
+    },
+    {
+      "id": "src_raiffeisen_phishing",
+      "title": "Prejudiciul adus clientilor Raiffeisen Bank in urma actiunilor de phishing",
+      "publisher": "Bancherul",
+      "url": "https://www.bancherul.ro/prejudiciul-adus-clientilor-raiffeisen-bank-in-urma-actiunilor-de-phising-se-ridica-la-60-000-euro/",
+      "published_date": null,
+      "accessed_date": "2026-06-04",
+      "classification": "press",
+      "confidence": "low"
+    },
+    {
+      "id": "src_ing_smishing",
+      "title": "ING Bank & SendSMS: Smishing attacks in Romania increased 6x",
+      "publisher": "sendSMS.ro",
+      "url": "https://www.sendsms.ro/en/ing-bank-sendsms-smishing-attacks-in-romania-have-increased-over-six-times-last-year-5-tips-to-avoid-being-deceived/",
+      "published_date": null,
+      "accessed_date": "2026-06-04",
+      "classification": "vendor",
+      "confidence": "low",
+      "notes": "Smishing targets banking, courier, telecom industries."
+    },
+    {
+      "id": "src_united_against_scams",
+      "title": "Romanian Police, DNSC, ARB, and Mastercard launch 'United Against Scams'",
+      "publisher": "Business Review",
+      "url": "https://business-review.eu/money/banking/romanian-police-dnsc-arb-and-mastercard-launch-national-campaign-united-against-scams-294868",
+      "published_date": null,
+      "accessed_date": "2026-06-04",
+      "classification": "press",
+      "confidence": "medium"
+    },
+    {
+      "id": "src_bitdefender_blackfriday",
+      "title": "Black Friday 2025: inselatoriile si campaniile de malware revin in forta",
+      "publisher": "Bitdefender",
+      "url": "https://www.bitdefender.com/ro-ro/blog/hotforsecurity/black-friday-2025-inselatoriile-si-campaniile-de-malware-revin-in-forta-intr-un-sezon-global-dominat-de-fraude-online",
+      "published_date": "2025-11",
+      "accessed_date": "2026-06-04",
+      "classification": "vendor",
+      "confidence": "medium"
+    },
+    {
+      "id": "src_altex_scam_warning",
+      "title": "Altex Romania - avertisment scam (social)",
+      "publisher": "Altex (social)",
+      "url": "https://www.instagram.com/p/DSDDvB_AdGr/",
+      "published_date": "2025-12-09",
+      "accessed_date": "2026-06-04",
+      "classification": "community",
+      "confidence": "low"
+    },
+    {
+      "id": "src_sigurantaonline",
+      "title": "Siguranta Online - resurse anti-phishing",
+      "publisher": "SigurantaOnline.ro",
+      "url": "https://sigurantaonline.ro/",
+      "published_date": null,
+      "accessed_date": "2026-06-04",
+      "classification": "official",
+      "confidence": "medium"
+    },
+    {
+      "id": "src_ghiseul_official",
+      "title": "Ghiseul.ro - plata online taxe si impozite (SNEP)",
+      "publisher": "Ghiseul.ro",
+      "url": "https://www.ghiseul.ro/",
+      "published_date": null,
+      "accessed_date": "2026-06-04",
+      "classification": "official",
+      "confidence": "medium"
+    },
+    {
+      "id": "src_google_testsafebrowsing",
+      "title": "Google Safe Browsing test URLs (testsafebrowsing.appspot.com)",
+      "publisher": "Google",
+      "url": "https://testsafebrowsing.appspot.com/",
+      "published_date": null,
+      "accessed_date": "2026-06-04",
+      "classification": "reference",
+      "confidence": "high",
+      "notes": "Purpose-built safe test endpoints for Safe Browsing / WebRisk integration tests."
+    },
+    {
+      "id": "src_eicar",
+      "title": "EICAR anti-malware test file",
+      "publisher": "EICAR",
+      "url": "https://www.eicar.org/download-anti-malware-testfile/",
+      "published_date": null,
+      "accessed_date": "2026-06-04",
+      "classification": "reference",
+      "confidence": "high",
+      "notes": "Industry-standard, harmless detection test artifact."
+    }
+  ]
+}

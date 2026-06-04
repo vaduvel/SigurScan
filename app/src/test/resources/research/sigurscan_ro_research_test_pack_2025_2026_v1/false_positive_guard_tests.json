@@ -1,0 +1,632 @@
+[
+  {
+    "test_id": "FPG_001_EMAG_NEWSLETTER_OFFICIAL",
+    "input_type": "html_email",
+    "sample_text": "eMAG: Nu rata oferta zilei. Vezi detalii: https://www.emag.ro/campaign/oferte",
+    "expected_extracted_targets": [
+      "www.emag.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "Marketing urgency + oferta poate semăna cu scam.",
+    "evidence_that_makes_it_sigur": "final URL official emag.ro; no sensitive form; WebRisk clean",
+    "evidence_that_makes_it_suspect_or_periculos": "non-official domain + card/CVV/OTP form",
+    "parser_focus": "button href official"
+  },
+  {
+    "test_id": "FPG_002_EMAG_TRACKING_REDIRECT_FINAL_OFFICIAL",
+    "input_type": "html_email",
+    "sample_text": "<a href='https://tracking.example/redirect?to=https%3A%2F%2Fwww.emag.ro%2F'>Vezi oferta</a>",
+    "expected_extracted_targets": [
+      "tracking.example",
+      "www.emag.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "Tracking link under button poate părea hidden link.",
+    "evidence_that_makes_it_sigur": "redirect final official emag.ro; no login/card ask",
+    "evidence_that_makes_it_suspect_or_periculos": "tracking final unknown or sensitive form",
+    "parser_focus": "redirect final resolution"
+  },
+  {
+    "test_id": "FPG_003_ALTEX_PROMO_OFFICIAL",
+    "input_type": "email",
+    "sample_text": "Altex: Reduceri de weekend. Intră pe https://altex.ro/campanii/ pentru detalii.",
+    "expected_extracted_targets": [
+      "altex.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "Promo + reducere + deadline.",
+    "evidence_that_makes_it_sigur": "official altex.ro; no sensitive request",
+    "evidence_that_makes_it_suspect_or_periculos": "lookalike domain + payment to claim prize",
+    "parser_focus": "retail promo"
+  },
+  {
+    "test_id": "FPG_004_FAN_TRACKING_OFFICIAL",
+    "input_type": "sms",
+    "sample_text": "FAN Courier: Urmărește AWB 123456789 pe https://www.fancourier.ro/awb-tracking",
+    "expected_extracted_targets": [
+      "www.fancourier.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "Conține AWB/colet, similar cu SMiShing.",
+    "evidence_that_makes_it_sigur": "official fancourier.ro; no card/WhatsApp code",
+    "evidence_that_makes_it_suspect_or_periculos": "non-official locker domain + card/code",
+    "parser_focus": "official courier URL"
+  },
+  {
+    "test_id": "FPG_005_FAN_INFO_NO_LINK",
+    "input_type": "sms",
+    "sample_text": "FAN Courier: Coletul AWB 123456789 va fi livrat azi. Nu răspunde la acest SMS.",
+    "expected_extracted_targets": [],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "Colet + curier, dar fără link/cerere date.",
+    "evidence_that_makes_it_sigur": "no URL, no sensitive ask, clear no-reply",
+    "evidence_that_makes_it_suspect_or_periculos": "link + sensitive data request",
+    "parser_focus": "no-target scan"
+  },
+  {
+    "test_id": "FPG_006_SAMEDAY_APP_EXTEND_STORAGE",
+    "input_type": "sms",
+    "sample_text": "SAMEDAY: Pentru opțiuni easybox folosește aplicația SAMEDAY App sau contul tău de pe https://sameday.ro",
+    "expected_extracted_targets": [
+      "sameday.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "Extindere păstrare poate semăna cu taxă falsă.",
+    "evidence_that_makes_it_sigur": "official domain/app channel; no direct payment request by SMS",
+    "evidence_that_makes_it_suspect_or_periculos": "SMS payment link outside app",
+    "parser_focus": "brand warning guard"
+  },
+  {
+    "test_id": "FPG_007_POSTA_PICKUP_INFO",
+    "input_type": "sms",
+    "sample_text": "Poșta Română: Trimiterea este disponibilă pentru ridicare. Detalii pe https://www.posta-romana.ro/track-trace",
+    "expected_extracted_targets": [
+      "www.posta-romana.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "Poșta + colet, dar official.",
+    "evidence_that_makes_it_sigur": "official domain; no card/PIN/payment online",
+    "evidence_that_makes_it_suspect_or_periculos": "non-official tax payment form",
+    "parser_focus": "official domain exact"
+  },
+  {
+    "test_id": "FPG_008_ANAF_SPV_INFO",
+    "input_type": "email",
+    "sample_text": "ANAF: Aveți un mesaj nou în Spațiul Privat Virtual. Accesați direct https://www.anaf.ro pentru autentificare.",
+    "expected_extracted_targets": [
+      "www.anaf.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "ANAF + login poate părea phishing.",
+    "evidence_that_makes_it_sigur": "official anaf.ro; instructs direct official channel; no card refund",
+    "evidence_that_makes_it_suspect_or_periculos": "non-official domain + refund/card/CNP",
+    "parser_focus": "official channel"
+  },
+  {
+    "test_id": "FPG_009_ANAF_NO_LINK_NOTICE",
+    "input_type": "email",
+    "sample_text": "ANAF: Document disponibil în SPV. Vă rugăm verificați contul dvs. SPV. Acest mesaj nu conține link de plată.",
+    "expected_extracted_targets": [],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "ANAF + SPV fără link.",
+    "evidence_that_makes_it_sigur": "no URL and no sensitive data request",
+    "evidence_that_makes_it_suspect_or_periculos": "attachment/form asking card",
+    "parser_focus": "text-only official-like"
+  },
+  {
+    "test_id": "FPG_010_BT_SECURITY_EDU",
+    "input_type": "email",
+    "sample_text": "BT: Nu divulga PIN, parola sau CVV. Citește sfaturi pe https://www.bancatransilvania.ro/siguranta-online",
+    "expected_extracted_targets": [
+      "www.bancatransilvania.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "Conține cuvinte PIN/CVV/parolă dar în context educațional.",
+    "evidence_that_makes_it_sigur": "official domain; says do not divulge",
+    "evidence_that_makes_it_suspect_or_periculos": "asks to enter PIN/CVV on non-official page",
+    "parser_focus": "negative instruction detection"
+  },
+  {
+    "test_id": "FPG_011_ING_SECURITY_EDU",
+    "input_type": "email",
+    "sample_text": "ING: Află cum să recunoști phishingul: https://ing.ro/ing-in-romania/informatii-utile/securitate/phishing-smishing",
+    "expected_extracted_targets": [
+      "ing.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "Phishing keywords in educational content.",
+    "evidence_that_makes_it_sigur": "official domain; no action to enter data",
+    "evidence_that_makes_it_suspect_or_periculos": "non-official HomeBank login link",
+    "parser_focus": "educational content"
+  },
+  {
+    "test_id": "FPG_012_REVOLUT_OTP_DO_NOT_SHARE",
+    "input_type": "sms",
+    "sample_text": "Revolut Pay OTP: 123-456. Nu îl divulga nimănui.",
+    "expected_extracted_targets": [],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "Conține OTP, dar nu cere să îl trimiți.",
+    "evidence_that_makes_it_sigur": "no URL, no reply request, protective language",
+    "evidence_that_makes_it_suspect_or_periculos": "someone asks user to paste/share the code",
+    "parser_focus": "OTP positive guard"
+  },
+  {
+    "test_id": "FPG_013_EMAG_SELLER_OTP_CONTEXT",
+    "input_type": "sms",
+    "sample_text": "eMAG Marketplace: Cod autentificare 482913. Nu îl divulga. Dacă nu ai cerut codul, ignoră mesajul.",
+    "expected_extracted_targets": [],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "OTP legit de autentificare poate declanșa false positive.",
+    "evidence_that_makes_it_sigur": "no link/reply; 'nu divulga' text",
+    "evidence_that_makes_it_suspect_or_periculos": "third party asks for this OTP",
+    "parser_focus": "OTP wording"
+  },
+  {
+    "test_id": "FPG_014_DIGI_FACTURA_OFFICIAL",
+    "input_type": "email",
+    "sample_text": "DIGI: Factura ta este disponibilă în cont. Plătește din contul tău pe https://www.digi.ro/asistenta/modalitati-de-plata",
+    "expected_extracted_targets": [
+      "www.digi.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "Factură + plată poate părea scam.",
+    "evidence_that_makes_it_sigur": "official digi.ro; no card collection on external domain",
+    "evidence_that_makes_it_suspect_or_periculos": "non-official payment link or prize claim",
+    "parser_focus": "utility invoice"
+  },
+  {
+    "test_id": "FPG_015_PPC_FACTURA_APP",
+    "input_type": "email",
+    "sample_text": "PPC: Factura este disponibilă în aplicația MyPPC sau pe https://ppcenergy.ro",
+    "expected_extracted_targets": [
+      "ppcenergy.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "Utilități + factură + link.",
+    "evidence_that_makes_it_sigur": "official domain and app reference; no urgent external payment",
+    "evidence_that_makes_it_suspect_or_periculos": "non-official domain + suspendare + card form",
+    "parser_focus": "utility domain"
+  },
+  {
+    "test_id": "FPG_016_EON_FACTURA_DOMAIN_ONLY",
+    "input_type": "email",
+    "sample_text": "E.ON: Verifică factura în contul tău pe https://www.eon.ro",
+    "expected_extracted_targets": [
+      "www.eon.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "E.ON registry low confidence but official domain is direct.",
+    "evidence_that_makes_it_sigur": "official eon.ro; no sensitive ask",
+    "evidence_that_makes_it_suspect_or_periculos": "non-official lookalike + QR payment",
+    "parser_focus": "registry-only"
+  },
+  {
+    "test_id": "FPG_017_YOXO_BUYBACK_REAL",
+    "input_type": "sms",
+    "sample_text": "YOXO: Vezi detaliile campaniei buyback în aplicație sau pe https://www.yoxo.ro",
+    "expected_extracted_targets": [
+      "www.yoxo.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "Buyback + campanie poate fi folosit în scam.",
+    "evidence_that_makes_it_sigur": "official yoxo.ro/app; no card/password request",
+    "evidence_that_makes_it_suspect_or_periculos": "non-official domain asks bank/card/PIN",
+    "parser_focus": "claim verifier"
+  },
+  {
+    "test_id": "FPG_018_ORANGE_SECURITY_NOTICE",
+    "input_type": "sms",
+    "sample_text": "Orange: Pentru prevenirea fraudelor, nu oferi parole sau PIN. Detalii: https://www.orange.ro/prevenire-frauda/",
+    "expected_extracted_targets": [
+      "www.orange.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "Conține PIN/parole, dar avertizare.",
+    "evidence_that_makes_it_sigur": "official domain and negative instruction",
+    "evidence_that_makes_it_suspect_or_periculos": "asks for PIN/topup code/card",
+    "parser_focus": "negative instruction"
+  },
+  {
+    "test_id": "FPG_019_GHISEUL_OFFICIAL_DIRECT",
+    "input_type": "sms",
+    "sample_text": "Ghișeul.ro: Pentru verificarea taxelor accesează direct https://www.ghiseul.ro",
+    "expected_extracted_targets": [
+      "www.ghiseul.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "Ghișeul e frecvent imitat; link direct official.",
+    "evidence_that_makes_it_sigur": "official domain; no specific obligation via SMS",
+    "evidence_that_makes_it_suspect_or_periculos": "SMS says obligație nouă + non-official payment link",
+    "parser_focus": "official direct"
+  },
+  {
+    "test_id": "FPG_020_BCR_SECURITY_BLOG",
+    "input_type": "email",
+    "sample_text": "BCR: Sfaturi de securitate pentru plăți online: https://www.bcr.ro/ro/news-hub/blog/noutati/cum-faci-plati-online-in-siguranta-prin-internet-banking",
+    "expected_extracted_targets": [
+      "www.bcr.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "Textul include OTP/card/parole în context educațional.",
+    "evidence_that_makes_it_sigur": "official BCR page; educational wording",
+    "evidence_that_makes_it_suspect_or_periculos": "asks to enter OTP/card on non-official page",
+    "parser_focus": "bank education"
+  },
+  {
+    "test_id": "FPG_021_MARKETING_COUNTDOWN_OFFICIAL",
+    "input_type": "email",
+    "sample_text": "Altex: Ultimele ore pentru reduceri. Cumpără doar pe https://altex.ro/",
+    "expected_extracted_targets": [
+      "altex.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "deadline/ultimele ore",
+    "evidence_that_makes_it_sigur": "official domain; no sensitive form",
+    "evidence_that_makes_it_suspect_or_periculos": "lookalike + card/CVV",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_022_BUTTON_LINK_FINAL_OFFICIAL",
+    "input_type": "html_email",
+    "sample_text": "<button>Activează oferta</button><a href='https://www.orange.ro/oferta/'>Activează oferta</a>",
+    "expected_extracted_targets": [
+      "www.orange.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "CTA button generic",
+    "evidence_that_makes_it_sigur": "href official; no data ask",
+    "evidence_that_makes_it_suspect_or_periculos": "hidden href to .test + card/password",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_023_SHORTENER_UNKNOWN_LEGITISH",
+    "input_type": "sms",
+    "sample_text": "Campanie partener: https://bit.ly/sigurscan-safe-placeholder",
+    "expected_extracted_targets": [
+      "bit.ly"
+    ],
+    "expected_final_verdict": "SUSPECT",
+    "why_can_fool_detector": "shortener poate fi legitim sau rău",
+    "evidence_that_makes_it_sigur": "final official if resolved; not enough before resolution",
+    "evidence_that_makes_it_suspect_or_periculos": "final non-official/sensitive form",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_024_QR_MENU_RESTAURANT",
+    "input_type": "qr",
+    "sample_text": "https://example.com/menu",
+    "expected_extracted_targets": [
+      "example.com"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "QR necunoscut dar benign example.com",
+    "evidence_that_makes_it_sigur": "reserved/example benign; no forms",
+    "evidence_that_makes_it_suspect_or_periculos": "QR to payment/card form lookalike",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_025_PDF_INVOICE_OFFICIAL_DIGI",
+    "input_type": "pdf",
+    "sample_text": "Factura DIGI disponibilă. Cod client: TEST123. Detalii pe https://www.digi.ro",
+    "expected_extracted_targets": [
+      "www.digi.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "PDF + invoice can look malicious",
+    "evidence_that_makes_it_sigur": "official domain; no card form/external redirect",
+    "evidence_that_makes_it_suspect_or_periculos": "fake QR payment .test",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_026_BANK_APP_NOTIFICATION_NO_LINK",
+    "input_type": "sms",
+    "sample_text": "ING: Ai o notificare în Home'Bank. Nu divulga nimănui codurile de acces.",
+    "expected_extracted_targets": [],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "bank + coduri",
+    "evidence_that_makes_it_sigur": "no link; protective text",
+    "evidence_that_makes_it_suspect_or_periculos": "reply request for code",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_027_MARKETPLACE_REAL_NO_CARD",
+    "input_type": "whatsapp",
+    "sample_text": "Salut, mai este disponibil produsul de pe OLX? Pot veni să-l văd azi.",
+    "expected_extracted_targets": [],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "marketplace context",
+    "evidence_that_makes_it_sigur": "no card/link/payment ask",
+    "evidence_that_makes_it_suspect_or_periculos": "receive money link asking card/CVV",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_028_COURIER_AWB_WITH_NO_DOMAIN",
+    "input_type": "sms",
+    "sample_text": "AWB 123456789: curierul ajunge între 12-14. Plata ramburs la livrare.",
+    "expected_extracted_targets": [],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "courier words but no link",
+    "evidence_that_makes_it_sigur": "no sensitive ask",
+    "evidence_that_makes_it_suspect_or_periculos": "link/card/code",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_029_OFFICIAL_SOCIAL_EDU",
+    "input_type": "html_email",
+    "sample_text": "<a href='https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/'>Află cum te protejezi</a>",
+    "expected_extracted_targets": [
+      "sigurantaonline.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "scam keywords in educational page",
+    "evidence_that_makes_it_sigur": "official education site",
+    "evidence_that_makes_it_suspect_or_periculos": "fake questionnaire asking WhatsApp code",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_030_DOMAIN_UNKNOWN_BLOG",
+    "input_type": "email",
+    "sample_text": "Articol: cum eviți phishingul https://example.org/security/phishing",
+    "expected_extracted_targets": [
+      "example.org"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "phishing word in benign article",
+    "evidence_that_makes_it_sigur": "reserved benign domain; no ask",
+    "evidence_that_makes_it_suspect_or_periculos": "login/card form",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_031_ATTACHMENT_NOTICE_NO_LINK",
+    "input_type": "email",
+    "sample_text": "Aveți factura atașată. Nu se solicită date bancare prin acest mesaj.",
+    "expected_extracted_targets": [],
+    "expected_final_verdict": "SUSPECT",
+    "why_can_fool_detector": "attachment text without file parsing",
+    "evidence_that_makes_it_sigur": "with attachment hash clean/provider clean could be safe",
+    "evidence_that_makes_it_suspect_or_periculos": "attachment macro/executable",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_032_SPV_OFFICIAL_EMAIL_TEXT",
+    "input_type": "email",
+    "sample_text": "Mesaj nou în SPV. Accesați manual site-ul ANAF, nu folosiți linkuri din e-mail.",
+    "expected_extracted_targets": [],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "tax authority phrase",
+    "evidence_that_makes_it_sigur": "safe instruction, no link",
+    "evidence_that_makes_it_suspect_or_periculos": "button/link to non-official domain",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_033_PROMO_PREMIU_LEGIT_NO_DATA",
+    "input_type": "email",
+    "sample_text": "Ai un voucher în contul tău eMAG. Verifică direct în aplicație sau pe https://www.emag.ro",
+    "expected_extracted_targets": [
+      "www.emag.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "premiu/voucher",
+    "evidence_that_makes_it_sigur": "official channel; no card/CNP",
+    "evidence_that_makes_it_suspect_or_periculos": "claim prize on .test asking card",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_034_RENEW_SUBSCRIPTION_OFFICIAL",
+    "input_type": "email",
+    "sample_text": "Vodafone: abonamentul poate fi reînnoit din contul My Vodafone sau pe https://www.vodafone.ro",
+    "expected_extracted_targets": [
+      "www.vodafone.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "renewal pressure",
+    "evidence_that_makes_it_sigur": "official domain; no sensitive request",
+    "evidence_that_makes_it_suspect_or_periculos": "link asks card/PIN",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_035_RETAIL_RETURN_OFFICIAL",
+    "input_type": "email",
+    "sample_text": "Returul tău Altex a fost procesat. Detalii în contul tău: https://altex.ro/cont/",
+    "expected_extracted_targets": [
+      "altex.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "refund/retur similar phishing",
+    "evidence_that_makes_it_sigur": "official domain; no bank form",
+    "evidence_that_makes_it_suspect_or_periculos": "refund on .test asking card/CVV",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_036_BANK_PHONE_NUMBER_TEXT",
+    "input_type": "sms",
+    "sample_text": "BT: Pentru suspiciuni de fraudă contactează banca folosind numărul de pe card sau aplicația BT Pay.",
+    "expected_extracted_targets": [],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "bank + fraud keywords",
+    "evidence_that_makes_it_sigur": "safe instruction, no link/data ask",
+    "evidence_that_makes_it_suspect_or_periculos": "asks to call unknown number and share code",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_037_TRACKING_PIXEL_IGNORED",
+    "input_type": "html_email",
+    "sample_text": "<img src='https://tracking.example/pixel?id=abc'><a href='https://www.fancourier.ro/awb-tracking'>Urmărește AWB</a>",
+    "expected_extracted_targets": [
+      "tracking.example",
+      "www.fancourier.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "tracking pixel hidden",
+    "evidence_that_makes_it_sigur": "primary URL should be user-visible official href, not pixel",
+    "evidence_that_makes_it_suspect_or_periculos": "visible CTA to .test sensitive form",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_038_MANY_LINKS_ONE_OFFICIAL",
+    "input_type": "html_email",
+    "sample_text": "<a href='https://www.emag.ro'>Shop</a><a href='https://www.emag.ro/help'>Ajutor</a><a href='https://www.emag.ro/contact'>Contact</a>",
+    "expected_extracted_targets": [
+      "www.emag.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "many links may trigger noise",
+    "evidence_that_makes_it_sigur": "same official registrable domain",
+    "evidence_that_makes_it_suspect_or_periculos": "one hidden high-risk link under main CTA",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_039_LEGIT_HTTPBIN_LIVE_SMOKE",
+    "input_type": "url",
+    "sample_text": "https://httpbin.org/html",
+    "expected_extracted_targets": [
+      "httpbin.org"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "unknown benign page",
+    "evidence_that_makes_it_sigur": "known benign smoke endpoint; no brand claim",
+    "evidence_that_makes_it_suspect_or_periculos": "sensitive query or form with brand claim",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_040_EXAMPLE_RESERVED_DOC",
+    "input_type": "url",
+    "sample_text": "https://example.com/",
+    "expected_extracted_targets": [
+      "example.com"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "unknown/reserved doc domain",
+    "evidence_that_makes_it_sigur": "IANA example domain; no brand/sensitive ask",
+    "evidence_that_makes_it_suspect_or_periculos": "do not use as real-world trust beyond CI",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_041_CNP_LEGIT_DIGI_ACTIVARE",
+    "input_type": "sms",
+    "sample_text": "DIGI: Pentru activarea facturii prin SMS introdu codul primit pe pagina oficială digi.ro. Nu trimite codul nimănui.",
+    "expected_extracted_targets": [
+      "digi.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "mentions code and CNP-related flow generally",
+    "evidence_that_makes_it_sigur": "official page flow; protective no-share",
+    "evidence_that_makes_it_suspect_or_periculos": "asks to reply with CNP/card",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_042_BANK_SAFE_ACCOUNT_EDU",
+    "input_type": "email",
+    "sample_text": "Revolut: Nu transfera bani într-un cont sigur la cererea cuiva. Citește în aplicație sau pe https://www.revolut.com/en-RO/about-fraud-and-scam/",
+    "expected_extracted_targets": [
+      "www.revolut.com"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "contains safe account scam words",
+    "evidence_that_makes_it_sigur": "educational/negative instruction + official",
+    "evidence_that_makes_it_suspect_or_periculos": "actual request to transfer money",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_043_HIDRO_OFFICIAL_WARNING",
+    "input_type": "email",
+    "sample_text": "Hidroelectrica avertizează asupra investițiilor false. Detalii pe https://www.hidroelectrica.ro",
+    "expected_extracted_targets": [
+      "www.hidroelectrica.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "investment keywords",
+    "evidence_that_makes_it_sigur": "official warning page/no deposit request",
+    "evidence_that_makes_it_suspect_or_periculos": "investment platform non-official asks deposit",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_044_YOXO_TOPUP_LEGIT",
+    "input_type": "sms",
+    "sample_text": "YOXO: Reîncarcă doar din aplicația oficială. Nu comunica PIN sau coduri de reîncărcare.",
+    "expected_extracted_targets": [],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "telecom top-up terms",
+    "evidence_that_makes_it_sigur": "protective instruction/no link",
+    "evidence_that_makes_it_suspect_or_periculos": "asks top-up code via link/reply",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_045_UTILITIES_QR_BILL_OFFICIAL",
+    "input_type": "pdf",
+    "sample_text": "Factura include QR pentru plata pe portal oficial ppcenergy.ro. Nu este link de actualizare date.",
+    "expected_extracted_targets": [
+      "ppcenergy.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "QR payment can scare",
+    "evidence_that_makes_it_sigur": "official domain and no data harvesting",
+    "evidence_that_makes_it_suspect_or_periculos": "QR to .test card/CNP form",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_046_EMAIL_WITH_UNSUBSCRIBE_TRACKER",
+    "input_type": "html_email",
+    "sample_text": "<a href='https://unsubscribe.example/u/123'>Dezabonare</a><a href='https://www.emag.ro/oferta'>Vezi oferta</a>",
+    "expected_extracted_targets": [
+      "unsubscribe.example",
+      "www.emag.ro"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "unsubscribe/tracker unknown",
+    "evidence_that_makes_it_sigur": "primary CTA official; unsubscribe not primary risk",
+    "evidence_that_makes_it_suspect_or_periculos": "main CTA hidden to fake domain",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_047_BANK_CARD_LAST4",
+    "input_type": "sms",
+    "sample_text": "BCR: Plata cu cardul *1234 de 49,90 lei a fost autorizată. Dacă nu recunoști tranzacția, verifică aplicația George.",
+    "expected_extracted_targets": [],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "bank+card+amount",
+    "evidence_that_makes_it_sigur": "transaction notification no link/no data ask",
+    "evidence_that_makes_it_suspect_or_periculos": "link/call asks OTP/card",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_048_INTERNATIONAL_BRAND_CLEAN",
+    "input_type": "email",
+    "sample_text": "Uber: Ai primit o reducere. Verifică oferta în aplicație sau la https://www.uber.com/ro/ro/",
+    "expected_extracted_targets": [
+      "www.uber.com"
+    ],
+    "expected_final_verdict": "SIGUR",
+    "why_can_fool_detector": "promo/discount",
+    "evidence_that_makes_it_sigur": "official brand domain; app channel",
+    "evidence_that_makes_it_suspect_or_periculos": "non-official domain + payment/card",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_049_LOW_CONFIDENCE_PARTNER",
+    "input_type": "html_email",
+    "sample_text": "<a href='https://marketing.example/click?to=https%3A%2F%2Fwww.altex.ro'>Vezi campania</a>",
+    "expected_extracted_targets": [
+      "marketing.example",
+      "www.altex.ro"
+    ],
+    "expected_final_verdict": "SUSPECT",
+    "why_can_fool_detector": "unknown partner/tracker",
+    "evidence_that_makes_it_sigur": "can become SIGUR after verified final official and partner registry",
+    "evidence_that_makes_it_suspect_or_periculos": "final unknown/sensitive form",
+    "parser_focus": ""
+  },
+  {
+    "test_id": "FPG_050_WEBMAIL_SHELL_ONLY",
+    "input_type": "html_email",
+    "sample_text": "<a href='https://mail.google.com/mail/u/0/#inbox/FMfcgzGtw'>Deschide mesajul</a>",
+    "expected_extracted_targets": [
+      "mail.google.com"
+    ],
+    "expected_final_verdict": "SUSPECT",
+    "why_can_fool_detector": "webmail shell not target content",
+    "evidence_that_makes_it_sigur": "needs actual email HTML body extracted",
+    "evidence_that_makes_it_suspect_or_periculos": "do not mark safe/periculos from shell alone",
+    "parser_focus": ""
+  }
+]

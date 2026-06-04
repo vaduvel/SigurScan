@@ -1,0 +1,147 @@
+{
+  "schema_version": "1.0.0",
+  "generated_for": "SigurScan",
+  "generated_at": "2026-06-04",
+  "purpose": "Smoke tests that verify the LIVE provider integrations (WebRisk, urlscan, VirusTotal) are wired and return well-formed responses. These check plumbing, NOT detection accuracy. Max 20 cases.",
+  "important": {
+    "live_vs_ci": "Live smoke uses REAL resolvable hosts (benign reputable domains + Google's purpose-built Safe Browsing test URL). The .test/.invalid/.example hosts from the corpus are for OFFLINE CI only and will NOT resolve for live providers.",
+    "no_real_malware": "Do not add real live malware/phishing URLs. The only intentionally-flagged entry uses Google's official testing URL designed exactly for this.",
+    "rate_limits": "Respect provider free-tier quotas; run sparingly in CI (e.g. nightly), not on every commit.",
+    "assertion_semantics": "expect_status describes the SHAPE of the expected provider response, not a SigurScan verdict."
+  },
+  "providers": ["webrisk", "urlscan", "virustotal"],
+  "cases": [
+    {
+      "id": "smoke_webrisk_clean_google",
+      "provider": "webrisk",
+      "url": "https://www.google.com/",
+      "expect_status": "NO_MATCH",
+      "reason": "Reputable domain should return no threat match.",
+      "classification": "smoke",
+      "confidence": "high"
+    },
+    {
+      "id": "smoke_webrisk_testurl_malware",
+      "provider": "webrisk",
+      "url": "https://testsafebrowsing.appspot.com/s/malware.html",
+      "expect_status": "MATCH",
+      "expect_threat_types": ["MALWARE"],
+      "reason": "Google's official Safe Browsing test URL; verifies a positive MATCH path end-to-end.",
+      "sourceRefs": ["src_google_testsafebrowsing"],
+      "classification": "smoke",
+      "confidence": "high"
+    },
+    {
+      "id": "smoke_webrisk_testurl_phishing",
+      "provider": "webrisk",
+      "url": "https://testsafebrowsing.appspot.com/s/phishing.html",
+      "expect_status": "MATCH",
+      "expect_threat_types": ["SOCIAL_ENGINEERING"],
+      "reason": "Official test URL for the phishing/social-engineering list.",
+      "sourceRefs": ["src_google_testsafebrowsing"],
+      "classification": "smoke",
+      "confidence": "high"
+    },
+    {
+      "id": "smoke_webrisk_clean_anaf",
+      "provider": "webrisk",
+      "url": "https://www.anaf.ro/",
+      "expect_status": "NO_MATCH",
+      "reason": "Official RO gov domain; baseline clean.",
+      "classification": "smoke",
+      "confidence": "high"
+    },
+    {
+      "id": "smoke_urlscan_clean_bcr",
+      "provider": "urlscan",
+      "url": "https://www.bcr.ro/",
+      "expect_status": "COMPLETED",
+      "expect_verdict_overall": "not_malicious",
+      "reason": "Scan should complete and return a non-malicious overall verdict.",
+      "classification": "smoke",
+      "confidence": "medium"
+    },
+    {
+      "id": "smoke_urlscan_clean_emag",
+      "provider": "urlscan",
+      "url": "https://www.emag.ro/",
+      "expect_status": "COMPLETED",
+      "expect_verdict_overall": "not_malicious",
+      "reason": "Popular RO retail domain; scan completes with structured result.",
+      "classification": "smoke",
+      "confidence": "medium"
+    },
+    {
+      "id": "smoke_urlscan_clean_fancourier",
+      "provider": "urlscan",
+      "url": "https://www.fancourier.ro/awb-tracking/",
+      "expect_status": "COMPLETED",
+      "expect_verdict_overall": "not_malicious",
+      "reason": "Official courier tracking path; verifies scan submission + result fetch.",
+      "classification": "smoke",
+      "confidence": "medium"
+    },
+    {
+      "id": "smoke_urlscan_resolves_redirect",
+      "provider": "urlscan",
+      "url": "https://bit.ly/3xampleRedirect",
+      "expect_status": "COMPLETED",
+      "expect_field_present": ["page.url", "lists.urls"],
+      "reason": "Verifies redirect-chain capture exists in response (final URL resolution path).",
+      "classification": "smoke",
+      "confidence": "low"
+    },
+    {
+      "id": "smoke_virustotal_clean_google",
+      "provider": "virustotal",
+      "url": "https://www.google.com/",
+      "expect_status": "OK",
+      "expect_field_present": ["data.attributes.last_analysis_stats"],
+      "expect_malicious_count": 0,
+      "reason": "URL report returns stats with zero malicious detections.",
+      "classification": "smoke",
+      "confidence": "high"
+    },
+    {
+      "id": "smoke_virustotal_clean_anaf",
+      "provider": "virustotal",
+      "url": "https://www.anaf.ro/",
+      "expect_status": "OK",
+      "expect_field_present": ["data.attributes.last_analysis_stats"],
+      "expect_malicious_count": 0,
+      "reason": "Official domain; baseline low/no detection.",
+      "classification": "smoke",
+      "confidence": "high"
+    },
+    {
+      "id": "smoke_virustotal_eicar_testurl",
+      "provider": "virustotal",
+      "url": "https://secure.eicar.org/eicar.com.txt",
+      "expect_status": "OK",
+      "expect_field_present": ["data.attributes.last_analysis_stats"],
+      "expect_malicious_count_gt": 0,
+      "reason": "EICAR official anti-malware test file; verifies a positive-detection report shape (safe, industry-standard test artifact).",
+      "sourceRefs": ["src_eicar"],
+      "classification": "smoke",
+      "confidence": "medium"
+    },
+    {
+      "id": "smoke_virustotal_quota_guard",
+      "provider": "virustotal",
+      "url": "https://www.olx.ro/",
+      "expect_status_one_of": ["OK", "RATE_LIMITED"],
+      "reason": "Confirms graceful handling of free-tier rate limiting (HTTP 429).",
+      "classification": "smoke",
+      "confidence": "low"
+    },
+    {
+      "id": "smoke_provider_timeout_handling",
+      "provider": "webrisk",
+      "url": "https://www.posta-romana.ro/",
+      "expect_status_one_of": ["NO_MATCH", "TIMEOUT"],
+      "reason": "Verifies orchestrator records INFRA/provider timeout as completeness, not as fatal.",
+      "classification": "smoke",
+      "confidence": "low"
+    }
+  ]
+}

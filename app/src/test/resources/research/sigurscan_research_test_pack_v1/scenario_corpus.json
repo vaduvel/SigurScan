@@ -1,0 +1,230 @@
+{
+  "schema_version": "1.0.0",
+  "generated_for": "SigurScan",
+  "generated_at": "2026-06-04",
+  "region": "RO",
+  "period": "2025-2026",
+  "verdict_enum": ["SIGUR", "SUSPECT", "PERICULOS"],
+  "rules": {
+    "scam_urls": "All malicious/lookalike hosts use .test/.invalid/.example reserved TLDs for CI safety.",
+    "email_mimicry": "Email bodies are STRUCTURAL mimics, not 1:1 copies of real commercial emails.",
+    "insufficient_alone": "Marketing text, link-under-button and tracking links are NOT sufficient alone for PERICULOS."
+  },
+  "evidence_code_reference": [
+    "OFFICIAL_DOMAIN_EXACT", "OFFICIAL_DOMAIN_MISMATCH", "HOMOGLYPH_DOMAIN", "TYPOSQUAT_LOOKALIKE",
+    "DOMAIN_AGE_VERY_NEW", "DOMAIN_AGE_SUSPICIOUS", "DGA_ENTROPY_HIGH", "PUNYCODE_HOST",
+    "BRAND_IMPERSONATION", "CARD_REQUEST", "OTP_REQUEST", "PASSWORD_REQUEST", "CNP_IBAN_REQUEST",
+    "SENSITIVE_FORM", "MARKETING_TEXT", "TRACKING_LINK", "LINK_UNDER_BUTTON",
+    "WEBRISK_MATCH", "URLSCAN_MALICIOUS", "VIRUSTOTAL_DETECTION"
+  ],
+  "scenarios": [
+    {
+      "id": "sc_anaf_phish_card",
+      "title": "Fake ANAF 'fiscal irregularity' email with card-harvest page",
+      "channel": "email",
+      "brandImpersonated": "anaf",
+      "input": {
+        "sender_display": "ANAF",
+        "sender_address": "notificari@anaf-portal-fiscal.test",
+        "subject": "Neregularitate identificata in declaratiile fiscale",
+        "body_structural": "Stimate contribuabil, am identificat o posibila neregularitate in declaratiile depuse. Pentru remediere, accesati portalul si confirmati datele in 24 de ore.",
+        "primary_url": "https://anaf-portal-fiscal.test/spv/remediere",
+        "landing_behaviour": "form requests CNP, card number, expiry, CVV"
+      },
+      "expectedEvidenceCodes": ["OFFICIAL_DOMAIN_MISMATCH", "BRAND_IMPERSONATION", "CARD_REQUEST", "CNP_IBAN_REQUEST", "SENSITIVE_FORM"],
+      "expectedVerdict": "PERICULOS",
+      "rationale": "Brand impersonation + non-official domain + sensitive form requesting card/CNP is a fatal combination.",
+      "sourceRefs": ["src_dnsc_anaf_phishing", "src_anaf_comunicat_13oct2025"],
+      "classification": "official",
+      "confidence": "high"
+    },
+    {
+      "id": "sc_fancourier_data_update",
+      "title": "Fake FAN Courier SMS: shipment blocked, update data",
+      "channel": "sms",
+      "brandImpersonated": "fanCourier",
+      "input": {
+        "sender": "+40 7xx (unknown)",
+        "body_structural": "FAN Courier: coletul nu poate fi livrat din cauza unor date eronate. Actualizati informatiile: hxxps://fancourier-update.test/awb",
+        "primary_url": "https://fancourier-update.test/awb",
+        "landing_behaviour": "clones fancourier.ro, asks card number + CVV for a 'redelivery fee'"
+      },
+      "expectedEvidenceCodes": ["TYPOSQUAT_LOOKALIKE", "OFFICIAL_DOMAIN_MISMATCH", "BRAND_IMPERSONATION", "CARD_REQUEST", "SENSITIVE_FORM"],
+      "expectedVerdict": "PERICULOS",
+      "rationale": "Lookalike domain of an official courier + card-request form. FAN never asks for card data.",
+      "sourceRefs": ["src_fancourier_phishing_oct2025", "src_fancourier_smishing"],
+      "classification": "official",
+      "confidence": "high"
+    },
+    {
+      "id": "sc_posta_shorturl",
+      "title": "Fake Posta Romana SMS with short URL to cloned page",
+      "channel": "sms",
+      "brandImpersonated": "postaRomana",
+      "input": {
+        "sender": "INFO",
+        "body_structural": "Posta Romana: coletul asteapta confirmarea adresei. Completati datele: hxxps://po-st.test/ro123",
+        "primary_url": "https://po-st.test/ro123",
+        "redirect_chain": ["https://po-st.test/ro123", "https://posta-romana-livrare.test/confirm"],
+        "landing_behaviour": "visual clone, asks personal data + card"
+      },
+      "expectedEvidenceCodes": ["OFFICIAL_DOMAIN_MISMATCH", "BRAND_IMPERSONATION", "CARD_REQUEST", "SENSITIVE_FORM"],
+      "expectedVerdict": "PERICULOS",
+      "rationale": "Short URL redirecting to a cloned non-official domain that harvests card data.",
+      "sourceRefs": ["src_posta_phishing_iun2025"],
+      "classification": "official",
+      "confidence": "high"
+    },
+    {
+      "id": "sc_olx_seller_card",
+      "title": "Fake 'Livrare prin OLX' asking seller for card to RECEIVE money",
+      "channel": "web",
+      "brandImpersonated": "olx",
+      "input": {
+        "context": "seller agreed a sale, buyer sends a 'payout' link",
+        "primary_url": "https://olx-livrare-plata.test/payout",
+        "landing_behaviour": "asks card number, expiry, CVV and current balance to 'receive' funds"
+      },
+      "expectedEvidenceCodes": ["OFFICIAL_DOMAIN_MISMATCH", "BRAND_IMPERSONATION", "CARD_REQUEST", "SENSITIVE_FORM"],
+      "expectedVerdict": "PERICULOS",
+      "rationale": "Requesting card + balance to RECEIVE money is the hallmark OLX payout scam.",
+      "sourceRefs": ["src_olx_help_phishing", "src_dnsc_olx"],
+      "classification": "official",
+      "confidence": "high"
+    },
+    {
+      "id": "sc_bcr_homoglyph",
+      "title": "T4 homoglyph: bcr-online with Cyrillic 'c'",
+      "channel": "web",
+      "brandImpersonated": "bcr",
+      "input": {
+        "primary_url": "https://b\u0441r-online.test/login",
+        "note": "host contains Cyrillic U+0441 'es' imitating latin 'c'",
+        "landing_behaviour": "login form requests internet-banking password + OTP"
+      },
+      "expectedEvidenceCodes": ["HOMOGLYPH_DOMAIN", "BRAND_IMPERSONATION", "PASSWORD_REQUEST", "OTP_REQUEST", "SENSITIVE_FORM"],
+      "expectedVerdict": "PERICULOS",
+      "rationale": "Homoglyph domain imitating a bank + credential/OTP form is fatal.",
+      "sourceRefs": ["src_banks_spoofing"],
+      "classification": "official",
+      "confidence": "high"
+    },
+    {
+      "id": "sc_typosquat_newdomain_noprovider",
+      "title": "Typosquat bank domain, very new, no provider hit yet",
+      "channel": "web",
+      "brandImpersonated": "ing",
+      "input": {
+        "primary_url": "https://ing-homebank-secure.test/auth",
+        "domain_age_days": 3,
+        "provider_hits": "none (too new for WebRisk/urlscan/VT)",
+        "landing_behaviour": "login form"
+      },
+      "expectedEvidenceCodes": ["TYPOSQUAT_LOOKALIKE", "DOMAIN_AGE_VERY_NEW", "BRAND_IMPERSONATION", "PASSWORD_REQUEST"],
+      "expectedVerdict": "PERICULOS",
+      "rationale": "Very new typosquat of a bank with credential form should not slip through even with clean providers.",
+      "sourceRefs": ["src_ing_smishing", "src_banks_spoofing"],
+      "classification": "official",
+      "confidence": "medium"
+    },
+    {
+      "id": "sc_punycode_idn",
+      "title": "Punycode IDN host imitating a brand",
+      "channel": "web",
+      "brandImpersonated": "emag",
+      "input": {
+        "primary_url": "https://xn--mag-ima.test/promo",
+        "note": "xn-- punycode host resolving to a non-latin lookalike of 'emag'",
+        "landing_behaviour": "prize claim then card form"
+      },
+      "expectedEvidenceCodes": ["PUNYCODE_HOST", "HOMOGLYPH_DOMAIN", "BRAND_IMPERSONATION", "CARD_REQUEST", "SENSITIVE_FORM"],
+      "expectedVerdict": "PERICULOS",
+      "rationale": "Punycode + homoglyph brand imitation + card form.",
+      "sourceRefs": ["src_bitdefender_blackfriday"],
+      "classification": "community",
+      "confidence": "medium"
+    },
+    {
+      "id": "sc_dedeman_anniversary_marketing",
+      "title": "T7 Dedeman anniversary lookalike, marketing-only (no form)",
+      "channel": "web",
+      "brandImpersonated": "dedeman",
+      "input": {
+        "primary_url": "https://dedeman-aniversare.test/cadou",
+        "landing_behaviour": "congratulations page with a button; NO data form, NO card request"
+      },
+      "expectedEvidenceCodes": ["BRAND_IMPERSONATION", "MARKETING_TEXT", "LINK_UNDER_BUTTON"],
+      "expectedVerdict": "SUSPECT",
+      "rationale": "Brand impersonation + marketing only, no sensitive form => max SUSPECT/VERIFY_OFFICIAL, never PERICULOS alone.",
+      "sourceRefs": ["src_bitdefender_blackfriday"],
+      "classification": "hypothesis",
+      "confidence": "low"
+    },
+    {
+      "id": "sc_investment_returns",
+      "title": "Fake investment platform showing fabricated returns",
+      "channel": "web",
+      "brandImpersonated": null,
+      "input": {
+        "primary_url": "https://invest-profit-ro.test/dashboard",
+        "landing_behaviour": "shows fabricated growth, asks for deposit + ID + card"
+      },
+      "expectedEvidenceCodes": ["SENSITIVE_FORM", "CARD_REQUEST", "DOMAIN_AGE_SUSPICIOUS"],
+      "expectedVerdict": "PERICULOS",
+      "rationale": "Deposit + card request on a young, unverifiable investment domain.",
+      "sourceRefs": ["src_dnsc_investment"],
+      "classification": "official",
+      "confidence": "medium"
+    },
+    {
+      "id": "sc_bank_vishing_voice",
+      "title": "Bank vishing: spoofed caller asks for OTP",
+      "channel": "voice",
+      "brandImpersonated": "brd",
+      "input": {
+        "caller_id_display": "BRD",
+        "transcript_structural": "Buna ziua, sunt de la departamentul antifrauda. Am detectat o tranzactie suspecta. Pentru a o anula, cititi-mi codul primit prin SMS."
+      },
+      "expectedEvidenceCodes": ["BRAND_IMPERSONATION", "OTP_REQUEST"],
+      "expectedVerdict": "PERICULOS",
+      "rationale": "A caller asking to read out the SMS OTP is a clear vishing fraud (banks never ask this).",
+      "sourceRefs": ["src_banks_spoofing", "src_bcr_phone_fraud"],
+      "classification": "official",
+      "confidence": "high",
+      "note": "Voice scenario; requires caller-ID/transcript evidence codes (see spec §7)."
+    },
+    {
+      "id": "sc_emag_safe_tracking",
+      "title": "Legit eMAG order tracking link (SAFE control)",
+      "channel": "email",
+      "brandImpersonated": null,
+      "input": {
+        "sender_address": "no-reply@emag.ro",
+        "primary_url": "https://www.emag.ro/order-tracking/123",
+        "landing_behaviour": "order status page, no credential/card request"
+      },
+      "expectedEvidenceCodes": ["OFFICIAL_DOMAIN_EXACT"],
+      "expectedVerdict": "SIGUR",
+      "rationale": "Exact official domain + no sensitive form + clean providers => SIGUR (must pass even if VirusTotal is skipped).",
+      "sourceRefs": ["src_bitdefender_blackfriday"],
+      "classification": "community",
+      "confidence": "medium"
+    },
+    {
+      "id": "sc_anaf_safe_spv",
+      "title": "Legit ANAF SPV link (SAFE control)",
+      "channel": "web",
+      "brandImpersonated": null,
+      "input": {
+        "primary_url": "https://www.anaf.ro/InregPersFizicePublic/",
+        "landing_behaviour": "official SPV access page"
+      },
+      "expectedEvidenceCodes": ["OFFICIAL_DOMAIN_EXACT"],
+      "expectedVerdict": "SIGUR",
+      "rationale": "Exact official government domain; baseline true-negative.",
+      "sourceRefs": ["src_anaf_official"],
+      "classification": "official",
+      "confidence": "high"
+    }
+  ]
+}

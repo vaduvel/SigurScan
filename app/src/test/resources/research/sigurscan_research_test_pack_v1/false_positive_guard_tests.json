@@ -1,0 +1,173 @@
+{
+  "schema_version": "1.0.0",
+  "generated_for": "SigurScan",
+  "generated_at": "2026-06-04",
+  "region": "RO",
+  "purpose": "Legitimate or low-signal cases that must NOT be classified PERICULOS. Enforces the rule that marketing text, link-under-button and tracking links are not sufficient alone for PERICULOS.",
+  "verdict_enum": ["SIGUR", "SUSPECT", "PERICULOS"],
+  "known_benign_tracking_domains": [
+    "list-manage.com", "sendgrid.net", "mailchimp.com", "mailgun.org",
+    "sparkpostmail.com", "hubspotlinks.com", "sendinblue.com", "brevo.com",
+    "click.email", "r.email", "links.email", "clicks.emag.ro"
+  ],
+  "tests": [
+    {
+      "id": "fp_legit_bank_newsletter_tracking",
+      "title": "Legit bank newsletter with ESP tracking link under a button",
+      "channel": "email",
+      "input": {
+        "sender_address": "newsletter@bcr.ro",
+        "button_text": "Vezi oferta",
+        "button_href": "https://click.email/track?u=abc&url=https%3A%2F%2Fwww.bcr.ro%2Fro%2Fpersoane-fizice",
+        "final_url": "https://www.bcr.ro/ro/persoane-fizice",
+        "body_theme": "marketing oferta credit"
+      },
+      "present_signals": ["MARKETING_TEXT", "LINK_UNDER_BUTTON", "TRACKING_LINK", "OFFICIAL_DOMAIN_EXACT"],
+      "must_not_be": "PERICULOS",
+      "expectedVerdict": "SIGUR",
+      "rationale": "Tracking link that resolves to the official domain; marketing + button + tracking are not sufficient for PERICULOS.",
+      "classification": "hypothesis",
+      "confidence": "medium"
+    },
+    {
+      "id": "fp_marketing_only_no_form",
+      "title": "Promo email, link under button, no data request",
+      "channel": "email",
+      "input": {
+        "sender_address": "promo@altex.ro",
+        "button_text": "Cumpara acum",
+        "final_url": "https://altex.ro/promo",
+        "landing_behaviour": "product listing, no credential/card form"
+      },
+      "present_signals": ["MARKETING_TEXT", "LINK_UNDER_BUTTON", "OFFICIAL_DOMAIN_EXACT"],
+      "must_not_be": "PERICULOS",
+      "expectedVerdict": "SIGUR",
+      "rationale": "Marketing + button to official domain, no sensitive form.",
+      "classification": "hypothesis",
+      "confidence": "medium"
+    },
+    {
+      "id": "fp_legit_courier_tracking",
+      "title": "Legit FAN Courier tracking URL",
+      "channel": "sms",
+      "input": {
+        "final_url": "https://www.fancourier.ro/awb-tracking/?awb=1234567",
+        "landing_behaviour": "shipment status, no card request"
+      },
+      "present_signals": ["OFFICIAL_DOMAIN_EXACT"],
+      "must_not_be": "PERICULOS",
+      "expectedVerdict": "SIGUR",
+      "rationale": "Exact official tracking path; baseline true-negative.",
+      "classification": "official",
+      "confidence": "high"
+    },
+    {
+      "id": "fp_new_but_official_subdomain",
+      "title": "Newly provisioned but official brand subdomain",
+      "channel": "web",
+      "input": {
+        "final_url": "https://promo2026.emag.ro/campanie",
+        "domain_age_days": 5,
+        "note": "young host but on the official eTLD+1 emag.ro"
+      },
+      "present_signals": ["OFFICIAL_DOMAIN_EXACT", "DOMAIN_AGE_VERY_NEW"],
+      "must_not_be": "PERICULOS",
+      "expectedVerdict": "SIGUR",
+      "rationale": "Domain age must never be fatal alone; an official eTLD+1 overrides newness.",
+      "classification": "hypothesis",
+      "confidence": "medium"
+    },
+    {
+      "id": "fp_redirect_to_official",
+      "title": "Short link that redirects to official domain",
+      "channel": "email",
+      "input": {
+        "primary_url": "https://bit.ly/anaf-spv",
+        "redirect_chain": ["https://bit.ly/anaf-spv", "https://www.anaf.ro/"],
+        "final_url": "https://www.anaf.ro/"
+      },
+      "present_signals": ["TRACKING_LINK", "OFFICIAL_DOMAIN_EXACT"],
+      "must_not_be": "PERICULOS",
+      "expectedVerdict": "SIGUR",
+      "rationale": "A shortener alone is not malicious; evaluate the FINAL resolved URL.",
+      "classification": "hypothesis",
+      "confidence": "medium"
+    },
+    {
+      "id": "fp_legit_brand_keyword_in_path",
+      "title": "Brand keyword appears in path of a legit unrelated host",
+      "channel": "web",
+      "input": {
+        "final_url": "https://www.zf.ro/banci-si-asigurari/bcr-rezultate-2025",
+        "landing_behaviour": "news article mentioning BCR"
+      },
+      "present_signals": ["BRAND_IMPERSONATION_CANDIDATE"],
+      "must_not_be": "PERICULOS",
+      "expectedVerdict": "SIGUR",
+      "rationale": "Brand name in path of a legitimate news domain is not impersonation; no sensitive form.",
+      "classification": "hypothesis",
+      "confidence": "medium"
+    },
+    {
+      "id": "fp_legit_punycode_intl",
+      "title": "Legitimate internationalized domain (benign punycode)",
+      "channel": "web",
+      "input": {
+        "final_url": "https://xn--80akhbyknj4f.example/",
+        "note": "valid IDN, not imitating any RO brand, no sensitive form"
+      },
+      "present_signals": ["PUNYCODE_HOST"],
+      "must_not_be": "PERICULOS",
+      "expectedVerdict": "SUSPECT",
+      "rationale": "Punycode alone is only corroborant; without brand match or form it is at most SUSPECT, not PERICULOS.",
+      "classification": "hypothesis",
+      "confidence": "medium"
+    },
+    {
+      "id": "fp_legit_unsubscribe_link",
+      "title": "Legit unsubscribe / preferences link",
+      "channel": "email",
+      "input": {
+        "sender_address": "news@brevo.com",
+        "final_url": "https://r.email/unsubscribe?id=xyz",
+        "landing_behaviour": "email preferences page, no card/credentials"
+      },
+      "present_signals": ["TRACKING_LINK", "LINK_UNDER_BUTTON"],
+      "must_not_be": "PERICULOS",
+      "expectedVerdict": "SIGUR",
+      "rationale": "Standard ESP unsubscribe flow; tracking + button without sensitive form is benign.",
+      "classification": "hypothesis",
+      "confidence": "medium"
+    },
+    {
+      "id": "fp_legit_form_first_party",
+      "title": "First-party login form on official domain",
+      "channel": "web",
+      "input": {
+        "final_url": "https://www.ing.ro/persoane-fizice/ing-home-bank",
+        "landing_behaviour": "official internet-banking entry on official domain"
+      },
+      "present_signals": ["OFFICIAL_DOMAIN_EXACT", "SENSITIVE_FORM"],
+      "must_not_be": "PERICULOS",
+      "expectedVerdict": "SIGUR",
+      "rationale": "A sensitive form ON the official domain is legitimate; sensitive-form code must be gated by domain mismatch.",
+      "classification": "official",
+      "confidence": "high"
+    },
+    {
+      "id": "fp_olx_legit_listing",
+      "title": "Legit OLX listing link",
+      "channel": "web",
+      "input": {
+        "final_url": "https://www.olx.ro/d/oferta/telefon-123.html",
+        "landing_behaviour": "normal listing, no payout/card form"
+      },
+      "present_signals": ["OFFICIAL_DOMAIN_EXACT"],
+      "must_not_be": "PERICULOS",
+      "expectedVerdict": "SIGUR",
+      "rationale": "Baseline true-negative for marketplace.",
+      "classification": "official",
+      "confidence": "high"
+    }
+  ]
+}
