@@ -219,6 +219,7 @@ These are capped at `VERIFY_OFFICIAL` unless combined with stronger evidence:
 - shortener without final resolution;
 - redirect chain without bad final destination;
 - brand mention without verified final URL;
+- oferta/campanie promotionala pe domeniu oficial, dar neconfirmata de claim verifier;
 - corpus similarity only;
 - raw user report;
 - low-confidence OCR;
@@ -236,6 +237,7 @@ These are capped at `VERIFY_OFFICIAL` unless combined with stronger evidence:
 - no unresolved high-risk conflict;
 - redaction did not remove critical evidence;
 - provider states are sufficient for the current risk level.
+- daca mesajul promoveaza o oferta/campanie/catalog/voucher, claim verifier-ul nu a ramas `not_found` sau `inconclusive`; pentru `Sigur` vrem confirmare explicita a contextului.
 
 Never default to `CONTINUE_WITH_CAUTION`.
 

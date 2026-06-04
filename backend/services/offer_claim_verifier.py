@@ -12,6 +12,7 @@ import os
 import re
 import time
 import urllib.parse
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -73,6 +74,35 @@ STOPWORDS = {
     "valoare",
 }
 
+_BACKEND_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _resolve_knowledge_path() -> Path:
+    raw = (
+        os.getenv("SIGURSCAN_BRAND_KNOWLEDGE_PATH")
+        or os.getenv("SCAM_ATLAS_BRAND_KNOWLEDGE_PATH")
+        or "data/brand_knowledge_pack.json"
+    ).strip()
+    path = Path(raw).expanduser()
+    if not path.is_absolute():
+        path = (_BACKEND_ROOT / path).resolve()
+    return path
+
+
+def _load_runtime_knowledge() -> Dict[str, Any]:
+    path = _resolve_knowledge_path()
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+RUNTIME_KNOWLEDGE = _load_runtime_knowledge()
+CLAIM_VERIFIER_TARGETS = RUNTIME_KNOWLEDGE.get("claim_verifier_targets", [])
+
 
 def verify_offer_claim(
     text: str,
@@ -86,8 +116,9 @@ def verify_offer_claim(
 
     claimed_brand = _claimed_brand(text, analysis, brand_registry)
     final_urls = _final_urls(resolved_urls)
-    official_domains = _official_domains_for_claim(claimed_brand, final_urls, brand_registry)
-    query = _build_claim_query(text, claimed_brand)
+    claim_target = _match_claim_target(text, claimed_brand, final_urls)
+    official_domains = _official_domains_for_claim(claimed_brand, final_urls, brand_registry, claim_target=claim_target)
+    query = _build_claim_query(text, claimed_brand, claim_target=claim_target)
 
     if not query and not final_urls:
         return _payload("skipped", "unknown", "No concrete claim or URL to verify.", confidence=0)
@@ -98,6 +129,7 @@ def verify_offer_claim(
         official_domains=official_domains,
         final_urls=final_urls,
         query=query,
+        claim_target=claim_target,
     )
     if (
         gemini_result is not None
@@ -112,6 +144,7 @@ def verify_offer_claim(
         official_domains=official_domains,
         final_urls=final_urls,
         query=query,
+        claim_target=claim_target,
     )
 
     if official_result.get("status") == "confirmed":
@@ -133,6 +166,7 @@ def _verify_with_gemini_search(
     official_domains: List[str],
     final_urls: List[str],
     query: str,
+    claim_target: Optional[Dict[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key or not SDK_AVAILABLE:
@@ -150,6 +184,8 @@ Brand pretins: {claimed_brand or "necunoscut"}
 Domenii oficiale așteptate: {", ".join(official_domains) or "necunoscut"}
 URL-uri finale extrase: {", ".join(final_urls) or "nu există"}
 Query propus: {query or "necunoscut"}
+Target knowledge intern: {claim_target.get("claim_type") if isinstance(claim_target, dict) else "necunoscut"}
+Surse oficiale candidate: {", ".join(_claim_target_source_urls(claim_target)) or "necunoscute"}
 
 Răspunde strict JSON:
 {{
@@ -191,6 +227,7 @@ Reguli:
             evidence_urls=evidence_urls,
             method="gemini_google_search",
             official_source_found=bool(data.get("official_source_found")),
+            knowledge_target=claim_target.get("claim_type") if isinstance(claim_target, dict) else None,
         )
     except Exception as exc:
         if "SSL" in str(exc) or "certificate" in str(exc).lower():
@@ -204,6 +241,7 @@ Reguli:
                 query=query,
                 evidence_urls=[],
                 method="gemini_google_search_error",
+                knowledge_target=claim_target.get("claim_type") if isinstance(claim_target, dict) else None,
             )
         return _payload(
             "inconclusive",
@@ -215,6 +253,7 @@ Reguli:
             query=query,
             evidence_urls=[],
             method="gemini_google_search_error",
+            knowledge_target=claim_target.get("claim_type") if isinstance(claim_target, dict) else None,
         )
 
 
@@ -237,9 +276,10 @@ def _verify_with_official_pages(
     official_domains: List[str],
     final_urls: List[str],
     query: str,
+    claim_target: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     terms = _claim_terms(text, claimed_brand)
-    candidate_urls = _official_candidate_urls(official_domains, final_urls)
+    candidate_urls = _official_candidate_urls(official_domains, final_urls, claim_target=claim_target)
     if not candidate_urls:
         return _payload(
             "inconclusive",
@@ -250,6 +290,7 @@ def _verify_with_official_pages(
             official_domains=official_domains,
             query=query,
             method="official_page_fetch",
+            knowledge_target=claim_target.get("claim_type") if isinstance(claim_target, dict) else None,
         )
 
     checked: List[str] = []
@@ -270,6 +311,7 @@ def _verify_with_official_pages(
                 evidence_urls=[url],
                 method="official_page_fetch",
                 official_source_found=True,
+                knowledge_target=claim_target.get("claim_type") if isinstance(claim_target, dict) else None,
             )
 
     return _payload(
@@ -282,6 +324,7 @@ def _verify_with_official_pages(
         query=query,
         evidence_urls=checked,
         method="official_page_fetch",
+        knowledge_target=claim_target.get("claim_type") if isinstance(claim_target, dict) else None,
     )
 
 
@@ -297,6 +340,7 @@ def _payload(
     evidence_urls: Optional[List[str]] = None,
     method: str = "none",
     official_source_found: bool = False,
+    knowledge_target: Optional[str] = None,
 ) -> Dict[str, Any]:
     status = _normalize_status(status)
     return {
@@ -313,6 +357,7 @@ def _payload(
         "evidence_urls": evidence_urls or [],
         "method": method,
         "official_source_found": bool(official_source_found),
+        "knowledge_target": knowledge_target,
         "checked_at": int(time.time()),
     }
 
@@ -332,10 +377,13 @@ def _official_domains_for_claim(
     claimed_brand: Optional[str],
     final_urls: List[str],
     brand_registry: Dict[str, List[str]],
+    *,
+    claim_target: Optional[Dict[str, Any]] = None,
 ) -> List[str]:
     domains: List[str] = []
     if claimed_brand and claimed_brand in brand_registry:
         domains.extend(brand_registry[claimed_brand])
+    domains.extend(_claim_target_source_domains(claim_target))
     for url in final_urls:
         host = urllib.parse.urlparse(url).hostname or ""
         if host:
@@ -352,9 +400,11 @@ def _final_urls(resolved_urls: List[Dict[str, Any]]) -> List[str]:
     return list(dict.fromkeys(urls))
 
 
-def _build_claim_query(text: str, claimed_brand: Optional[str]) -> str:
+def _build_claim_query(text: str, claimed_brand: Optional[str], claim_target: Optional[Dict[str, Any]] = None) -> str:
     terms = _claim_terms(text, claimed_brand)
     parts = [claimed_brand] if claimed_brand else []
+    if isinstance(claim_target, dict):
+        parts.append(str(claim_target.get("claim_type") or "").strip())
     parts.extend(terms[:8])
     return " ".join(part for part in parts if part)
 
@@ -379,8 +429,14 @@ def _claim_terms(text: str, claimed_brand: Optional[str]) -> List[str]:
     return (priority + rest)[:12]
 
 
-def _official_candidate_urls(official_domains: List[str], final_urls: List[str]) -> List[str]:
+def _official_candidate_urls(
+    official_domains: List[str],
+    final_urls: List[str],
+    *,
+    claim_target: Optional[Dict[str, Any]] = None,
+) -> List[str]:
     urls: List[str] = []
+    urls.extend(_claim_target_source_urls(claim_target))
     official_set = set(official_domains)
     for url in final_urls:
         host = (urllib.parse.urlparse(url).hostname or "").lower().removeprefix("www.")
@@ -389,6 +445,104 @@ def _official_candidate_urls(official_domains: List[str], final_urls: List[str])
     for domain in official_domains:
         urls.append(f"https://{domain}/")
     return list(dict.fromkeys(urls))
+
+
+def _normalize_host(raw: str) -> str:
+    text = str(raw or "").strip()
+    if not text:
+        return ""
+    if "://" in text:
+        text = urllib.parse.urlparse(text).hostname or ""
+    text = text.lower().strip().strip(".")
+    if text.startswith("www."):
+        text = text[4:]
+    return text
+
+
+def _keyword_tokens(text: str) -> List[str]:
+    normalized = re.sub(r"[^0-9A-Za-zĂÂÎȘȚăâîșț%-]+", " ", text or "").lower()
+    return [
+        token
+        for token in normalized.split()
+        if len(token) >= 4 and token not in STOPWORDS
+    ]
+
+
+def _claim_target_source_urls(claim_target: Optional[Dict[str, Any]]) -> List[str]:
+    if not isinstance(claim_target, dict):
+        return []
+    sources = claim_target.get("surse_oficiale_folosim") or []
+    urls: List[str] = []
+    for source in sources:
+        if not isinstance(source, dict):
+            continue
+        url = str(source.get("url") or "").strip()
+        if url.startswith(("http://", "https://")):
+            urls.append(url)
+    return list(dict.fromkeys(urls))
+
+
+def _claim_target_source_domains(claim_target: Optional[Dict[str, Any]]) -> List[str]:
+    domains: List[str] = []
+    for url in _claim_target_source_urls(claim_target):
+        host = _normalize_host(url)
+        if host:
+            domains.append(host)
+    return list(dict.fromkeys(domains))
+
+
+def _claim_target_keywords(claim_target: Dict[str, Any]) -> set[str]:
+    raw_parts: List[str] = [str(claim_target.get("claim_type") or "")]
+    raw_parts.extend(str(item or "") for item in (claim_target.get("exemple_legitime") or []))
+    raw_parts.extend(str(item or "") for item in (claim_target.get("exemple_fake") or []))
+    raw_parts.append(str(claim_target.get("claim_confirmed") or ""))
+    raw_parts.append(str(claim_target.get("claim_not_found") or ""))
+    tokens: set[str] = set()
+    for part in raw_parts:
+        tokens.update(_keyword_tokens(part))
+    return tokens
+
+
+def _match_claim_target(
+    text: str,
+    claimed_brand: Optional[str],
+    final_urls: List[str],
+) -> Optional[Dict[str, Any]]:
+    if not CLAIM_VERIFIER_TARGETS:
+        return None
+
+    text_tokens = set(_keyword_tokens(text))
+    brand_tokens = set(_keyword_tokens(claimed_brand or ""))
+    final_hosts = {_normalize_host(url) for url in final_urls if _normalize_host(url)}
+
+    best_target: Optional[Dict[str, Any]] = None
+    best_score = 0
+    for target in CLAIM_VERIFIER_TARGETS:
+        if not isinstance(target, dict):
+            continue
+
+        score = 0
+        target_keywords = _claim_target_keywords(target)
+        overlap = text_tokens.intersection(target_keywords)
+        score += min(len(overlap), 4)
+
+        claim_type_tokens = set(_keyword_tokens(str(target.get("claim_type") or "")))
+        if brand_tokens and brand_tokens.intersection(claim_type_tokens):
+            score += 3
+
+        source_domains = set(_claim_target_source_domains(target))
+        if source_domains and any(
+            host == source_domain or host.endswith(f".{source_domain}") or source_domain.endswith(f".{host}")
+            for host in final_hosts
+            for source_domain in source_domains
+        ):
+            score += 4
+
+        if score > best_score:
+            best_score = score
+            best_target = target
+
+    return best_target if best_score >= 2 else None
 
 
 def _fetch_page_text(url: str) -> str:

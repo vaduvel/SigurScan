@@ -38,7 +38,11 @@ class KnowledgePackIntegrationTest {
             )
         )
 
-        assertTrue(signals.any { it.source == EvidenceSource.RAG && it.code == EvidenceCode.RAG_EXPLANATION })
+        assertTrue(signals.any {
+            it.source == EvidenceSource.CORPUS &&
+                it.code == EvidenceCode.CORPUS_SIMILARITY &&
+                it.attrs["claimContextOnly"] == "true"
+        })
     }
 
     @Test

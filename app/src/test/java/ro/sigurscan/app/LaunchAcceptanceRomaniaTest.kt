@@ -22,6 +22,7 @@ class LaunchAcceptanceRomaniaTest {
             htmlContent = html,
             primaryUrl = "https://rides.sng.link/Aw5zn/hw3r?_fallback_redirect=https%3A%2F%2Fwww.uber.com",
             finalUrl = "https://www.uber.com/ro/ride/",
+            threatIntel = confirmedClaimThreatIntel("uber.com"),
             redirectChain = listOf(
                 "https://rides.sng.link/Aw5zn/hw3r?_fallback_redirect=https%3A%2F%2Fwww.uber.com",
                 "https://www.uber.com/ro/ride/"
@@ -94,6 +95,7 @@ class LaunchAcceptanceRomaniaTest {
             rawText = "eMAG: nu rata oferta de weekend si voucherul tau.",
             primaryUrl = "https://marketing.sng.link/click/emag",
             finalUrl = "https://www.emag.ro/oferta",
+            threatIntel = confirmedClaimThreatIntel("emag.ro"),
             redirectChain = listOf("https://marketing.sng.link/click/emag", "https://www.emag.ro/oferta")
         )
 
@@ -187,6 +189,7 @@ class LaunchAcceptanceRomaniaTest {
             rawText = "Uber promo: vezi oferta in aplicatie.",
             primaryUrl = "https://rides.sng.link/Aw5zn/hw3r",
             finalUrl = "https://www.uber.com/ro/ride/",
+            threatIntel = confirmedClaimThreatIntel("uber.com"),
             redirectChain = listOf("https://rides.sng.link/Aw5zn/hw3r", "https://www.uber.com/ro/ride/")
         )
 
@@ -283,6 +286,15 @@ class LaunchAcceptanceRomaniaTest {
         ProviderId.URLSCAN to ProviderState(ProviderId.URLSCAN, ProviderStatus.OK),
         ProviderId.VIRUSTOTAL to ProviderState(ProviderId.VIRUSTOTAL, ProviderStatus.OK),
         ProviderId.CLAIM_VERIFIER to ProviderState(ProviderId.CLAIM_VERIFIER, ProviderStatus.OK)
+    )
+
+    private fun confirmedClaimThreatIntel(officialDomain: String): List<ThreatIntelSourceResult> = listOf(
+        ThreatIntelSourceResult(
+            source = "ai_offer_web_check",
+            verdict = "confirmed",
+            severity = "low",
+            details = "official_source_found=true; official_domains=$officialDomain; campaign confirmed on official destination."
+        )
     )
 
     private fun assertCodes(snapshot: EvidenceSnapshot, vararg expected: EvidenceCode) {

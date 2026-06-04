@@ -1,5 +1,6 @@
 package ro.sigurscan.app
 
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -7,6 +8,10 @@ import org.junit.Test
 
 class EvidenceSignalNormalizerTest {
     private val gate = EvidenceGate { 1_000L }
+
+    init {
+        SigurScanKnowledgePack.initializeFromJson(knowledgePackJson())
+    }
 
     @Test
     fun uberPromoHtmlWithApprovedTrackerAndFinalOfficialCanContinueWithCaution() {
@@ -27,7 +32,16 @@ class EvidenceSignalNormalizerTest {
             redirectChain = listOf(
                 "https://rides.sng.link/Aw5zn/hw3r?campaign=crm",
                 "https://www.uber.com/ro/ride/"
-            )
+            ),
+            threatIntel = listOf(
+                ThreatIntelSourceResult(
+                    source = "ai_offer_web_check",
+                    verdict = "confirmed",
+                    severity = "low",
+                    details = "official_source_found=true; official_domains=uber.com; campaign confirmed on official destination."
+                )
+            ),
+            providerStates = completedUrlProviderStates()
         )
 
         assertCodes(
@@ -61,7 +75,16 @@ class EvidenceSignalNormalizerTest {
             htmlContent = html,
             primaryUrl = "https://marketing.sng.link/click/emag",
             finalUrl = "https://www.emag.ro/oferta",
-            redirectChain = listOf("https://marketing.sng.link/click/emag", "https://www.emag.ro/oferta")
+            redirectChain = listOf("https://marketing.sng.link/click/emag", "https://www.emag.ro/oferta"),
+            threatIntel = listOf(
+                ThreatIntelSourceResult(
+                    source = "ai_offer_web_check",
+                    verdict = "confirmed",
+                    severity = "low",
+                    details = "official_source_found=true; official_domains=emag.ro; campaign confirmed on official destination."
+                )
+            ),
+            providerStates = completedUrlProviderStates()
         )
 
         assertCodes(snapshot, EvidenceCode.OFFICIAL_DOMAIN_EXACT, EvidenceCode.NO_SENSITIVE_FORM, EvidenceCode.VOUCHER_TEXT)
@@ -425,7 +448,7 @@ class EvidenceSignalNormalizerTest {
     }
 
     @Test
-    fun yoxoBuybackSmsWithCleanProvidersOfficialDomainAndInconclusiveClaimIsSafe() {
+    fun yoxoBuybackSmsWithCleanProvidersOfficialDomainAndInconclusiveClaimNeedsVerification() {
         val snapshot = normalize(
             rawText = "Ai un telefon sau o tableta pe care nu le mai folosesti? Acum le poti transforma rapid in bani cu serviciul de buy-back YOXO. Afla cat valoreaza dispozitivul tau si incepe procesul chiar acum: buyback.yoxo.ro",
             primaryUrl = "https://buyback.yoxo.ro/",
@@ -465,8 +488,8 @@ class EvidenceSignalNormalizerTest {
             EvidenceCode.NO_SENSITIVE_FORM
         )
         val result = gate.evaluate(snapshot)
-        assertEquals(GateAction.CONTINUE_WITH_CAUTION, result.action)
-        assertEquals("Sigur", result.userLabel)
+        assertEquals(GateAction.VERIFY_OFFICIAL, result.action)
+        assertEquals("Suspect", result.userLabel)
     }
 
     @Test
@@ -596,7 +619,7 @@ class EvidenceSignalNormalizerTest {
                     source = "brand_warning_corpus",
                     verdict = "brand_warning",
                     severity = "medium",
-                    details = "neverAskFor=OTP_CODE; brand=whatsapp"
+                    details = "Mesajul cere un cod pe care brandul declară că nu îl solicită; matched_assets=otp,whatsapp_code; knowledge_target=campanii bancare educaționale; signal=BANK_NEVER_ASK_OTP"
                 ),
                 ThreatIntelSourceResult(
                     source = "rag_explainer",
@@ -621,6 +644,22 @@ class EvidenceSignalNormalizerTest {
         assertTrue(snapshot.signals.none {
             it.code == EvidenceCode.RAG_EXPLANATION && EvidenceGatePolicy.isDecisionEligible(it)
         })
+    }
+
+    @Test
+    fun localClaimContextHintsStayInCorpusAndDoNotPretendToBeRag() {
+        val snapshot = normalize(
+            rawText = "YOXO buy-back disponibil acum. Afla mai multe pe buyback.yoxo.ro",
+            primaryUrl = "https://buyback.yoxo.ro",
+            finalUrl = "https://buyback.yoxo.ro"
+        )
+
+        assertTrue(snapshot.signals.any { signal ->
+            signal.source == EvidenceSource.CORPUS &&
+                signal.code == EvidenceCode.CORPUS_SIMILARITY &&
+                signal.attrs["claimContextOnly"] == "true"
+        })
+        assertFalse(snapshot.signals.any { it.source == EvidenceSource.RAG && it.attrs["claimContextOnly"] == "true" })
     }
 
     @Test
@@ -706,6 +745,23 @@ class EvidenceSignalNormalizerTest {
         )
     }
 
+    @Test
+    fun confusableBrandHostProducesHomoglyphSignalEvenWithoutBackendHint() {
+        val snapshot = normalize(
+            rawText = "Verifica aici contul tau.",
+            primaryUrl = "https://bсr-online.example/login",
+            finalUrl = "https://bсr-online.example/login",
+            providerStates = completedUrlProviderStates()
+        )
+
+        assertCodes(
+            snapshot,
+            EvidenceCode.BRAND_IMPERSONATION,
+            EvidenceCode.OFFICIAL_DOMAIN_MISMATCH,
+            EvidenceCode.HOMOGLYPH_DOMAIN
+        )
+    }
+
     private fun normalize(
         rawText: String,
         htmlContent: String? = null,
@@ -746,6 +802,14 @@ class EvidenceSignalNormalizerTest {
         ProviderId.VIRUSTOTAL to ProviderState(ProviderId.VIRUSTOTAL, ProviderStatus.OK),
         ProviderId.CLAIM_VERIFIER to ProviderState(ProviderId.CLAIM_VERIFIER, ProviderStatus.OK)
     )
+
+    private fun knowledgePackJson(): String {
+        val candidates = listOf(
+            File("src/main/assets/knowledge/romania_knowledge_layer_compact.json"),
+            File("app/src/main/assets/knowledge/romania_knowledge_layer_compact.json")
+        )
+        return candidates.first { it.exists() }.readText()
+    }
 
     private fun assertCodes(snapshot: EvidenceSnapshot, vararg expected: EvidenceCode) {
         val actual = snapshot.signals.map { it.code }.toSet()

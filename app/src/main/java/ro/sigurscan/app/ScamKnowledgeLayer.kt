@@ -29,7 +29,7 @@ object ScamKnowledgeLayer {
         addBrandWarningSignals(input, signals)
         addRomaniaCorpusSignals(input, text, signals)
         addPackScenarioSignals(input, text, signals)
-        addPackClaimVerifierSignals(input, text, signals)
+        addPackClaimContextSignals(input, text, signals)
         return signals.distinctBy { listOf(it.source.name, it.code.name, it.brandId.orEmpty(), it.targetKey.orEmpty()).joinToString("|") }
     }
 
@@ -304,7 +304,7 @@ object ScamKnowledgeLayer {
         }
     }
 
-    private fun addPackClaimVerifierSignals(
+    private fun addPackClaimContextSignals(
         input: ScamKnowledgeInput,
         text: String,
         signals: MutableList<ScamKnowledgeSignal>
@@ -320,8 +320,8 @@ object ScamKnowledgeLayer {
 
             signals.add(
                 ScamKnowledgeSignal(
-                    source = EvidenceSource.RAG,
-                    code = EvidenceCode.RAG_EXPLANATION,
+                    source = EvidenceSource.CORPUS,
+                    code = EvidenceCode.CORPUS_SIMILARITY,
                     brandId = primaryBrand(input.claimedBrandIds, text),
                     targetKey = input.targetHost ?: target.claimType,
                     attrs = mapOf(
@@ -329,7 +329,8 @@ object ScamKnowledgeLayer {
                         "matchedTerms" to matched.take(6).joinToString(","),
                         "officialSources" to target.officialSources.mapNotNull { it.url }.take(4).joinToString(","),
                         "claimConfirmed" to target.claimConfirmed.orEmpty(),
-                        "claimNotFound" to target.claimNotFound.orEmpty()
+                        "claimNotFound" to target.claimNotFound.orEmpty(),
+                        "claimContextOnly" to "true"
                     )
                 )
             )

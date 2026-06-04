@@ -2290,10 +2290,18 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             ?.mapNotNull { it?.toString()?.takeIf { value -> value.isNotBlank() } }
             ?.joinToString(",")
         val officialSourceFound = payload["official_source_found"]?.toString()
+        val matchedAssets = (payload["matched_assets"] as? List<*>)
+            ?.mapNotNull { it?.toString()?.takeIf { value -> value.isNotBlank() } }
+            ?.joinToString(",")
+        val knowledgeTarget = firstString(payload, "knowledge_target")
+        val signal = firstString(payload, "signal")
         return listOfNotNull(
             base,
             officialDomains?.let { "official_domains=$it" },
-            officialSourceFound?.let { "official_source_found=$it" }
+            officialSourceFound?.let { "official_source_found=$it" },
+            matchedAssets?.let { "matched_assets=$it" },
+            knowledgeTarget?.let { "knowledge_target=$it" },
+            signal?.let { "signal=$it" }
         ).joinToString("; ").takeIf { it.isNotBlank() }
     }
 

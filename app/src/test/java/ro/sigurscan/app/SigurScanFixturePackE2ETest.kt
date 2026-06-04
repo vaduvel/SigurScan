@@ -80,7 +80,7 @@ class SigurScanFixturePackE2ETest {
         val legacy = GateAction.valueOf(case.expectedDecision)
         val hasUrlTarget = !snapshot.primaryUrl.isNullOrBlank() || !snapshot.finalUrl.isNullOrBlank() || !snapshot.formActionUrl.isNullOrBlank()
         val providerReviewIncomplete = if (hasUrlTarget) {
-            listOf(ProviderId.WEB_RISK, ProviderId.URLSCAN, ProviderId.VIRUSTOTAL).any { provider ->
+            requiredProvidersForSnapshot(snapshot).any { provider ->
                 snapshot.providerStates[provider]?.status != ProviderStatus.OK
             }
         } else {
@@ -88,8 +88,53 @@ class SigurScanFixturePackE2ETest {
         }
         return if (!case.shouldSubmitExternal || providerReviewIncomplete) {
             GateAction.INSUFFICIENT_EVIDENCE
+        } else if (legacy == GateAction.CONTINUE_WITH_CAUTION &&
+            requiresOfferConfirmation(snapshot) &&
+            snapshot.signals.none { it.code == EvidenceCode.OFFER_CLAIM_CONFIRMED }) {
+            GateAction.VERIFY_OFFICIAL
         } else {
             legacy
+        }
+    }
+
+    private fun requiredProvidersForSnapshot(snapshot: EvidenceSnapshot): Set<ProviderId> {
+        val required = linkedSetOf(ProviderId.WEB_RISK, ProviderId.URLSCAN)
+        if (requiresClaimVerification(snapshot)) {
+            required += ProviderId.CLAIM_VERIFIER
+        }
+        return required
+    }
+
+    private fun requiresClaimVerification(snapshot: EvidenceSnapshot): Boolean {
+        if (snapshot.claimedBrands.isNotEmpty()) return true
+        return snapshot.signals.any { signal ->
+            signal.code in setOf(
+                EvidenceCode.MARKETING_URGENCY,
+                EvidenceCode.PROMO_TEXT,
+                EvidenceCode.VOUCHER_TEXT,
+                EvidenceCode.CTA_TEXT,
+                EvidenceCode.PARCEL_TAX,
+                EvidenceCode.TAX_NOTICE,
+                EvidenceCode.ACCOUNT_SUSPEND,
+                EvidenceCode.MARKETPLACE_RECEIVE_MONEY,
+                EvidenceCode.COURIER_UNOFFICIAL_DOMAIN,
+                EvidenceCode.BRAND_IMPERSONATION,
+                EvidenceCode.OFFICIAL_DOMAIN_MISMATCH
+            )
+        }
+    }
+
+    private fun requiresOfferConfirmation(snapshot: EvidenceSnapshot): Boolean {
+        return snapshot.signals.any { signal ->
+            signal.code in setOf(
+                EvidenceCode.MARKETING_URGENCY,
+                EvidenceCode.PROMO_TEXT,
+                EvidenceCode.VOUCHER_TEXT,
+                EvidenceCode.CTA_TEXT,
+                EvidenceCode.OFFER_CLAIM_CONFIRMED,
+                EvidenceCode.OFFER_CLAIM_NOT_FOUND,
+                EvidenceCode.OFFER_CLAIM_INCONCLUSIVE
+            )
         }
     }
 

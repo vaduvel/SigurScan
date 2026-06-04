@@ -611,6 +611,33 @@ class EvidenceGate(private val nowMillis: () -> Long = { System.currentTimeMilli
     }
 
     private fun verifyOfficial(ctx: EvalContext): GateResult? = when {
+        ctx.requiresOfferConfirmationForSafe() &&
+            !ctx.hasAny(EvidenceCode.OCR_LOW_CONFIDENCE, EvidenceCode.WEBMAIL_SHELL_ONLY, EvidenceCode.NO_TARGET) &&
+            ctx.hasAny(EvidenceCode.OFFER_CLAIM_NOT_FOUND, EvidenceCode.OFFER_CLAIM_INCONCLUSIVE) -> result(
+            GateAction.VERIFY_OFFICIAL,
+            "CLAIM_NOT_CONFIRMED_ON_OFFICIAL_SOURCES",
+            ctx.firstIds(
+                EvidenceCode.OFFER_CLAIM_NOT_FOUND,
+                EvidenceCode.OFFER_CLAIM_INCONCLUSIVE
+            ),
+            ctx
+        )
+
+        ctx.requiresOfferConfirmationForSafe() &&
+            !ctx.hasAny(EvidenceCode.OCR_LOW_CONFIDENCE, EvidenceCode.WEBMAIL_SHELL_ONLY, EvidenceCode.NO_TARGET) &&
+            !ctx.has(EvidenceCode.OFFER_CLAIM_CONFIRMED) &&
+            !ctx.isAsyncPending() -> result(
+            GateAction.VERIFY_OFFICIAL,
+            "PROMOTIONAL_CLAIM_NEEDS_CONFIRMATION",
+            ctx.firstIds(
+                EvidenceCode.PROMO_TEXT,
+                EvidenceCode.VOUCHER_TEXT,
+                EvidenceCode.MARKETING_URGENCY,
+                EvidenceCode.CTA_TEXT
+            ),
+            ctx
+        )
+
         ctx.hasAny(
             EvidenceCode.UNRESOLVED_SHORTLINK,
             EvidenceCode.DOMAIN_AGE_SUSPICIOUS,
@@ -710,6 +737,7 @@ class EvidenceGate(private val nowMillis: () -> Long = { System.currentTimeMilli
         if (!ctx.has(EvidenceCode.NO_SENSITIVE_FORM)) return null
         if (ctx.targetUrl().isNullOrBlank()) return null
         if (!ctx.hasCompletedRequiredPillars()) return null
+        if (ctx.requiresOfferConfirmationForSafe() && !ctx.has(EvidenceCode.OFFER_CLAIM_CONFIRMED)) return null
         if (ctx.snapshot.completeness == EvidenceCompleteness.LOCAL_ONLY) return null
         if (ctx.hasAny(
                 EvidenceCode.SENSITIVE_FORM_UNOFFICIAL,
@@ -733,12 +761,17 @@ class EvidenceGate(private val nowMillis: () -> Long = { System.currentTimeMilli
 
         return result(
             GateAction.CONTINUE_WITH_CAUTION,
-            "OFFICIAL_DESTINATION_NO_SENSITIVE_COLLECTION",
+            if (ctx.has(EvidenceCode.OFFER_CLAIM_CONFIRMED)) {
+                "OFFICIAL_DESTINATION_AND_CLAIM_CONFIRMED"
+            } else {
+                "OFFICIAL_DESTINATION_NO_SENSITIVE_COLLECTION"
+            },
             ctx.firstIds(
                 EvidenceCode.OFFICIAL_DOMAIN_EXACT,
                 EvidenceCode.DELEGATED_DOMAIN_EXACT,
                 EvidenceCode.APPROVED_TRACKER_DOMAIN,
-                EvidenceCode.NO_SENSITIVE_FORM
+                EvidenceCode.NO_SENSITIVE_FORM,
+                EvidenceCode.OFFER_CLAIM_CONFIRMED
             ),
             ctx
         )
@@ -971,6 +1004,19 @@ class EvidenceGate(private val nowMillis: () -> Long = { System.currentTimeMilli
                     EvidenceCode.COURIER_UNOFFICIAL_DOMAIN,
                     EvidenceCode.BRAND_IMPERSONATION,
                     EvidenceCode.OFFICIAL_DOMAIN_MISMATCH
+                )
+            }
+        }
+        fun requiresOfferConfirmationForSafe(): Boolean {
+            return active.any { signal ->
+                signal.code in setOf(
+                    EvidenceCode.MARKETING_URGENCY,
+                    EvidenceCode.PROMO_TEXT,
+                    EvidenceCode.VOUCHER_TEXT,
+                    EvidenceCode.CTA_TEXT,
+                    EvidenceCode.OFFER_CLAIM_CONFIRMED,
+                    EvidenceCode.OFFER_CLAIM_NOT_FOUND,
+                    EvidenceCode.OFFER_CLAIM_INCONCLUSIVE
                 )
             }
         }

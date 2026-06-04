@@ -14,6 +14,7 @@ class EvidenceGateTest {
             EvidenceCode.OFFICIAL_DOMAIN_EXACT,
             EvidenceCode.NO_SENSITIVE_FORM,
             EvidenceCode.PROMO_TEXT,
+            EvidenceCode.OFFER_CLAIM_CONFIRMED,
             finalUrl = "https://www.uber.com/ro/ride/"
         )
 
@@ -28,6 +29,7 @@ class EvidenceGateTest {
             EvidenceCode.REDIRECT_CHAIN_APPROVED,
             EvidenceCode.NO_SENSITIVE_FORM,
             EvidenceCode.PROMO_TEXT,
+            EvidenceCode.OFFER_CLAIM_CONFIRMED,
             primaryUrl = "https://tracking.example.com/click",
             finalUrl = "https://www.emag.ro/oferta"
         )
@@ -373,7 +375,7 @@ class EvidenceGateTest {
     }
 
     @Test
-    fun officialYoxoWithCompletedCleanProvidersIsShownAsSafe() {
+    fun officialYoxoWithCompletedCleanProvidersButInconclusiveClaimNeedsVerification() {
         val result = evaluate(
             EvidenceCode.OFFICIAL_DOMAIN_EXACT,
             EvidenceCode.NO_SENSITIVE_FORM,
@@ -385,8 +387,26 @@ class EvidenceGateTest {
             finalUrl = "https://buyback.yoxo.ro/?r=1#/yoxo-ro/ro"
         )
 
+        assertAction(GateAction.VERIFY_OFFICIAL, result)
+        assertEquals("Suspect", result.userLabel)
+        assertEquals("CLAIM_NOT_CONFIRMED_ON_OFFICIAL_SOURCES", result.reasonCodes.single())
+    }
+
+    @Test
+    fun officialPromoWithConfirmedClaimCanBeSafe() {
+        val result = evaluate(
+            EvidenceCode.OFFICIAL_DOMAIN_EXACT,
+            EvidenceCode.NO_SENSITIVE_FORM,
+            EvidenceCode.PROMO_TEXT,
+            EvidenceCode.WEBRISK_NO_MATCH,
+            EvidenceCode.URLSCAN_NO_CLASSIFICATION,
+            EvidenceCode.OFFER_CLAIM_CONFIRMED,
+            primaryUrl = "https://buyback.yoxo.ro",
+            finalUrl = "https://buyback.yoxo.ro/?r=1#/yoxo-ro/ro"
+        )
+
         assertAction(GateAction.CONTINUE_WITH_CAUTION, result)
-        assertEquals("Sigur", result.userLabel)
+        assertEquals("OFFICIAL_DESTINATION_AND_CLAIM_CONFIRMED", result.reasonCodes.single())
     }
 
     @Test

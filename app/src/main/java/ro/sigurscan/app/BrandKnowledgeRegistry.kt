@@ -94,7 +94,20 @@ object BrandKnowledgeRegistry {
         ),
         BrandKnowledgeEntry(
             id = "cardAndBanks",
-            aliases = listOf("banca", "bcr", "ing", "bt", "banca transilvania", "george", "cont sigur"),
+            aliases = listOf(
+                "banca",
+                "bcr",
+                "ing",
+                "bt",
+                "banca transilvania",
+                "george",
+                "cont sigur",
+                "raiffeisen",
+                "brd",
+                "cec",
+                "cec bank",
+                "cecbank"
+            ),
             officialDomains = listOf(
                 "ing.ro",
                 "ing.com",
@@ -104,7 +117,13 @@ object BrandKnowledgeRegistry {
                 "bancatransilvania.ro",
                 "btpay.ro",
                 "neo-bt.ro",
-                "neo.bancatransilvania.ro"
+                "neo.bancatransilvania.ro",
+                "raiffeisen.ro",
+                "smartmobile.raiffeisen.ro",
+                "brd.ro",
+                "youbrd.ro",
+                "cec.ro",
+                "cecbank.ro"
             ),
             neverAskFor = setOf(
                 NeverAskFor.CARD_DATA,
@@ -157,14 +176,31 @@ object BrandKnowledgeRegistry {
         ),
         BrandKnowledgeEntry(
             id = "utilities",
-            aliases = listOf("hidroelectrica", "digi", "vodafone", "orange", "e.on", "eon", "ppc"),
+            aliases = listOf(
+                "hidroelectrica",
+                "digi",
+                "vodafone",
+                "orange",
+                "e.on",
+                "eon",
+                "ppc",
+                "engie",
+                "telekom",
+                "enel",
+                "e-distributie",
+                "edistributie"
+            ),
             officialDomains = listOf(
                 "hidroelectrica.ro",
                 "digi.ro",
                 "vodafone.ro",
                 "orange.ro",
                 "eon.ro",
-                "ppcenergy.ro"
+                "ppcenergy.ro",
+                "engie.ro",
+                "telekom.ro",
+                "enel.ro",
+                "e-distributie.com"
             ),
             sourceRefs = listOf("docs/ROMANIA_SCAM_SCENARIO_CORPUS.md#investitii-false--hidroelectrica--broker--cripto")
         ),
@@ -183,8 +219,8 @@ object BrandKnowledgeRegistry {
         ),
         BrandKnowledgeEntry(
             id = "retail",
-            aliases = listOf("altex", "media galaxy"),
-            officialDomains = listOf("altex.ro", "mediagalaxy.ro"),
+            aliases = listOf("altex", "media galaxy", "dedeman", "kaufland", "lidl", "carrefour", "ikea"),
+            officialDomains = listOf("altex.ro", "mediagalaxy.ro", "dedeman.ro", "kaufland.ro", "lidl.ro", "carrefour.ro", "ikea.com"),
             approvedTrackerDomains = commonMarketingTrackers,
             sourceRefs = listOf("docs/E2E_FIXTURE_PACK_V2_PREP.md")
         )

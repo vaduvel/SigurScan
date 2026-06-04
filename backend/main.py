@@ -44,7 +44,7 @@ from services.redirect_resolver import (
     get_dmarc_policy,
     check_dkim_dns_record,
 )
-from services.scam_atlas import BRAND_REGISTRY, ScamAtlasEngine
+from services.scam_atlas import BRAND_ID_TO_DISPLAY_NAME, BRAND_REGISTRY, BRAND_WARNING_RULES, ScamAtlasEngine
 from services.gemini_explainer import generate_ai_explanation, generate_fallback_explanation
 from services.offer_claim_verifier import verify_offer_claim
 from services.url_reputation import get_reputation_cache_stats, get_reputation_for_urls
@@ -1684,6 +1684,88 @@ def _official_destination_confirmed(resolved_urls: List[Dict[str, Any]], claimed
     return False
 
 
+def _normalize_claimed_brand(raw_brand: str) -> str:
+    normalized = str(raw_brand or "").strip().lower()
+    if not normalized or normalized in {"nespecificat", "unknown", "none"}:
+        return ""
+    return normalized
+
+
+def _brand_warning_rule_for_claimed_brand(claimed_brand: str) -> Optional[Dict[str, Any]]:
+    normalized = _normalize_claimed_brand(claimed_brand)
+    if not normalized:
+        return None
+
+    for brand_id, display_name in BRAND_ID_TO_DISPLAY_NAME.items():
+        if normalized == str(display_name).strip().lower():
+            return BRAND_WARNING_RULES.get(brand_id)
+
+    for brand_id, display_name in BRAND_ID_TO_DISPLAY_NAME.items():
+        if normalized in {str(display_name).strip().lower(), brand_id.lower(), brand_id.replace("_", " ").lower()}:
+            return BRAND_WARNING_RULES.get(brand_id)
+        if normalized in str(display_name).strip().lower():
+            return BRAND_WARNING_RULES.get(brand_id)
+
+    return None
+
+
+def _brand_warning_matches_text(claimed_brand: str, raw_text: str, reasons: List[str]) -> Dict[str, Any]:
+    rule = _brand_warning_rule_for_claimed_brand(claimed_brand)
+    if not isinstance(rule, dict):
+        return {"triggered": False, "matched_assets": [], "brand_id": None}
+
+    never_ask_for = rule.get("never_ask_for")
+    if not isinstance(never_ask_for, dict):
+        return {"triggered": False, "matched_assets": [], "brand_id": rule.get("brand_id")}
+
+    combined = _normalise_obfuscated_text(" ".join([raw_text or "", *[str(item) for item in reasons if item]])).lower()
+    matched_assets: List[str] = []
+
+    def _hit_card_request() -> bool:
+        return (
+            "card" in combined and any(token in combined for token in ("introdu", "complete", "actualiz", "verific", "date", "detalii", "numar"))
+        )
+
+    detectors = {
+        "card_number": _hit_card_request,
+        "cvv": lambda: "cvv" in combined or "cvc" in combined,
+        "otp": lambda: (
+            "otp" in combined
+            or "cod otp" in combined
+            or "cod sms" in combined
+            or "codul de verificare" in combined
+            or ("trimite" in combined and "cod" in combined)
+            or ("introdu" in combined and "cod" in combined)
+        ),
+        "whatsapp_code": lambda: "whatsapp" in combined and "cod" in combined,
+        "banking_pin": lambda: " pin" in f" {combined}" or "cod pin" in combined,
+        "password": lambda: "parola" in combined or "parolă" in combined or "password" in combined,
+        "cnp": lambda: "cnp" in combined,
+        "iban": lambda: "iban" in combined,
+        "remote_access": lambda: any(token in combined for token in ("anydesk", "teamviewer", "rustdesk", "control la distanta", "control la distanță", "remote access")),
+        "apk_install": lambda: "apk" in combined or ("instale" in combined and "aplic" in combined) or ("descarca" in combined and "aplic" in combined) or ("descarcă" in combined and "aplic" in combined),
+        "safe_account_transfer": lambda: "cont sigur" in combined or "transfer sigur" in combined,
+        "crypto_atm_deposit": lambda: any(token in combined for token in ("crypto atm", "bitcoin atm", "depunere crypto")),
+    }
+
+    for asset, enabled in never_ask_for.items():
+        if not enabled:
+            continue
+        detector = detectors.get(str(asset))
+        if detector and detector():
+            matched_assets.append(str(asset))
+
+    matched_assets = sorted(set(matched_assets))
+    return {
+        "triggered": bool(matched_assets),
+        "matched_assets": matched_assets,
+        "brand_id": rule.get("brand_id"),
+        "source_url": rule.get("source_url"),
+        "summary": rule.get("exact_official_statement_summary"),
+        "signal": rule.get("evidence_gate_signal_suggested"),
+    }
+
+
 def _has_decisive_sensitive_intent(text: str) -> bool:
     normalized = _normalise_obfuscated_text(text or "").lower()
     money_or_delivery_markers = (
@@ -1767,8 +1849,14 @@ def _is_decisive_structural_danger(
             "marketplace",
         )
     )
+    brand_warning = _brand_warning_matches_text(claimed_brand, raw_text, list(analysis.get("reasons", []) or []))
     provider_error_names = _required_pillar_error_names(pillars)
-    return sensitive_intent and (risk_level in {"high", "critical", "dangerous"} or known_structural_family or bool(provider_error_names))
+    return sensitive_intent and (
+        risk_level in {"high", "critical", "dangerous"}
+        or known_structural_family
+        or bool(provider_error_names)
+        or bool(brand_warning.get("triggered"))
+    )
 
 
 def _collect_infrastructure_flags(
@@ -1882,6 +1970,9 @@ def _apply_provider_gate_verdict(
     urlscan_consulted = any(_source_ready(summary, name) for name in ("urlscan", "urlscan.io"))
     bad_provider = _has_bad_provider_verdict(summary)
     sensitive_request_signal = _provider_reason_has_sensitive_request_signal(list(analysis.get("reasons", []) or []))
+    brand_warning = _brand_warning_matches_text(claimed_brand, raw_text, list(analysis.get("reasons", []) or []))
+    evidence["brand_warning"] = brand_warning
+    _attach_brand_warning_summary(summary, brand_warning)
     claim_required = _claim_verifier_required(analysis)
     claim_consulted = (not claim_required) or offer_status in {"confirmed", "not_found", "inconclusive", "skipped"}
     missing_required_pillars = []
@@ -1914,6 +2005,7 @@ def _apply_provider_gate_verdict(
         "offer_status": offer_status or "unknown",
         "legacy_score_ignored": True,
         "infrastructure_flags": infra_flags,
+        "brand_warning": brand_warning,
     }
     provider_error_names = _required_pillar_error_names(pillars)
     decisive_structural_danger = _is_decisive_structural_danger(
@@ -1924,7 +2016,7 @@ def _apply_provider_gate_verdict(
     )
 
     if not has_urls:
-        if has_domain_mismatch or sensitive_request_signal or bad_provider:
+        if has_domain_mismatch or sensitive_request_signal or bad_provider or brand_warning.get("triggered"):
             risk_level = "high"
             risk_score = 90
             reasons = [
@@ -1977,11 +2069,11 @@ def _apply_provider_gate_verdict(
         family = "Verificare parțială"
         family_id = "provider-gate-partial-pillars"
     elif official_destination and offer_status in {"confirmed", "inconclusive", "skipped", "unknown", ""}:
-        if sensitive_request_signal:
+        if sensitive_request_signal or brand_warning.get("triggered"):
             risk_level = "medium"
             risk_score = 45
             reasons = [
-                "Domeniul este oficial, dar mesajul cere acțiuni sensibile; verifică înainte de a introduce date.",
+                "Domeniul este oficial, dar mesajul cere acțiuni sensibile sau date pe care brandul declară că nu le solicită; verifică înainte de a introduce date.",
             ]
             family = "Semnal comportamental"
             family_id = "provider-gate-official-sensitive"
@@ -2018,9 +2110,9 @@ def _apply_provider_gate_verdict(
         ]
         family = "Semnale infrastructură"
         family_id = "provider-gate-infrastructure-review"
-    elif has_domain_mismatch or sensitive_request_signal:
+    elif has_domain_mismatch or sensitive_request_signal or brand_warning.get("triggered"):
         risk_level = "medium"
-        risk_score = 55
+        risk_score = 60 if brand_warning.get("triggered") else 55
         reasons = [
             "Linkul sau mesajul nu corespunde unei cerințe legitime și cere acțiuni sensibile; verifică prin canalul oficial.",
         ]
@@ -2765,7 +2857,34 @@ def _attach_offer_claim_verification(
             "official_domains": offer_claim.get("official_domains", []),
             "evidence_urls": offer_claim.get("evidence_urls", []),
             "method": offer_claim.get("method", "unknown"),
+            "knowledge_target": offer_claim.get("knowledge_target"),
         }
+
+
+def _attach_brand_warning_summary(
+    summary: Dict[str, Any],
+    brand_warning: Dict[str, Any],
+) -> None:
+    if not isinstance(summary, dict):
+        return
+    if not isinstance(brand_warning, dict) or not brand_warning.get("triggered"):
+        summary.pop("brand_warning_corpus", None)
+        return
+
+    matched_assets = list(brand_warning.get("matched_assets") or [])
+    high_risk_assets = {"card_number", "cvv", "otp", "whatsapp_code", "banking_pin", "password", "remote_access", "apk_install"}
+    severity = "high" if any(asset in high_risk_assets for asset in matched_assets) else "medium"
+    summary["brand_warning_corpus"] = {
+        "status": "triggered",
+        "verdict": "brand_warning",
+        "severity": severity,
+        "summary": brand_warning.get("summary", ""),
+        "details": brand_warning.get("summary", ""),
+        "brand_id": brand_warning.get("brand_id"),
+        "matched_assets": matched_assets,
+        "source_url": brand_warning.get("source_url"),
+        "signal": brand_warning.get("signal"),
+    }
 
 
 async def _enrich_offer_claim_verification_async(

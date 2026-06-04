@@ -1,0 +1,508 @@
+{
+  "metadata": {
+    "generated_from": "app/src/main/assets/knowledge/romania_knowledge_layer_compact.json",
+    "generator": "backend/tools/build_runtime_knowledge.py"
+  },
+  "scam_families": [
+    {
+      "id": "RO_SCN_001_FAN_LOCKER_WHATSAPP",
+      "family": "delivery_phishing / FAN Courier",
+      "hook": "FAN locker/colet | FANBOX | colet blocat | alege locker | colet blocat | alege locker | taxa mica | cod WhatsApp | verificare livrare | FAN Courier",
+      "asks_for": [
+        "card",
+        "numar card",
+        "număr card",
+        "date card",
+        "cvv",
+        "cvc",
+        "cod cvv",
+        "whatsapp",
+        "cod whatsapp",
+        "otp",
+        "cod otp",
+        "cod sms"
+      ],
+      "safe_actions": [
+        "Nu accesați linkul și nu răspundeți înainte de verificare.",
+        "Nu introduceți date bancare, parole, coduri OTP sau date personale.",
+        "Contactați FAN Courier doar pe canalul oficial, introdus manual."
+      ],
+      "channels": [
+        "SMS",
+        "WhatsApp"
+      ],
+      "claimed_brand_or_role": "FAN Courier",
+      "acceptance_test_idea": "SMS cu domeniu .test care cere cod WhatsApp/card; sandbox form OTP/card."
+    },
+    {
+      "id": "RO_SCN_002_POSTA_TAXA_CARD",
+      "family": "delivery_phishing / Poșta Română",
+      "hook": "Poșta Română taxă livrare/card | taxe vamale false | adresă incorectă | taxă livrare | taxă vamală | introdu date card | Poșta Română",
+      "asks_for": [
+        "card",
+        "numar card",
+        "număr card",
+        "date card",
+        "cvv",
+        "cvc",
+        "cod cvv",
+        "pin",
+        "pin bancar"
+      ],
+      "safe_actions": [
+        "Nu accesați linkul și nu răspundeți înainte de verificare.",
+        "Nu introduceți date bancare, parole, coduri OTP sau date personale.",
+        "Contactați Poșta Română doar pe canalul oficial, introdus manual."
+      ],
+      "channels": [
+        "SMS",
+        "email"
+      ],
+      "claimed_brand_or_role": "Poșta Română",
+      "acceptance_test_idea": "SMS Poșta cu link .test și formular card/CVV."
+    },
+    {
+      "id": "RO_SCN_003_ANAF_REFUND_SPV",
+      "family": "tax_refund / ANAF",
+      "hook": "ANAF rambursare taxe | SPV fake | neregularitate fiscală | rambursare taxe | portal ANAF | SPV | neregularitate declarații | remediere situație | ANAF",
+      "asks_for": [
+        "card",
+        "numar card",
+        "număr card",
+        "date card",
+        "cnp",
+        "iban",
+        "parola",
+        "parolă",
+        "password"
+      ],
+      "safe_actions": [
+        "Nu accesați linkul și nu răspundeți înainte de verificare.",
+        "Nu introduceți date bancare, parole, coduri OTP sau date personale.",
+        "Contactați ANAF doar pe canalul oficial, introdus manual."
+      ],
+      "channels": [
+        "email",
+        "PDF",
+        "HTML email"
+      ],
+      "claimed_brand_or_role": "ANAF",
+      "acceptance_test_idea": "Email ANAF cu buton ascuns către .test; provider scan form card."
+    },
+    {
+      "id": "RO_SCN_004_BNR_POLICE_SAFE_ACCOUNT",
+      "family": "official_phone / BNR/Poliție/bancă",
+      "hook": "BNR/Poliție/cont sigur | transfer către BNR | cont sigur | transfer urgent | dosar confidențial | Poliția/BNR | nu închide apelul | BNR/Poliție/bancă",
+      "asks_for": [
+        "money transfer",
+        "iban",
+        "parola",
+        "parolă",
+        "password",
+        "anydesk",
+        "teamviewer",
+        "control la distanta",
+        "control la distanță"
+      ],
+      "safe_actions": [
+        "Nu accesați linkul și nu răspundeți înainte de verificare.",
+        "Nu instalați aplicații și nu permiteți control la distanță.",
+        "Nu introduceți date bancare, parole, coduri OTP sau date personale.",
+        "Contactați BNR/Poliție/bancă doar pe canalul oficial, introdus manual."
+      ],
+      "channels": [
+        "phone",
+        "WhatsApp",
+        "PDF"
+      ],
+      "claimed_brand_or_role": "BNR/Poliție/bancă",
+      "acceptance_test_idea": "Transcript apel lipit: pretins BNR + transfer cont sigur; fără URL => Suspect hard, cu link/form => Periculos."
+    },
+    {
+      "id": "RO_SCN_005_CREDIT_FRAUDULOS",
+      "family": "official_phone / bancă/Poliție",
+      "hook": "credit aprobat/solicitat fraudulos | s-a aprobat creditul solicitat | anulare credit | verificare identitate | trimite cod | bancă/Poliție",
+      "asks_for": [
+        "otp",
+        "cod otp",
+        "cod sms",
+        "parola",
+        "parolă",
+        "password",
+        "cnp",
+        "money transfer"
+      ],
+      "safe_actions": [
+        "Nu accesați linkul și nu răspundeți înainte de verificare.",
+        "Nu introduceți date bancare, parole, coduri OTP sau date personale.",
+        "Contactați bancă/Poliție doar pe canalul oficial, introdus manual."
+      ],
+      "channels": [
+        "phone",
+        "SMS"
+      ],
+      "claimed_brand_or_role": "bancă/Poliție",
+      "acceptance_test_idea": "SMS/telefon claim credit + cod OTP."
+    },
+    {
+      "id": "RO_SCN_006_VOTEAZA_ADELINE",
+      "family": "account_takeover / contact cunoscut/concurs",
+      "hook": "Votează pe Adeline | votează | Adeline | concurs | cod verificare WhatsApp | contact cunoscut/concurs",
+      "asks_for": [
+        "whatsapp",
+        "cod whatsapp",
+        "otp",
+        "cod otp",
+        "cod sms"
+      ],
+      "safe_actions": [
+        "Nu accesați linkul și nu răspundeți înainte de verificare.",
+        "Nu introduceți date bancare, parole, coduri OTP sau date personale.",
+        "Contactați contact cunoscut/concurs doar pe canalul oficial, introdus manual."
+      ],
+      "channels": [
+        "WhatsApp",
+        "SMS"
+      ],
+      "claimed_brand_or_role": "contact cunoscut/concurs",
+      "acceptance_test_idea": "WhatsApp cu link .test + cere cod WhatsApp."
+    },
+    {
+      "id": "RO_SCN_007_PETITIE_WHATSAPP",
+      "family": "account_takeover / contact cunoscut/petiție",
+      "hook": "Petiția | semnează pentru animale | semnează petiția | salvează animalele | confirmă cu codul | contact cunoscut/petiție",
+      "asks_for": [
+        "whatsapp",
+        "cod whatsapp",
+        "otp",
+        "cod otp",
+        "cod sms"
+      ],
+      "safe_actions": [
+        "Nu accesați linkul și nu răspundeți înainte de verificare.",
+        "Nu introduceți date bancare, parole, coduri OTP sau date personale.",
+        "Contactați contact cunoscut/petiție doar pe canalul oficial, introdus manual."
+      ],
+      "channels": [
+        "WhatsApp"
+      ],
+      "claimed_brand_or_role": "contact cunoscut/petiție",
+      "acceptance_test_idea": "Mesaj petiție + cod WhatsApp; provider form OTP."
+    },
+    {
+      "id": "RO_SCN_008_TELEFON_STRICAT",
+      "family": "urgency_big / copil/rudă",
+      "hook": "Telefon stricat | mamă/tată/copil am număr nou | mi s-a stricat telefonul | salvează numărul nou | nu pot suna | am nevoie urgent | copil/rudă",
+      "asks_for": [
+        "money transfer",
+        "iban"
+      ],
+      "safe_actions": [
+        "Nu accesați linkul și nu răspundeți înainte de verificare.",
+        "Nu introduceți date bancare, parole, coduri OTP sau date personale.",
+        "Contactați copil/rudă doar pe canalul oficial, introdus manual."
+      ],
+      "channels": [
+        "WhatsApp",
+        "SMS"
+      ],
+      "claimed_brand_or_role": "copil/rudă",
+      "acceptance_test_idea": "Text-only fără URL; verdict Suspect + acțiune nu răspunde/sună numărul vechi."
+    },
+    {
+      "id": "RO_SCN_009_ACCIDENT_NEPOT",
+      "family": "urgency_big / nepot/copil/doctor/polițist",
+      "hook": "Accidentul | Nepotul la ananghie | AI voice clone | accident | spital | jefuit | urgent bani | nu spune nimănui | nepot/copil/doctor/polițist",
+      "asks_for": [
+        "money transfer"
+      ],
+      "safe_actions": [
+        "Nu accesați linkul și nu răspundeți înainte de verificare.",
+        "Contactați nepot/copil/doctor/polițist doar pe canalul oficial, introdus manual."
+      ],
+      "channels": [
+        "phone",
+        "WhatsApp"
+      ],
+      "claimed_brand_or_role": "nepot/copil/doctor/polițist",
+      "acceptance_test_idea": "Transcript user-initiated: nepot accident, cere bani."
+    },
+    {
+      "id": "RO_SCN_010_MARKETPLACE_RECEIVE_MONEY",
+      "family": "marketplace_escrow / cumpărător OLX/curier escrow",
+      "hook": "OLX primești banii pe card | cumpărător rapid | ca să primești banii | introdu cardul | confirmă plata | sold cont | CVV | cumpărător OLX/curier escrow",
+      "asks_for": [
+        "card",
+        "numar card",
+        "număr card",
+        "date card",
+        "cvv",
+        "cvc",
+        "cod cvv",
+        "otp",
+        "cod otp",
+        "cod sms"
+      ],
+      "safe_actions": [
+        "Nu accesați linkul și nu răspundeți înainte de verificare.",
+        "Nu introduceți date bancare, parole, coduri OTP sau date personale.",
+        "Contactați cumpărător OLX/curier escrow doar pe canalul oficial, introdus manual."
+      ],
+      "channels": [
+        "WhatsApp",
+        "SMS",
+        "email"
+      ],
+      "claimed_brand_or_role": "cumpărător OLX/curier escrow",
+      "acceptance_test_idea": "Link .test cu formular card/CVV pentru încasare."
+    },
+    {
+      "id": "RO_SCN_011_HIDRO_INVESTMENT",
+      "family": "overnight_gain / Hidroelectrica/broker",
+      "hook": "Hidroelectrica investiții false | acțiuni Hidroelectrica | câștig garantat | acțiuni Hidroelectrica | profit zilnic | platformă investiții | Hidroelectrica/broker",
+      "asks_for": [
+        "card",
+        "numar card",
+        "număr card",
+        "date card",
+        "cnp",
+        "iban",
+        "money transfer"
+      ],
+      "safe_actions": [
+        "Nu accesați linkul și nu răspundeți înainte de verificare.",
+        "Nu introduceți date bancare, parole, coduri OTP sau date personale.",
+        "Contactați Hidroelectrica/broker doar pe canalul oficial, introdus manual."
+      ],
+      "channels": [
+        "social ads",
+        "email",
+        "phone"
+      ],
+      "claimed_brand_or_role": "Hidroelectrica/broker",
+      "acceptance_test_idea": "Ad/email cu .test și formular investiții/date card."
+    },
+    {
+      "id": "RO_SCN_012_CRYPTO_BROKER_REMOTE",
+      "family": "remote_access_investment / broker/consultant investiții",
+      "hook": "broker crypto | AnyDesk/TeamViewer | trading app | instalează AnyDesk | TeamViewer | remote support | retragere profit | taxă de deblocare | broker/consultant investiții",
+      "asks_for": [
+        "anydesk",
+        "teamviewer",
+        "control la distanta",
+        "control la distanță",
+        "crypto",
+        "money transfer",
+        "parola",
+        "parolă",
+        "password"
+      ],
+      "safe_actions": [
+        "Nu accesați linkul și nu răspundeți înainte de verificare.",
+        "Nu instalați aplicații și nu permiteți control la distanță.",
+        "Nu introduceți date bancare, parole, coduri OTP sau date personale.",
+        "Contactați broker/consultant investiții doar pe canalul oficial, introdus manual."
+      ],
+      "channels": [
+        "phone",
+        "WhatsApp",
+        "email"
+      ],
+      "claimed_brand_or_role": "broker/consultant investiții",
+      "acceptance_test_idea": "Text cere AnyDesk + transfer crypto; link APK => Periculos."
+    },
+    {
+      "id": "RO_SCN_013_FAKE_BANK_APK",
+      "family": "remote_access_investment / bancă/telecom",
+      "hook": "APK bancar fals | update securitate HomeBank | instalează aplicația | update securitate | APK | permite accesibilitate | bancă/telecom",
+      "asks_for": [
+        "apk",
+        "anydesk",
+        "teamviewer",
+        "control la distanta",
+        "control la distanță",
+        "parola",
+        "parolă",
+        "password"
+      ],
+      "safe_actions": [
+        "Nu accesați linkul și nu răspundeți înainte de verificare.",
+        "Nu instalați aplicații și nu permiteți control la distanță.",
+        "Nu introduceți date bancare, parole, coduri OTP sau date personale.",
+        "Contactați bancă/telecom doar pe canalul oficial, introdus manual."
+      ],
+      "channels": [
+        "SMS",
+        "WhatsApp",
+        "QR"
+      ],
+      "claimed_brand_or_role": "bancă/telecom",
+      "acceptance_test_idea": "URL .test/app.apk + claim bancar."
+    },
+    {
+      "id": "RO_SCN_014_LOTTERY_CASINO_BONUS",
+      "family": "overnight_gain / loterie/casino",
+      "hook": "Loteria Română/bonus cazino | ai câștigat | ai câștigat | bonus garantat | taxă retragere | depunere minimă | loterie/casino",
+      "asks_for": [
+        "card",
+        "numar card",
+        "număr card",
+        "date card",
+        "money transfer",
+        "cnp"
+      ],
+      "safe_actions": [
+        "Nu accesați linkul și nu răspundeți înainte de verificare.",
+        "Nu introduceți date bancare, parole, coduri OTP sau date personale.",
+        "Contactați loterie/casino doar pe canalul oficial, introdus manual."
+      ],
+      "channels": [
+        "SMS",
+        "email",
+        "social ads"
+      ],
+      "claimed_brand_or_role": "loterie/casino",
+      "acceptance_test_idea": "Domeniu .test + cere card pentru premiu."
+    },
+    {
+      "id": "RO_SCN_015_JOB_TASK_SCAM",
+      "family": "overnight_gain / recrutor/platformă job",
+      "hook": "job scam | task scam | apreciază postări pentru bani | like-uri pentru bani | job part-time | plată zilnică | deblochează câștigurile | depozit crypto | recrutor/platformă job",
+      "asks_for": [
+        "crypto",
+        "money transfer",
+        "personal data"
+      ],
+      "safe_actions": [
+        "Nu accesați linkul și nu răspundeți înainte de verificare.",
+        "Contactați recrutor/platformă job doar pe canalul oficial, introdus manual."
+      ],
+      "channels": [
+        "WhatsApp",
+        "Telegram",
+        "SMS"
+      ],
+      "claimed_brand_or_role": "recrutor/platformă job",
+      "acceptance_test_idea": "Text-only job/task; fără provider nu Periculos; cu link platformă .test + deposit crypto => Periculos."
+    },
+    {
+      "id": "RO_SCN_016_UTILITIES_FAKE_BILL",
+      "family": "tax_refund / Digi/PPC/E.ON",
+      "hook": "facturi utilități false | Digi/PPC/E.ON refund/deconectare | factura restante | deconectare | ramburs factură | confirmă card | Digi/PPC/E.ON",
+      "asks_for": [
+        "card",
+        "numar card",
+        "număr card",
+        "date card",
+        "cvv",
+        "cvc",
+        "cod cvv",
+        "parola",
+        "parolă",
+        "password"
+      ],
+      "safe_actions": [
+        "Nu accesați linkul și nu răspundeți înainte de verificare.",
+        "Nu introduceți date bancare, parole, coduri OTP sau date personale.",
+        "Contactați Digi/PPC/E.ON doar pe canalul oficial, introdus manual."
+      ],
+      "channels": [
+        "email",
+        "SMS",
+        "PDF"
+      ],
+      "claimed_brand_or_role": "Digi/PPC/E.ON",
+      "acceptance_test_idea": "PDF/SMS cu factură falsă .test și formular card."
+    },
+    {
+      "id": "RO_SCN_017_GHISEUL_PAYMENT_OBLIGATION",
+      "family": "tax_refund / Ghișeul.ro/primărie",
+      "hook": "Ghișeul.ro obligație de plată | taxă neachitată | obligație de plată | plătește acum | actualizează datele | taxă locală | Ghișeul.ro/primărie",
+      "asks_for": [
+        "card",
+        "numar card",
+        "număr card",
+        "date card",
+        "cnp",
+        "parola",
+        "parolă",
+        "password"
+      ],
+      "safe_actions": [
+        "Nu accesați linkul și nu răspundeți înainte de verificare.",
+        "Nu introduceți date bancare, parole, coduri OTP sau date personale.",
+        "Contactați Ghișeul.ro/primărie doar pe canalul oficial, introdus manual."
+      ],
+      "channels": [
+        "SMS",
+        "email"
+      ],
+      "claimed_brand_or_role": "Ghișeul.ro/primărie",
+      "acceptance_test_idea": "SMS ghiseul .test; provider form card."
+    },
+    {
+      "id": "RO_SCN_018_REVOLUT_CALL_OTP",
+      "family": "official_phone / Revolut",
+      "hook": "apel fals Revolut | This is a call from Revolut | apel neprogramat | confirmă codul | securizează contul | plată suspectă | Revolut",
+      "asks_for": [
+        "otp",
+        "cod otp",
+        "cod sms",
+        "cont sigur",
+        "transfer sigur",
+        "parola",
+        "parolă",
+        "password"
+      ],
+      "safe_actions": [
+        "Nu accesați linkul și nu răspundeți înainte de verificare.",
+        "Nu introduceți date bancare, parole, coduri OTP sau date personale.",
+        "Contactați Revolut doar pe canalul oficial, introdus manual."
+      ],
+      "channels": [
+        "phone",
+        "SMS"
+      ],
+      "claimed_brand_or_role": "Revolut",
+      "acceptance_test_idea": "Transcript apel Revolut + cod; dacă link clonă/form: Periculos."
+    },
+    {
+      "id": "RO_SCN_019_ALTEXT_EMAG_PROMO_GUARD",
+      "family": "false_positive_guard / eMAG/Altex",
+      "hook": "newsletter ofertă limitată legitimă | nu rata | ofertă limitată | cod reducere | tracking link | eMAG/Altex",
+      "asks_for": [],
+      "safe_actions": [
+        "Nu accesați linkul și nu răspundeți înainte de verificare.",
+        "Contactați eMAG/Altex doar pe canalul oficial, introdus manual."
+      ],
+      "channels": [
+        "email",
+        "HTML email"
+      ],
+      "claimed_brand_or_role": "eMAG/Altex",
+      "acceptance_test_idea": "Email legit cu domeniu oficial și fără cereri sensibile."
+    },
+    {
+      "id": "RO_SCN_020_SAMEDAY_PAYMENT_GUARD",
+      "family": "false_positive_guard / SAMEDAY",
+      "hook": "plată ramburs în aplicație | redirecționare colet | plătește ramburs în aplicație | redirecționează coletul | SAMEDAY",
+      "asks_for": [
+        "card",
+        "numar card",
+        "număr card",
+        "date card"
+      ],
+      "safe_actions": [
+        "Nu accesați linkul și nu răspundeți înainte de verificare.",
+        "Nu introduceți date bancare, parole, coduri OTP sau date personale.",
+        "Contactați SAMEDAY doar pe canalul oficial, introdus manual."
+      ],
+      "channels": [
+        "SMS",
+        "app deep link"
+      ],
+      "claimed_brand_or_role": "SAMEDAY",
+      "acceptance_test_idea": "Domeniu oficial/app; card payment legit context; nu hard-block."
+    }
+  ]
+}

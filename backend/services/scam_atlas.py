@@ -214,6 +214,25 @@ DEFAULT_BRAND_KNOWLEDGE = {
 _brand_knowledge_path = _resolve_path(os.getenv("SCAM_ATLAS_BRAND_KNOWLEDGE_PATH"), "data/brand_knowledge_pack.json")
 _loaded_brand_knowledge = _load_json_map(_brand_knowledge_path, DEFAULT_BRAND_KNOWLEDGE)
 
+_official_registry_updates = [
+    entry
+    for entry in _loaded_brand_knowledge.get("official_registry_updates", [])
+    if isinstance(entry, dict)
+]
+BRAND_ID_TO_DISPLAY_NAME: Dict[str, str] = {
+    str(entry.get("brand_id") or "").strip(): str(entry.get("display_name") or "").strip()
+    for entry in _official_registry_updates
+    if str(entry.get("brand_id") or "").strip() and str(entry.get("display_name") or "").strip()
+}
+BRAND_WARNING_RULES: Dict[str, Dict[str, Any]] = {}
+for entry in _loaded_brand_knowledge.get("brand_warnings", []):
+    if not isinstance(entry, dict):
+        continue
+    brand_id = str(entry.get("brand_id") or "").strip()
+    if not brand_id:
+        continue
+    BRAND_WARNING_RULES[brand_id] = entry
+
 BRAND_REGISTRY: Dict[str, List[str]] = _merge_map_of_lists(
     DEFAULT_BRAND_KNOWLEDGE["brand_registry"],
     {
@@ -421,94 +440,12 @@ def _dedupe_preserve_order(values: List[str]) -> List[str]:
         deduped.append(value)
     return deduped
 
-# Path to the seed JSON
-SEED_PATH = "/Users/vaduvageorge/Desktop/NuDaClick/ScamShield_RO_NuDaClick_Implementation_Pack/scam_atlas_ro_2025_2026_seed.json"
-
-# Brand Registry: whitelist of official domains for trusted brands in Romania
-BRAND_REGISTRY: Dict[str, List[str]] = {
-    "ANAF": ["anaf.ro", "mfinante.gov.ro", "mfinante.ro"],
-    "Revolut": ["revolut.com", "revolut.me", "revolut.space"], # Revolut Space is a known official subdomain page sometimes, but let's stick to core
-    "ING": ["ing.ro", "ing.com", "ingbusiness.ro"],
-    "Banca Transilvania": [
-        "bancatransilvania.ro",
-        "btpay.ro",
-        "neo-bt.ro",
-        "neo.bancatransilvania.ro",
-        "bt.ro",
-    ],
-    "BCR": ["bcr.ro", "george.bcr.ro"],
-    "FAN Courier": ["fancourier.ro", "fanbox.ro", "fan-courier.ro"],
-    "Posta Romana": ["posta-romana.ro"],
-    "Sameday": ["sameday.ro", "sameday.delivery", "easybox.ro"],
-    "DHL": ["dhl.ro", "dhl.com", "dhl-express.ro"],
-    "eMAG": ["emag.ro", "emag.delivery"],
-    "Uber": ["uber.com", "ubereats.com"],
-    "YOXO": ["yoxo.ro", "buyback.yoxo.ro", "orange.ro"],
-    "OLX": ["olx.ro"],
-    "Google": ["google.com", "google.ro", "gmail.com"],
-    "Microsoft": ["microsoft.com", "outlook.com", "office.com", "live.com"],
-    "Meta": ["meta.com", "facebook.com", "instagram.com", "whatsapp.com"],
-}
-
-# Brand-specific exceptions for official/partner domains that should not trigger a hard mismatch.
-# Keep this list tight; these are based on observed real-world official patterns.
-BRAND_DOMAIN_EXCEPTIONS: Dict[str, List[str]] = {
-    "ANAF": ["anaf-spv.info", "anaf-spv.ro", "anaf-spv.gov.ro"],
-    "Uber": ["sng.link", "uber.link", "app.link", "branch.link", "bnc.lt"],
-    "eMAG": ["sng.link", "app.link", "branch.link", "bnc.lt"],
-}
-
-# Trusted base names for typosquatting / lookalike detection
-TRUSTED_BASE_NAMES: Dict[str, str] = {
-    "anaf": "ANAF",
-    "mfinante": "ANAF",
-    "revolut": "Revolut",
-    "ing": "ING",
-    "ingbusiness": "ING",
-    "bancatransilvania": "Banca Transilvania",
-    "btpay": "Banca Transilvania",
-    "neo-bt": "Banca Transilvania",
-    "bcr": "BCR",
-    "george": "BCR",
-    "fancourier": "FAN Courier",
-    "fanbox": "FAN Courier",
-    "fan-courier": "FAN Courier",
-    "posta-romana": "Posta Romana",
-    "sameday": "Sameday",
-    "dhl": "DHL",
-    "dhl-express": "DHL",
-    "emag": "eMAG",
-    "uber": "Uber",
-    "ubereats": "Uber",
-    "yoxo": "YOXO",
-    "orange": "YOXO",
-    "olx": "OLX",
-    "google": "Google",
-    "gmail": "Google",
-    "microsoft": "Microsoft",
-    "outlook": "Microsoft",
-    "office": "Microsoft",
-    "live": "Microsoft",
-    "facebook": "Meta",
-    "instagram": "Meta",
-    "whatsapp": "Meta",
-    "meta": "Meta"
-}
-
-# Regex to detect brand name mentions in text
-BRAND_MENTION_PATTERNS = {
-    brand_name: re.compile(rf'\b{re.escape(brand_name)}\b', re.IGNORECASE)
-    for brand_name in BRAND_REGISTRY.keys()
-}
-
-# Let's map specific common alternate spellings or sub-brands
-BRAND_MENTION_PATTERNS["ANAF"] = re.compile(r'\banaf\b|\bspv\b|\bspatiul privat\b', re.IGNORECASE)
-BRAND_MENTION_PATTERNS["Posta Romana"] = re.compile(r'\bposta\s*romana\b|\bposta\b', re.IGNORECASE)
-BRAND_MENTION_PATTERNS["Banca Transilvania"] = re.compile(r'\bbanca\s*transilvania\b|\bbt\s*pay\b|\bbt\b', re.IGNORECASE)
-BRAND_MENTION_PATTERNS["FAN Courier"] = re.compile(r'\bfan\s*courier\b|\bfan\b', re.IGNORECASE)
-BRAND_MENTION_PATTERNS["Sameday"] = re.compile(r'\bsameday\b|\beasybox\b', re.IGNORECASE)
-BRAND_MENTION_PATTERNS["Uber"] = re.compile(r'\buber\b|\buber\s*eats\b', re.IGNORECASE)
-BRAND_MENTION_PATTERNS["YOXO"] = re.compile(r'\byoxo\b|\bbuy[\s-]?back\s+yoxo\b', re.IGNORECASE)
+# Local repo seed path for the Romania corpus. This replaces the old absolute path from the
+# legacy workspace and keeps ScamAtlas reproducible across machines and deployments.
+SEED_PATH = _resolve_path(
+    os.getenv("SCAM_ATLAS_SEED_PATH"),
+    "data/scam_atlas_ro_2025_2026_seed.json",
+)
 
 
 def _build_brand_mention_patterns(
@@ -525,38 +462,11 @@ def _build_brand_mention_patterns(
     return patterns
 
 
-def _apply_loaded_brand_knowledge() -> None:
-    global BRAND_REGISTRY, BRAND_DOMAIN_EXCEPTIONS, TRUSTED_BASE_NAMES, BRAND_MENTION_PATTERNS, _loaded_aliases
-
-    loaded_registry = {
-        k: _coerce_str_list(v)
-        for k, v in _loaded_brand_knowledge.get("brand_registry", {}).items()
-        if isinstance(k, str)
-    }
-    loaded_exceptions = {
-        k: _coerce_str_list(v)
-        for k, v in _loaded_brand_knowledge.get("brand_domain_exceptions", {}).items()
-        if isinstance(k, str)
-    }
-    loaded_trusted_base_names = {
-        k: str(v)
-        for k, v in _loaded_brand_knowledge.get("trusted_base_names", {}).items()
-        if isinstance(k, str) and isinstance(v, str)
-    }
-    loaded_aliases = {
-        k: _coerce_str_list(v)
-        for k, v in _loaded_brand_knowledge.get("brand_aliases", {}).items()
-        if isinstance(k, str)
-    }
-
-    BRAND_REGISTRY = _merge_map_of_lists(BRAND_REGISTRY, loaded_registry)
-    BRAND_DOMAIN_EXCEPTIONS = _merge_map_of_lists(BRAND_DOMAIN_EXCEPTIONS, loaded_exceptions)
-    TRUSTED_BASE_NAMES = _merge_map_of_strings(TRUSTED_BASE_NAMES, loaded_trusted_base_names)
-    _loaded_aliases = _merge_aliases(_loaded_aliases, loaded_aliases)
-    BRAND_MENTION_PATTERNS = _build_brand_mention_patterns(BRAND_REGISTRY, _loaded_aliases)
-
-
-_apply_loaded_brand_knowledge()
+BRAND_REGISTRY = _merge_map_of_lists(BRAND_REGISTRY)
+BRAND_DOMAIN_EXCEPTIONS = _merge_map_of_lists(BRAND_DOMAIN_EXCEPTIONS)
+TRUSTED_BASE_NAMES = dict(TRUSTED_BASE_NAMES)
+_loaded_aliases = _merge_aliases(_loaded_aliases)
+BRAND_MENTION_PATTERNS = _build_brand_mention_patterns(BRAND_REGISTRY, _loaded_aliases)
 
 
 def _get_registrable_domain(extracted: "tldextract.ExtractResult") -> str:

@@ -241,6 +241,14 @@ object EvidenceSignalNormalizer {
             builder.add(EvidenceSource.OFFICIAL_REGISTRY, EvidenceCode.REDIRECT_CHAIN_APPROVED, targetKey = targetHost.orEmpty())
         }
 
+        addLocalDomainRiskSignals(
+            builder = builder,
+            targetHost = effectiveTargetHost,
+            claimedBrands = claimedBrands,
+            targetIsOfficial = effectiveIsOfficial,
+            targetIsApprovedTracker = effectiveIsApprovedTracker
+        )
+
         if (hasTarget && (!hasCredentialOrIdentitySensitiveRisk || targetIsOfficial || effectiveIsOfficial) && !hasSensitiveForm(rawForAnalysis)) {
             builder.add(EvidenceSource.LOCAL_EXTRACTOR, EvidenceCode.NO_SENSITIVE_FORM)
         }
@@ -532,6 +540,123 @@ object EvidenceSignalNormalizer {
                 provider = ProviderId.INFRA
             )
         }
+    }
+
+    private fun addLocalDomainRiskSignals(
+        builder: SignalBuilder,
+        targetHost: String?,
+        claimedBrands: List<BrandPolicyLite>,
+        targetIsOfficial: Boolean,
+        targetIsApprovedTracker: Boolean
+    ) {
+        val normalizedHost = targetHost?.let(::normalizeDomain).orEmpty()
+        if (normalizedHost.isBlank() || targetIsOfficial || targetIsApprovedTracker) return
+
+        if (normalizedHost.contains("xn--")) {
+            builder.add(
+                EvidenceSource.INFRA_ANALYZER,
+                EvidenceCode.PUNYCODE_HOST,
+                targetKey = normalizedHost,
+                provider = ProviderId.INFRA
+            )
+        }
+
+        val lookalike = findLookalikeDomainMatch(normalizedHost, claimedBrands.ifEmpty { brandPolicies }) ?: return
+
+        if (lookalike.isHomoglyph) {
+            builder.add(
+                EvidenceSource.INFRA_ANALYZER,
+                EvidenceCode.HOMOGLYPH_DOMAIN,
+                targetKey = normalizedHost,
+                brandId = lookalike.brand.id,
+                provider = ProviderId.INFRA,
+                attrs = mapOf("officialDomain" to lookalike.officialDomain)
+            )
+        }
+
+        if (lookalike.isTyposquat) {
+            builder.add(
+                EvidenceSource.INFRA_ANALYZER,
+                EvidenceCode.TYPOSQUAT_LOOKALIKE,
+                targetKey = normalizedHost,
+                brandId = lookalike.brand.id,
+                provider = ProviderId.INFRA,
+                attrs = mapOf(
+                    "officialDomain" to lookalike.officialDomain,
+                    "distance" to lookalike.distance.toString()
+                )
+            )
+        }
+
+        builder.add(
+            EvidenceSource.INFRA_ANALYZER,
+            EvidenceCode.BRAND_IMPERSONATION,
+            targetKey = normalizedHost,
+            brandId = lookalike.brand.id,
+            provider = ProviderId.INFRA,
+            attrs = mapOf("officialDomain" to lookalike.officialDomain)
+        )
+        builder.add(
+            EvidenceSource.INFRA_ANALYZER,
+            EvidenceCode.OFFICIAL_DOMAIN_MISMATCH,
+            targetKey = normalizedHost,
+            brandId = lookalike.brand.id,
+            provider = ProviderId.INFRA,
+            attrs = mapOf("officialDomain" to lookalike.officialDomain)
+        )
+    }
+
+    private fun findLookalikeDomainMatch(
+        host: String,
+        candidates: List<BrandPolicyLite>
+    ): DomainLookalikeMatch? {
+        val normalizedHost = normalizeDomain(host)
+        val rawLabel = brandishLabel(normalizedHost)
+        if (rawLabel.length < 3) return null
+
+        val deconfusedHost = normalizeDomain(replaceConfusableCharacters(normalizedHost))
+        val deconfusedLabel = brandishLabel(deconfusedHost)
+        val hasConfusableChange = deconfusedHost != normalizedHost
+
+        return candidates
+            .asSequence()
+            .flatMap { brand ->
+                brand.officialDomains.asSequence().mapNotNull { official ->
+                    val normalizedOfficial = normalizeDomain(official)
+                    if (normalizedOfficial.isBlank() ||
+                        normalizedHost == normalizedOfficial ||
+                        normalizedHost.endsWith(".$normalizedOfficial")
+                    ) {
+                        return@mapNotNull null
+                    }
+
+                    val officialLabel = brandishLabel(normalizedOfficial)
+                    if (officialLabel.length < 3) return@mapNotNull null
+
+                    val exactLabelMatchDifferentDomain = rawLabel == officialLabel && normalizedHost != normalizedOfficial
+                    val prefixedBrandLabel = deconfusedLabel.startsWith(officialLabel)
+                    val containedBrandLabel = deconfusedLabel.contains(officialLabel)
+                    val distance = levenshteinDistance(deconfusedLabel, officialLabel)
+                    val isHomoglyph = hasConfusableChange && (prefixedBrandLabel || containedBrandLabel || distance <= 1)
+                    val isTyposquat = exactLabelMatchDifferentDomain || distance in 1..2
+
+                    if (!isHomoglyph && !isTyposquat) return@mapNotNull null
+
+                    DomainLookalikeMatch(
+                        brand = brand,
+                        officialDomain = normalizedOfficial,
+                        distance = distance,
+                        isHomoglyph = isHomoglyph,
+                        isTyposquat = isTyposquat
+                    )
+                }
+            }
+            .sortedWith(
+                compareBy<DomainLookalikeMatch> { if (it.isHomoglyph) 0 else 1 }
+                    .thenBy { it.distance }
+                    .thenBy { it.officialDomain.length }
+            )
+            .firstOrNull()
     }
 
     private fun claimListsTargetAsOfficial(text: String, targetKey: String): Boolean {
@@ -886,6 +1011,36 @@ object EvidenceSignalNormalizer {
         return needles.any { value.contains(normalizeText(it)) || value.contains(it.lowercase(Locale.getDefault())) }
     }
 
+    private fun brandishLabel(host: String): String {
+        return normalizeDomain(host)
+            .substringBefore(".")
+            .replace(Regex("[^a-z0-9]"), "")
+    }
+
+    private fun levenshteinDistance(left: String, right: String): Int {
+        if (left == right) return 0
+        if (left.isEmpty()) return right.length
+        if (right.isEmpty()) return left.length
+
+        val previous = IntArray(right.length + 1) { it }
+        val current = IntArray(right.length + 1)
+
+        left.forEachIndexed { i, leftChar ->
+            current[0] = i + 1
+            right.forEachIndexed { j, rightChar ->
+                val cost = if (leftChar == rightChar) 0 else 1
+                current[j + 1] = minOf(
+                    current[j] + 1,
+                    previous[j + 1] + 1,
+                    previous[j] + cost
+                )
+            }
+            current.copyInto(previous)
+        }
+
+        return previous[right.length]
+    }
+
     private fun textTargetKey(normalizedText: String): String {
         return "text:${sha256(normalizedText.take(256))}"
     }
@@ -911,6 +1066,14 @@ object EvidenceSignalNormalizer {
             return approvedTrackerDomains.map(::normalizeDomain).any { normalizedHost == it || normalizedHost.endsWith(".$it") }
         }
     }
+
+    private data class DomainLookalikeMatch(
+        val brand: BrandPolicyLite,
+        val officialDomain: String,
+        val distance: Int,
+        val isHomoglyph: Boolean,
+        val isTyposquat: Boolean
+    )
 
     private class SignalBuilder(private val defaultTargetKey: String) {
         private val mutableSignals = mutableListOf<EvidenceSignal>()

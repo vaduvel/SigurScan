@@ -1,5 +1,6 @@
 import sys
 import os
+import json
 import urllib.parse
 import pytest
 from fastapi.testclient import TestClient
@@ -150,6 +151,83 @@ def test_offer_claim_verifier_confirms_yoxo_buyback_on_official_destination(monk
     assert result["status"] == "confirmed"
     assert result["official_source_found"] is True
     assert result["evidence_urls"]
+    assert result["knowledge_target"] == "buyback YOXO"
+
+
+def test_offer_claim_verifier_uses_runtime_knowledge_sources_for_yoxo(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    checked_urls = []
+
+    def fake_fetch(url):
+        checked_urls.append(url)
+        if "newsroom.orange.ro" in url:
+            return "program buyback yoxo evaluare online telefon plata in cont"
+        return ""
+
+    monkeypatch.setattr("services.offer_claim_verifier._fetch_page_text", fake_fetch)
+
+    text = (
+        "Ai un telefon sau o tableta pe care nu le mai folosesti? "
+        "Acum le poti transforma rapid in bani cu serviciul de buy-back YOXO. "
+        "Afla cat valoreaza dispozitivul tau: buyback.yoxo.ro"
+    )
+    result = verify_offer_claim(
+        text,
+        {"claimed_brand": "YOXO"},
+        [{"final_url": "https://buyback.yoxo.ro", "final_hostname": "buyback.yoxo.ro"}],
+        brand_registry={"YOXO": ["yoxo.ro", "buyback.yoxo.ro", "orange.ro"]},
+    )
+
+    assert result["status"] == "confirmed"
+    assert result["knowledge_target"] == "buyback YOXO"
+    assert any("newsroom.orange.ro" in url for url in checked_urls)
+
+
+def test_offer_claim_verifier_matches_idroid_runtime_target_without_claimed_brand(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.setattr(
+        "services.offer_claim_verifier._fetch_page_text",
+        lambda url: "status reparatie dispozitiv cod service informatii magazinaj",
+    )
+
+    text = (
+        "Dispozitivul dvs. (cod 8HXDX) nu a putut fi reparat. "
+        "Informatii la 0371237475. https://idroid.ro/verificare-status "
+        "Se percepe taxa de magazinaj la depasirea a 10 zile."
+    )
+    result = verify_offer_claim(
+        text,
+        {"claimed_brand": "Nespecificat"},
+        [{"final_url": "https://idroid.ro/verificare-status", "final_hostname": "idroid.ro"}],
+        brand_registry={"iDroid": ["idroid.ro"]},
+    )
+
+    assert result["status"] == "confirmed"
+    assert result["knowledge_target"] == "service status iDroid"
+
+
+def test_attach_offer_claim_verification_carries_knowledge_target_into_external_summary():
+    analysis = {"evidence": {}}
+    offer_claim = {
+        "provider": "ai_offer_web_check",
+        "status": "confirmed",
+        "verdict": "confirmed",
+        "severity": "low",
+        "summary": "Oferta a fost confirmată pe sursă oficială.",
+        "details": "Oferta a fost confirmată pe sursă oficială.",
+        "confidence": 88,
+        "claimed_brand": "YOXO",
+        "official_domains": ["yoxo.ro", "buyback.yoxo.ro"],
+        "evidence_urls": ["https://buyback.yoxo.ro/"],
+        "method": "test",
+        "official_source_found": True,
+        "knowledge_target": "buyback YOXO",
+    }
+
+    app_main._attach_offer_claim_verification(analysis, offer_claim)
+
+    summary = analysis["evidence"]["external_intel_summary"]["ai_offer_web_check"]
+    assert summary["knowledge_target"] == "buyback YOXO"
 
 
 def test_provider_gate_keeps_official_destination_partial_until_all_pillars_complete():
@@ -252,6 +330,90 @@ def test_provider_gate_can_mark_official_destination_clean_without_virustotal():
     assert "VirusTotal" not in result["evidence"]["provider_gate"]["missing_required_pillars"]
     assert result["evidence"]["provider_gate"]["official_destination"] is True
     assert result["evidence"]["provider_gate"]["legacy_score_ignored"] is True
+
+
+def test_provider_gate_keeps_official_bank_domain_suspect_when_message_requests_password_and_otp():
+    analysis = {
+        "claimed_brand": "ING Bank România",
+        "risk_level": "medium",
+        "risk_score": 58,
+        "detected_family": "Solicitare credentiale",
+        "reasons": ["Mesajul cere parola si codul OTP pentru verificare cont."],
+        "evidence": {
+            "offer_claim_verification": {"status": "confirmed"},
+            "external_intel_summary": {
+                "google_web_risk": {"status": "clean", "verdict": "clean", "consulted": True},
+                "virustotal": {"status": "clean", "verdict": "clean", "consulted": True},
+                "urlscan": {"status": "clean", "verdict": "clean", "consulted": True},
+            },
+        },
+    }
+    resolved_urls = [
+        {
+            "url": "https://ing.ro/login",
+            "final_url": "https://ing.ro/login",
+            "hostname": "ing.ro",
+            "final_hostname": "ing.ro",
+            "registered_domain": "ing.ro",
+            "final_registered_domain": "ing.ro",
+        }
+    ]
+
+    result = _apply_provider_gate_verdict(
+        analysis,
+        resolved_urls,
+        raw_text="ING: Pentru deblocare cont, introdu parola si codul OTP pe ing.ro/login",
+    )
+
+    assert result["risk_level"] == "medium"
+    assert result["detected_family_id"] == "provider-gate-official-sensitive"
+    assert result["evidence"]["brand_warning"]["triggered"] is True
+    assert "otp" in result["evidence"]["brand_warning"]["matched_assets"]
+    assert "password" in result["evidence"]["brand_warning"]["matched_assets"]
+
+
+def test_provider_gate_exposes_brand_warning_for_fake_fan_delivery_payment():
+    analysis = {
+        "claimed_brand": "FAN Courier",
+        "risk_level": "high",
+        "risk_score": 81,
+        "detected_family": "Curier fals",
+        "detected_family_id": "courier-fake-payment",
+        "reasons": ["Mesajul cere plata taxei vamale si datele cardului pentru relivrare."],
+        "evidence": {
+            "has_domain_mismatch": True,
+            "offer_claim_verification": {"status": "inconclusive"},
+            "external_intel_summary": {
+                "google_web_risk": {"status": "clean", "verdict": "clean", "consulted": True},
+                "virustotal": {"status": "clean", "verdict": "clean", "consulted": True},
+                "urlscan": {"status": "clean", "verdict": "clean", "consulted": True},
+            },
+        },
+    }
+    resolved_urls = [
+        {
+            "url": "https://fancurier-relivrare.com/plata",
+            "final_url": "https://fancurier-relivrare.com/plata",
+            "hostname": "fancurier-relivrare.com",
+            "final_hostname": "fancurier-relivrare.com",
+            "registered_domain": "fancurier-relivrare.com",
+            "final_registered_domain": "fancurier-relivrare.com",
+        }
+    ]
+
+    result = _apply_provider_gate_verdict(
+        analysis,
+        resolved_urls,
+        raw_text="FAN Courier: taxa vamala neachitata. Introdu datele cardului pentru relivrare.",
+    )
+
+    assert result["risk_level"] == "high"
+    assert result["detected_family_id"] == "provider-gate-decisive-structural-danger"
+    assert result["evidence"]["brand_warning"]["triggered"] is True
+    assert "card_number" in result["evidence"]["brand_warning"]["matched_assets"]
+    summary = result["evidence"]["external_intel_summary"]["brand_warning_corpus"]
+    assert summary["verdict"] == "brand_warning"
+    assert "card_number" in summary["matched_assets"]
 
 
 def _fake_yoxo_safe_scan(urls):
@@ -791,9 +953,9 @@ def test_scan_email_classifies_button_only_cta_as_risky(monkeypatch):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload.get("risk_level") == "medium"
-    assert payload.get("user_risk_level") == "suspect"
-    assert any("scan" in reason.lower() or "verific" in reason.lower() for reason in payload.get("reasons", []))
+    assert payload.get("risk_level") == "high"
+    assert payload.get("user_risk_level") == "dangerous"
+    assert any("brand" in reason.lower() or "domeniu" in reason.lower() for reason in payload.get("reasons", []))
     assert any(item.get("source_tag") == "button" and item.get("source_attr") == "onclick" for item in payload.get("buttons", []))
     assert any(item.get("original_url") == "https://phish-revolut.example/release" for item in payload.get("buttons", []))
 
@@ -2059,6 +2221,93 @@ def test_backend_scam_atlas_loads_romania_knowledge_pack_registry():
 
     assert result["claimed_brand"] == "Ghișeul.ro"
     assert result["evidence"]["has_domain_mismatch"] is False
+
+
+def test_scam_atlas_seed_is_loaded_from_repo_data():
+    engine = ScamAtlasEngine()
+    assert len(engine.families) >= 20
+    assert any(family.get("id") == "RO_SCN_001_FAN_LOCKER_WHATSAPP" for family in engine.families)
+    assert any("FAN Courier" in family.get("family", "") for family in engine.families)
+
+
+def test_scam_atlas_seed_stays_in_sync_with_android_scenario_corpus():
+    root = Path(__file__).resolve().parents[1]
+    android_knowledge = json.loads(
+        (root / "app" / "src" / "main" / "assets" / "knowledge" / "romania_knowledge_layer_compact.json").read_text(encoding="utf-8")
+    )
+    backend_seed = json.loads(
+        (root / "backend" / "data" / "scam_atlas_ro_2025_2026_seed.json").read_text(encoding="utf-8")
+    )
+
+    android_ids = {entry.get("scenario_id") for entry in android_knowledge.get("scenario_corpus", [])}
+    backend_ids = {entry.get("id") for entry in backend_seed.get("scam_families", [])}
+
+    assert android_ids
+    assert android_ids == backend_ids
+
+
+def test_backend_brand_pack_covers_android_official_registry_domains():
+    root = Path(__file__).resolve().parents[1]
+    android_knowledge = json.loads(
+        (root / "app" / "src" / "main" / "assets" / "knowledge" / "romania_knowledge_layer_compact.json").read_text(encoding="utf-8")
+    )
+    backend_pack = json.loads(
+        (root / "backend" / "data" / "brand_knowledge_pack.json").read_text(encoding="utf-8")
+    )
+
+    brand_name_map = {
+        "anaf": "ANAF",
+        "ministerul_finantelor": "Ministerul Finanțelor",
+        "bnr": "BNR",
+        "dnsc": "DNSC",
+        "fan_courier": "FAN Courier",
+        "posta_romana": "Poșta Română",
+        "sameday": "SAMEDAY",
+        "cargus": "Cargus",
+        "olx": "OLX România",
+        "emag": "eMAG",
+        "altex": "Altex",
+        "revolut": "Revolut",
+        "bcr": "BCR",
+        "bt": "Banca Transilvania",
+        "ing": "ING Bank România",
+        "raiffeisen": "Raiffeisen Bank România",
+        "orange_yoxo": "Orange / YOXO",
+        "vodafone": "Vodafone România",
+        "digi": "DIGI România",
+        "hidroelectrica": "Hidroelectrica",
+        "ppc": "PPC Energie",
+        "eon": "E.ON România",
+        "ghiseul": "Ghișeul.ro",
+    }
+
+    backend_registry = backend_pack.get("brand_registry", {})
+    missing = []
+    for entry in android_knowledge.get("official_registry_updates", []):
+        backend_name = brand_name_map[entry["brand_id"]]
+        backend_domains = {domain.lower() for domain in backend_registry.get(backend_name, [])}
+        for domain in entry.get("official_domains", []):
+            if domain.lower() not in backend_domains:
+                missing.append(f"{backend_name}:{domain}")
+
+    assert not missing, f"Backend brand pack is missing Android official domains: {missing}"
+
+
+def test_backend_brand_pack_carries_android_runtime_claim_targets_and_warnings():
+    root = Path(__file__).resolve().parents[1]
+    android_knowledge = json.loads(
+        (root / "app" / "src" / "main" / "assets" / "knowledge" / "romania_knowledge_layer_compact.json").read_text(encoding="utf-8")
+    )
+    backend_pack = json.loads(
+        (root / "backend" / "data" / "brand_knowledge_pack.json").read_text(encoding="utf-8")
+    )
+
+    assert len(backend_pack.get("claim_verifier_targets", [])) == len(android_knowledge.get("claim_verifier_targets", []))
+    assert len(backend_pack.get("brand_warnings", [])) == len(android_knowledge.get("brand_warnings", []))
+    assert any(
+        entry.get("claim_type") == "buyback YOXO"
+        for entry in backend_pack.get("claim_verifier_targets", [])
+    )
 
 
 def test_scam_atlas_regression_false_positives():

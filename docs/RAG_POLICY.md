@@ -26,6 +26,10 @@ RAG poate:
 - genera motive user-facing din dovezi deja confirmate;
 - crea raport tehnic pentru suport intern.
 
+Observatie de implementare:
+
+- hinturile statice din knowledge pack despre claim-uri/oferta nu sunt RAG; ele sunt context de corpus si intra ca semnale consultative, nu ca output AI.
+
 ## Ce nu are voie sa faca RAG
 
 RAG nu poate:
