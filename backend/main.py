@@ -4,6 +4,7 @@ import asyncio
 import re
 import ipaddress
 import time
+import json
 import urllib.parse
 from pathlib import Path
 from collections import Counter, defaultdict, deque
@@ -2585,7 +2586,7 @@ def _build_scan_response(
         ),
         "privacy_safe_mode": PRIVACY_SAFE_MODE,
         "processing_mode": "privacy_safe" if PRIVACY_SAFE_MODE else "full",
-        "evidence": analysis_results.get("evidence", {}),
+        "evidence": _deep_copy_jsonable(analysis_results.get("evidence", {})),
         "redacted_text": redacted_text,
         "ai_verdict": ai_explanation.get("verdict_summary"),
         "ai_explanation": ai_explanation.get("explanation"),
@@ -3330,8 +3331,99 @@ ORCHESTRATED_URLSCAN_PENDING_TIMEOUT_SECONDS = int(
 ORCHESTRATED_REQUIRED_PILLAR_TIMEOUT_SECONDS = int(
     os.getenv("ORCHESTRATED_REQUIRED_PILLAR_TIMEOUT_SECONDS", "90")
 )
+ORCHESTRATED_URLSCAN_SUBMIT_RESERVATION_TIMEOUT_SECONDS = int(
+    os.getenv("ORCHESTRATED_URLSCAN_SUBMIT_RESERVATION_TIMEOUT_SECONDS", "15")
+)
 _ORCHESTRATED_SCAN_JOBS: Dict[str, Dict[str, Any]] = {}
 _ORCHESTRATED_SCAN_LOCKS: Dict[str, asyncio.Lock] = {}
+
+
+_ORCHESTRATED_STAGE_RANK = {
+    "queued": 0,
+    "resolved": 10,
+    "reputation_ready": 20,
+    "analysis_ready": 30,
+    "urlscan_submitting": 35,
+    "urlscan_submitted": 40,
+    "done": 100,
+}
+
+
+def _orchestrated_stage_rank(stage: Any) -> int:
+    return _ORCHESTRATED_STAGE_RANK.get(str(stage or "").strip().lower(), -1)
+
+
+def _deep_copy_jsonable(value: Any) -> Any:
+    try:
+        return json.loads(json.dumps(value))
+    except Exception:
+        return value
+
+
+def _merge_missing_dict_values(target: Dict[str, Any], source: Dict[str, Any]) -> None:
+    for key, value in source.items():
+        if value in (None, "", [], {}):
+            continue
+        current = target.get(key)
+        if current in (None, "", [], {}):
+            target[key] = _deep_copy_jsonable(value)
+
+
+def _merge_orchestrated_conflict_job(reloaded: Dict[str, Any], local: Dict[str, Any]) -> Dict[str, Any]:
+    merged = dict(reloaded)
+    local_urlscan = local.get("urlscan") if isinstance(local.get("urlscan"), dict) else {}
+    local_is_unpersisted_urlscan_reservation = (
+        str(local_urlscan.get("status") or "").strip().lower() == "submitting"
+        and not local_urlscan.get("uuid")
+    )
+
+    if (
+        not local_is_unpersisted_urlscan_reservation
+        and _orchestrated_stage_rank(local.get("pipeline_stage")) > _orchestrated_stage_rank(merged.get("pipeline_stage"))
+    ):
+        merged["pipeline_stage"] = local.get("pipeline_stage")
+
+    for key in ("resolved_urls", "primary_final_url", "threat_intel", "analysis", "result", "claim_verifier_required"):
+        local_value = local.get(key)
+        if local_value not in (None, "", [], {}) and merged.get(key) in (None, "", [], {}):
+            merged[key] = _deep_copy_jsonable(local_value)
+
+    merged_urlscan = merged.get("urlscan") if isinstance(merged.get("urlscan"), dict) else {}
+    if local_urlscan and not local_is_unpersisted_urlscan_reservation:
+        merged_urlscan = dict(merged_urlscan)
+        local_has_uuid = bool(local_urlscan.get("uuid"))
+        merged_has_uuid = bool(merged_urlscan.get("uuid"))
+        if local_has_uuid and not merged_has_uuid:
+            merged_urlscan = _deep_copy_jsonable(local_urlscan)
+        else:
+            _merge_missing_dict_values(merged_urlscan, local_urlscan)
+        merged["urlscan"] = merged_urlscan
+
+    local_preview = local.get("preview") if isinstance(local.get("preview"), dict) else {}
+    if local_preview:
+        merged_preview = dict(merged.get("preview") if isinstance(merged.get("preview"), dict) else {})
+        _merge_missing_dict_values(merged_preview, local_preview)
+        merged["preview"] = merged_preview
+
+    return merged
+
+
+def _orchestrated_result_fingerprint(
+    job: Dict[str, Any],
+    analysis: Dict[str, Any],
+    pillars: Dict[str, Dict[str, Any]],
+    resolved_urls: List[Dict[str, Any]],
+) -> str:
+    payload = {
+        "redacted_text": job.get("redacted_text", ""),
+        "analysis": analysis,
+        "pillars": pillars,
+        "resolved_urls": resolved_urls,
+        "primary_final_url": job.get("primary_final_url"),
+        "urlscan": job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {},
+    }
+    serialized = json.dumps(payload, sort_keys=True, default=str, ensure_ascii=False)
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
 def _persist_orchestrated_job(job: Dict[str, Any]) -> Dict[str, Any]:
@@ -3342,20 +3434,23 @@ def _persist_orchestrated_job(job: Dict[str, Any]) -> Dict[str, Any]:
     if saved is False:
         reloaded = supabase_store.load_scan_job(scan_id)
         if isinstance(reloaded, dict):
-            _ORCHESTRATED_SCAN_JOBS[scan_id] = reloaded
-            return reloaded
+            merged = _merge_orchestrated_conflict_job(reloaded, job)
+            if merged != reloaded:
+                supabase_store.save_scan_job(merged)
+            _ORCHESTRATED_SCAN_JOBS[scan_id] = merged
+            return merged
         return job
     _ORCHESTRATED_SCAN_JOBS[scan_id] = job
     return job
 
 
 def _load_orchestrated_job(scan_id: str) -> Optional[Dict[str, Any]]:
-    job = _ORCHESTRATED_SCAN_JOBS.get(scan_id)
-    if isinstance(job, dict):
-        return job
     job = supabase_store.load_scan_job(scan_id)
     if isinstance(job, dict):
         _ORCHESTRATED_SCAN_JOBS[scan_id] = job
+        return job
+    job = _ORCHESTRATED_SCAN_JOBS.get(scan_id)
+    if isinstance(job, dict):
         return job
     return None
 
@@ -3716,7 +3811,18 @@ async def _finalize_orchestrated_job_if_ready(job: Dict[str, Any], request: Requ
         raw_text=str(job.get("redacted_text") or ""),
         pillars=pillars,
     )
-    ai_explanation = await _build_ai_explanation_async(job.get("redacted_text", ""), analysis, resolved_urls)
+    fingerprint = _orchestrated_result_fingerprint(job, analysis, pillars, resolved_urls)
+    if existing_result and existing_result.get("is_final", True) is False and job.get("result_fingerprint") == fingerprint:
+        return job
+
+    explanation_cache = job.get("ai_explanation_cache") if isinstance(job.get("ai_explanation_cache"), dict) else {}
+    ai_explanation = explanation_cache.get("payload") if explanation_cache.get("fingerprint") == fingerprint else None
+    if not isinstance(ai_explanation, dict):
+        ai_explanation = await _build_ai_explanation_async(job.get("redacted_text", ""), analysis, resolved_urls)
+        job["ai_explanation_cache"] = {
+            "fingerprint": fingerprint,
+            "payload": ai_explanation,
+        }
     scan_id = job["scan_id"]
     response_payload = _build_scan_response(
         "scan",
@@ -3733,6 +3839,7 @@ async def _finalize_orchestrated_job_if_ready(job: Dict[str, Any], request: Requ
     }
     response_payload["is_final"] = _orchestrated_result_is_final(job, analysis)
     job["result"] = response_payload
+    job["result_fingerprint"] = fingerprint
     _emit_scan_event(
         scan_id=scan_id,
         scan_payload=response_payload,
@@ -4000,6 +4107,21 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
         urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
         urlscan_status = str(urlscan_state.get("status") or "").strip().lower()
         if primary_final_url and urlscan_status in {"queued", "", "skipped"}:
+            submit_owner = f"urlscan_{os.urandom(6).hex()}"
+            job["urlscan"] = {
+                "status": "submitting",
+                "submitted_url": str(primary_final_url),
+                "submit_owner": submit_owner,
+                "submit_started_at": int(time.time()),
+                "details": "urlscan submit rezervat pentru instanta curenta.",
+            }
+            job["pipeline_stage"] = "urlscan_submitting"
+            job = _persist_orchestrated_job(job)
+            urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
+            if urlscan_state.get("submit_owner") != submit_owner or urlscan_state.get("uuid"):
+                return await _finalize_orchestrated_job_if_ready(job, request)
+
+            primary_final_url = job.get("primary_final_url")
             options = job.get("sandbox_options") if isinstance(job.get("sandbox_options"), dict) else {}
             urlscan_payload = OrchestratedScanRequest(
                 input_type=str(job.get("input_type") or "text"),
@@ -4008,7 +4130,10 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
                 country=options.get("country") or URLSCAN_COUNTRY_DEFAULT or None,
                 customagent=options.get("customagent") or URLSCAN_CUSTOM_AGENT_DEFAULT or None,
             )
-            job["urlscan"] = await _submit_orchestrated_urlscan(str(primary_final_url), urlscan_payload, request)
+            submitted_urlscan = await _submit_orchestrated_urlscan(str(primary_final_url), urlscan_payload, request)
+            submitted_urlscan["submit_owner"] = submit_owner
+            submitted_urlscan["submit_started_at"] = urlscan_state.get("submit_started_at")
+            job["urlscan"] = submitted_urlscan
             preview = job.setdefault("preview", {})
             preview["screenshot_url"] = job["urlscan"].get("screenshot_url")
             preview["report_url"] = job["urlscan"].get("report_url")
@@ -4017,6 +4142,24 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
             job["urlscan"] = {"status": "skipped", "details": "Nu exista URL pentru preview."}
         job["pipeline_stage"] = "urlscan_submitted"
         job = _persist_orchestrated_job(job)
+        return await _finalize_orchestrated_job_if_ready(job, request)
+
+    if stage == "urlscan_submitting":
+        urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
+        submit_started_at = int(urlscan_state.get("submit_started_at") or int(time.time()))
+        submit_age = int(time.time()) - submit_started_at
+        if (
+            str(urlscan_state.get("status") or "").strip().lower() == "submitting"
+            and not urlscan_state.get("uuid")
+            and submit_age >= ORCHESTRATED_URLSCAN_SUBMIT_RESERVATION_TIMEOUT_SECONDS
+        ):
+            job["urlscan"] = {
+                "status": "queued",
+                "details": "Rezervarea anterioara pentru urlscan a expirat; submitul va fi reluat.",
+            }
+            job["pipeline_stage"] = "analysis_ready"
+            job = _persist_orchestrated_job(job)
+            return job
         return await _finalize_orchestrated_job_if_ready(job, request)
 
     urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}

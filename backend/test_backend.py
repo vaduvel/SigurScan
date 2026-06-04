@@ -1,6 +1,8 @@
 import sys
 import os
 import json
+import asyncio
+import time
 import urllib.parse
 import pytest
 from fastapi.testclient import TestClient
@@ -709,6 +711,208 @@ def test_orchestrated_scan_keeps_clean_verdict_when_urlscan_screenshot_times_out
     assert payload["result"]["user_risk_label"] == "SIGUR"
     assert payload["result"]["risk_level"] == "low"
     assert payload["result"]["is_final"] is True
+
+
+def test_orchestrated_load_prefers_persistent_store_over_stale_process_cache(monkeypatch):
+    scan_id = "orch_store_first"
+    app_main._ORCHESTRATED_SCAN_JOBS[scan_id] = {
+        "scan_id": scan_id,
+        "pipeline_stage": "queued",
+        "created_at": 1,
+    }
+
+    persistent_job = {
+        "scan_id": scan_id,
+        "pipeline_stage": "resolved",
+        "created_at": 2,
+        "_storage_updated_at": "fresh",
+    }
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main.supabase_store, "load_scan_job", lambda sid: persistent_job if sid == scan_id else None)
+        loaded = app_main._load_orchestrated_job(scan_id)
+
+    assert loaded["pipeline_stage"] == "resolved"
+    assert app_main._ORCHESTRATED_SCAN_JOBS[scan_id]["pipeline_stage"] == "resolved"
+
+
+def test_persist_orchestrated_job_merges_urlscan_uuid_after_optimistic_conflict(monkeypatch):
+    scan_id = "orch_conflict_merge"
+    current_job = {
+        "scan_id": scan_id,
+        "created_at": 10,
+        "_storage_updated_at": "stale",
+        "pipeline_stage": "urlscan_submitted",
+        "urlscan": {
+            "uuid": "urlscan-keep-me",
+            "status": "pending",
+            "report_url": "https://urlscan.io/result/urlscan-keep-me/",
+            "screenshot_url": "/v1/sandbox/urlscan/urlscan-keep-me/screenshot",
+        },
+        "preview": {
+            "report_url": "https://urlscan.io/result/urlscan-keep-me/",
+            "screenshot_url": "/v1/sandbox/urlscan/urlscan-keep-me/screenshot",
+        },
+    }
+    reloaded_job = {
+        "scan_id": scan_id,
+        "created_at": 10,
+        "_storage_updated_at": "fresh",
+        "pipeline_stage": "analysis_ready",
+        "urlscan": {"status": "queued"},
+        "preview": {},
+    }
+    saved_jobs = []
+
+    def fake_save(job):
+        saved_jobs.append(json.loads(json.dumps(job)))
+        return len(saved_jobs) > 1
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main.supabase_store, "save_scan_job", fake_save)
+        patched.setattr(app_main.supabase_store, "load_scan_job", lambda sid: dict(reloaded_job))
+        merged = app_main._persist_orchestrated_job(current_job)
+
+    assert merged["pipeline_stage"] == "urlscan_submitted"
+    assert merged["urlscan"]["uuid"] == "urlscan-keep-me"
+    assert merged["preview"]["report_url"] == "https://urlscan.io/result/urlscan-keep-me/"
+    assert len(saved_jobs) == 2
+    assert saved_jobs[1]["urlscan"]["uuid"] == "urlscan-keep-me"
+
+
+def test_orchestrated_provisional_finalize_reuses_ai_explanation_cache(monkeypatch):
+    scan_id = "orch_ai_cache"
+    analysis = {
+        "risk_score": 10,
+        "risk_level": "low",
+        "detected_family": "Provideri curați",
+        "detected_family_id": "provider-gate-official-clean",
+        "claimed_brand": "YOXO",
+        "reasons": ["Pilonii blocking sunt curați."],
+        "safe_actions": [],
+        "evidence": {
+            "offer_claim_verification": {"status": "confirmed"},
+            "external_intel_summary": {
+                "google_web_risk": {"status": "clean", "verdict": "clean", "consulted": True},
+                "virustotal": {"status": "clean", "verdict": "clean", "consulted": True},
+            },
+        },
+    }
+    job = {
+        "scan_id": scan_id,
+        "created_at": int(time.time()),
+        "pipeline_stage": "urlscan_submitted",
+        "status": "scanning",
+        "input_type": "text",
+        "source_channel": "android_native",
+        "urls": ["https://buyback.yoxo.ro"],
+        "redacted_text": "YOXO buyback https://buyback.yoxo.ro",
+        "analysis": analysis,
+        "resolved_urls": [
+            {
+                "url": "https://buyback.yoxo.ro",
+                "final_url": "https://buyback.yoxo.ro",
+                "hostname": "buyback.yoxo.ro",
+                "final_hostname": "buyback.yoxo.ro",
+                "registered_domain": "yoxo.ro",
+                "final_registered_domain": "yoxo.ro",
+            }
+        ],
+        "primary_final_url": "https://buyback.yoxo.ro",
+        "claim_verifier_required": False,
+        "urlscan": {"uuid": "urlscan-pending", "status": "pending"},
+        "preview": {},
+        "extra_fields": {},
+    }
+    calls = {"count": 0}
+
+    async def fake_ai_explanation(text, analysis_payload, resolved_urls):
+        calls["count"] += 1
+        return {
+            "verdict_summary": "Pare sigur.",
+            "explanation": "Pilonii blocking sunt curați.",
+            "offer_analysis": "Confirmat.",
+            "key_dangers": [],
+            "safe_actions": [],
+        }
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "_build_ai_explanation_async", fake_ai_explanation)
+        patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
+        asyncio.run(app_main._finalize_orchestrated_job_if_ready(job, None))
+        asyncio.run(app_main._finalize_orchestrated_job_if_ready(job, None))
+
+    assert calls["count"] == 1
+    assert job["result"]["is_final"] is False
+
+
+def test_orchestrated_urlscan_submit_requires_owned_reservation(monkeypatch):
+    job = {
+        "scan_id": "orch_urlscan_reservation",
+        "created_at": int(time.time()),
+        "pipeline_stage": "analysis_ready",
+        "status": "scanning",
+        "input_type": "text",
+        "source_channel": "android_native",
+        "urls": ["https://buyback.yoxo.ro"],
+        "redacted_text": "YOXO buyback https://buyback.yoxo.ro",
+        "analysis": {
+            "risk_score": 10,
+            "risk_level": "low",
+            "detected_family": "Provideri curați",
+            "detected_family_id": "provider-gate-official-clean",
+            "claimed_brand": "YOXO",
+            "reasons": [],
+            "safe_actions": [],
+            "evidence": {
+                "offer_claim_verification": {"status": "confirmed"},
+                "external_intel_summary": {
+                    "google_web_risk": {"status": "clean", "verdict": "clean", "consulted": True},
+                    "virustotal": {"status": "clean", "verdict": "clean", "consulted": True},
+                },
+            },
+        },
+        "resolved_urls": [
+            {
+                "url": "https://buyback.yoxo.ro",
+                "final_url": "https://buyback.yoxo.ro",
+                "hostname": "buyback.yoxo.ro",
+                "final_hostname": "buyback.yoxo.ro",
+                "registered_domain": "yoxo.ro",
+                "final_registered_domain": "yoxo.ro",
+            }
+        ],
+        "primary_final_url": "https://buyback.yoxo.ro",
+        "claim_verifier_required": False,
+        "urlscan": {"status": "queued"},
+        "preview": {},
+        "extra_fields": {},
+        "sandbox_options": {},
+    }
+
+    def fake_persist(candidate):
+        if candidate.get("urlscan", {}).get("status") == "submitting":
+            reserved_elsewhere = dict(candidate)
+            reserved_elsewhere["urlscan"] = {
+                "status": "submitting",
+                "submit_owner": "other-instance",
+                "submit_started_at": int(time.time()),
+                "submitted_url": "https://buyback.yoxo.ro",
+            }
+            return reserved_elsewhere
+        return candidate
+
+    async def fail_submit(*args, **kwargs):
+        raise AssertionError("urlscan submit must not run without owning the reservation")
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "_persist_orchestrated_job", fake_persist)
+        patched.setattr(app_main, "_submit_orchestrated_urlscan", fail_submit)
+        patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+
+    assert refreshed["urlscan"]["submit_owner"] == "other-instance"
+    assert refreshed["urlscan"]["status"] == "submitting"
 
 
 def _clean_external_intel_for_resolved_urls(resolved_urls, *args, **kwargs):
