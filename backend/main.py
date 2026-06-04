@@ -4787,7 +4787,7 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
             submitted_urlscan["submit_started_at"] = urlscan_state.get("submit_started_at")
             job["urlscan"] = submitted_urlscan
             preview = job.setdefault("preview", {})
-            preview["screenshot_url"] = job["urlscan"].get("screenshot_url")
+            preview["screenshot_url"] = None
             preview["report_url"] = job["urlscan"].get("report_url")
             preview["final_url"] = primary_final_url
         elif not primary_final_url:
@@ -4843,7 +4843,7 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
                         )
                 job["urlscan"] = urlscan_state
                 preview = job.setdefault("preview", {})
-                preview["screenshot_url"] = result.get("screenshot_url") or preview.get("screenshot_url")
+                preview["screenshot_url"] = result.get("screenshot_url") if screenshot_ready else None
                 preview["report_url"] = result.get("report_url") or preview.get("report_url")
                 preview["final_url"] = result.get("final_url") or preview.get("final_url")
                 if result.get("final_url"):
