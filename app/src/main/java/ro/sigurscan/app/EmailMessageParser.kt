@@ -24,6 +24,8 @@ object EmailMessageParser {
             val decoded = decodePartContent(bodyText, headers)
             if (contentType.lowercase().contains("text/html")) {
                 ParsedParts(html = listOf(decoded))
+            } else if (isSvgLikePart(contentType.lowercase(), headers["content-disposition"]?.lowercase().orEmpty())) {
+                ParsedParts(html = listOf(decoded))
             } else {
                 ParsedParts(plain = listOf(decoded))
             }
@@ -122,18 +124,30 @@ object EmailMessageParser {
 
             val partContentType = partHeaders["content-type"]?.lowercase() ?: ""
             val contentDisposition = partHeaders["content-disposition"]?.lowercase() ?: ""
-            if (contentDisposition.startsWith("attachment")) {
+            val svgLikePart = isSvgLikePart(partContentType, contentDisposition)
+            if (contentDisposition.startsWith("attachment") && !svgLikePart) {
                 return@forEach
             }
 
             val decoded = decodePartContent(partBodyRaw, partHeaders)
             when {
                 partContentType.contains("text/html") -> if (decoded.isNotBlank()) htmlParts.add(decoded)
+                svgLikePart -> if (decoded.isNotBlank()) htmlParts.add(decoded)
                 partContentType.contains("text/plain") || partContentType.isBlank() -> if (decoded.isNotBlank()) plainParts.add(decoded)
             }
         }
 
         return ParsedParts(html = htmlParts, plain = plainParts)
+    }
+
+    private fun isSvgLikePart(contentType: String, contentDisposition: String): Boolean {
+        return contentType.contains("image/svg") ||
+            contentType.contains("application/svg") ||
+            contentType.contains("text/svg") ||
+            contentType.contains("name=\"") && contentType.contains(".svg") ||
+            contentType.contains("name=") && contentType.contains(".svg") ||
+            contentDisposition.contains("filename=\"") && contentDisposition.contains(".svg") ||
+            contentDisposition.contains("filename=") && contentDisposition.contains(".svg")
     }
 
     private fun decodePartContent(rawBody: String, headers: Map<String, String>): String {

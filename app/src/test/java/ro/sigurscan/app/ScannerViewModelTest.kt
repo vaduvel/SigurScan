@@ -257,4 +257,59 @@ class ScannerViewModelTest {
         assertTrue(links.contains("https://alias-link.example.com/safe"))
     }
 
+    @Test
+    fun testBaseHrefResolvesRelativeButtonTarget() {
+        val html = """
+            <html>
+                <head><base href="https://homebank-update.test/secure/"></head>
+                <body><a href="../login">Actualizează HomeBank</a></body>
+            </html>
+        """.trimIndent()
+
+        val links = extractHtmlLinks(html)
+        assertTrue(links.contains("https://homebank-update.test/login"))
+    }
+
+    @Test
+    fun testConditionalMsoAndVmlLinksAreExtracted() {
+        val html = """
+            <!--[if mso]>
+              <v:roundrect href="https://bcr.ro/login">Intră în cont</v:roundrect>
+            <![endif]-->
+            <!--[if !mso]><!-->
+              <a href="https://bcr-login-alert.test/login">Intră în cont</a>
+            <!--<![endif]-->
+        """.trimIndent()
+
+        val links = extractHtmlLinks(html)
+        assertTrue(links.contains("https://bcr.ro/login"))
+        assertTrue(links.contains("https://bcr-login-alert.test/login"))
+    }
+
+    @Test
+    fun testGenericOpenRedirectTargetIsExtracted() {
+        val html = """
+            <a href="https://trusted.example.com/redirect?next=https%3A%2F%2Fevil-landing.test%2Flogin">Continuă</a>
+        """.trimIndent()
+
+        val links = extractHtmlLinks(html)
+        assertTrue(links.contains("https://evil-landing.test/login"))
+    }
+
+    @Test
+    fun testUserInfoAtUrlKeepsActualHostCandidate() {
+        val html = """<a href="https://bcr.ro@evil-bank.test/login">bcr.ro</a>"""
+
+        val links = extractHtmlLinks(html)
+        assertTrue(links.contains("https://bcr.ro@evil-bank.test/login"))
+    }
+
+    @Test
+    fun testUnicodeIdnHostIsExtractedAsPunycode() {
+        val html = """<a href="https://еmag.ro/login">eMAG</a>"""
+
+        val links = extractHtmlLinks(html)
+        assertTrue(links.contains("https://xn--mag-qdd.ro/login"))
+    }
+
 }

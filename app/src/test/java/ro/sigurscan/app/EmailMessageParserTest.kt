@@ -48,4 +48,33 @@ class EmailMessageParserTest {
         val parsed = EmailMessageParser.parse(raw)
         assertTrue(parsed.htmlText.contains("https://base64.example.com/link"))
     }
+
+    @Test
+    fun testSvgAttachmentIsIncludedAsHtmlForLinkExtraction() {
+        val svg = "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxhIHhsaW5rOmhyZWY9Imh0dHBzOi8vc3ZnLWF0dGFjaG1lbnQudGVzdC9wYXkiPjx0ZXh0PlBsYXRlc3RlPC90ZXh0PjwvYT48L3N2Zz4="
+        val raw = """
+            From: courier@example.com
+            To: user@example.com
+            Subject: AWB
+            MIME-Version: 1.0
+            Content-Type: multipart/mixed; boundary="mix"
+            
+            --mix
+            Content-Type: text/plain; charset="UTF-8"
+            
+            Verifică atașamentul.
+            --mix
+            Content-Type: image/svg+xml; name="awb.svg"
+            Content-Disposition: attachment; filename="awb.svg"
+            Content-Transfer-Encoding: base64
+            
+            $svg
+            --mix--
+        """.trimIndent()
+
+        val parsed = EmailMessageParser.parse(raw)
+        val links = HtmlLinkExtractor.extractHtmlLinks(parsed.bodyForAnalysis)
+        assertTrue(parsed.htmlText.contains("svg-attachment.test/pay"))
+        assertTrue(links.contains("https://svg-attachment.test/pay"))
+    }
 }

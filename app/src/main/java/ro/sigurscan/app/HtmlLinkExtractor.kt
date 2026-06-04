@@ -1,5 +1,7 @@
 package ro.sigurscan.app
 
+import java.net.IDN
+import java.net.URI
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.util.Base64
@@ -12,7 +14,7 @@ object HtmlLinkExtractor {
 
     private val urlRegex = Pattern.compile(
         "(?:https?://|www\\.)[\\w\\-.~:/?#\\[\\]@!$&'()*+,;=%]+",
-        Pattern.CASE_INSENSITIVE
+        Pattern.CASE_INSENSITIVE or Pattern.UNICODE_CHARACTER_CLASS
     )
 
     fun extractHtmlLinks(content: String): List<String> = extractHtmlLinks(content) { it }
@@ -30,11 +32,14 @@ object HtmlLinkExtractor {
             expandCandidateUrls(raw, decodeHtml).forEach { links.add(it) }
         }
 
+        links.addAll(extractConditionalCommentLinks(content, decodeHtml))
+
         contentVariants.forEach { variant ->
             links.addAll(extractHtmlLinksLegacy(variant, decodeHtml))
             links.addAll(extractHtmlLinksFromStyleBlocks(variant, decodeHtml))
             links.addAll(extractHtmlLinksFromScriptBlocks(variant, decodeHtml))
             links.addAll(extractHtmlLinksFromTaggedElements(variant, decodeHtml))
+            links.addAll(extractBaseResolvedLinks(variant, decodeHtml))
             extractCssUrlCandidates(variant).forEach(::addCandidate)
             urlMatches(variant).forEach(::addCandidate)
         }
@@ -148,7 +153,7 @@ object HtmlLinkExtractor {
         val normalized = content.replace("\r", " ").replace("\n", " ")
 
         val linkableTagPattern = Regex(
-            """(?is)<\s*(a|button|input|form|area|iframe|img|source|video|audio|embed|object|meta|div|span|p|script)\b[^>]*>"""
+            """(?is)<\s*(a|button|input|form|area|iframe|img|source|video|audio|embed|object|meta|div|span|p|script|v:roundrect)\b[^>]*>"""
         )
 
         linkableTagPattern.findAll(normalized).forEach { match ->
@@ -158,6 +163,7 @@ object HtmlLinkExtractor {
 
             val urlKeys = when (tagName) {
                 "a", "area" -> listOf("href", "xlink:href", "data-href", "data-url", "data-link", "app-url")
+                "v:roundrect" -> listOf("href")
                 "form" -> listOf("action")
                 "button" -> listOf("formaction")
                 "input" -> listOf("formaction", "action", "src")
@@ -251,13 +257,14 @@ object HtmlLinkExtractor {
     private fun collectScriptEncodedCandidates(
         script: String,
         links: MutableSet<String>,
-        decodeHtml: (String) -> String
+        decodeHtml: (String) -> String,
+        depth: Int = 0
     ) {
         fun addCandidate(raw: String?) {
             expandCandidateUrls(raw, decodeHtml).forEach { links.add(it) }
         }
 
-        if (script.isBlank()) return
+        if (script.isBlank() || depth >= MAX_RECURSIVE_DECODE_DEPTH) return
 
         val plainEscaped = decodeJsEscapes(script)
         val decoded = runCatching {
@@ -325,7 +332,7 @@ object HtmlLinkExtractor {
                 String(bytes, StandardCharsets.UTF_8)
             }.getOrNull()
             if (decodedCandidate != null) {
-                collectScriptEncodedCandidates(decodedCandidate, links, decodeHtml)
+                collectScriptEncodedCandidates(decodedCandidate, links, decodeHtml, depth + 1)
             }
         }
 
@@ -335,7 +342,7 @@ object HtmlLinkExtractor {
                 URLDecoder.decode(match.groupValues.getOrNull(2) ?: return@forEach, StandardCharsets.UTF_8.name())
             }.getOrNull()
             if (decodedMatch != null) {
-                collectScriptEncodedCandidates(decodedMatch, links, decodeHtml)
+                collectScriptEncodedCandidates(decodedMatch, links, decodeHtml, depth + 1)
             }
         }
 
@@ -345,7 +352,7 @@ object HtmlLinkExtractor {
                 URLDecoder.decode(match.groupValues.getOrNull(2) ?: return@forEach, StandardCharsets.UTF_8.name())
             }.getOrNull()
             if (decodedMatch != null) {
-                collectScriptEncodedCandidates(decodedMatch, links, decodeHtml)
+                collectScriptEncodedCandidates(decodedMatch, links, decodeHtml, depth + 1)
             }
         }
     }
@@ -661,7 +668,7 @@ object HtmlLinkExtractor {
             else -> UrlTextExtractor.normalizeCandidate(candidate)
         }
 
-        return normalized?.let { unwrapRedirectWrapper(it) ?: it }
+        return normalized?.let(::normalizeIdnAuthority)
     }
 
     private fun expandCandidateUrls(raw: String?, decodeHtml: (String) -> String = { it }): List<String> {
@@ -676,12 +683,65 @@ object HtmlLinkExtractor {
 
             normalizeCandidateUrl(variant)?.let { normalized ->
                 output.add(normalized)
+                normalizeCandidateUrlPreservingUnicode(variant)
+                    ?.takeIf { it != normalized }
+                    ?.let(output::add)
                 unwrapRedirectWrapper(normalized)?.let(output::add)
                 extractNestedUrlTargets(normalized).forEach(output::add)
             }
         }
 
         return output.toList()
+    }
+
+    private fun normalizeCandidateUrlPreservingUnicode(raw: String?): String? {
+        if (raw == null) return null
+
+        var candidate = raw
+            .trim()
+            .let { decodeHtmlEntities(it) }
+            .let { decodeJsEscapes(it) }
+            .let { removeInvisibleObfuscation(it) }
+            .replace("&nbsp;", " ")
+            .replace("\\u0026", "&")
+            .trimEnd('.', ',', ';', '"', '\'', ')', ']', '}', '`')
+
+        if (candidate.startsWith("javascript:", ignoreCase = true)) {
+            val inner = candidate.removePrefix("javascript:").trim()
+            val matcher = urlRegex.matcher(inner)
+            if (!matcher.find()) return null
+            candidate = matcher.group()
+        }
+
+        if (candidate.contains("%")) {
+            runCatching {
+                candidate = URLDecoder.decode(candidate, StandardCharsets.UTF_8.name())
+            }
+        }
+
+        val normalized = when {
+            candidate.startsWith("https://", ignoreCase = true) || candidate.startsWith("http://", ignoreCase = true) -> candidate
+            candidate.startsWith("//") -> "https:$candidate"
+            candidate.contains('.') -> {
+                val cleaned = candidate
+                    .trim()
+                    .trimEnd('.', ',', ';', ':', ')', ']', '}', '"', '\'', '`')
+                    .takeIf { it.contains('.') }
+                    ?: return null
+                "https://$cleaned"
+            }
+            else -> return null
+        }
+
+        val host = normalized
+            .substringAfter("://", normalized)
+            .substringBefore('/')
+            .substringBefore('?')
+            .substringBefore('#')
+            .substringAfterLast('@')
+            .substringBefore(':')
+
+        return normalized.takeIf { host.any { char -> char.code > 127 } }
     }
 
     private fun recursiveDecodeVariants(
@@ -735,6 +795,91 @@ object HtmlLinkExtractor {
         return input
             .replace(Regex("""(?is)<!--.*?-->"""), "")
             .replace(Regex("""[\u200B\u200C\u200D\uFEFF\u2060\u00AD\u202A-\u202E\u2066-\u2069]"""), "")
+    }
+
+    private fun extractConditionalCommentLinks(content: String, decodeHtml: (String) -> String): List<String> {
+        if (!content.contains("<!--[", ignoreCase = true)) return emptyList()
+
+        val output = linkedSetOf<String>()
+        val patterns = listOf(
+            Regex("""(?is)<!--\s*\[if[^\]]*]>(.*?)<!\s*\[endif]\s*-->"""),
+            Regex("""(?is)<!--\s*\[if[^\]]*]><!--\s*>(.*?)<!--\s*<!\s*\[endif]\s*-->""")
+        )
+
+        patterns.forEach { pattern ->
+            pattern.findAll(content).forEach { match ->
+                val branchHtml = match.groupValues.getOrNull(1) ?: return@forEach
+                extractHtmlLinks(branchHtml, decodeHtml).forEach(output::add)
+                urlMatches(branchHtml).forEach { normalizeCandidateUrl(it)?.let(output::add) }
+            }
+        }
+
+        return output.toList()
+    }
+
+    private fun extractBaseResolvedLinks(content: String, decodeHtml: (String) -> String): List<String> {
+        val baseHref = extractBaseHref(content, decodeHtml) ?: return emptyList()
+        val output = linkedSetOf<String>()
+
+        val tagPattern = Regex("""(?is)<\s*([a-z0-9:_-]+)\b[^>]*>""")
+        tagPattern.findAll(content).forEach { match ->
+            val tag = match.value
+            val attrs = extractHtmlAttributes(tag)
+            val urlKeys = listOf(
+                "href",
+                "src",
+                "action",
+                "formaction",
+                "xlink:href",
+                "data-href",
+                "data-url",
+                "data-link",
+                "app-url"
+            )
+
+            urlKeys.forEach { key ->
+                val raw = attrs[key] ?: return@forEach
+                resolveAgainstBase(baseHref, raw, decodeHtml)?.let(output::add)
+            }
+
+            attrs["srcset"]?.split(',')?.forEach { entry ->
+                val token = entry.trim().split(Regex("\\s+")).firstOrNull()
+                resolveAgainstBase(baseHref, token, decodeHtml)?.let(output::add)
+            }
+        }
+
+        return output.toList()
+    }
+
+    private fun extractBaseHref(content: String, decodeHtml: (String) -> String): String? {
+        val baseTag = Regex("""(?is)<\s*base\b[^>]*>""").find(content)?.value ?: return null
+        val attrs = extractHtmlAttributes(baseTag)
+        return normalizeCandidateUrl(decodeHtml(attrs["href"] ?: return null))
+    }
+
+    private fun resolveAgainstBase(baseHref: String, raw: String?, decodeHtml: (String) -> String): String? {
+        if (raw.isNullOrBlank()) return null
+        val candidate = decodeHtml(raw)
+            .let(::decodeHtmlEntities)
+            .let(::decodeJsEscapes)
+            .trim()
+            .trim('"', '\'', '`')
+        if (candidate.isBlank()) return null
+        val lower = candidate.lowercase(Locale.US)
+        if (
+            lower.startsWith("http://") ||
+            lower.startsWith("https://") ||
+            lower.startsWith("//") ||
+            lower.startsWith("javascript:") ||
+            lower.startsWith("mailto:") ||
+            lower.startsWith("tel:") ||
+            lower.startsWith("data:") ||
+            lower.startsWith("#")
+        ) return null
+
+        return runCatching {
+            URI(baseHref).resolve(candidate).toString()
+        }.getOrNull()?.let(::normalizeCandidateUrl)
     }
 
     private fun extractCssUrlCandidates(input: String): List<String> {
@@ -812,6 +957,30 @@ object HtmlLinkExtractor {
 
         unwrapYahooRedirect(url)?.let { return it }
 
+        val genericRedirectKeys = listOf(
+            "url",
+            "u",
+            "uri",
+            "redirect",
+            "redirect_url",
+            "return_url",
+            "target",
+            "destination",
+            "dest",
+            "next",
+            "continue",
+            "to",
+            "link",
+            "href"
+        )
+        genericRedirectKeys.firstNotNullOfOrNull { key ->
+            queryParams[key]?.takeIf { value ->
+                value.startsWith("http://", ignoreCase = true) ||
+                    value.startsWith("https://", ignoreCase = true) ||
+                    value.startsWith("//")
+            }?.let(::normalizeCandidateUrl)
+        }?.let { return it }
+
         return null
     }
 
@@ -847,9 +1016,43 @@ object HtmlLinkExtractor {
 
     private fun extractHost(url: String): String {
         val withoutScheme = url.substringAfter("://", url)
-        return withoutScheme.substringBefore('/').substringBefore('?').substringBefore('#')
+        val authority = withoutScheme.substringBefore('/').substringBefore('?').substringBefore('#')
+        return authority.substringAfterLast('@')
             .substringBefore(':')
             .lowercase(Locale.US)
+    }
+
+    private fun normalizeIdnAuthority(url: String): String {
+        val schemeSeparator = url.indexOf("://")
+        if (schemeSeparator < 0) return url
+        val scheme = url.substring(0, schemeSeparator)
+        val rest = url.substring(schemeSeparator + 3)
+        val authority = rest.substringBefore('/').substringBefore('?').substringBefore('#')
+        if (authority.isBlank() || authority.startsWith("[")) return url
+
+        val suffix = rest.substring(authority.length)
+        val userInfo = authority.substringBeforeLast('@', missingDelimiterValue = "")
+            .takeIf { authority.contains('@') }
+        val hostPort = authority.substringAfterLast('@')
+        val host = hostPort.substringBefore(':')
+        val port = hostPort.substringAfter(':', missingDelimiterValue = "")
+        if (host.isBlank() || host.all { it.code < 128 }) return url
+
+        val asciiHost = runCatching {
+            IDN.toASCII(host, IDN.USE_STD3_ASCII_RULES).lowercase(Locale.US)
+        }.getOrNull() ?: return url
+        val rebuiltAuthority = buildString {
+            if (!userInfo.isNullOrBlank()) {
+                append(userInfo)
+                append('@')
+            }
+            append(asciiHost)
+            if (port.isNotBlank()) {
+                append(':')
+                append(port)
+            }
+        }
+        return "$scheme://$rebuiltAuthority$suffix"
     }
 
     private fun extractQueryParams(url: String): Map<String, String> {

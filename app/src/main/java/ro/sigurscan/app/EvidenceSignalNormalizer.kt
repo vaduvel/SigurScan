@@ -61,7 +61,8 @@ object EvidenceSignalNormalizer {
         val htmlLinks = html?.let { HtmlLinkExtractor.extractHtmlLinks(it) }.orEmpty()
         val textUrls = extractUrls(rawForAnalysis)
         val formActionUrls = html?.let { extractFormActionUrls(it) }.orEmpty()
-        val allUrls = (input.extractedLinks + htmlLinks + textUrls + listOfNotNull(input.primaryUrl, input.finalUrl, input.formActionUrl))
+        val rawUrlCandidates = input.extractedLinks + htmlLinks + textUrls + listOfNotNull(input.primaryUrl, input.finalUrl, input.formActionUrl)
+        val allUrls = rawUrlCandidates
             .mapNotNull(::normalizeUrl)
             .distinct()
         val normalizedRedirectChain = input.redirectChain.mapNotNull(::normalizeUrl)
@@ -74,7 +75,8 @@ object EvidenceSignalNormalizer {
         val targetUrl = normalizedFinal ?: normalizedPrimary
         val primaryHost = hostOf(normalizedPrimary)
         val targetHost = hostOf(targetUrl)
-        val claimedBrands = detectClaimedBrands(normalizedText, rawForAnalysis, allUrls)
+        val rawTargetHost = rawHostForTarget(targetHost, rawUrlCandidates)
+        val claimedBrands = detectClaimedBrands(normalizedText, rawForAnalysis, allUrls, rawUrlCandidates)
 
         val builder = SignalBuilder(targetHost ?: textTargetKey(normalizedText))
         addLocalSignals(
@@ -88,6 +90,7 @@ object EvidenceSignalNormalizer {
             formActionHost = normalizedFormActionHost,
             primaryHost = primaryHost,
             targetHost = targetHost,
+            rawTargetHost = rawTargetHost,
             claimedBrands = claimedBrands
         )
         addBackendInfrastructureSignals(
@@ -166,6 +169,7 @@ object EvidenceSignalNormalizer {
         formActionHost: String?,
         primaryHost: String?,
         targetHost: String?,
+        rawTargetHost: String?,
         claimedBrands: List<BrandPolicyLite>
     ) {
         val effectiveTargetHost = formActionHost ?: targetHost
@@ -244,6 +248,7 @@ object EvidenceSignalNormalizer {
         addLocalDomainRiskSignals(
             builder = builder,
             targetHost = effectiveTargetHost,
+            rawTargetHost = if (effectiveTargetHost == targetHost) rawTargetHost else null,
             claimedBrands = claimedBrands,
             targetIsOfficial = effectiveIsOfficial,
             targetIsApprovedTracker = effectiveIsApprovedTracker
@@ -545,6 +550,7 @@ object EvidenceSignalNormalizer {
     private fun addLocalDomainRiskSignals(
         builder: SignalBuilder,
         targetHost: String?,
+        rawTargetHost: String?,
         claimedBrands: List<BrandPolicyLite>,
         targetIsOfficial: Boolean,
         targetIsApprovedTracker: Boolean
@@ -561,7 +567,10 @@ object EvidenceSignalNormalizer {
             )
         }
 
-        val lookalike = findLookalikeDomainMatch(normalizedHost, claimedBrands.ifEmpty { brandPolicies }) ?: return
+        val lookalikeHost = rawTargetHost
+            ?.takeIf { host -> host.any { it.code > 127 } }
+            ?: normalizedHost
+        val lookalike = findLookalikeDomainMatch(lookalikeHost, claimedBrands.ifEmpty { brandPolicies }) ?: return
 
         if (lookalike.isHomoglyph) {
             builder.add(
@@ -778,11 +787,12 @@ object EvidenceSignalNormalizer {
     private fun detectClaimedBrands(
         normalizedText: String,
         rawForAnalysis: String,
-        urls: List<String>
+        urls: List<String>,
+        rawUrls: List<String> = emptyList()
     ): List<BrandPolicyLite> {
         val normalizedRaw = normalizeText(rawForAnalysis)
-        val normalizedHosts = urls
-            .mapNotNull(::hostOf)
+        val normalizedHosts = (urls.mapNotNull(::hostOf) + rawUrls.mapNotNull(::rawHostOf))
+            .distinct()
             .joinToString(" ") { host ->
                 normalizeText(
                     host.replace('.', ' ')
@@ -796,6 +806,31 @@ object EvidenceSignalNormalizer {
                     containsAlias(normalizedRaw, alias) ||
                     containsAlias(normalizedHosts, alias)
             }
+        }
+    }
+
+    private fun rawHostOf(url: String?): String? {
+        if (url.isNullOrBlank()) return null
+        val candidate = url
+            .trim()
+            .substringAfter("://", url.trim())
+            .substringBefore('/')
+            .substringBefore('?')
+            .substringBefore('#')
+            .substringAfterLast('@')
+            .substringBefore(':')
+            .lowercase(Locale.US)
+            .removePrefix("www.")
+            .trim()
+        return candidate.takeIf { it.isNotBlank() && it.contains('.') }
+    }
+
+    private fun rawHostForTarget(targetHost: String?, rawUrls: List<String>): String? {
+        if (targetHost.isNullOrBlank()) return null
+        return rawUrls.firstNotNullOfOrNull { rawUrl ->
+            val rawHost = rawHostOf(rawUrl) ?: return@firstNotNullOfOrNull null
+            val normalizedHost = hostOf(normalizeUrl(rawUrl))
+            rawHost.takeIf { normalizedHost == targetHost }
         }
     }
 
