@@ -1719,31 +1719,34 @@ def _external_intel_summary_from_threat_intel(threat_intel: Dict[str, Dict[str, 
     return summary
 
 
-def _decisive_reputation_analysis(
+def _provider_reputation_context_analysis(
     redacted_text: str,
     resolved_urls: List[Dict[str, Any]],
     summary: Dict[str, Dict[str, Any]],
 ) -> Dict[str, Any]:
+    """Create analysis context for a hard provider hit.
+
+    This is intentionally not a verdict. The final label is still emitted only
+    by services.verdict_gate.verdict() after this summary is normalized into the
+    Evidence Bundle v2.
+    """
+
     return {
-        "risk_score": 90,
-        "risk_level": "high",
-        "detected_family": "Risc confirmat",
-        "detected_family_id": "provider-gate-bad-provider",
+        "risk_score": 0,
+        "risk_level": "unknown",
+        "detected_family": "Context reputatie provider",
+        "detected_family_id": "provider-context-reputation-hit",
         "claimed_brand": "Nespecificat",
         "reasons": [
-            "Scanarea a gasit semnale clare de risc pe destinatie.",
+            "Providerii de reputatie au raportat semnale pe destinatie; verdictul final este calculat de verdict_gate.",
         ],
-        "safe_actions": [
-            "Nu apasa linkul.",
-            "Nu introduce date pe pagina.",
-            "Verifica manual canalul oficial.",
-        ],
+        "safe_actions": [],
         "key_dangers": [
             "Providerii de reputatie au marcat destinatia ca risc.",
         ],
         "evidence": {
             "external_intel_summary": summary,
-            "provider_short_circuit": True,
+            "provider_reputation_context": True,
             "has_domain_mismatch": False,
             "extracted_urls": resolved_urls,
         },
@@ -5105,7 +5108,7 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
         preview["final_url"] = primary_final_url
 
         if _has_bad_provider_verdict(summary):
-            analysis = _decisive_reputation_analysis(redacted_text, resolved_urls, summary)
+            analysis = _provider_reputation_context_analysis(redacted_text, resolved_urls, summary)
             analysis.setdefault("evidence", {})["source_channel"] = job.get("source_channel")
             _attach_offer_claim_verification(
                 analysis,
