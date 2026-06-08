@@ -36,6 +36,7 @@ from services.telemetry import (
     summarize_feedback_trend,
 )
 from services import redirect_resolver, scam_atlas, supabase_store, url_reputation
+from services import google_web_risk
 from eval.evaluate import run_threshold_sweep
 from email import policy
 from email.message import EmailMessage
@@ -4411,6 +4412,14 @@ def test_health_reports_provider_config_without_secrets(monkeypatch):
     assert payload["config"]["providers"]["virustotal"]["configured"] is True
     assert payload["config"]["providers"]["ai_explanation"]["configured"] is True
     assert "super-secret" not in serialized
+
+
+def test_google_web_risk_does_not_use_safe_browsing_key(monkeypatch):
+    with monkeypatch.context() as patched:
+        patched.delenv("GOOGLE_WEB_RISK_API_KEY", raising=False)
+        patched.setenv("GOOGLE_SAFE_BROWSING_API_KEY", "legacy-safe-browsing-key")
+        assert google_web_risk.has_web_risk_key() is False
+        assert google_web_risk._web_risk_api_key() == ""
 
 
 def test_evidence_bundle_is_stable_and_privacy_safe():

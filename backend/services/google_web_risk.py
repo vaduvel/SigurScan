@@ -16,10 +16,7 @@ DEFAULT_THREAT_TYPES = [
 
 
 def _web_risk_api_key() -> str:
-    return (
-        os.getenv("GOOGLE_WEB_RISK_API_KEY", "").strip()
-        or os.getenv("GOOGLE_SAFE_BROWSING_API_KEY", "").strip()
-    )
+    return os.getenv("GOOGLE_WEB_RISK_API_KEY", "").strip()
 
 
 def has_web_risk_key() -> bool:
