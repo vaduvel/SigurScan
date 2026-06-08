@@ -682,6 +682,9 @@ def test_scan_text_yoxo_onelink_fast_path_is_safe_when_deeplink_is_delegated(mon
             "safe_actions": [],
         }
 
+    async def fake_ai_explanation(*args, **kwargs):
+        return {"verdict_summary": "", "explanation": ""}
+
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
         patched.setattr(app_main, "_safe_scan_url_list", fake_stale_yoxo_onelink_scan)
@@ -1109,7 +1112,7 @@ def test_orchestrated_scan_keeps_clean_verdict_when_urlscan_screenshot_times_out
 
     assert response.status_code == 200
     assert payload["status"] == "complete"
-    assert payload["pillars"]["urlscan"]["status"] == "error"
+    assert payload["pillars"]["urlscan"]["status"] == "ok"
     assert "captura" in payload["pillars"]["urlscan"]["details"].lower()
     assert payload["result"]["user_risk_label"] == "SIGUR"
     assert payload["result"]["risk_level"] == "low"
@@ -1415,6 +1418,126 @@ def test_orchestrated_urlscan_reservation_reclaims_after_ttl(monkeypatch):
     assert refreshed["pipeline_stage"] == "analysis_ready"
     assert refreshed["urlscan"]["status"] == "queued"
     assert refreshed["orchestration_metrics"]["urlscan_reclaim_count"] == 1
+
+
+def test_urlscan_finished_without_screenshot_is_reputation_ok_not_error():
+    job = {
+        "scan_id": "orch_urlscan_report_ready",
+        "urls": ["https://tiny.cc/MarTM"],
+        "primary_final_url": "https://bilete.sublime.ro/eveniment",
+        "resolved_urls": [{"final_url": "https://bilete.sublime.ro/eveniment"}],
+        "analysis": {
+            "evidence": {
+                "external_intel_summary": {
+                    "google_web_risk": {"status": "clean", "consulted": True},
+                    "virustotal": {"status": "clean", "consulted": True},
+                    "urlscan": {"status": "clean", "consulted": True},
+                },
+                "offer_claim_verification": {"status": "skipped"},
+            }
+        },
+        "claim_verifier_required": False,
+        "urlscan": {
+            "status": "finished",
+            "uuid": "urlscan-ready",
+            "verdict": "No malicious classification",
+            "screenshot_ready": False,
+        },
+    }
+
+    pillars = app_main._build_orchestrated_pillars(job)
+
+    assert pillars["urlscan"]["status"] == "ok"
+    assert "captura" in pillars["urlscan"]["details"]
+
+
+def test_orchestrated_urlscan_timeout_can_rehydrate_finished_report(monkeypatch):
+    async def fake_get_urlscan_result(uuid, request):
+        return {
+            "uuid": uuid,
+            "status": "finished",
+            "verdict": "No malicious classification",
+            "severity": "low",
+            "details": "urlscan verdict=No malicious classification; score=0",
+            "final_url": "https://bilete.sublime.ro/bilete-timisoara-stand-up-comedy-cu-dan-badea-domnu-danut-ora-21-00-119514/",
+            "report_url": "https://urlscan.io/result/urlscan-late/",
+            "screenshot_url": "https://backend/screenshot",
+            "score": 0,
+            "categories": [],
+            "brands": [],
+        }
+
+    async def fake_screenshot_ready(uuid):
+        return True
+
+    async def fake_ai_explanation(*args, **kwargs):
+        return {"verdict_summary": "", "explanation": ""}
+
+    job = {
+        "scan_id": "orch_urlscan_late",
+        "created_at": int(time.time()) - 130,
+        "pipeline_stage": "done",
+        "status": "complete",
+        "input_type": "text",
+        "source_channel": "test",
+        "urls": ["https://tiny.cc/MarTM"],
+        "redacted_text": "Promo Martisor https://tiny.cc/MarTM",
+        "analysis": {
+            "risk_score": 50,
+            "risk_level": "medium",
+            "detected_family": "Verificare parțială",
+            "detected_family_id": "provider-gate-partial-pillars",
+            "claimed_brand": "Nespecificat",
+            "reasons": ["Scanare parțială."],
+            "safe_actions": [],
+            "evidence": {
+                "external_intel_summary": {
+                    "google_web_risk": {"status": "clean", "consulted": True},
+                    "virustotal": {"status": "clean", "consulted": True},
+                },
+                "offer_claim_verification": {"status": "skipped"},
+            },
+        },
+        "resolved_urls": [
+            {
+                "original_url": "https://tiny.cc/MarTM",
+                "final_url": "https://tiny.cc/MarTM",
+                "final_hostname": "tiny.cc",
+                "final_registered_domain": "tiny.cc",
+                "success": False,
+            }
+        ],
+        "primary_final_url": "https://tiny.cc/MarTM",
+        "claim_verifier_required": False,
+        "urlscan": {
+            "status": "timeout",
+            "uuid": "urlscan-late",
+            "details": "urlscan preview timeout",
+        },
+        "preview": {
+            "final_url": "https://tiny.cc/MarTM",
+            "report_url": "https://urlscan.io/result/urlscan-late/",
+            "screenshot_url": None,
+        },
+        "extra_fields": {"resolved_urls": []},
+        "result": {"is_final": True},
+        "orchestration_metrics": {"poll_count": 0, "stage_sequence": [], "stage_durations_ms": {}},
+    }
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "get_urlscan_result", fake_get_urlscan_result)
+        patched.setattr(app_main, "_urlscan_screenshot_is_ready", fake_screenshot_ready)
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
+        patched.setattr(app_main, "_build_ai_explanation_async", fake_ai_explanation)
+        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+
+    assert refreshed["urlscan"]["status"] == "finished"
+    assert refreshed["preview"]["screenshot_url"] == "https://backend/screenshot"
+    assert refreshed["primary_final_url"].startswith("https://bilete.sublime.ro/")
+    assert refreshed["resolved_urls"][0]["final_registered_domain"] == "sublime.ro"
+    assert refreshed["analysis"]["evidence"]["external_intel_summary"]["urlscan"]["status"] == "clean"
 
 
 def test_orchestration_telemetry_payload_flags_anomalies(monkeypatch):

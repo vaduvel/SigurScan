@@ -4411,10 +4411,11 @@ def _build_orchestrated_pillars(job: Dict[str, Any]) -> Dict[str, Dict[str, Any]
     urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
     urlscan_status = str(urlscan_state.get("status") or "").strip().lower()
     screenshot_ready = bool(urlscan_state.get("screenshot_ready"))
-    if urlscan_status == "finished" and screenshot_ready:
-        urlscan_pillar = _pillar("ok", required=False, details=str(urlscan_state.get("verdict") or "finished"), ref=urlscan_state.get("uuid"))
-    elif urlscan_status == "finished":
-        urlscan_pillar = _pillar("pending", required=False, details="urlscan result este gata, captura inca se proceseaza.", ref=urlscan_state.get("uuid"))
+    if urlscan_status == "finished":
+        details = str(urlscan_state.get("verdict") or "finished")
+        if not screenshot_ready:
+            details = f"{details}; captura inca se proceseaza"
+        urlscan_pillar = _pillar("ok", required=False, details=details, ref=urlscan_state.get("uuid"))
     elif urlscan_status == "skipped" and not has_urls:
         urlscan_pillar = _pillar("not_required", required=False, details="nu exista URL pentru preview")
     elif urlscan_status in {"error", "timeout", "rate_limited", "skipped"}:
@@ -5089,12 +5090,18 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
         return await _finalize_orchestrated_job_if_ready(job, request)
 
     urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
-    if urlscan_state.get("uuid") and str(urlscan_state.get("status") or "").lower() == "pending":
+    urlscan_status = str(urlscan_state.get("status") or "").lower()
+    should_refresh_urlscan = bool(urlscan_state.get("uuid")) and (
+        urlscan_status in {"pending", "error", "timeout"}
+        or (urlscan_status == "finished" and not urlscan_state.get("screenshot_ready"))
+    )
+    if should_refresh_urlscan:
         try:
             result = await get_urlscan_result(str(urlscan_state["uuid"]), request)
         except HTTPException as exc:
-            urlscan_state["status"] = "error"
-            urlscan_state["details"] = str(exc.detail)
+            if urlscan_status not in {"finished", "timeout"}:
+                urlscan_state["status"] = "error"
+                urlscan_state["details"] = str(exc.detail)
             job["urlscan"] = urlscan_state
             result = None
         if result is not None:
@@ -5102,16 +5109,9 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
                 screenshot_ready = await _urlscan_screenshot_is_ready(str(urlscan_state["uuid"]))
                 urlscan_state.update(result)
                 urlscan_state["screenshot_ready"] = screenshot_ready
-                urlscan_state["status"] = "finished" if screenshot_ready else "pending"
+                urlscan_state["status"] = "finished"
                 if not screenshot_ready:
                     urlscan_state["details"] = "urlscan result este gata, dar captura inca se proceseaza."
-                    if _urlscan_pending_has_timed_out(job):
-                        urlscan_state["status"] = "timeout"
-                        _increment_orchestrated_metric(job, "urlscan_timeout_count")
-                        urlscan_state["details"] = (
-                            "urlscan result este gata, dar captura paginii finale nu a finalizat "
-                            "in timpul maxim permis."
-                        )
                 job["urlscan"] = urlscan_state
                 preview = job.setdefault("preview", {})
                 preview["screenshot_url"] = result.get("screenshot_url") if screenshot_ready else None
@@ -5130,11 +5130,6 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
                 summary = evidence.setdefault("external_intel_summary", {})
                 if isinstance(summary, dict):
                     summary["urlscan"] = _urlscan_provider_payload(result)
-                    if urlscan_state.get("status") == "timeout":
-                        summary["urlscan"]["status"] = "error"
-                        summary["urlscan"]["verdict"] = "preview_timeout"
-                        summary["urlscan"]["consulted"] = False
-                        summary["urlscan"]["details"] = urlscan_state.get("details", "urlscan preview timeout")
             elif _urlscan_pending_has_timed_out(job):
                 urlscan_state["status"] = "timeout"
                 _increment_orchestrated_metric(job, "urlscan_timeout_count")
