@@ -1206,6 +1206,51 @@ def test_orchestrated_reputation_stage_runs_mistral_as_semantic_pillar(monkeypat
     assert "user_risk_label" not in review
 
 
+def test_orchestrated_reputation_analysis_reuses_existing_intel_without_deep_fallback(monkeypatch):
+    def fake_engine_analyze(text, **kwargs):
+        return {
+            "risk_score": 45,
+            "risk_level": "medium",
+            "detected_family": "Domeniu neoficial cu card",
+            "detected_family_id": "domain-card-context",
+            "claimed_brand": "YOXO",
+            "reasons": [],
+            "safe_actions": [],
+            "evidence": {
+                "has_domain_mismatch": True,
+                "external_intel_summary": {
+                    "google_web_risk": {"status": "clean", "consulted": True},
+                    "virustotal": {"status": "clean", "consulted": True},
+                },
+            },
+        }
+
+    def fail_external_intel(*args, **kwargs):
+        raise AssertionError("Orchestrated reputation stage must not run a second deep provider fallback.")
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
+        patched.setattr(app_main, "ENABLE_VT_FALLBACK", True)
+        patched.setattr(app_main.engine, "analyze", fake_engine_analyze)
+        patched.setattr(app_main, "_gather_external_intel_safe", fail_external_intel)
+        analysis = app_main._analyze_with_reputation(
+            "YOXO card context https://example.com",
+            [{"final_url": "https://example.com"}],
+            fast_reputation=True,
+            threat_intel_override={
+                "https://example.com": {
+                    "sources": {
+                        "google_web_risk": {"status": "clean", "consulted": True},
+                        "virustotal": {"status": "clean", "consulted": True},
+                    }
+                }
+            },
+            allow_deep_fallback=False,
+        )
+
+    assert analysis["evidence"]["vt_fallback"] is False
+
+
 def test_orchestrated_text_scan_completes_safe_after_urlscan_preview(monkeypatch):
     client = TestClient(app_main.app)
     message = (

@@ -1649,6 +1649,7 @@ def _analyze_with_reputation(
     email_context: Optional[Dict[str, Any]] = None,
     fast_reputation: bool = True,
     threat_intel_override: Optional[Dict[str, Dict[str, Any]]] = None,
+    allow_deep_fallback: bool = True,
 ) -> Dict[str, Any]:
     use_fast = bool(fast_reputation)
     threat_intel = threat_intel_override
@@ -1667,7 +1668,7 @@ def _analyze_with_reputation(
         analyze_kwargs["email_context"] = email_context
     analysis = engine.analyze(redacted_text, **analyze_kwargs)
 
-    if use_fast and _analysis_needs_vt_fallback(analysis):
+    if use_fast and allow_deep_fallback and _analysis_needs_vt_fallback(analysis):
         deep_threat_intel = _gather_external_intel_safe(
             resolved_urls,
             include_virustotal=True,
@@ -5299,6 +5300,7 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
             resolved_urls,
             fast_reputation=True,
             threat_intel_override=threat_intel,
+            allow_deep_fallback=False,
         )
         analysis.setdefault("evidence", {})["source_channel"] = job.get("source_channel")
         claim_required = _claim_verifier_required(analysis)
