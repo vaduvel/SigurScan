@@ -2575,6 +2575,7 @@ def test_orchestrated_yoxo_weak_vt_and_urlscan_prevented_finalizes_safe(monkeypa
     assert payload["preview"]["screenshot_url"] is None
     assert payload["result"]["user_risk_label"] == "SIGUR"
     assert payload["result"]["risk_level"] == "low"
+    assert payload["result"]["detected_family_id"] == "provider-gate-official-clean"
     assert payload["result"]["evidence"]["provider_gate"]["detected_family_id"] == "provider-gate-official-clean"
     assert payload["result"]["evidence"]["provider_gate"]["official_destination"] is True
 

@@ -2729,7 +2729,7 @@ def _apply_decision_contract_result(
     semantic_review = decision_bundle.get("semantic_review") if isinstance(decision_bundle.get("semantic_review"), dict) else {}
     matched_family = str(semantic_review.get("matched_family") or "").strip()
     scam_family = evidence.get("scam_family") if isinstance(evidence.get("scam_family"), dict) else {}
-    if matched_family:
+    if matched_family and not (label == "SIGUR" and primary_reason == "official_clean"):
         family_id = matched_family
         family_name = str(scam_family.get("family") or matched_family).strip()
     else:
