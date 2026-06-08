@@ -4356,6 +4356,16 @@ def _merge_threat_intel_sources(
     overlay: Optional[Dict[str, Dict[str, Any]]],
 ) -> Dict[str, Dict[str, Any]]:
     merged: Dict[str, Dict[str, Any]] = _deep_copy_jsonable(base or {})
+
+    def should_replace_source(current: Any, incoming: Dict[str, Any]) -> bool:
+        if not isinstance(current, dict):
+            return True
+        current_consulted = bool(current.get("consulted"))
+        incoming_consulted = bool(incoming.get("consulted"))
+        if current_consulted and not incoming_consulted:
+            return False
+        return True
+
     for key, overlay_entry in (overlay or {}).items():
         if not isinstance(overlay_entry, dict):
             continue
@@ -4367,7 +4377,7 @@ def _merge_threat_intel_sources(
         overlay_sources = overlay_entry.get("sources")
         if isinstance(current_sources, dict) and isinstance(overlay_sources, dict):
             for source_name, source_payload in overlay_sources.items():
-                if isinstance(source_payload, dict):
+                if isinstance(source_payload, dict) and should_replace_source(current_sources.get(source_name), source_payload):
                     current_sources[source_name] = _deep_copy_jsonable(source_payload)
         for field in ("verdict", "risk_score", "active_sources", "consulted_sources", "consulted_source_count"):
             if field in overlay_entry:

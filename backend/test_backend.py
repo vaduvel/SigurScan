@@ -1218,6 +1218,13 @@ def test_orchestrated_urlhaus_stage_collects_urlhaus_once(monkeypatch):
                 "score": 0,
                 "threat_type": "unknown",
             }
+            entry["sources"]["virustotal"] = {
+                "status": "unknown",
+                "consulted": False,
+                "score": 0,
+                "threat_type": "unknown",
+                "details": {"status": "skipped_fast_scan"},
+            }
         return output
 
     with monkeypatch.context() as patched:
@@ -1235,6 +1242,8 @@ def test_orchestrated_urlhaus_stage_collects_urlhaus_once(monkeypatch):
         }
     ]
     summary = refreshed["analysis"]["evidence"]["external_intel_summary"]
+    assert summary["virustotal"]["status"] == "clean"
+    assert summary["virustotal"]["consulted"] is True
     assert summary["urlhaus"]["status"] == "clean"
     assert summary["urlhaus"]["consulted"] is True
 
