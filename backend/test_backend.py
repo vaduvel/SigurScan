@@ -36,6 +36,7 @@ from services.telemetry import (
     summarize_feedback_trend,
 )
 from services import redirect_resolver, scam_atlas, supabase_store, url_reputation
+from services.tier1_classifier import Tier1Classifier
 from services import google_web_risk
 from eval.evaluate import run_threshold_sweep
 from email import policy
@@ -644,6 +645,68 @@ def test_mx_lookup_uses_valid_cloudflare_doh_url_without_literal_braces(monkeypa
     assert not captured["url"].startswith("{")
     assert not captured["url"].endswith("}")
     assert has_mx is True
+
+
+def test_tier1_classifier_recognizes_real_marketing_and_official_notices():
+    classifier = Tier1Classifier.load_default()
+
+    modivo = classifier.classify(
+        "SALE pana la -50%! Pantofi de top le poti cumpara chiar si la jumatate de pret. "
+        "https://snrs.it/0BJIIOV #MODIVOclub StopSMS http://oot.gg/nXy7lQfd"
+    )
+    orange = classifier.classify(
+        "In data de 07-06-2026 s-a emis factura ta Orange in valoare de 32.32 lei. "
+        "Descarca factura aici https://orange.ro/r/KK5IMyT"
+    )
+    scam = classifier.classify(
+        "FanCourier: taxa vamala neachitata 3.50 RON. Introdu datele cardului aici https://fancurier-relivrare.com/plata"
+    )
+
+    assert modivo["label"] == "legit_marketing"
+    assert modivo["confidence"] >= 0.5
+    assert orange["label"] == "official_notice"
+    assert orange["confidence"] >= 0.5
+    assert scam["label"] == "scam_like"
+    assert scam["confidence"] >= 0.5
+
+
+def test_tier1_classifier_calibrates_semantic_false_positive_without_touching_hard_signals():
+    review = {
+        "status": "done",
+        "claim_matches_known_scam_family": True,
+        "matched_family": "F06",
+        "claim_matches_legit_template": False,
+        "matched_template": None,
+        "reason_codes": ["semantic:high", "semantic:atlas_high_preserved"],
+        "risk_class": "high",
+        "completeness": True,
+        "source": "mistral_semantic_pillar",
+    }
+    classifier_result = {
+        "label": "legit_marketing",
+        "confidence": 0.82,
+        "source": "tier1_local_classifier",
+    }
+
+    calibrated = app_main._calibrate_semantic_review_with_tier1(
+        review,
+        classifier_result,
+        raw_text="SALE pana la -50%! Pantofi de top la jumatate de pret. https://snrs.it/0BJIIOV",
+    )
+
+    assert calibrated["risk_class"] == "benign"
+    assert calibrated["claim_matches_known_scam_family"] is False
+    assert calibrated["claim_matches_legit_template"] is True
+    assert calibrated["matched_template"] == "legit_marketing"
+    assert "semantic:tier1_legit_override" in calibrated["reason_codes"]
+
+    sensitive = app_main._calibrate_semantic_review_with_tier1(
+        review,
+        classifier_result,
+        raw_text="SALE pana la -50%! Introdu datele cardului pentru confirmare.",
+    )
+
+    assert sensitive["risk_class"] == "high"
 
 
 def test_provider_gate_projection_is_pure_and_matches_apply():

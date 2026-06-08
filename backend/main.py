@@ -46,6 +46,8 @@ from services.redirect_resolver import (
     check_dkim_dns_record,
 )
 from services.scam_atlas import BRAND_ID_TO_DISPLAY_NAME, BRAND_REGISTRY, BRAND_WARNING_RULES, ScamAtlasEngine
+from services.tier1_classifier import LEGIT_LABELS as TIER1_LEGIT_LABELS
+from services.tier1_classifier import Tier1Classifier
 from services.gemini_explainer import generate_ai_explanation, generate_fallback_explanation
 from services.evidence_bundle import build_evidence_bundle
 from services.verdict_gate import verdict as reduce_verdict
@@ -303,6 +305,7 @@ async def security_guard(request: Request, call_next):
 
 # Initialize engine
 engine = ScamAtlasEngine()
+tier1_classifier = Tier1Classifier.load_default()
 
 # Regular expression to extract URLs from text
 URL_REGEX = re.compile(
@@ -2651,6 +2654,39 @@ def _normalize_mistral_semantic_review(raw: Dict[str, Any], fallback: Dict[str, 
     }
 
 
+def _calibrate_semantic_review_with_tier1(
+    review: Dict[str, Any],
+    classifier_result: Dict[str, Any],
+    *,
+    raw_text: str,
+) -> Dict[str, Any]:
+    if not isinstance(review, dict) or not isinstance(classifier_result, dict):
+        return review
+
+    label = str(classifier_result.get("label") or "").strip().lower()
+    try:
+        confidence = float(classifier_result.get("confidence") or 0.0)
+    except (TypeError, ValueError):
+        confidence = 0.0
+
+    if label not in TIER1_LEGIT_LABELS or confidence < 0.55 or _has_direct_sensitive_request(raw_text):
+        return review
+
+    calibrated = dict(review)
+    calibrated["risk_class"] = "benign"
+    calibrated["claim_matches_known_scam_family"] = False
+    calibrated["matched_family"] = None
+    calibrated["claim_matches_legit_template"] = True
+    calibrated["matched_template"] = label
+    calibrated["tier1_classifier"] = classifier_result
+    calibrated["calibration_source"] = "tier1_local_classifier"
+    calibrated["reason_codes"] = _dedupe_preserve_order(
+        list(calibrated.get("reason_codes") or [])
+        + [f"semantic:tier1_{label}", "semantic:tier1_legit_override"]
+    )
+    return calibrated
+
+
 def _call_mistral_semantic_review(payload: Dict[str, Any]) -> Dict[str, Any]:
     response = requests.post(
         "https://api.mistral.ai/v1/chat/completions",
@@ -2689,6 +2725,8 @@ async def _enrich_semantic_review_async(
 ) -> None:
     evidence = analysis.setdefault("evidence", {})
     fallback = _semantic_review_from_analysis(analysis)
+    tier1_result = tier1_classifier.classify(redacted_text or "")
+    evidence["tier1_classifier"] = tier1_result
     if not fallback:
         fallback = {
             "status": "pending",
@@ -2701,7 +2739,11 @@ async def _enrich_semantic_review_async(
         }
 
     if PRIVACY_SAFE_MODE or not ENABLE_MISTRAL_SEMANTIC_PILLAR or not MISTRAL_SEMANTIC_API_KEY:
-        evidence["semantic_review"] = fallback
+        evidence["semantic_review"] = _calibrate_semantic_review_with_tier1(
+            fallback,
+            tier1_result,
+            raw_text=redacted_text,
+        )
         return
 
     payload = {
@@ -2725,14 +2767,23 @@ async def _enrich_semantic_review_async(
     }
     try:
         raw_review = await run_in_threadpool(_call_mistral_semantic_review, payload)
-        evidence["semantic_review"] = _normalize_mistral_semantic_review(raw_review, fallback)
+        normalized_review = _normalize_mistral_semantic_review(raw_review, fallback)
+        evidence["semantic_review"] = _calibrate_semantic_review_with_tier1(
+            normalized_review,
+            tier1_result,
+            raw_text=redacted_text,
+        )
     except Exception as exc:
         fallback = dict(fallback)
         fallback["source"] = fallback.get("source") or "scam_atlas_family_match"
         fallback["mistral_status"] = "failed"
         fallback["mistral_error"] = type(exc).__name__
         fallback["reason_codes"] = _dedupe_preserve_order(list(fallback.get("reason_codes") or []) + ["semantic:mistral_fallback"])
-        evidence["semantic_review"] = fallback
+        evidence["semantic_review"] = _calibrate_semantic_review_with_tier1(
+            fallback,
+            tier1_result,
+            raw_text=redacted_text,
+        )
 
 
 def _build_decision_evidence_bundle(
