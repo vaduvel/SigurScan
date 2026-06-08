@@ -192,6 +192,9 @@ def _run_case(base_url: str, case: LiveSmokeCase, poll_interval: float, timeout:
     result = final_payload.get("result") if isinstance(final_payload.get("result"), dict) else {}
     label = str(result.get("user_risk_label") or "NECUNOSCUT")
     preview = final_payload.get("preview") if isinstance(final_payload.get("preview"), dict) else {}
+    evidence = result.get("evidence") if isinstance(result.get("evidence"), dict) else {}
+    provider_summary = evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {}
+    provider_gate = evidence.get("provider_gate") if isinstance(evidence.get("provider_gate"), dict) else {}
     passed = label in set(case.expected_labels)
     return {
         "id": case.case_id,
@@ -207,6 +210,8 @@ def _run_case(base_url: str, case: LiveSmokeCase, poll_interval: float, timeout:
         "final_url": preview.get("final_url"),
         "screenshot_url": preview.get("screenshot_url"),
         "report_url": preview.get("report_url"),
+        "provider_gate_reason": provider_gate.get("reason"),
+        "provider_summary": provider_summary,
         "status_message": final_payload.get("status_message"),
     }
 

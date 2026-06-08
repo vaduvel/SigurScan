@@ -399,6 +399,51 @@ def test_provider_gate_virustotal_malicious_is_decisive_provider_risk():
     assert result["evidence"]["provider_gate"]["virustotal_consulted"] is True
 
 
+def test_provider_gate_web_risk_malicious_is_decisive_provider_risk_when_other_providers_clean():
+    analysis = {
+        "claimed_brand": "Nespecificat",
+        "risk_level": "low",
+        "risk_score": 5,
+        "detected_family": "Necunoscut",
+        "evidence": {
+            "external_intel_summary": {
+                "google_web_risk": {
+                    "status": "malicious",
+                    "verdict": "malicious",
+                    "consulted": True,
+                    "risk_score": 100,
+                    "threat_type": "SOCIAL_ENGINEERING",
+                },
+                "virustotal": {"status": "clean", "verdict": "clean", "consulted": True},
+                "urlscan": {"status": "clean", "verdict": "clean", "consulted": True},
+                "urlhaus": {"status": "clean", "verdict": "clean", "consulted": True},
+            }
+        },
+    }
+    resolved_urls = [
+        {
+            "url": "https://web-risk-only.example/login",
+            "final_url": "https://web-risk-only.example/login",
+            "hostname": "web-risk-only.example",
+            "final_hostname": "web-risk-only.example",
+            "registered_domain": "web-risk-only.example",
+            "final_registered_domain": "web-risk-only.example",
+        }
+    ]
+
+    result = _apply_provider_gate_verdict(analysis, resolved_urls)
+
+    assert result["risk_level"] == "high"
+    assert result["risk_score"] == 90
+    assert result["detected_family_id"] == "provider-gate-bad-provider"
+    provider_gate = result["evidence"]["provider_gate"]
+    assert provider_gate["reason"] == "provider_malicious"
+    assert provider_gate["web_risk_consulted"] is True
+    assert provider_gate["virustotal_consulted"] is True
+    assert provider_gate["urlscan_consulted"] is True
+    assert "google_web_risk" in provider_gate["consulted_sources"]
+
+
 def test_scam_atlas_text_only_social_fraud_escalates_to_high_risk():
     local_engine = ScamAtlasEngine()
     samples = [

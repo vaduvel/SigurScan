@@ -30,6 +30,23 @@ Acestea pot produce doar:
 
 Ele nu pot urca sau cobori label-ul final.
 
+## Filozofie de verdict
+
+SigurScan optimizeaza pentru utilizatori non-tehnici care au nevoie de o actiune clara, nu de scoruri sau nuante de laborator. Din acest motiv, contractul final foloseste trei etichete:
+
+- `SIGUR`: dovezile disponibile sustin coerenta dintre mesaj, destinatie si providerii consultati;
+- `SUSPECT`: dovezile sunt incomplete, necunoscute sau exista semnale de prudenta fara dovada decisiva;
+- `PERICULOS`: exista dovada tare de risc sau un scenariu social-engineering high-risk cu cerere concreta de bani/date/remote access pe canal gresit.
+
+`PERICULOS` este permis doar cand exista cel putin una dintre aceste categorii:
+
+- provider hard evidence: Web Risk, VirusTotal consensus, URLhaus sau urlscan marcheaza risc;
+- identitate falsa/neaferenta plus intent sensibil;
+- cerere hard-sensitive pe canal gresit;
+- familie semantica high-risk din atlas/corpus plus cerere de bani/transfer/IBAN pe canal gresit.
+
+Nu actualizam expected-urile E2E in bloc doar ca sa facem suita verde. Divergentele `SUSPECT -> PERICULOS` se tri-eaza individual si devin contract doar cand intra intr-una dintre categoriile de mai sus.
+
 ## De ce schimbam
 
 Bug-ul FAN real a aratat defectul structural:
@@ -191,6 +208,8 @@ Acestea trebuie sa treaca inainte de orice claim de maturitate:
 | WhatsApp/telefon stricat cere bani fara URL | transfer pe canal gresit + semantic medium/high | `SUSPECT` sau `PERICULOS` dupa severitatea semantic_review |
 | URL nerezolvat sau provider pending | incomplete evidence | `PENDING` |
 | Domeniu necunoscut clean fara cerere sensibila | unknown + providers clean | `SUSPECT` |
+
+Nota 2026-06-08: dupa integrarea atlasului Romania, `telefon stricat / accident nepot` cu cerere de bani si `BNR / Politie / cont sigur` cu transfer catre cont indicat sunt `PERICULOS` cand `semantic_review.risk_class == high`. Aceasta nu este o regula pe brand, ci aplicarea generala a prioritatii `3b`.
 
 ## Ce se taie ca autoritate
 
