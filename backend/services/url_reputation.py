@@ -50,6 +50,10 @@ VIRUS_TOTAL_API_URL = "https://www.virustotal.com/api/v3/urls/"
 URLHAUS_API_URL = "https://urlhaus-api.abuse.ch/v1/url/"
 VIRUS_TOTAL_TIMEOUT_SECONDS = float(os.getenv("VIRUS_TOTAL_TIMEOUT_SECONDS", "3.0"))
 URLHAUS_TIMEOUT_SECONDS = float(os.getenv("URLHAUS_TIMEOUT_SECONDS", "3.0"))
+VIRUS_TOTAL_MALICIOUS_CONSENSUS_MIN_ENGINES = max(
+    1,
+    int(os.getenv("VIRUSTOTAL_HARD_MALICIOUS_MIN_ENGINES", "2")),
+)
 
 DEFAULT_CACHE_TTL_SECONDS = int(os.getenv("URL_REPUTATION_CACHE_TTL_SECONDS", "43200"))
 MAX_REPUTATION_URLS = int(os.getenv("MAX_REPUTATION_URLS", "60"))
@@ -517,7 +521,7 @@ def _fetch_virustotal(urls: List[str], api_key: Optional[str]) -> Dict[str, Dict
                 }
                 continue
 
-            status = "malicious" if malicious > 0 else "suspicious"
+            status = "malicious" if malicious >= VIRUS_TOTAL_MALICIOUS_CONSENSUS_MIN_ENGINES else "suspicious"
             output[key] = {
                 "status": status,
                 "threat_type": status,

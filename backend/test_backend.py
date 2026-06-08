@@ -2914,6 +2914,45 @@ def test_fast_reputation_skips_vt_and_does_not_persist_partial(monkeypatch, tmp_
     assert saved_cache == []
 
 
+def test_virustotal_single_engine_is_suspicious_not_malicious(monkeypatch):
+    class FakeResponse:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {
+                "data": {
+                    "attributes": {
+                        "last_analysis_stats": {
+                            "harmless": 62,
+                            "malicious": 1,
+                            "suspicious": 0,
+                            "undetected": 32,
+                        },
+                        "last_analysis_results": {
+                            "FlakyVendor": {
+                                "category": "malicious",
+                                "result": "phishing",
+                                "method": "blacklist",
+                            }
+                        },
+                        "last_analysis_date": 1780000000,
+                    }
+                }
+            }
+
+    monkeypatch.setattr(url_reputation.requests, "get", lambda *args, **kwargs: FakeResponse())
+    monkeypatch.setattr(url_reputation, "VIRUS_TOTAL_MALICIOUS_CONSENSUS_MIN_ENGINES", 2)
+
+    result = url_reputation._fetch_virustotal(["https://apps.apple.com/example"], "fake-key")
+    key = url_reputation._url_hash("https://apps.apple.com/example")
+
+    assert result[key]["status"] == "suspicious"
+    assert result[key]["threat_type"] == "suspicious"
+    assert result[key]["details"]["stats"]["malicious"] == 1
+    assert result[key]["details"]["flagged_engines"][0]["engine"] == "FlakyVendor"
+
+
 def test_email_auth_context_skips_dns_in_safe_mode(monkeypatch):
     msg = EmailMessage()
     msg["From"] = "Phishing <scammer@evil.example>"
