@@ -2487,10 +2487,21 @@ def _semantic_review_from_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
     return review if isinstance(review, dict) else {}
 
 
+def _semantic_risk_rank(value: Any) -> int:
+    return {
+        "benign": 0,
+        "unknown": 1,
+        "medium": 2,
+        "high": 3,
+    }.get(str(value or "").strip().lower(), 1)
+
+
 def _normalize_mistral_semantic_review(raw: Dict[str, Any], fallback: Dict[str, Any]) -> Dict[str, Any]:
     risk_class = str(raw.get("risk_class") or raw.get("severity") or "unknown").strip().lower()
     if risk_class not in {"high", "medium", "benign", "unknown"}:
         risk_class = "unknown"
+    fallback_risk_class = str(fallback.get("risk_class") or "unknown").strip().lower()
+    preserve_atlas_high = fallback_risk_class == "high" and _semantic_risk_rank(risk_class) < _semantic_risk_rank("high")
     reason_codes = [
         str(item).strip()
         for item in raw.get("reason_codes") or []
@@ -2498,13 +2509,22 @@ def _normalize_mistral_semantic_review(raw: Dict[str, Any], fallback: Dict[str, 
     ]
     if not reason_codes:
         reason_codes = [f"semantic:{risk_class}"]
+    if preserve_atlas_high:
+        risk_class = "high"
+        reason_codes = _dedupe_preserve_order(reason_codes + ["semantic:atlas_high_preserved"])
+
+    legit_template = (bool(raw.get("claim_matches_legit_template")) or risk_class == "benign") and risk_class == "benign"
 
     return {
         "status": "done",
-        "claim_matches_known_scam_family": bool(raw.get("claim_matches_known_scam_family")) or risk_class in {"high", "medium"},
+        "claim_matches_known_scam_family": (
+            bool(raw.get("claim_matches_known_scam_family"))
+            or risk_class in {"high", "medium"}
+            or (preserve_atlas_high and bool(fallback.get("claim_matches_known_scam_family")))
+        ),
         "matched_family": raw.get("matched_family") or fallback.get("matched_family"),
-        "claim_matches_legit_template": bool(raw.get("claim_matches_legit_template")) or risk_class == "benign",
-        "matched_template": raw.get("matched_template") or fallback.get("matched_template"),
+        "claim_matches_legit_template": legit_template,
+        "matched_template": (raw.get("matched_template") or fallback.get("matched_template")) if legit_template else None,
         "reason_codes": _dedupe_preserve_order(reason_codes + ["semantic:mistral_pillar"]),
         "risk_class": risk_class,
         "confidence": raw.get("confidence"),

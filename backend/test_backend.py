@@ -1328,6 +1328,39 @@ def test_orchestrated_reputation_stage_runs_mistral_as_semantic_pillar(monkeypat
     assert "user_risk_label" not in review
 
 
+def test_mistral_semantic_review_cannot_downgrade_atlas_high_risk_family():
+    fallback = {
+        "status": "done",
+        "claim_matches_known_scam_family": True,
+        "matched_family": "F13",
+        "claim_matches_legit_template": False,
+        "matched_template": None,
+        "reason_codes": ["semantic:high", "family:f13"],
+        "risk_class": "high",
+        "confidence_class": "medium",
+        "family_confidence": 0.42,
+        "completeness": True,
+        "source": "scam_atlas_structured",
+    }
+    raw = {
+        "risk_class": "medium",
+        "claim_matches_known_scam_family": True,
+        "matched_family": "F13",
+        "claim_matches_legit_template": False,
+        "matched_template": None,
+        "reason_codes": ["semantic:mistral_medium"],
+        "confidence": 0.71,
+    }
+
+    review = app_main._normalize_mistral_semantic_review(raw, fallback)
+
+    assert review["risk_class"] == "high"
+    assert review["claim_matches_known_scam_family"] is True
+    assert review["claim_matches_legit_template"] is False
+    assert review["matched_family"] == "F13"
+    assert "semantic:atlas_high_preserved" in review["reason_codes"]
+
+
 def test_orchestrated_reputation_analysis_reuses_existing_intel_without_deep_fallback(monkeypatch):
     def fake_engine_analyze(text, **kwargs):
         return {
