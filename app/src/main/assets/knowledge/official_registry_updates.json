@@ -644,5 +644,28 @@
     ],
     "confidence": "high",
     "notes": "Avertisment explicit pe ghiseul.ro: nu anunță prin SMS/e-mail obligații de plată."
+  },
+  {
+    "brand_id": "help_net",
+    "display_name": "Help Net",
+    "official_domains": [
+      "helpnet.ro",
+      "www.helpnet.ro"
+    ],
+    "official_apps_or_channels": [
+      "helpnet.ro",
+      "www.helpnet.ro"
+    ],
+    "approved_tracking_or_partner_domains": [],
+    "source_urls": [
+      {
+        "source_id": "helpnet_home",
+        "url": "https://www.helpnet.ro/",
+        "published": "unknown",
+        "accessed": "2026-06-08"
+      }
+    ],
+    "confidence": "medium",
+    "notes": "Domeniu oficial folosit pentru false-positive guard pe campanii/regulamente promoționale; nu este o alertă anti-scam specifică."
   }
 ]

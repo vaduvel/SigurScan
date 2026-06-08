@@ -4391,8 +4391,12 @@ def test_backend_scam_atlas_loads_romania_knowledge_pack_registry():
     assert "ppcenergy.ro" in scam_atlas.BRAND_REGISTRY["PPC Energie"]
     assert "Orange / YOXO" in scam_atlas.BRAND_REGISTRY
     assert "newsroom.orange.ro" in scam_atlas.BRAND_REGISTRY["Orange / YOXO"]
+    assert "Help Net" in scam_atlas.BRAND_REGISTRY
+    assert "helpnet.ro" in scam_atlas.BRAND_REGISTRY["Help Net"]
     assert "ghiseul" in scam_atlas.TRUSTED_BASE_NAMES
     assert scam_atlas.TRUSTED_BASE_NAMES["ghiseul"] == "Ghișeul.ro"
+    assert "helpnet" in scam_atlas.TRUSTED_BASE_NAMES
+    assert scam_atlas.TRUSTED_BASE_NAMES["helpnet"] == "Help Net"
 
     result = ScamAtlasEngine().analyze(
         "Ghișeul.ro: mesaj informativ, intră manual pe portal pentru taxe locale.",
@@ -4408,6 +4412,22 @@ def test_backend_scam_atlas_loads_romania_knowledge_pack_registry():
 
     assert result["claimed_brand"] == "Ghișeul.ro"
     assert result["evidence"]["has_domain_mismatch"] is False
+
+    helpnet_result = ScamAtlasEngine().analyze(
+        "La Help Net poti castiga un sejur de vis. Regulament: https://bit.ly/4qt0UnU",
+        [
+            {
+                "url": "https://bit.ly/4qt0UnU",
+                "registered_domain": "bit.ly",
+                "final_url": "https://www.helpnet.ro/data/images/_orig/6/3_55726.pdf",
+                "final_hostname": "www.helpnet.ro",
+                "final_registered_domain": "helpnet.ro",
+            }
+        ],
+    )
+
+    assert helpnet_result["claimed_brand"] == "Help Net"
+    assert helpnet_result["evidence"]["has_domain_mismatch"] is False
 
 
 def test_scam_atlas_seed_is_loaded_from_repo_data():
