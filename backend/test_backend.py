@@ -1222,7 +1222,7 @@ def test_orchestrated_text_scan_completes_safe_after_urlscan_preview(monkeypatch
             "/v1/scan/orchestrated",
             json={"input_type": "text", "text": message, "source_channel": "android_native"},
         ).json()
-        response, payload = _poll_orchestrated(client, start["scan_id"], count=5)
+        response, payload = _poll_orchestrated(client, start["scan_id"], count=6)
 
     assert response.status_code == 200
     assert payload["status"] == "complete"
@@ -1265,6 +1265,41 @@ def test_orchestrated_scan_finalizes_when_urlscan_report_exists_but_screenshot_i
     assert payload["result"]["is_final"] is True
 
 
+def test_orchestrated_clean_verdict_does_not_wait_for_urlscan_submit(monkeypatch):
+    client = TestClient(app_main.app)
+    message = (
+        "Ai un telefon sau o tableta pe care nu le mai folosesti? "
+        "Acum le poti transforma rapid in bani cu serviciul de buy-back YOXO. "
+        "Afla cat valoreaza dispozitivul tau si incepe procesul chiar acum: buyback.yoxo.ro"
+    )
+
+    def fail_urlscan_submit(*args, **kwargs):
+        raise AssertionError("Clean blocking pillars must finalize before urlscan submit.")
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
+        patched.setattr(app_main, "ENABLE_CLOUD_AI_EXPLANATION", False)
+        patched.setattr(app_main, "URLSCAN_API_KEY", "server-only-key")
+        patched.setattr(app_main, "_safe_scan_url_list", _fake_yoxo_safe_scan)
+        patched.setattr(app_main, "_gather_external_intel_safe", _clean_external_intel_for_resolved_urls)
+        patched.setattr(app_main, "_enrich_offer_claim_verification_async", _fake_confirmed_offer_claim)
+        patched.setattr(app_main.requests, "post", fail_urlscan_submit)
+
+        start = client.post(
+            "/v1/scan/orchestrated",
+            json={"input_type": "text", "text": message, "source_channel": "android_native"},
+        ).json()
+        response, payload = _poll_orchestrated(client, start["scan_id"], count=3)
+
+    assert response.status_code == 200
+    assert payload["status"] == "complete"
+    assert payload["result"]["user_risk_label"] == "SIGUR"
+    assert payload["result"]["risk_level"] == "low"
+    assert payload["pillars"]["urlscan"]["required"] is False
+    assert payload["pillars"]["urlscan"]["status"] == "pending"
+    assert payload["preview"]["report_url"] is None
+
+
 def test_orchestrated_urlscan_late_risk_upgrades_provisional_safe_verdict(monkeypatch):
     client = TestClient(app_main.app)
     message = (
@@ -1290,8 +1325,9 @@ def test_orchestrated_urlscan_late_risk_upgrades_provisional_safe_verdict(monkey
         _, provisional = _poll_orchestrated(client, start["scan_id"], count=3)
         _, upgraded = _poll_orchestrated(client, start["scan_id"], count=2)
 
-    assert provisional["status"] == "scanning"
-    assert provisional["result"] is None
+    assert provisional["status"] == "complete"
+    assert provisional["result"]["user_risk_label"] == "SIGUR"
+    assert provisional["pillars"]["urlscan"]["status"] == "pending"
     assert upgraded["status"] == "complete"
     assert upgraded["pillars"]["urlscan"]["status"] == "ok"
     assert upgraded["result"]["user_risk_label"] == "PERICULOS"
@@ -1333,6 +1369,99 @@ def test_orchestrated_scan_keeps_clean_verdict_when_urlscan_screenshot_times_out
     assert payload["result"]["user_risk_label"] == "SIGUR"
     assert payload["result"]["risk_level"] == "low"
     assert payload["result"]["is_final"] is True
+
+
+def test_orchestrated_urlscan_result_poll_does_not_probe_screenshot_same_request(monkeypatch):
+    async def fake_get_urlscan_result(uuid, request):
+        return {
+            "uuid": uuid,
+            "status": "finished",
+            "verdict": "No malicious classification",
+            "severity": "low",
+            "details": "urlscan verdict=No malicious classification; score=0",
+            "final_url": "https://buyback.yoxo.ro/",
+            "report_url": "https://urlscan.io/result/urlscan-yoxo-1/",
+            "screenshot_url": "https://backend/screenshot",
+            "score": 0,
+            "categories": [],
+            "brands": [],
+        }
+
+    async def fail_screenshot_probe(uuid):
+        raise AssertionError("Screenshot readiness must be checked in a later poll.")
+
+    job = {
+        "scan_id": "orch_urlscan_result_budget",
+        "created_at": int(time.time()),
+        "pipeline_stage": "urlscan_submitted",
+        "status": "complete",
+        "input_type": "text",
+        "source_channel": "test",
+        "urls": ["https://buyback.yoxo.ro"],
+        "redacted_text": "YOXO buyback https://buyback.yoxo.ro",
+        "analysis": {
+            "risk_score": 10,
+            "risk_level": "low",
+            "detected_family": "Destinație oficială",
+            "detected_family_id": "provider-gate-official-clean",
+            "claimed_brand": "YOXO",
+            "reasons": [],
+            "safe_actions": [],
+            "evidence": {
+                "external_intel_summary": {
+                    "google_web_risk": {"status": "clean", "verdict": "clean", "consulted": True},
+                    "virustotal": {"status": "clean", "verdict": "clean", "consulted": True},
+                },
+                "offer_claim_verification": {"status": "confirmed"},
+                "semantic_review": {
+                    "status": "done",
+                    "claim_matches_known_scam_family": False,
+                    "claim_matches_legit_template": True,
+                    "risk_class": "benign",
+                    "completeness": True,
+                },
+            },
+        },
+        "resolved_urls": [
+            {
+                "url": "https://buyback.yoxo.ro",
+                "final_url": "https://buyback.yoxo.ro",
+                "hostname": "buyback.yoxo.ro",
+                "final_hostname": "buyback.yoxo.ro",
+                "registered_domain": "yoxo.ro",
+                "final_registered_domain": "yoxo.ro",
+                "success": True,
+            }
+        ],
+        "primary_final_url": "https://buyback.yoxo.ro",
+        "claim_verifier_required": False,
+        "urlscan": {
+            "status": "pending",
+            "uuid": "urlscan-yoxo-1",
+            "report_url": "https://urlscan.io/result/urlscan-yoxo-1/",
+        },
+        "preview": {
+            "final_url": "https://buyback.yoxo.ro",
+            "report_url": "https://urlscan.io/result/urlscan-yoxo-1/",
+            "screenshot_url": None,
+        },
+        "extra_fields": {},
+        "result": {"is_final": True, "user_risk_label": "SIGUR", "risk_level": "low"},
+        "orchestration_metrics": {"poll_count": 0, "stage_sequence": [], "stage_durations_ms": {}},
+    }
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "get_urlscan_result", fake_get_urlscan_result)
+        patched.setattr(app_main, "_urlscan_screenshot_is_ready", fail_screenshot_probe)
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+
+    assert refreshed["urlscan"]["status"] == "finished"
+    assert refreshed["urlscan"]["screenshot_ready"] is False
+    assert refreshed["preview"]["report_url"] == "https://urlscan.io/result/urlscan-yoxo-1/"
+    assert refreshed["preview"]["screenshot_url"] is None
 
 
 def test_orchestrated_load_prefers_persistent_store_over_stale_process_cache(monkeypatch):
@@ -1749,6 +1878,7 @@ def test_orchestrated_urlscan_timeout_can_rehydrate_finished_report(monkeypatch)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_build_ai_explanation_async", fake_ai_explanation)
         refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+        refreshed = asyncio.run(app_main._refresh_orchestrated_job(refreshed, None))
 
     assert refreshed["urlscan"]["status"] == "finished"
     assert refreshed["preview"]["screenshot_url"] == "https://backend/screenshot"

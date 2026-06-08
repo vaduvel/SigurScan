@@ -2239,19 +2239,11 @@ def _provider_verdict_for_decision_bundle(
             consulted.append(name)
         if status in {"missing", "unknown", "error"}:
             unknown.append(name)
-    urlscan_optional_terminal = False
+    urlscan_optional = False
     if isinstance(pillars, dict):
         urlscan_pillar = pillars.get("urlscan")
-        if isinstance(urlscan_pillar, dict) and not urlscan_pillar.get("required", True):
-            urlscan_optional_terminal = str(urlscan_pillar.get("status") or "").strip().lower() in {
-                "ok",
-                "not_required",
-                "error",
-                "timeout",
-                "rate_limited",
-                "skipped",
-            }
-    if not any(name in consulted for name in ("urlscan", "urlscan.io")) and not urlscan_optional_terminal:
+        urlscan_optional = isinstance(urlscan_pillar, dict) and not urlscan_pillar.get("required", True)
+    if not any(name in consulted for name in ("urlscan", "urlscan.io")) and not urlscan_optional:
         return {"verdict": "pending", "hits": sorted(set(consulted)), "completeness": False, "pending": ["urlscan"]}
     if consulted and len(unknown) < len(consulted):
         return {"verdict": "clean", "hits": sorted(set(consulted)), "completeness": True}
@@ -4739,7 +4731,7 @@ def _build_orchestrated_pillars(job: Dict[str, Any]) -> Dict[str, Dict[str, Any]
         details = str(urlscan_state.get("verdict") or "finished")
         if not screenshot_ready:
             details = f"{details}; captura inca se proceseaza"
-        urlscan_pillar = _pillar("ok", required=has_urls, details=details, ref=urlscan_state.get("uuid"))
+        urlscan_pillar = _pillar("ok", required=False, details=details, ref=urlscan_state.get("uuid"))
     elif urlscan_status == "skipped" and not has_urls:
         urlscan_pillar = _pillar("not_required", required=False, details="nu exista URL pentru preview")
     elif urlscan_status in {"error", "timeout", "rate_limited", "skipped"}:
@@ -4752,11 +4744,11 @@ def _build_orchestrated_pillars(job: Dict[str, Any]) -> Dict[str, Dict[str, Any]
                 ref=urlscan_state.get("uuid"),
             )
         else:
-            urlscan_pillar = _pillar("error", required=has_urls, details=urlscan_details, ref=urlscan_state.get("uuid"))
+            urlscan_pillar = _pillar("error", required=False, details=urlscan_details, ref=urlscan_state.get("uuid"))
     elif urlscan_state.get("uuid"):
-        urlscan_pillar = _pillar("pending", required=has_urls, details="urlscan verdict este in procesare.", ref=urlscan_state.get("uuid"))
+        urlscan_pillar = _pillar("pending", required=False, details="urlscan verdict este in procesare.", ref=urlscan_state.get("uuid"))
     else:
-        urlscan_pillar = _pillar("pending", required=has_urls, details="urlscan verdict nu a pornit.")
+        urlscan_pillar = _pillar("pending", required=False, details="urlscan verdict nu a pornit.")
 
     if not has_urls:
         final_url_pillar = _pillar("not_required", required=False, details="mesajul nu contine URL verificabil")
@@ -5010,6 +5002,9 @@ async def _finalize_orchestrated_job_if_ready(job: Dict[str, Any], request: Requ
     evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
     gate = evidence.get("verdict_gate") if isinstance(evidence.get("verdict_gate"), dict) else {}
     if str(gate.get("label") or "").upper() == "PENDING":
+        if existing_result and existing_result.get("is_final", True) is not False:
+            _emit_orchestrated_telemetry("orchestrated_verdict_pending_preserved_final", job)
+            return job
         job.pop("result", None)
         job.pop("result_fingerprint", None)
         _emit_orchestrated_telemetry("orchestrated_verdict_pending", job)
@@ -5406,7 +5401,17 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
     )
     if should_refresh_urlscan:
         try:
-            result = await get_urlscan_result(str(urlscan_state["uuid"]), request)
+            if urlscan_status == "finished" and not urlscan_state.get("screenshot_ready"):
+                screenshot_ready = await _urlscan_screenshot_is_ready(str(urlscan_state["uuid"]))
+                urlscan_state["screenshot_ready"] = screenshot_ready
+                if screenshot_ready:
+                    urlscan_state["details"] = str(urlscan_state.get("verdict") or "urlscan result este gata")
+                    preview = job.setdefault("preview", {})
+                    preview["screenshot_url"] = urlscan_state.get("screenshot_url") or preview.get("screenshot_url")
+                job["urlscan"] = urlscan_state
+                result = None
+            else:
+                result = await get_urlscan_result(str(urlscan_state["uuid"]), request)
         except HTTPException as exc:
             if urlscan_status not in {"finished", "timeout"}:
                 urlscan_state["status"] = "error"
@@ -5415,15 +5420,13 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
             result = None
         if result is not None:
             if str(result.get("status") or "").lower() != "pending":
-                screenshot_ready = await _urlscan_screenshot_is_ready(str(urlscan_state["uuid"]))
                 urlscan_state.update(result)
-                urlscan_state["screenshot_ready"] = screenshot_ready
+                urlscan_state["screenshot_ready"] = False
                 urlscan_state["status"] = "finished"
-                if not screenshot_ready:
-                    urlscan_state["details"] = "urlscan result este gata, dar captura inca se proceseaza."
+                urlscan_state["details"] = "urlscan result este gata, dar captura inca se proceseaza."
                 job["urlscan"] = urlscan_state
                 preview = job.setdefault("preview", {})
-                preview["screenshot_url"] = result.get("screenshot_url") if screenshot_ready else None
+                preview["screenshot_url"] = preview.get("screenshot_url")
                 preview["report_url"] = result.get("report_url") or preview.get("report_url")
                 preview["final_url"] = result.get("final_url") or preview.get("final_url")
                 if result.get("final_url"):
