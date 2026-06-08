@@ -1192,8 +1192,13 @@ def test_orchestrated_reputation_stage_runs_mistral_as_semantic_pillar(monkeypat
         patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
 
         refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+        assert refreshed["pipeline_stage"] == "semantic_ready"
+        assert "semantic_review" not in refreshed["analysis"].get("evidence", {})
+
+        refreshed = asyncio.run(app_main._refresh_orchestrated_job(refreshed, None))
 
     review = refreshed["analysis"]["evidence"]["semantic_review"]
+    assert refreshed["pipeline_stage"] == "claim_ready"
     assert review["source"] == "mistral_semantic_pillar"
     assert review["risk_class"] == "benign"
     assert review["claim_matches_legit_template"] is True
@@ -1222,7 +1227,7 @@ def test_orchestrated_text_scan_completes_safe_after_urlscan_preview(monkeypatch
             "/v1/scan/orchestrated",
             json={"input_type": "text", "text": message, "source_channel": "android_native"},
         ).json()
-        response, payload = _poll_orchestrated(client, start["scan_id"], count=6)
+        response, payload = _poll_orchestrated(client, start["scan_id"], count=8)
 
     assert response.status_code == 200
     assert payload["status"] == "complete"
@@ -1255,7 +1260,7 @@ def test_orchestrated_scan_finalizes_when_urlscan_report_exists_but_screenshot_i
             "/v1/scan/orchestrated",
             json={"input_type": "text", "text": message, "source_channel": "android_native"},
         ).json()
-        response, payload = _poll_orchestrated(client, start["scan_id"], count=5)
+        response, payload = _poll_orchestrated(client, start["scan_id"], count=7)
 
     assert response.status_code == 200
     assert payload["status"] == "complete"
@@ -1289,7 +1294,7 @@ def test_orchestrated_clean_verdict_does_not_wait_for_urlscan_submit(monkeypatch
             "/v1/scan/orchestrated",
             json={"input_type": "text", "text": message, "source_channel": "android_native"},
         ).json()
-        response, payload = _poll_orchestrated(client, start["scan_id"], count=3)
+        response, payload = _poll_orchestrated(client, start["scan_id"], count=5)
 
     assert response.status_code == 200
     assert payload["status"] == "complete"
@@ -1322,7 +1327,7 @@ def test_orchestrated_urlscan_late_risk_upgrades_provisional_safe_verdict(monkey
             "/v1/scan/orchestrated",
             json={"input_type": "text", "text": message, "source_channel": "android_native"},
         ).json()
-        _, provisional = _poll_orchestrated(client, start["scan_id"], count=3)
+        _, provisional = _poll_orchestrated(client, start["scan_id"], count=5)
         _, upgraded = _poll_orchestrated(client, start["scan_id"], count=2)
 
     assert provisional["status"] == "complete"
@@ -1358,7 +1363,7 @@ def test_orchestrated_scan_keeps_clean_verdict_when_urlscan_screenshot_times_out
             "/v1/scan/orchestrated",
             json={"input_type": "text", "text": message, "source_channel": "android_native"},
         ).json()
-        _poll_orchestrated(client, start["scan_id"], count=4)
+        _poll_orchestrated(client, start["scan_id"], count=7)
         app_main._ORCHESTRATED_SCAN_JOBS[start["scan_id"]]["created_at"] -= 5
         response, payload = _poll_orchestrated(client, start["scan_id"], count=1)
 
@@ -2515,7 +2520,7 @@ def test_orchestrated_yoxo_weak_vt_and_urlscan_prevented_finalizes_safe(monkeypa
             "/v1/scan/orchestrated",
             json={"input_type": "text", "text": message, "source_channel": "android_native"},
         ).json()
-        response, payload = _poll_orchestrated(client, start["scan_id"], count=5)
+        response, payload = _poll_orchestrated(client, start["scan_id"], count=6)
 
     assert response.status_code == 200
     assert payload["status"] == "complete"
@@ -2549,7 +2554,7 @@ def test_orchestrated_fan_payment_scam_finalizes_dangerous_when_urlscan_rejects_
             "/v1/scan/orchestrated",
             json={"input_type": "text", "text": message, "source_channel": "android_native"},
         ).json()
-        response, payload = _poll_orchestrated(client, start["scan_id"], count=4)
+        response, payload = _poll_orchestrated(client, start["scan_id"], count=6)
 
     assert response.status_code == 200
     assert payload["status"] == "complete"

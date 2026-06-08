@@ -4336,6 +4336,8 @@ _ORCHESTRATED_STAGE_RANK = {
     "queued": 0,
     "resolved": 10,
     "reputation_ready": 20,
+    "semantic_ready": 25,
+    "claim_ready": 28,
     "analysis_ready": 30,
     "urlscan_submitting": 35,
     "urlscan_submitted": 40,
@@ -5299,19 +5301,7 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
             threat_intel_override=threat_intel,
         )
         analysis.setdefault("evidence", {})["source_channel"] = job.get("source_channel")
-        await _enrich_semantic_review_async(redacted_text, analysis, resolved_urls)
         claim_required = _claim_verifier_required(analysis)
-        evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
-        summary = evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {}
-        if claim_required and not _has_bad_provider_verdict(summary):
-            await _enrich_offer_claim_verification_async(redacted_text, analysis, resolved_urls)
-        else:
-            reason = (
-                "Claim web check skipped because hard reputation evidence is already decisive."
-                if _has_bad_provider_verdict(summary)
-                else "Claim web check skipped because no concrete offer/brand claim was detected."
-            )
-            _attach_offer_claim_verification(analysis, _skipped_offer_claim_payload(reason))
 
         primary_entry = _select_primary_resolved_url(resolved_urls, analysis)
         primary_final_url = None
@@ -5323,6 +5313,40 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
         job["primary_final_url"] = primary_final_url
         preview = job.setdefault("preview", {})
         preview["final_url"] = primary_final_url
+        _set_orchestrated_stage(job, "semantic_ready")
+        job = _persist_orchestrated_job(job)
+        _emit_orchestrated_telemetry("orchestrated_stage_semantic_ready", job, claim_required=claim_required)
+        return job
+
+    if stage == "semantic_ready":
+        redacted_text = str(job.get("redacted_text") or "")
+        resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
+        analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
+        await _enrich_semantic_review_async(redacted_text, analysis, resolved_urls)
+        job["analysis"] = analysis
+        _set_orchestrated_stage(job, "claim_ready")
+        job = _persist_orchestrated_job(job)
+        _emit_orchestrated_telemetry("orchestrated_stage_claim_ready", job)
+        return job
+
+    if stage == "claim_ready":
+        redacted_text = str(job.get("redacted_text") or "")
+        resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
+        analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
+        claim_required = bool(job.get("claim_verifier_required", _claim_verifier_required(analysis)))
+        evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
+        summary = evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {}
+        if claim_required and not _has_bad_provider_verdict(summary):
+            await _enrich_offer_claim_verification_async(redacted_text, analysis, resolved_urls)
+        else:
+            reason = (
+                "Claim web check skipped because hard reputation evidence is already decisive."
+                if _has_bad_provider_verdict(summary)
+                else "Claim web check skipped because no concrete offer/brand claim was detected."
+            )
+            _attach_offer_claim_verification(analysis, _skipped_offer_claim_payload(reason))
+        job["analysis"] = analysis
+        job["claim_verifier_required"] = claim_required
         _set_orchestrated_stage(job, "analysis_ready")
         job = _persist_orchestrated_job(job)
         _emit_orchestrated_telemetry("orchestrated_stage_analysis_ready", job, claim_required=claim_required)
