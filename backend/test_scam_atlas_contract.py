@@ -9,6 +9,9 @@ SEED_PATH = ROOT / "data" / "scam_atlas_ro_2025_2026_seed.json"
 VERDICT_LIKE_FIELDS = {
     "max_verdict_without_provider_scan",
     "max_verdict_with_provider_scan",
+    "max_verdict_supported_without_provider_scan",
+    "max_verdict_supported_with_provider_scan",
+    "expected_final_verdict",
     "suggested_expected_verdict",
 }
 
@@ -51,3 +54,18 @@ def test_runtime_loader_normalizes_every_family_to_semantic_contract():
         for field in ("asks_for", "safe_actions", "channels", "requested_asset", "signals", "sources", "examples"):
             assert isinstance(family[field], list)
         assert VERDICT_LIKE_FIELDS.isdisjoint(family)
+
+
+def test_analyze_exposes_structured_family_semantic_evidence():
+    result = ScamAtlasEngine().analyze(
+        "Sunt fiul tau si am avut accident. Am nevoie urgent de bani prin IBAN-ul unui prieten.",
+        [],
+    )
+    evidence = result["evidence"]
+
+    assert isinstance(evidence["scam_family"], dict)
+    assert evidence["scam_family"]["id"] == result["detected_family_id"]
+    assert evidence["family_confidence"] == result["confidence"]
+    assert evidence["family_high_risk_text_only"] is True
+    assert evidence["semantic_review"]["source"] == "scam_atlas_structured"
+    assert evidence["semantic_review"]["risk_class"] == "high"

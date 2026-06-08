@@ -4,22 +4,10 @@ import com.google.gson.annotations.SerializedName
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import retrofit2.http.Body
-import retrofit2.http.Field
-import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.POST
 import retrofit2.http.Query
-
-data class ScanRequest(
-    val text: String,
-    @SerializedName("source_channel") val sourceChannel: String = "android_native"
-)
-
-data class UrlScanRequest(
-    val url: String,
-    @SerializedName("source_channel") val sourceChannel: String = "android_native"
-)
 
 data class UrlscanSandboxSubmitRequest(
     val url: String,
@@ -69,6 +57,18 @@ data class ScanResponse(
     @SerializedName("extracted_urls") val extractedUrls: List<Map<String, Any>>? = null,
     @SerializedName("resolved_urls") val resolvedUrls: List<Map<String, Any>>? = null,
     @SerializedName("buttons") val buttons: List<Map<String, Any>>? = null,
+    @SerializedName("email_auth") val emailAuth: Map<String, Any>? = null
+)
+
+data class ExtractionResponse(
+    @SerializedName("input_type") val inputType: String? = null,
+    @SerializedName("source_channel") val sourceChannel: String? = null,
+    @SerializedName("redacted_text") val redactedText: String? = null,
+    @SerializedName("html_content") val htmlContent: String? = null,
+    @SerializedName("extracted_urls") val extractedUrls: List<String>? = null,
+    val warning: String? = null,
+    @SerializedName("hidden_url_visibility") val hiddenUrlVisibility: Boolean? = null,
+    val buttons: List<Map<String, Any>>? = null,
     @SerializedName("email_auth") val emailAuth: Map<String, Any>? = null
 )
 
@@ -195,45 +195,32 @@ interface SigurScanApi {
     @GET("v1/scan/orchestrated/{scan_id}")
     suspend fun getOrchestratedScan(@Path("scan_id") scanId: String): OrchestratedScanResponse
 
-    @POST("v1/scan/url")
-    suspend fun scanUrl(@Body request: UrlScanRequest): ScanResponse
+    @retrofit2.http.Multipart
+    @POST("v1/extract/image")
+    suspend fun extractImage(
+        @retrofit2.http.Part image: okhttp3.MultipartBody.Part,
+        @retrofit2.http.Part("source_channel") sourceChannel: okhttp3.RequestBody
+    ): ExtractionResponse
 
-    @POST("v1/scan/text")
-    suspend fun scanText(@Body request: ScanRequest): ScanResponse
+    @retrofit2.http.Multipart
+    @POST("v1/extract/email")
+    suspend fun extractEmail(
+        @retrofit2.http.Part emailFile: okhttp3.MultipartBody.Part,
+        @retrofit2.http.Part("source_channel") sourceChannel: okhttp3.RequestBody
+    ): ExtractionResponse
 
-    @FormUrlEncoded
-    @POST("v1/scan/email")
-    suspend fun scanEmailHtml(
-        @Field("html_content") htmlContent: String,
-        @Field("source_channel") sourceChannel: String = "android_html_share"
-    ): ScanResponse
+    @retrofit2.http.Multipart
+    @POST("v1/extract/pdf")
+    suspend fun extractPdf(
+        @retrofit2.http.Part pdfFile: okhttp3.MultipartBody.Part,
+        @retrofit2.http.Part("source_channel") sourceChannel: okhttp3.RequestBody
+    ): ExtractionResponse
 
     @POST("v1/sandbox/urlscan")
     suspend fun submitUrlscanSandbox(@Body request: UrlscanSandboxSubmitRequest): UrlscanSandboxSubmitResponse
 
     @GET("v1/sandbox/urlscan/{uuid}")
     suspend fun getUrlscanSandboxResult(@Path("uuid") uuid: String): UrlscanSandboxResultResponse
-
-    @retrofit2.http.Multipart
-    @POST("v1/scan/image")
-    suspend fun scanImage(
-        @retrofit2.http.Part image: okhttp3.MultipartBody.Part,
-        @retrofit2.http.Part("source_channel") sourceChannel: okhttp3.RequestBody
-    ): ScanResponse
-
-    @retrofit2.http.Multipart
-    @POST("v1/scan/email")
-    suspend fun scanEmail(
-        @retrofit2.http.Part emailFile: okhttp3.MultipartBody.Part,
-        @retrofit2.http.Part("source_channel") sourceChannel: okhttp3.RequestBody
-    ): ScanResponse
-
-    @retrofit2.http.Multipart
-    @POST("v1/scan/pdf")
-    suspend fun scanPdf(
-        @retrofit2.http.Part pdfFile: okhttp3.MultipartBody.Part,
-        @retrofit2.http.Part("source_channel") sourceChannel: okhttp3.RequestBody
-    ): ScanResponse
 
     @POST("v1/feedback")
     suspend fun sendFeedback(@Body request: FeedbackRequest): Map<String, Any>

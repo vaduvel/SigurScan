@@ -838,6 +838,63 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    private fun linksFromExtraction(response: ExtractionResponse, extractedText: String): List<String> {
+        return (
+            (response.extractedUrls ?: emptyList()) +
+                extractUrls(extractedText) +
+                extractHtmlLinks(extractedText) +
+                response.htmlContent.orEmpty().let { html ->
+                    if (html.isBlank()) emptyList() else extractHtmlLinks(html)
+                }
+            )
+            .mapNotNull { normalizeCandidateUrl(it) ?: it.takeIf { candidate -> candidate.isNotBlank() } }
+            .distinct()
+    }
+
+    private suspend fun runBackendOrchestratedScanFromExtraction(
+        response: ExtractionResponse,
+        fileName: String,
+        inputKind: String,
+        channel: String
+    ) {
+        val extractedText = response.redactedText.orEmpty().trim()
+        val htmlPayload = response.htmlContent?.takeIf { it.isNotBlank() }
+        val links = linksFromExtraction(response, extractedText)
+        if (extractedText.isBlank() && links.isEmpty()) {
+            val result = applyEvidenceGate(
+                current = OfflineAssessment(
+                    family = "Scanare incompletă",
+                    riskScore = 0,
+                    riskLevel = "unknown",
+                    reasons = listOf(response.warning ?: "Nu am putut extrage text sau linkuri verificabile din fișier."),
+                    safeActions = listOf("Reîncearcă scanarea sau trimite textul/linkul în format editabil."),
+                    keyDangers = listOf("Nu avem suficiente dovezi tehnice pentru verdict."),
+                    originalText = "Nu s-a extras conținut verificabil din $fileName."
+                ),
+                rawInput = "Conținut neextras: $fileName",
+                inputKind = inputKind,
+                channel = channel,
+                providerStates = unavailableProviderStates(),
+                completeness = EvidenceCompleteness.LOCAL_ONLY
+            )
+            publishAssessmentResult(null, result)
+            return
+        }
+
+        val assembledInput = MailShareInputAssembler.buildMailScanInput(
+            extractedText.ifBlank { "Conținut extras din $fileName." },
+            links,
+            fileName
+        )
+        text = assembledInput
+        stagedEvidenceHtml = htmlPayload
+        stagedEvidenceLinks = links
+        stagedEvidenceText = assembledInput
+        stagedEvidenceInputKind = inputKind
+        stagedEvidenceChannel = channel
+        runBackendOrchestratedScan(assembledInput, htmlPayload, links)
+    }
+
     private fun providerStatesFromOrchestratedPillars(
         pillars: Map<String, OrchestratedPillarState>?
     ): Map<ProviderId, ProviderState> {
@@ -1645,41 +1702,13 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                     val body = MultipartBody.Part.createFormData("image_file", file.name, requestFile)
                     val source = "android_image_upload".toRequestBody("text/plain".toMediaTypeOrNull())
 
-                    val response = api.scanImage(body, source)
-                    val threatIntel = buildThreatIntel(response.evidence, response)
-                    val targetUrl = pickPrimaryThreatIntelUrl(response)
-                    val result = OfflineAssessment(
-                        scanId = response.scanId,
-                        family = response.detectedFamily ?: "Necunoscut",
-                        riskScore = response.riskScore,
-                        riskLevel = response.riskLevel,
-                        reasons = response.reasons ?: emptyList(),
-                        safeActions = response.safeActions ?: emptyList(),
-                        keyDangers = response.keyDangers ?: emptyList(),
-                        originalText = "Scanare imagine: ${file.name}",
-                        detectedButtons = mapButtons(response.buttons),
-                        emailAuth = mapEmailAuth(response.emailAuth),
-                        threatIntel = threatIntel
-                    )
-                    val gatedResult = applyEvidenceGate(
-                        current = result,
-                        rawInput = response.redactedText ?: "Scanare imagine: ${file.name}",
+                    val response = api.extractImage(body, source)
+                    runBackendOrchestratedScanFromExtraction(
+                        response = response,
+                        fileName = file.name,
                         inputKind = "upload_image",
-                        channel = "image_ocr",
-                        primaryUrl = targetUrl.takeIf { it.isNotBlank() },
-                        finalUrl = targetUrl.takeIf { it.isNotBlank() },
-                        threatIntel = threatIntel,
-                        completeness = if (targetUrl.isBlank()) EvidenceCompleteness.LOCAL_ONLY else EvidenceCompleteness.PARTIAL_ONLINE
+                        channel = "image_ocr"
                     )
-                    assessment = gatedResult
-                    addToHistory(gatedResult)
-
-                    if (targetUrl.isNotBlank()) {
-                        viewModelScope.launch(Dispatchers.IO) {
-                            val enriched = enrichThreatIntelFromServices(targetUrl, threatIntel, gatedResult.riskLevel)
-                            updateThreatIntelInHistory(response.scanId, enriched)
-                        }
-                    }
                 }
             } catch (e: Exception) {
                 if (e is UploadSizeExceededException) {
@@ -1942,42 +1971,13 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 )
                 val source = "android_file_upload".toRequestBody("text/plain".toMediaTypeOrNull())
                 
-                val response = if (isPdf) api.scanPdf(body, source) else api.scanEmail(body, source)
-                
-                val threatIntel = buildThreatIntel(response.evidence, response)
-                val targetUrl = pickPrimaryThreatIntelUrl(response)
-                val result = OfflineAssessment(
-                    scanId = response.scanId,
-                    family = response.detectedFamily ?: "Necunoscut",
-                    riskScore = response.riskScore,
-                    riskLevel = response.riskLevel,
-                    reasons = response.reasons ?: emptyList(),
-                    safeActions = response.safeActions ?: emptyList(),
-                    keyDangers = response.keyDangers ?: emptyList(),
-                    originalText = "Scanare ${if (isPdf) "PDF" else "email"}: $fileName",
-                    detectedButtons = mapButtons(response.buttons),
-                    emailAuth = mapEmailAuth(response.emailAuth),
-                    threatIntel = threatIntel
-                )
-                val gatedResult = applyEvidenceGate(
-                    current = result,
-                    rawInput = response.redactedText ?: "Scanare ${if (isPdf) "PDF" else "email"}: $fileName",
+                val response = if (isPdf) api.extractPdf(body, source) else api.extractEmail(body, source)
+                runBackendOrchestratedScanFromExtraction(
+                    response = response,
+                    fileName = fileName,
                     inputKind = if (isPdf) "import_pdf" else "import_email",
-                    channel = if (isPdf) "pdf" else "email_file",
-                    primaryUrl = targetUrl.takeIf { it.isNotBlank() },
-                    finalUrl = targetUrl.takeIf { it.isNotBlank() },
-                    threatIntel = threatIntel,
-                    completeness = if (targetUrl.isBlank()) EvidenceCompleteness.LOCAL_ONLY else EvidenceCompleteness.PARTIAL_ONLINE
+                    channel = if (isPdf) "pdf_ocr" else "email_file"
                 )
-                assessment = gatedResult
-                addToHistory(gatedResult)
-
-                if (targetUrl.isNotBlank()) {
-                    viewModelScope.launch(Dispatchers.IO) {
-                        val enriched = enrichThreatIntelFromServices(targetUrl, threatIntel, gatedResult.riskLevel)
-                        updateThreatIntelInHistory(response.scanId, enriched)
-                    }
-                }
             } catch (e: Exception) {
                 if (e is UploadSizeExceededException) {
                     val maxMb = MAX_UPLOAD_BYTES / (1024L * 1024L)

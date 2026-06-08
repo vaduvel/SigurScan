@@ -1263,6 +1263,47 @@ class ScamAtlasEngine:
             or (asks_for | requested_assets).intersection(HIGH_RISK_TEXT_ONLY_ASK_MARKERS)
         )
 
+    @classmethod
+    def _semantic_review_from_family(
+        cls,
+        family: Dict[str, Any],
+        confidence: float,
+        *,
+        supports_high_text_only: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        family_id = str(family.get("id") or "").strip()
+        family_name = str(family.get("family") or "").strip()
+        family_key = f"{family_id} {family_name}".lower()
+        known = bool(family_id) and family_id != "unknown-scam"
+        if supports_high_text_only is None:
+            supports_high_text_only = cls._family_supports_high_risk_text_only(family)
+
+        risk_class = "unknown"
+        if confidence < 0.2 or not known:
+            risk_class = "unknown"
+        elif family_key.startswith("guard/") or "guard/" in family_key or "legitim" in family_key:
+            risk_class = "benign"
+        elif supports_high_text_only:
+            risk_class = "high"
+        elif confidence >= 0.2:
+            risk_class = "medium"
+
+        confidence_class = "high" if confidence >= 0.5 else "medium" if confidence >= 0.25 else "low"
+        return {
+            "status": "done",
+            "claim_matches_known_scam_family": risk_class in {"high", "medium"},
+            "matched_family": (family_id or family_name or None) if risk_class in {"high", "medium"} else None,
+            "claim_matches_legit_template": risk_class == "benign",
+            "matched_template": (family_id or family_name or None) if risk_class == "benign" else None,
+            "reason_codes": [f"semantic:{risk_class}", f"family:{(family_id or family_name or 'unknown').lower()}"],
+            "risk_class": risk_class,
+            "confidence_class": confidence_class,
+            "family_confidence": round(float(confidence or 0.0), 3),
+            "confidence": round(float(confidence or 0.0), 3),
+            "completeness": True,
+            "source": "scam_atlas_structured",
+        }
+
     def analyze(
         self,
         text: str,
@@ -1291,6 +1332,7 @@ class ScamAtlasEngine:
         external_intel_summaries: Dict[str, Dict[str, Any]] = {}
 
         has_suspicious_tld = False
+        lexical_evidence: Dict[str, Any] = {}
         behaviour_evidence: Dict[str, List[str]] = {}
         dns_risk_evidence: Dict[str, Dict[str, str]] = {}
         
@@ -1333,6 +1375,11 @@ class ScamAtlasEngine:
                 urls,
                 claimed_brand=claimed_brand,
             )
+            lexical_evidence = {
+                "penalty": lexical_penalty,
+                "reasons": list(lexical_reasons),
+                "has_signal": lexical_penalty > 0,
+            }
             score += lexical_penalty
             reasons.extend(lexical_reasons)
             if lexical_penalty > 0:
@@ -1620,6 +1667,11 @@ class ScamAtlasEngine:
             family_id in legacy_high_risk_text_only_families
             or self._family_supports_high_risk_text_only(family)
         )
+        semantic_review = self._semantic_review_from_family(
+            family,
+            confidence,
+            supports_high_text_only=high_risk_text_only_family,
+        )
         if not urls and confidence >= 0.25 and high_risk_text_only_family:
             score += 75
             reasons.append(
@@ -1747,6 +1799,7 @@ class ScamAtlasEngine:
             "evidence": {
                 "has_domain_mismatch": has_mismatch,
                 "mismatched_domain": mismatched_domain,
+                "url_lexical": lexical_evidence if urls else {},
                 "url_behaviour": behaviour_evidence if urls else {},
                 "url_transport": dns_risk_evidence if urls else {},
                 "extracted_urls": urls,
@@ -1757,5 +1810,9 @@ class ScamAtlasEngine:
                 "external_intel_summary": external_intel_summary,
                 "external_intel_source_status": external_intel_source_status_payload,
                 "email_auth_action": email_context.get("auth_action_plan") if email_context else None,
+                "scam_family": dict(family),
+                "family_confidence": confidence,
+                "family_high_risk_text_only": high_risk_text_only_family,
+                "semantic_review": semantic_review,
             }
         }

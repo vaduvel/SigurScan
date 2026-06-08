@@ -2,11 +2,57 @@ package ro.sigurscan.app
 
 import org.junit.Test
 import org.junit.Assert.*
+import java.io.File
 
 class ScannerViewModelTest {
 
     private fun extractHtmlLinks(content: String): List<String> {
         return HtmlLinkExtractor.extractHtmlLinks(content)
+    }
+
+    @Test
+    fun uploadedMediaAndMailUseOrchestratedPipelineAfterExtraction() {
+        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val apiSource = File("src/main/java/ro/sigurscan/app/SigurScanApi.kt").readText()
+        val forbiddenDirectFinalScans = Regex("""api\.scan(?:Image|Pdf|Email)\(""")
+        val forbiddenLegacyEndpoints = listOf(
+            """@POST("v1/scan/image")""",
+            """@POST("v1/scan/pdf")""",
+            """@POST("v1/scan/email")""",
+            """@POST("v1/scan/text")""",
+            """@POST("v1/scan/url")"""
+        )
+
+        assertFalse(
+            "Image/PDF/email UI flows must not call legacy final scan endpoints directly. " +
+                "They may extract content, but final verdict must go through startOrchestratedScan + polling.",
+            forbiddenDirectFinalScans.containsMatchIn(viewModelSource)
+        )
+        forbiddenLegacyEndpoints.forEach { endpoint ->
+            assertFalse(
+                "Android Retrofit API must not expose legacy final verdict endpoint $endpoint. " +
+                    "Use extract endpoints for intake and /v1/scan/orchestrated for verdict.",
+                apiSource.contains(endpoint)
+            )
+        }
+    }
+
+    @Test
+    fun localOfflineEvaluatorStaysNeutralAndCannotEmitRiskVerdict() {
+        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val start = viewModelSource.indexOf("private fun evaluateOfflineText(scannedText: String): OfflineAssessment")
+        val end = viewModelSource.indexOf("fun onCommunityReport()", start)
+        assertTrue("evaluateOfflineText must exist as a neutral pending-state builder.", start >= 0 && end > start)
+
+        val functionBody = viewModelSource.substring(start, end)
+        assertTrue(functionBody.contains("""riskLevel = "unknown""""))
+        assertTrue(functionBody.contains("""riskScore = 0"""))
+        assertFalse(functionBody.contains("""riskLevel = "low""""))
+        assertFalse(functionBody.contains("""riskLevel = "medium""""))
+        assertFalse(functionBody.contains("""riskLevel = "high""""))
+        assertFalse(functionBody.contains("PERICULOS"))
+        assertFalse(functionBody.contains("SUSPECT"))
+        assertFalse(functionBody.contains("SIGUR"))
     }
 
     @Test

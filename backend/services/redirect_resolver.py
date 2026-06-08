@@ -448,7 +448,10 @@ def resolve_redirects_safely(
     })
 
     session = requests.Session()
-    session.max_redirects = 0  # we handle redirects manually
+    # allow_redirects=False keeps redirect handling manual, but requests still
+    # consults Session.max_redirects internally. A zero value raises
+    # TooManyRedirects before shorteners such as bit.ly can expose the first hop.
+    session.max_redirects = max_redirects + 5
     verify_candidates: List[Any] = [True]
     if certifi is not None:
         verify_candidates.append(certifi.where())
@@ -492,7 +495,7 @@ def resolve_redirects_safely(
             content_type = response.headers.get("Content-Type", "")
 
             if content_length and int(content_length) > 2 * 1024 * 1024:  # 2 MB limit
-                error_msg = f"Scan stopped: Content length too large ({content_length} bytes)"
+                chain[-1]["body_scan_skipped_reason"] = f"Content length too large ({content_length} bytes)"
                 response.close()
                 break
 

@@ -13,6 +13,7 @@ SEED_OUTPUT_PATH = ROOT / "backend" / "data" / "scam_atlas_ro_2025_2026_seed.jso
 BRAND_PACK_OUTPUT_PATH = ROOT / "backend" / "data" / "brand_knowledge_pack.json"
 KNOWLEDGE_OUTPUT_DIR = ROOT / "backend" / "data" / "knowledge"
 CONTRACT_EVAL_OUTPUT_PATH = ROOT / "backend" / "data" / "eval" / "romania_decision_contract_eval_v2026_06_08.jsonl"
+VERDICT_TESTSET_PATH = ROOT / "backend" / "data" / "verdict_testset_ro.jsonl"
 
 
 REQUESTED_ASSET_TERMS = {
@@ -32,6 +33,9 @@ REQUESTED_ASSET_TERMS = {
 VERDICT_LIKE_FIELDS = {
     "max_verdict_without_provider_scan",
     "max_verdict_with_provider_scan",
+    "max_verdict_supported_without_provider_scan",
+    "max_verdict_supported_with_provider_scan",
+    "expected_final_verdict",
     "suggested_expected_verdict",
 }
 
@@ -346,32 +350,129 @@ def _contract_label_to_is_scam(label: str | None) -> bool | None:
     return None
 
 
-def build_contract_eval_records(knowledge: dict) -> list[dict]:
+def _semantic_review_from_verdict_case(case: dict) -> dict:
+    family = str(case.get("family") or "").lower()
+    high_markers = (
+        "bancar/",
+        "taxe/",
+        "amenzi/",
+        "vishing/bnr",
+        "romance",
+        "investitii/",
+        "remote/",
+        "malware/",
+        "takeover/",
+        "job/task",
+        "loterie",
+        "sextortion",
+        "suport-tehnic",
+        "abonament/",
+        "utilitati/",
+        "ceo-fraud",
+    )
+    medium_markers = (
+        "urgenta/",
+        "ceo-fraud/furnizor",
+        "caritate-falsa",
+        "magazin-fals",
+        "job/like",
+        "vishing/banca",
+        "sim-swap",
+    )
+    legit = family.startswith("guard/") or "legit" in family
+    risk_class = "benign" if legit else "unknown"
+    if any(marker in family for marker in high_markers):
+        risk_class = "high"
+    elif any(marker in family for marker in medium_markers):
+        risk_class = "medium"
+    if family == "ceo-fraud/furnizor":
+        risk_class = "medium"
+
+    return {
+        "status": "done",
+        "claim_matches_known_scam_family": risk_class in {"high", "medium"},
+        "matched_family": case.get("family") if risk_class in {"high", "medium"} else None,
+        "claim_matches_legit_template": legit,
+        "matched_template": case.get("family") if legit else None,
+        "reason_codes": [f"semantic:{risk_class}", f"family:{family or 'unknown'}"],
+        "risk_class": risk_class,
+        "completeness": True,
+    }
+
+
+def _evidence_bundle_from_verdict_case(case: dict) -> dict:
+    compact = case.get("bundle") or {}
+    sensitive = compact.get("sensitive")
+    if sensitive == "card" and "transfer" in str(case.get("input") or "").lower():
+        sensitive = "transfer"
+    return {
+        "schema": "sigurscan_evidence_bundle_v2",
+        "input": {
+            "type": case.get("channel") or "unknown",
+            "redacted_text": case.get("input") or "",
+        },
+        "resolution": {
+            "final_url": "https://example.invalid/",
+            "status": compact.get("resolution"),
+            "completeness": compact.get("resolution") == "resolved",
+        },
+        "providers": {
+            "verdict": compact.get("providers"),
+            "hits": [],
+            "completeness": compact.get("providers") not in {"pending"},
+        },
+        "identity": {
+            "claimed_brand": case.get("brand") or None,
+            "status": compact.get("identity"),
+            "tld_suspicious": bool(compact.get("tld_susp")),
+            "completeness": True,
+        },
+        "request": {
+            "sensitive": sensitive,
+            "channel": compact.get("req_channel"),
+            "completeness": True,
+        },
+        "context": {
+            "urgency": False,
+            "passive_payment": False,
+            "apk_or_remote_mention": False,
+        },
+        "semantic_review": _semantic_review_from_verdict_case(case),
+    }
+
+
+def build_contract_eval_records() -> list[dict]:
+    """Build strict decision fixtures from the current Evidence Bundle contract.
+
+    Research acceptance tests contain old oracle labels and must not drive the
+    strict reducer suite. They remain knowledge/QA source material only.
+    """
+
     records: list[dict] = []
-    for entry in knowledge.get("acceptance_tests", []):
-        if not isinstance(entry, dict):
+    with VERDICT_TESTSET_PATH.open("r", encoding="utf-8") as handle:
+        cases = [json.loads(line) for line in handle if line.strip()]
+    for case in cases:
+        if not isinstance(case, dict):
             continue
-        test_id = str(entry.get("test_id") or "").strip()
-        sample_text = str(entry.get("sample_text") or "").strip()
-        if not test_id or not sample_text:
+        test_id = str(case.get("id") or "").strip()
+        sample_text = str(case.get("input") or "").strip()
+        expected_label = str(case.get("label") or "").strip().upper()
+        if not test_id or not sample_text or expected_label not in {"SIGUR", "SUSPECT", "PERICULOS"}:
             continue
-        expected_label = str(entry.get("expected_final_verdict") or "").strip().upper()
         records.append(
             {
                 "id": test_id,
-                "kind": str(entry.get("input_type") or "text").strip().lower(),
+                "kind": str(case.get("channel") or "text").strip().lower(),
                 "text": sample_text,
-                "family_id": entry.get("family_id"),
+                "family": case.get("family"),
                 "expected_contract_label": expected_label,
                 "is_scam": _contract_label_to_is_scam(expected_label),
-                "expected_extracted_targets": _coerce_json_list(entry.get("expected_extracted_targets")),
-                "mocked_provider_results": entry.get("mocked_provider_results") or {},
-                "expected_corpus_signals": _coerce_json_list(entry.get("expected_corpus_signals")),
-                "reason": entry.get("reason"),
-                "source": "romania_scam_atlas_compact_2025_2026",
+                "evidence_bundle": _evidence_bundle_from_verdict_case(case),
+                "reason": case.get("motiv"),
+                "source": "decision_contract_v1",
                 "decision_contract_note": (
-                    "This is a contract/evidence fixture. SUSPECT and PENDING labels are not binary "
-                    "scam labels for precision/recall and must be evaluated by the pure reducer."
+                    "Strict reducer fixture. Expected label comes from the frozen Evidence Bundle "
+                    "contract testset, not from scam atlas research oracle fields."
                 ),
             }
         )
@@ -404,7 +505,7 @@ def write_normalized_knowledge_files(knowledge: dict) -> None:
                 "decision_contract": "docs/DECISION_CONTRACT_V1.md",
                 "role": "corpus/RAG context and acceptance-test source, not verdict authority",
             },
-            "scenario_corpus": knowledge.get("scenario_corpus", []),
+            "scenario_corpus": _strip_verdict_like_fields(knowledge.get("scenario_corpus", [])),
             "false_positive_guards": knowledge.get("false_positive_guards", []),
             "signal_mapping": knowledge.get("signal_mapping", []),
             "sources": knowledge.get("sources", {}),
@@ -429,7 +530,7 @@ def main() -> None:
 
     seed_payload = build_seed_payload(knowledge)
     brand_pack_payload = build_brand_pack_payload(knowledge, existing_pack)
-    contract_eval_records = build_contract_eval_records(knowledge)
+    contract_eval_records = build_contract_eval_records()
 
     _write_json(SEED_OUTPUT_PATH, seed_payload)
     _write_json(BRAND_PACK_OUTPUT_PATH, brand_pack_payload)

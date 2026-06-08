@@ -295,9 +295,7 @@ object ScamKnowledgeLayer {
                     attrs = mapOf(
                         "scenarioId" to scenario.scenarioId,
                         "family" to scenario.family,
-                        "matchedPatterns" to matched.take(5).joinToString(","),
-                        "maxWithoutProviderScan" to scenario.maxVerdictWithoutProviderScan.orEmpty(),
-                        "maxWithProviderScan" to scenario.maxVerdictWithProviderScan.orEmpty()
+                        "matchedPatterns" to matched.take(5).joinToString(",")
                     )
                 )
             )

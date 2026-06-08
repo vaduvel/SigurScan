@@ -142,6 +142,19 @@ ENABLE_CLOUD_AI_EXPLANATION = os.getenv("ENABLE_CLOUD_AI_EXPLANATION", "true").s
 }
 AI_EXPLANATION_TIMEOUT_SECONDS = float(os.getenv("AI_EXPLANATION_TIMEOUT_SECONDS", "2.5"))
 AI_OFFER_CLAIM_TIMEOUT_SECONDS = float(os.getenv("AI_OFFER_CLAIM_TIMEOUT_SECONDS", "5.0"))
+ENABLE_MISTRAL_SEMANTIC_PILLAR = os.getenv("ENABLE_MISTRAL_SEMANTIC_PILLAR", "true").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+MISTRAL_SEMANTIC_API_KEY = os.getenv("MISTRAL_API_KEY", "").strip()
+MISTRAL_SEMANTIC_MODEL = (
+    os.getenv("MISTRAL_SEMANTIC_MODEL")
+    or os.getenv("MISTRAL_MODEL")
+    or "mistral-small-2503"
+).strip()
+MISTRAL_SEMANTIC_TIMEOUT_SECONDS = float(os.getenv("MISTRAL_SEMANTIC_TIMEOUT_SECONDS", "3.0"))
 FAST_REPUTATION_MODE = os.getenv("FAST_REPUTATION_MODE", "true").strip().lower() in {
     "1",
     "true",
@@ -1596,20 +1609,15 @@ def _analysis_needs_vt_fallback(analysis: Dict[str, Any]) -> bool:
     if not os.getenv("VIRUSTOTAL_API_KEY", "").strip():
         return False
 
-    risk_score = 0
-    try:
-        risk_score = int(analysis.get("risk_score", 0) or 0)
-    except Exception:
-        risk_score = 0
-    risk_level = str(analysis.get("risk_level", "")).lower()
-    if risk_level in {"high", "critical"} or risk_score >= VT_FALLBACK_RISK_SCORE:
-        return True
-
     evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
-    if evidence.get("has_domain_mismatch"):
+    if evidence.get("has_domain_mismatch") or evidence.get("url_behaviour") or evidence.get("url_transport"):
         return True
 
-    reasons = " ".join(str(item).lower() for item in analysis.get("reasons", []) if item)
+    family_text = " ".join(
+        str(value).lower()
+        for value in (analysis.get("detected_family_id"), analysis.get("detected_family"))
+        if value
+    )
     sensitive_markers = (
         "card",
         "cvv",
@@ -1627,7 +1635,7 @@ def _analysis_needs_vt_fallback(analysis: Dict[str, Any]) -> bool:
         "neoficial",
         "mismatch",
     )
-    return any(marker in reasons for marker in sensitive_markers)
+    return any(marker in family_text for marker in sensitive_markers)
 
 
 def _analyze_with_reputation(
@@ -1770,80 +1778,6 @@ def _source_ready(summary: Dict[str, Any], source_name: str) -> bool:
     return _source_consulted(summary, source_name) and status not in {"missing", "unknown", "error"}
 
 
-def _provider_reason_has_sensitive_request_signal(reasons: List[str]) -> bool:
-    if not reasons:
-        return False
-
-    combined = _normalise_obfuscated_text(" ".join(str(reason) for reason in reasons if reason)).lower()
-    if not combined:
-        return False
-
-    hard_markers = (
-        "anydesk",
-        "teamviewer",
-        "apk",
-        "cont seif",
-        "remote access",
-        "acces remote",
-    )
-    if any(marker in combined for marker in hard_markers):
-        return True
-
-    request_verbs = (
-        r"cere\w*",
-        r"solicit\w*",
-        r"introdu\w*",
-        r"trimite\w*",
-        r"transmite\w*",
-        r"comunic\w*",
-        r"r[aă]spunde\w*",
-        r"completeaz\w*",
-        r"actualiz\w*",
-        r"verific\w*",
-        r"valideaz\w*",
-        r"confirm\w*",
-        r"spune\w*",
-    )
-    sensitive_assets = (
-        r"date(?:le)?\s+(?:de\s+)?card(?:ului)?",
-        r"num[aă]r(?:ul)?\s+(?:de\s+)?card(?:ului)?",
-        r"ultimele\s+\d+\s+cifre\s+(?:ale\s+)?card(?:ului)?",
-        r"card(?:ul|ului)?",
-        r"cvv",
-        r"cvc",
-        r"parol[aă]",
-        r"otp",
-        r"cod(?:ul)?\s+(?:otp|sms|whatsapp|2fa|de\s+autentificare|de\s+verificare)",
-        r"pin(?:-ul|ul)?",
-        r"iban",
-        r"login",
-        r"date(?:le)?\s+(?:personale|de\s+cont|de\s+autentificare)",
-        r"copie\s+act",
-        r"act(?:ul)?\s+(?:de\s+)?identitate",
-        r"identitate",
-    )
-    verb_near_asset = re.compile(
-        rf"(?:{'|'.join(request_verbs)})(?:\W+\w+){{0,10}}\W+(?:{'|'.join(sensitive_assets)})",
-        re.IGNORECASE,
-    )
-    asset_near_verb = re.compile(
-        rf"(?:{'|'.join(sensitive_assets)})(?:\W+\w+){{0,10}}\W+(?:{'|'.join(request_verbs)})",
-        re.IGNORECASE,
-    )
-    if verb_near_asset.search(combined) or asset_near_verb.search(combined):
-        return True
-
-    transfer_money = re.search(
-        r"(?:transfer[aă]|mut[aă]|depune|trimite)(?:\W+\w+){0,8}\W+(?:bani|fonduri|sume|economii)",
-        combined,
-        re.IGNORECASE,
-    )
-    if transfer_money:
-        return True
-
-    return False
-
-
 def _has_bad_provider_verdict(summary: Dict[str, Any]) -> bool:
     provider_names = ("google_web_risk", "virustotal", "urlscan", "urlscan.io", "urlhaus")
     bad_tokens = ("malicious", "suspicious", "phishing", "phish", "malware")
@@ -1920,7 +1854,7 @@ def _brand_warning_rule_for_claimed_brand(claimed_brand: str) -> Optional[Dict[s
     return None
 
 
-def _brand_warning_matches_text(claimed_brand: str, raw_text: str, reasons: List[str]) -> Dict[str, Any]:
+def _brand_warning_matches_text(claimed_brand: str, raw_text: str) -> Dict[str, Any]:
     rule = _brand_warning_rule_for_claimed_brand(claimed_brand)
     if not isinstance(rule, dict):
         return {"triggered": False, "matched_assets": [], "brand_id": None}
@@ -2117,89 +2051,13 @@ def _has_sensitive_url_path(resolved_urls: List[Dict[str, Any]]) -> bool:
     return False
 
 
-def _is_text_only_decisive_scam_family(analysis: Dict[str, Any]) -> bool:
-    family_id = str(analysis.get("detected_family_id") or "").upper()
-    decisive_families = {
-        "RO_SCN_005_CREDIT_FRAUDULOS",
-        "RO_SCN_008_TELEFON_STRICAT",
-        "RO_SCN_009_ACCIDENT_NEPOT",
-        "RO_SCN_012_CRYPTO_BROKER_REMOTE",
-        "RO_SCN_013_FAKE_BANK_APK",
-        "RO_SCN_018_REVOLUT_CALL_OTP",
-    }
-    if family_id in decisive_families:
-        return True
-    reasons_text = " ".join(str(item).lower() for item in analysis.get("reasons", []) if item)
-    return "fraudă socială" in reasons_text or "frauda sociala" in reasons_text
-
-
-def _required_pillar_error_names(pillars: Optional[Dict[str, Dict[str, Any]]]) -> List[str]:
-    if not isinstance(pillars, dict):
-        return []
-    names: List[str] = []
-    for name, pillar in pillars.items():
-        if not isinstance(pillar, dict):
-            continue
-        if pillar.get("required", True) and str(pillar.get("status") or "").lower() == "error":
-            names.append(name)
-    return names
-
-
-def _is_decisive_structural_danger(
-    analysis: Dict[str, Any],
-    resolved_urls: List[Dict[str, Any]],
-    *,
-    raw_text: str = "",
-    pillars: Optional[Dict[str, Dict[str, Any]]] = None,
-) -> bool:
-    if not resolved_urls:
-        return False
-
-    evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
-    claimed_brand = str(analysis.get("claimed_brand") or "Nespecificat")
-    if _official_destination_confirmed(resolved_urls, claimed_brand):
-        return False
-
-    has_domain_mismatch = bool(evidence.get("has_domain_mismatch"))
-    risk_level = str(analysis.get("risk_level") or "").lower()
-    family_id = str(analysis.get("detected_family_id") or "").lower()
-    family = str(analysis.get("detected_family") or "").lower()
-    reasons_text = " ".join(str(item) for item in analysis.get("reasons", []) if item)
-    combined_text = " ".join([raw_text or "", reasons_text, family_id, family])
-
-    if not has_domain_mismatch:
-        return False
-
-    sensitive_intent = _has_decisive_sensitive_intent(combined_text)
-    known_structural_family = any(
-        marker in f"{family_id} {family}"
-        for marker in (
-            "curier",
-            "fan",
-            "posta",
-            "anaf",
-            "banca",
-            "revolut",
-            "olx",
-            "marketplace",
-        )
-    )
-    brand_warning = _brand_warning_matches_text(claimed_brand, raw_text, list(analysis.get("reasons", []) or []))
-    provider_error_names = _required_pillar_error_names(pillars)
-    return sensitive_intent and (
-        risk_level in {"high", "critical", "dangerous"}
-        or known_structural_family
-        or bool(provider_error_names)
-        or bool(brand_warning.get("triggered"))
-    )
-
-
 def _collect_infrastructure_flags(
     analysis: Dict[str, Any],
     resolved_urls: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
     evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
-    reasons_text = " ".join(str(item) for item in analysis.get("reasons", []) if item).lower()
+    lexical_evidence = evidence.get("url_lexical") if isinstance(evidence.get("url_lexical"), dict) else {}
+    lexical_text = " ".join(str(item) for item in lexical_evidence.get("reasons", []) if item).lower()
     extracted_urls = evidence.get("extracted_urls") if isinstance(evidence.get("extracted_urls"), list) else resolved_urls
     url_behaviour = evidence.get("url_behaviour") if isinstance(evidence.get("url_behaviour"), dict) else {}
     url_transport = evidence.get("url_transport") if isinstance(evidence.get("url_transport"), dict) else {}
@@ -2217,10 +2075,10 @@ def _collect_infrastructure_flags(
 
     youngest_domain_age_days = min(age_days) if age_days else None
     return {
-        "typosquat": "typosquatting" in reasons_text or "lookalike" in reasons_text or "mismatch critic" in reasons_text,
-        "homoglyph": "homoglif" in reasons_text or "homoglyph" in reasons_text,
-        "punycode": "punycode" in reasons_text or "idn/punycode" in reasons_text,
-        "dga_entropy": "entropie ridicat" in reasons_text or "entropie mare" in reasons_text or "entropy" in reasons_text or "dga" in reasons_text,
+        "typosquat": "typosquatting" in lexical_text or "lookalike" in lexical_text or "mismatch critic" in lexical_text,
+        "homoglyph": "homoglif" in lexical_text or "homoglyph" in lexical_text,
+        "punycode": "punycode" in lexical_text or "idn/punycode" in lexical_text,
+        "dga_entropy": "entropie ridicat" in lexical_text or "entropie mare" in lexical_text or "entropy" in lexical_text or "dga" in lexical_text,
         "very_new_domain": youngest_domain_age_days is not None and youngest_domain_age_days < 7,
         "suspicious_domain_age": youngest_domain_age_days is not None and youngest_domain_age_days < 30,
         "url_behaviour": bool(url_behaviour),
@@ -2345,9 +2203,11 @@ def _identity_status_for_decision_bundle(
             "completeness": True,
         }
 
-    if bool(evidence.get("has_domain_mismatch")):
+    normalized_claim = _normalize_claimed_brand(claimed_brand)
+    has_resolved_destination = bool(_first_final_url(resolved_urls))
+    if normalized_claim and has_resolved_destination:
         return {
-            "claimed_brand": claimed_brand if _normalize_claimed_brand(claimed_brand) else None,
+            "claimed_brand": claimed_brand,
             "status": "lookalike" if infra_flags.get("typosquat") or infra_flags.get("homoglyph") or infra_flags.get("punycode") else "unrelated",
             "tld_suspicious": bool(
                 infra_flags.get("typosquat")
@@ -2457,63 +2317,204 @@ def _semantic_review_for_decision_bundle(
     if isinstance(existing, dict) and existing.get("status"):
         return existing
 
-    family_id = str(analysis.get("detected_family_id") or "").strip()
-    family = str(analysis.get("detected_family") or "").strip()
-    risk_level = str(analysis.get("risk_level") or "").strip().lower()
-    reason_blob = " ".join(str(item).lower() for item in analysis.get("reasons", []) if item)
-    semantic_key = f"{family_id} {family} {reason_blob}".lower()
+    family = evidence.get("scam_family") if isinstance(evidence.get("scam_family"), dict) else {}
+    family_id = str(family.get("id") or analysis.get("detected_family_id") or "").strip()
+    family_name = str(family.get("family") or analysis.get("detected_family") or "").strip()
+    try:
+        confidence = float(evidence.get("family_confidence") or 0.0)
+    except Exception:
+        confidence = 0.0
+    supports_high_text_only = bool(evidence.get("family_high_risk_text_only"))
+    known = bool(family_id) and family_id != "unknown-scam"
+    confidence_class = "high" if confidence >= 0.5 else "medium" if confidence >= 0.25 else "low"
 
-    benign = official_destination and provider_verdict == "clean"
-    high_markers = (
-        "provider-gate-bad-provider",
-        "fraudă socială",
-        "frauda sociala",
-        "crypto",
-        "remote",
-        "apk",
-        "malware",
-        "phishing",
-        "vishing",
-        "romance",
-        "loterie",
-        "cont sigur",
-        "takeover",
-        "bancar",
-        "anaf",
-        "curier fals",
-        "decisive",
-    )
-    medium_markers = (
-        "magazin",
-        "caritate",
-        "urgenta",
-        "urgentă",
-        "provider-gate-unofficial",
-        "semnale text",
-        "verificare limitată",
-    )
-    if benign:
-        risk_class = "benign"
-    elif risk_level in {"high", "critical", "dangerous"} or any(marker in semantic_key for marker in high_markers):
+    if official_destination and provider_verdict == "clean":
+        return {
+            "status": "done",
+            "claim_matches_known_scam_family": False,
+            "matched_family": None,
+            "claim_matches_legit_template": True,
+            "matched_template": "official_clean_destination",
+            "reason_codes": ["semantic:benign", "identity:official_clean"],
+            "risk_class": "benign",
+            "confidence_class": confidence_class,
+            "family_confidence": round(confidence, 3),
+            "completeness": True,
+            "source": "official_clean_destination",
+        }
+    if provider_verdict == "malicious":
+        return {
+            "status": "done",
+            "claim_matches_known_scam_family": False,
+            "matched_family": None,
+            "claim_matches_legit_template": False,
+            "matched_template": None,
+            "reason_codes": ["semantic:unknown", "provider:malicious_decisive"],
+            "risk_class": "unknown",
+            "confidence_class": confidence_class,
+            "family_confidence": round(confidence, 3),
+            "completeness": True,
+            "source": "provider_decisive_no_semantic_needed",
+        }
+
+    if known and confidence >= 0.25 and supports_high_text_only:
         risk_class = "high"
-    elif risk_level == "medium" or any(marker in semantic_key for marker in medium_markers):
+    elif known and confidence >= 0.20:
         risk_class = "medium"
-    elif risk_level == "low":
-        risk_class = "benign"
     else:
         risk_class = "unknown"
+    matched = risk_class in {"high", "medium"}
+    return {
+        "status": "done",
+        "claim_matches_known_scam_family": matched,
+        "matched_family": (family_id or family_name or None) if matched else None,
+        "claim_matches_legit_template": False,
+        "matched_template": None,
+        "reason_codes": [f"semantic:{risk_class}", f"family:{(family_id or 'none').lower()}"],
+        "risk_class": risk_class,
+        "confidence_class": confidence_class,
+        "family_confidence": round(confidence, 3),
+        "completeness": True,
+        "source": "scam_atlas_structured",
+    }
+
+
+MISTRAL_SEMANTIC_SYSTEM_PROMPT = """
+Ești pilonul semantic SigurScan pentru mesaje în limba română.
+Nu ai voie să dai verdict final și nu ai voie să folosești etichete SIGUR/SUSPECT/PERICULOS.
+Primești text redactat, domenii finale și context atlas/corpus. Întorci doar semantic_review structurat.
+Reguli:
+- Marchează high doar când claim-ul seamănă clar cu o familie scam sau cere acțiuni sensibile/social-engineering.
+- Marchează benign doar când claim-ul seamănă cu un șablon legitim/marketing normal și nu cere date sensibile.
+- Marketing language, CTA, reduceri, catalog, newsletter sau link sub buton nu sunt suficiente pentru high.
+- Nu inventa branduri, domenii, provider hits sau fapte lipsă.
+Răspunde strict JSON:
+{
+  "risk_class": "high|medium|benign|unknown",
+  "claim_matches_known_scam_family": false,
+  "matched_family": null,
+  "claim_matches_legit_template": false,
+  "matched_template": null,
+  "reason_codes": ["semantic:..."]
+}
+""".strip()
+
+
+def _semantic_review_from_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
+    evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
+    review = evidence.get("semantic_review")
+    return review if isinstance(review, dict) else {}
+
+
+def _normalize_mistral_semantic_review(raw: Dict[str, Any], fallback: Dict[str, Any]) -> Dict[str, Any]:
+    risk_class = str(raw.get("risk_class") or raw.get("severity") or "unknown").strip().lower()
+    if risk_class not in {"high", "medium", "benign", "unknown"}:
+        risk_class = "unknown"
+    reason_codes = [
+        str(item).strip()
+        for item in raw.get("reason_codes") or []
+        if str(item).strip()
+    ]
+    if not reason_codes:
+        reason_codes = [f"semantic:{risk_class}"]
 
     return {
         "status": "done",
-        "claim_matches_known_scam_family": risk_class in {"high", "medium"},
-        "matched_family": family_id or family or None if risk_class in {"high", "medium"} else None,
-        "claim_matches_legit_template": risk_class == "benign",
-        "matched_template": "official_clean_destination" if risk_class == "benign" else None,
-        "reason_codes": [f"semantic:{risk_class}"],
+        "claim_matches_known_scam_family": bool(raw.get("claim_matches_known_scam_family")) or risk_class in {"high", "medium"},
+        "matched_family": raw.get("matched_family") or fallback.get("matched_family"),
+        "claim_matches_legit_template": bool(raw.get("claim_matches_legit_template")) or risk_class == "benign",
+        "matched_template": raw.get("matched_template") or fallback.get("matched_template"),
+        "reason_codes": _dedupe_preserve_order(reason_codes + ["semantic:mistral_pillar"]),
         "risk_class": risk_class,
+        "confidence": raw.get("confidence"),
         "completeness": True,
-        "source": "scam_atlas_corpus_or_mistral_fallback",
+        "source": "mistral_semantic_pillar",
+        "fallback_source": fallback.get("source"),
     }
+
+
+def _call_mistral_semantic_review(payload: Dict[str, Any]) -> Dict[str, Any]:
+    response = requests.post(
+        "https://api.mistral.ai/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {MISTRAL_SEMANTIC_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": MISTRAL_SEMANTIC_MODEL,
+            "temperature": 0,
+            "max_tokens": 420,
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {"role": "system", "content": MISTRAL_SEMANTIC_SYSTEM_PROMPT},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False, sort_keys=True)},
+            ],
+        },
+        timeout=MISTRAL_SEMANTIC_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    body = response.json()
+    content = (
+        body.get("choices", [{}])[0]
+        .get("message", {})
+        .get("content", "")
+        .strip()
+    )
+    parsed = json.loads(content)
+    return parsed if isinstance(parsed, dict) else {}
+
+
+async def _enrich_semantic_review_async(
+    redacted_text: str,
+    analysis: Dict[str, Any],
+    resolved_urls: List[Dict[str, Any]],
+) -> None:
+    evidence = analysis.setdefault("evidence", {})
+    fallback = _semantic_review_from_analysis(analysis)
+    if not fallback:
+        fallback = {
+            "status": "pending",
+            "risk_class": "unknown",
+            "claim_matches_known_scam_family": False,
+            "claim_matches_legit_template": False,
+            "reason_codes": ["semantic:pending"],
+            "completeness": False,
+            "source": "semantic_review_missing",
+        }
+
+    if PRIVACY_SAFE_MODE or not ENABLE_MISTRAL_SEMANTIC_PILLAR or not MISTRAL_SEMANTIC_API_KEY:
+        evidence["semantic_review"] = fallback
+        return
+
+    payload = {
+        "redacted_text": (redacted_text or "")[:2500],
+        "claimed_brand": analysis.get("claimed_brand"),
+        "atlas_semantic_review": fallback,
+        "family": {
+            "id": analysis.get("detected_family_id"),
+            "name": analysis.get("detected_family"),
+        },
+        "final_destinations": [
+            {
+                "final_url": item.get("final_url"),
+                "final_registered_domain": item.get("final_registered_domain"),
+                "success": item.get("success"),
+            }
+            for item in (resolved_urls or [])[:5]
+            if isinstance(item, dict)
+        ],
+        "external_intel_summary": evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {},
+    }
+    try:
+        raw_review = await run_in_threadpool(_call_mistral_semantic_review, payload)
+        evidence["semantic_review"] = _normalize_mistral_semantic_review(raw_review, fallback)
+    except Exception as exc:
+        fallback = dict(fallback)
+        fallback["source"] = fallback.get("source") or "scam_atlas_family_match"
+        fallback["mistral_status"] = "failed"
+        fallback["mistral_error"] = type(exc).__name__
+        fallback["reason_codes"] = _dedupe_preserve_order(list(fallback.get("reason_codes") or []) + ["semantic:mistral_fallback"])
+        evidence["semantic_review"] = fallback
 
 
 def _build_decision_evidence_bundle(
@@ -2634,13 +2635,26 @@ def _apply_decision_contract_result(
     }
     reason_codes = list(gate_result.get("reason_codes") or [])
     primary_reason = reason_codes[0] if reason_codes else "residual"
-    family_id = family_id_by_reason.get(primary_reason, "provider-gate-residual")
-    family_name = {
+    gate_family_id = family_id_by_reason.get(primary_reason, "provider-gate-residual")
+    gate_family_name = {
         "SIGUR": "Destinație oficială verificată",
         "SUSPECT": "Verificare necesară",
         "PERICULOS": "Risc confirmat",
         "PENDING": "Scanare în curs",
     }.get(label, "Verificare necesară")
+    provider_gate["detected_family_id"] = gate_family_id
+    provider_gate["detected_family"] = gate_family_name
+
+    semantic_review = decision_bundle.get("semantic_review") if isinstance(decision_bundle.get("semantic_review"), dict) else {}
+    matched_family = str(semantic_review.get("matched_family") or "").strip()
+    scam_family = evidence.get("scam_family") if isinstance(evidence.get("scam_family"), dict) else {}
+    if matched_family:
+        family_id = matched_family
+        family_name = str(scam_family.get("family") or matched_family).strip()
+    else:
+        family_id = gate_family_id
+        family_name = gate_family_name
+
     reasons = {
         "SIGUR": ["Linkul ajunge pe o destinație oficială/delegată, providerii sunt curați și nu există cerere sensibilă pe canal greșit."],
         "SUSPECT": ["Nu avem dovezi suficiente pentru a marca mesajul ca sigur; verifică pe canalul oficial înainte de acțiune."],
@@ -2689,7 +2703,7 @@ def _apply_provider_gate_verdict(
     vt_consulted = _source_ready(summary, "virustotal")
     urlscan_consulted = any(_source_ready(summary, name) for name in ("urlscan", "urlscan.io"))
     sensitive_url_path = _has_sensitive_url_path(resolved_urls)
-    brand_warning = _brand_warning_matches_text(claimed_brand, raw_text, list(analysis.get("reasons", []) or []))
+    brand_warning = _brand_warning_matches_text(claimed_brand, raw_text)
     official_safety_education = _looks_like_official_safety_education(raw_text)
     direct_sensitive_request = _has_direct_sensitive_request(raw_text)
     evidence["brand_warning"] = brand_warning
@@ -4565,7 +4579,11 @@ def _claim_verifier_required(analysis: Dict[str, Any]) -> bool:
     evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
     if evidence.get("has_domain_mismatch"):
         return True
-    reasons = " ".join(str(item).lower() for item in analysis.get("reasons", []) if item)
+    family_text = " ".join(
+        str(value).lower()
+        for value in (analysis.get("detected_family_id"), analysis.get("detected_family"))
+        if value
+    )
     markers = (
         "ofert",
         "promo",
@@ -4582,7 +4600,7 @@ def _claim_verifier_required(analysis: Dict[str, Any]) -> bool:
         "plată",
         "cont",
     )
-    return any(marker in reasons for marker in markers)
+    return any(marker in family_text for marker in markers)
 
 
 def _build_orchestrated_pillars(job: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
@@ -4597,6 +4615,22 @@ def _build_orchestrated_pillars(job: Dict[str, Any]) -> Dict[str, Dict[str, Any]
     claim = evidence.get("offer_claim_verification") if isinstance(evidence.get("offer_claim_verification"), dict) else {}
     claim_status = str(claim.get("status") or "").strip().lower()
     claim_required = bool(job.get("claim_verifier_required", _claim_verifier_required(analysis)))
+    semantic_review = evidence.get("semantic_review") if isinstance(evidence.get("semantic_review"), dict) else {}
+    semantic_status = str(semantic_review.get("status") or "").strip().lower()
+    claimed_brand = str(analysis.get("claimed_brand") or "Nespecificat")
+    official_destination = _official_destination_confirmed(resolved_urls, claimed_brand)
+    provider_projection = _provider_verdict_for_decision_bundle(summary, has_urls=has_urls)
+    provider_projection_verdict = str(provider_projection.get("verdict") or "unknown").strip().lower()
+    semantic_complete = (
+        (semantic_status == "done" and semantic_review.get("completeness") is not False)
+        or provider_projection_verdict == "malicious"
+        or (official_destination and provider_projection_verdict == "clean")
+    )
+    semantic_details = semantic_status or "atlas/corpus semantic review pending"
+    if provider_projection_verdict == "malicious":
+        semantic_details = "provider malicious decisive; semantic review not blocking"
+    elif official_destination and provider_projection_verdict == "clean" and not semantic_status:
+        semantic_details = "official clean destination accepted as legit semantic template"
 
     urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
     urlscan_status = str(urlscan_state.get("status") or "").strip().lower()
@@ -4641,9 +4675,9 @@ def _build_orchestrated_pillars(job: Dict[str, Any]) -> Dict[str, Dict[str, Any]
             details=claim_status or ("required" if claim_required else "not required"),
         ),
         "semantic_review": _pillar(
-            "ok" if analysis else "pending",
+            "ok" if semantic_complete else "pending",
             required=True,
-            details="atlas/corpus semantic review",
+            details=semantic_details,
         ),
     }
 
@@ -5119,6 +5153,7 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
         if _has_bad_provider_verdict(summary):
             analysis = _provider_reputation_context_analysis(redacted_text, resolved_urls, summary)
             analysis.setdefault("evidence", {})["source_channel"] = job.get("source_channel")
+            await _enrich_semantic_review_async(redacted_text, analysis, resolved_urls)
             _attach_offer_claim_verification(
                 analysis,
                 _skipped_offer_claim_payload("Claim web check skipped because hard reputation evidence is already decisive."),
@@ -5160,6 +5195,7 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
             threat_intel_override=threat_intel,
         )
         analysis.setdefault("evidence", {})["source_channel"] = job.get("source_channel")
+        await _enrich_semantic_review_async(redacted_text, analysis, resolved_urls)
         claim_required = _claim_verifier_required(analysis)
         evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
         summary = evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {}
@@ -5461,291 +5497,13 @@ async def urlscan_screenshot(uuid: str):
     )
 
 
-@app.post("/v1/scan/text")
-async def scan_text(request: TextScanRequest):
-    """
-    Main endpoint to scan a suspicious text (SMS, WhatsApp message, etc.).
-    Extracts links, resolves redirects in safety, redacts PII, and generates AI explainers.
-    """
-    raw_text = _normalise_obfuscated_text((request.text or "").strip())
-    _validate_text_input("Textul trimis", raw_text, MAX_TEXT_CHARS)
-
-    logger.info(f"Scanning text from channel: {request.source_channel}")
-
-    # 1. Extract URLs from raw text
-    raw_urls = extract_urls(raw_text)
-    resolved_urls = _safe_scan_url_list(raw_urls)
-
-    # 3. Redact PII (emails, phones, IBANs, OTPs) for privacy by design
-    redacted_text = redact_pii(raw_text)
-
-    # 4. Run rule-based Scam Atlas analysis
-    analysis_results = _analyze_with_reputation(
-        redacted_text,
-        resolved_urls,
-        fast_reputation=True,
-    )
-
-    analysis_results.setdefault("evidence", {})["source_channel"] = request.source_channel
-    await _enrich_offer_claim_verification_async(redacted_text, analysis_results, resolved_urls)
-    _apply_provider_gate_verdict(analysis_results, resolved_urls)
-
-    # 5. Generate AI explainers via Gemini (with local fallback if key missing)
-    ai_explanation = await _build_ai_explanation_async(redacted_text, analysis_results, resolved_urls)
-
-    scan_id = _new_scan_id("scan")
-    response_payload = _build_scan_response(
-        "scan",
-        analysis_results,
-        redacted_text,
-        ai_explanation,
-        scan_id=scan_id,
-    )
-    _emit_scan_event(
-        scan_id=scan_id,
-        scan_payload=response_payload,
-        analysis=analysis_results,
-        resolved_urls=resolved_urls,
-        input_channel="text",
-        source_channel=request.source_channel,
-    )
-    return response_payload
-
-@app.post("/v1/scan/url")
-async def scan_url(request: URLScanRequest):
-    """
-    Follows redirects of a single URL safely and returns domain legitimacy report.
-    """
-    url = _canonicalize_url(_normalise_obfuscated_text(request.url or ""))
-    if not url:
-        raise HTTPException(status_code=400, detail="URL invalid sau format neacceptat.")
-
-    logger.info(f"Scanning single URL: {url}")
-    resolved_urls = _safe_scan_url_list([url])
-    resolved = resolved_urls[0]
-
-    redacted_text = redact_pii(f"Link: {url}")
-    analysis = _analyze_with_reputation(
-        redacted_text,
-        resolved_urls,
-        fast_reputation=True,
-    )
-    await _enrich_offer_claim_verification_async(redacted_text, analysis, resolved_urls)
-    _apply_provider_gate_verdict(analysis, resolved_urls)
-    ai_explanation = await _build_ai_explanation_async(redacted_text, analysis, resolved_urls)
-
-    scan_id = _new_scan_id("url")
-    response_payload = _build_scan_response(
-        "url",
-        analysis,
-        redacted_text,
-        ai_explanation,
-        scan_id=scan_id,
-        extra_fields={
-            "resolved_url_info": resolved,
-            "resolved_urls": resolved_urls,
-            "input_url": request.url,
-            "canonical_url": url,
-        },
-    )
-    _emit_scan_event(
-        scan_id=scan_id,
-        scan_payload=response_payload,
-        analysis=analysis,
-        resolved_urls=resolved_urls,
-        input_channel="url",
-        source_channel=request.source_channel,
-    )
-    return response_payload
-
-@app.post("/v1/scan/email")
-async def scan_email(
-    email_file: Optional[UploadFile] = File(None),
-    html_content: Optional[str] = Form(None),
-    source_channel: Optional[str] = Form("email"),
-):
-    """
-    Parses an email (.eml file or raw HTML content), extracts all links (hidden under buttons),
-    verifies brand legitimacy, and analyzes risk factors.
-    """
-    html_to_parse = ""
-    is_forwarded = True
-    parsed_message: Optional[Message] = None
-
-    if email_file is None and not html_content:
-        raise HTTPException(status_code=400, detail="Trebuie trimis email_file sau html_content.")
-
-    # 1. Ingest Email (.eml) or HTML
-    if email_file:
-        content = await email_file.read()
-        if len(content) > MAX_TEXT_CHARS * 4:
-            raise HTTPException(status_code=413, detail="Fișierul este prea mare.")
-        try:
-            # Parse RFC822 mail contents
-            parsed_message = message_from_bytes(content, policy=policy.default)
-            is_forwarded = False  # It's a raw file, not a copy-paste forward
-            
-            # Find html part
-            html_part = parsed_message.get_body(preferencelist=('html',))
-            if html_part:
-                html_to_parse = html_part.get_content()
-            else:
-                text_part = parsed_message.get_body(preferencelist=('plain',))
-                if text_part:
-                    # Treat plain text as raw text input
-                    html_to_parse = text_part.get_content()
-        except Exception as e:
-            logger.error(f"Error parsing .eml: {e}")
-            raise HTTPException(status_code=400, detail=f"Invalid .eml file format: {e}")
-    elif html_content:
-        if len(html_content) > MAX_TEXT_CHARS * 8:
-            raise HTTPException(status_code=413, detail="Conținutul HTML este prea mare.")
-        html_to_parse = html_content
-
-    html_to_parse = _normalise_obfuscated_text(html_to_parse)
-
-    email_context = _extract_email_auth_context(parsed_message, is_forwarded_guess=is_forwarded)
-
-    if not html_to_parse.strip():
-        fallback_analysis = engine.analyze(" ", urls=[], external_threat_intel={})
-        fallback_ai = await _build_ai_explanation_async(" ", fallback_analysis, [])
-        scan_id = _new_scan_id("email")
-        response_payload = _build_scan_response(
-            "email",
-            fallback_analysis,
-            "",
-            fallback_ai,
-            risk_score=0,
-            risk_level="unknown",
-            reasons=["Corpul e-mailului este gol sau nu a putut fi citit."],
-            scan_id=scan_id,
-            extra_fields={
-                "buttons": [],
-                "is_forwarded_warning": is_forwarded,
-                "safe_actions": ["Trimiteți e-mailul în format .eml original."],
-                "email_auth": email_context,
-                "resolved_urls": [],
-            },
-        )
-        _emit_scan_event(
-            scan_id=scan_id,
-            scan_payload=response_payload,
-            analysis=fallback_analysis,
-            resolved_urls=[],
-            input_channel="email",
-            source_channel=source_channel,
-        )
-        return response_payload
-
-    # 2. Parse HTML and extract clickable targets (links + button-like actions)
-    soup = BeautifulSoup(html_to_parse, 'html.parser')
-    extracted_buttons = []
-    resolved_urls = []
-    discovered_urls: set[str] = set()
-    
-    # Simple list of words that look like CTA buttons
-    cta_words = ["verific", "confirm", "plăte", "cont", "login", "conect", "intrare", "ajutor", "detalii", "colet", "awb", "anulare", "reactivare", "urgent"]
-
-    click_targets = _collect_click_targets_from_html(soup)
-
-    for target in click_targets:
-        raw_url = target["original_url"]
-        button_text = target["button_text"]
-
-        # Analyze CTA sensitivity
-        is_cta = any(word in button_text.lower() for word in cta_words)
-
-        if raw_url in discovered_urls:
-            continue
-        discovered_urls.add(raw_url)
-        resolved = _safe_scan_url_list([raw_url])[0]
-        resolved_urls.append(resolved)
-        
-        extracted_buttons.append({
-            "button_text": button_text,
-            "original_url": raw_url,
-            "final_url": resolved["final_url"],
-            "registered_domain": resolved["final_registered_domain"],
-            "is_sensitive_cta": is_cta,
-            "source_tag": target["source_tag"],
-            "source_attr": target["source_attr"],
-        })
-
-    # Get raw visible text of the email for brand detection
-    visible_text = soup.get_text(separator=' ', strip=True)
-    visible_text_urls = extract_urls(visible_text)
-    for url in visible_text_urls:
-        if url in discovered_urls:
-            continue
-        discovered_urls.add(url)
-        resolved_urls.append(_safe_scan_url_list([url])[0])
-
-    email_subject = parsed_message.get("Subject", "") if parsed_message else ""
-    inferred_brand_hints = _infer_brand_hints_from_click_targets(click_targets)
-    content_for_analysis = "\n".join(
-        part
-        for part in [
-            email_subject,
-            visible_text,
-            " ".join(inferred_brand_hints),
-        ]
-        if part.strip()
-    )
-    redacted_text = redact_pii(content_for_analysis)
-    
-    # 3. Analyze risk
-    analysis = _analyze_with_reputation(
-        redacted_text,
-        resolved_urls,
-        email_context=email_context,
-        fast_reputation=True,
-    )
-    await _enrich_offer_claim_verification_async(redacted_text, analysis, resolved_urls)
-    _apply_provider_gate_verdict(analysis, resolved_urls)
-    
-    # 4. Generate AI Explainer
-    ai_explanation = await _build_ai_explanation_async(redacted_text, analysis, resolved_urls)
-
-    scan_id = _new_scan_id("email")
-    response_payload = _build_scan_response(
-        "email",
-        analysis,
-        redacted_text,
-        ai_explanation,
-        scan_id=scan_id,
-        extra_fields={
-            "buttons": extracted_buttons,
-            "is_forwarded_warning": is_forwarded,
-            "email_auth": email_context,
-            "resolved_urls": resolved_urls,
-            "subject": email_subject,
-            "from": parsed_message.get("From") if parsed_message else None,
-            "reply_to": parsed_message.get("Reply-To") if parsed_message else None,
-            "message_id": parsed_message.get("Message-ID") if parsed_message else None,
-            "inferred_brand_hints": inferred_brand_hints,
-        },
-    )
-    _emit_scan_event(
-        scan_id=scan_id,
-        scan_payload=response_payload,
-        analysis=analysis,
-        resolved_urls=resolved_urls,
-        input_channel="email",
-        source_channel=source_channel,
-    )
-    return response_payload
-
-@app.post("/v1/scan/image")
-async def scan_image(
+@app.post("/v1/extract/image")
+async def extract_image_for_orchestration(
     image_file: UploadFile = File(...),
     source_channel: Optional[str] = Form("image_upload"),
 ):
-    """
-    Accepts an uploaded screenshot, runs OCR via Google Vision (if configured),
-    and returns risk verdict with warning that hidden CTA button URLs cannot be inspected
-    from image inputs.
-    """
-    logger.info(f"Received image scan request: {image_file.filename}")
+    """Extract OCR text/URLs from an image. Final verdict is handled by /v1/scan/orchestrated."""
+
     filename = image_file.filename or "screenshot.jpg"
     image_bytes = await image_file.read()
     if not image_bytes:
@@ -5765,73 +5523,26 @@ async def scan_image(
         file_bytes=image_bytes,
         extract_fn=extract_text_with_vision,
     )
-
-    # 1. Run URL extraction from OCR text
-    urls = extract_urls(ocr_text)
-    resolved_urls = _safe_scan_url_list(urls)
-
-    # 2. Analyze
     redacted_text = redact_pii(ocr_text)
-    analysis = _analyze_with_reputation(
-        redacted_text,
-        resolved_urls,
-        fast_reputation=True,
-    )
-    await _enrich_offer_claim_verification_async(redacted_text, analysis, resolved_urls)
-    _apply_provider_gate_verdict(analysis, resolved_urls)
-    
-    # 3. Add OCR specific warnings
-    reasons = list(analysis["reasons"])
-    reasons.append("AVERTISMENT OCR: Din capturi de ecran nu se pot citi linkurile reale ascunse sub butoane (e.g. butoane grafice 'Apasă aici').")
-    if ocr_warning:
-        reasons.append(f"AVERTISMENT OCR: {ocr_warning}")
-    
-    risk_level = analysis["risk_level"]
-    score = analysis["risk_score"]
-    if not urls:
-        reasons.append("Verificare parțială: Nu au fost găsite link-uri scrise în text. Dacă imaginea conține butoane grafice, link-urile lor rămân ascunse.")
-
-    # 4. Generate AI explanations
-    ai_explanation = await _build_ai_explanation_async(redacted_text, analysis, resolved_urls)
-
-    scan_id = _new_scan_id("ocr")
-    response_payload = _build_scan_response(
-        "ocr",
-        analysis,
-        redacted_text,
-        ai_explanation,
-        risk_score=score,
-        risk_level=risk_level,
-        reasons=_dedupe_preserve_order(reasons),
-        scan_id=scan_id,
-        extra_fields={
-            "ocr_extracted_text": ocr_text,
-            "hidden_url_visibility": False,
-            "warning": "Pentru securitate deplină, nu vă bazați doar pe screenshot-uri. Trimiteți textul integral sau e-mailul original (.eml).",
-            "resolved_urls": resolved_urls,
-        },
-    )
-    _emit_scan_event(
-        scan_id=scan_id,
-        scan_payload=response_payload,
-        analysis=analysis,
-        resolved_urls=resolved_urls,
-        input_channel="image",
-        source_channel=source_channel,
-    )
-    return response_payload
+    extracted_urls = _dedupe_preserve_order(extract_urls(ocr_text) + extract_urls(redacted_text))
+    return {
+        "input_type": "image_ocr",
+        "source_channel": source_channel,
+        "redacted_text": redacted_text,
+        "extracted_urls": extracted_urls,
+        "html_content": None,
+        "warning": ocr_warning,
+        "hidden_url_visibility": False,
+    }
 
 
-@app.post("/v1/scan/pdf")
-async def scan_pdf(
+@app.post("/v1/extract/pdf")
+async def extract_pdf_for_orchestration(
     pdf_file: UploadFile = File(...),
     source_channel: Optional[str] = Form("pdf_upload"),
 ):
-    """
-    Accepts an uploaded PDF document, runs OCR via Google Vision (if configured),
-    and returns risk verdict based on extracted text.
-    """
-    logger.info(f"Received PDF scan request: {pdf_file.filename}")
+    """Extract OCR text/URLs from a PDF. Final verdict is handled by /v1/scan/orchestrated."""
+
     filename = pdf_file.filename or "document.pdf"
     pdf_bytes = await pdf_file.read()
     if not pdf_bytes:
@@ -5854,61 +5565,267 @@ async def scan_pdf(
         file_bytes=pdf_bytes,
         extract_fn=extract_text_from_pdf_with_vision,
     )
-
-    # 1. Run URL extraction from OCR text
-    urls = extract_urls(ocr_text)
-    resolved_urls = _safe_scan_url_list(urls)
-
-    # 2. Analyze
     redacted_text = redact_pii(ocr_text)
-    analysis = _analyze_with_reputation(
-        redacted_text,
-        resolved_urls,
-        fast_reputation=True,
+    extracted_urls = _dedupe_preserve_order(extract_urls(ocr_text) + extract_urls(redacted_text))
+    return {
+        "input_type": "pdf_ocr",
+        "source_channel": source_channel,
+        "redacted_text": redacted_text,
+        "extracted_urls": extracted_urls,
+        "html_content": None,
+        "warning": ocr_warning,
+        "hidden_url_visibility": False,
+    }
+
+
+@app.post("/v1/extract/email")
+async def extract_email_for_orchestration(
+    email_file: Optional[UploadFile] = File(None),
+    html_content: Optional[str] = Form(None),
+    source_channel: Optional[str] = Form("email"),
+):
+    """Extract visible text, HTML, and clickable targets from email/HTML without producing a verdict."""
+
+    html_to_parse = ""
+    is_forwarded = True
+    parsed_message: Optional[Message] = None
+
+    if email_file is None and not html_content:
+        raise HTTPException(status_code=400, detail="Trebuie trimis email_file sau html_content.")
+
+    if email_file:
+        content = await email_file.read()
+        if len(content) > MAX_TEXT_CHARS * 4:
+            raise HTTPException(status_code=413, detail="Fișierul este prea mare.")
+        try:
+            parsed_message = message_from_bytes(content, policy=policy.default)
+            is_forwarded = False
+            html_part = parsed_message.get_body(preferencelist=("html",))
+            if html_part:
+                html_to_parse = html_part.get_content()
+            else:
+                text_part = parsed_message.get_body(preferencelist=("plain",))
+                if text_part:
+                    html_to_parse = text_part.get_content()
+        except Exception as exc:
+            logger.error(f"Error parsing .eml for extraction: {exc}")
+            raise HTTPException(status_code=400, detail=f"Invalid .eml file format: {exc}")
+    elif html_content:
+        if len(html_content) > MAX_TEXT_CHARS * 8:
+            raise HTTPException(status_code=413, detail="Conținutul HTML este prea mare.")
+        html_to_parse = html_content
+
+    html_to_parse = _normalise_obfuscated_text(html_to_parse)
+    email_context = _extract_email_auth_context(parsed_message, is_forwarded_guess=is_forwarded)
+    if not html_to_parse.strip():
+        return {
+            "input_type": "email",
+            "source_channel": source_channel,
+            "redacted_text": "",
+            "html_content": None,
+            "extracted_urls": [],
+            "buttons": [],
+            "email_auth": email_context,
+            "warning": "Corpul e-mailului este gol sau nu a putut fi citit.",
+        }
+
+    soup = BeautifulSoup(html_to_parse, "html.parser")
+    click_targets = _collect_click_targets_from_html(soup)
+    discovered_urls: List[str] = []
+    buttons: List[Dict[str, Any]] = []
+    cta_words = ["verific", "confirm", "plăte", "plate", "cont", "login", "conect", "intrare", "detalii", "colet", "awb", "reactivare", "urgent"]
+
+    for target in click_targets:
+        raw_url = target.get("original_url")
+        if not raw_url or raw_url in discovered_urls:
+            continue
+        discovered_urls.append(raw_url)
+        button_text = str(target.get("button_text") or "")
+        buttons.append(
+            {
+                "button_text": button_text,
+                "original_url": raw_url,
+                "is_sensitive_cta": any(word in button_text.lower() for word in cta_words),
+                "source_tag": target.get("source_tag"),
+                "source_attr": target.get("source_attr"),
+            }
+        )
+
+    visible_text = soup.get_text(separator=" ", strip=True)
+    for url in extract_urls(visible_text):
+        if url not in discovered_urls:
+            discovered_urls.append(url)
+
+    email_subject = parsed_message.get("Subject", "") if parsed_message else ""
+    inferred_brand_hints = _infer_brand_hints_from_click_targets(click_targets)
+    content_for_analysis = "\n".join(
+        part
+        for part in [
+            email_subject,
+            visible_text,
+            " ".join(inferred_brand_hints),
+        ]
+        if part.strip()
     )
-    await _enrich_offer_claim_verification_async(redacted_text, analysis, resolved_urls)
-    _apply_provider_gate_verdict(analysis, resolved_urls)
+    return {
+        "input_type": "email",
+        "source_channel": source_channel,
+        "redacted_text": redact_pii(content_for_analysis),
+        "html_content": html_to_parse,
+        "extracted_urls": discovered_urls,
+        "buttons": buttons,
+        "email_auth": email_context,
+        "subject": email_subject,
+        "from": parsed_message.get("From") if parsed_message else None,
+        "reply_to": parsed_message.get("Reply-To") if parsed_message else None,
+        "message_id": parsed_message.get("Message-ID") if parsed_message else None,
+        "inferred_brand_hints": inferred_brand_hints,
+        "warning": None,
+    }
 
-    # 3. Add OCR specific warnings
-    reasons = list(analysis["reasons"])
-    reasons.append("AVERTISMENT OCR: Din PDF-uri nu pot fi verificate linkurile ascunse în elemente grafice.")
-    if ocr_warning:
-        reasons.append(f"AVERTISMENT OCR: {ocr_warning}")
 
-    risk_level = analysis["risk_level"]
-    score = analysis["risk_score"]
-    if not urls:
-        reasons.append("Verificare parțială: Nu au fost găsite link-uri scrise în text. Dacă PDF-ul conține butoane grafice, link-urile lor rămân ascunse.")
+def _assemble_extracted_text_for_orchestration(extraction: Dict[str, Any], fallback_label: str) -> str:
+    text = str(extraction.get("redacted_text") or "").strip()
+    urls = [
+        str(url).strip()
+        for url in extraction.get("extracted_urls") or []
+        if str(url).strip()
+    ]
+    parts = [text or f"Conținut extras din {fallback_label}."]
+    if urls:
+        parts.append("Linkuri extrase:")
+        parts.extend(urls)
+    return "\n".join(parts).strip()
 
-    # 4. Generate AI explanations
-    ai_explanation = await _build_ai_explanation_async(redacted_text, analysis, resolved_urls)
 
-    scan_id = _new_scan_id("ocr_pdf")
-    response_payload = _build_scan_response(
-        "ocr_pdf",
-        analysis,
-        redacted_text,
-        ai_explanation,
-        risk_score=score,
-        risk_level=risk_level,
-        reasons=_dedupe_preserve_order(reasons),
-        scan_id=scan_id,
-        extra_fields={
-            "ocr_extracted_text": ocr_text,
-            "hidden_url_visibility": False,
-            "warning": "Rezultatul din OCR pe PDF este parțial dacă documentul conține conținut grafic protejat sau imagini.",
-            "resolved_urls": resolved_urls,
-        },
+async def _start_orchestrated_from_extraction(
+    extraction: Dict[str, Any],
+    *,
+    fallback_label: str,
+    default_input_type: str,
+    source_channel: Optional[str],
+) -> Dict[str, Any]:
+    html_content = str(extraction.get("html_content") or "").strip() or None
+    text = _assemble_extracted_text_for_orchestration(extraction, fallback_label)
+    input_type = "email_html" if html_content else "text"
+    if default_input_type in {"image_ocr", "pdf_ocr"} and not html_content:
+        input_type = "text"
+
+    job = await _create_orchestrated_job(
+        OrchestratedScanRequest(
+            input_type=input_type,
+            text=text,
+            html_content=html_content,
+            source_channel=source_channel or str(extraction.get("source_channel") or default_input_type),
+        )
     )
-    _emit_scan_event(
-        scan_id=scan_id,
-        scan_payload=response_payload,
-        analysis=analysis,
-        resolved_urls=resolved_urls,
-        input_channel="pdf",
+    response = _orchestrated_status_payload(job)
+    response.setdefault("extraction", {})
+    response["extraction"] = {
+        "input_type": extraction.get("input_type") or default_input_type,
+        "source_channel": extraction.get("source_channel") or source_channel,
+        "extracted_url_count": len(extraction.get("extracted_urls") or []),
+        "has_html": bool(html_content),
+        "warning": extraction.get("warning"),
+    }
+    return response
+
+
+async def _start_orchestrated_compat(payload: OrchestratedScanRequest) -> Dict[str, Any]:
+    job = await _create_orchestrated_job(payload)
+    return _orchestrated_status_payload(job)
+
+
+@app.post("/v1/scan/text")
+async def scan_text(request: TextScanRequest):
+    """
+    Compatibility wrapper. Starts the product-grade orchestrated scan and returns scan_id/status.
+    """
+    raw_text = _normalise_obfuscated_text((request.text or "").strip())
+    _validate_text_input("Textul trimis", raw_text, MAX_TEXT_CHARS)
+    return await _start_orchestrated_compat(
+        OrchestratedScanRequest(
+            input_type="text",
+            text=raw_text,
+            source_channel=request.source_channel or "manual",
+        )
+    )
+
+@app.post("/v1/scan/url")
+async def scan_url(request: URLScanRequest):
+    """
+    Compatibility wrapper. Starts the product-grade orchestrated URL scan and returns scan_id/status.
+    """
+    url = _canonicalize_url(_normalise_obfuscated_text(request.url or ""))
+    if not url:
+        raise HTTPException(status_code=400, detail="URL invalid sau format neacceptat.")
+    return await _start_orchestrated_compat(
+        OrchestratedScanRequest(
+            input_type="url",
+            url=url,
+            source_channel=request.source_channel or "url_scan",
+        )
+    )
+
+@app.post("/v1/scan/email")
+async def scan_email(
+    email_file: Optional[UploadFile] = File(None),
+    html_content: Optional[str] = Form(None),
+    source_channel: Optional[str] = Form("email"),
+):
+    """
+    Compatibility wrapper. Extracts email evidence, then starts orchestrated scan.
+    """
+    extraction = await extract_email_for_orchestration(
+        email_file=email_file,
+        html_content=html_content,
         source_channel=source_channel,
     )
-    return response_payload
+    return await _start_orchestrated_from_extraction(
+        extraction,
+        fallback_label="email",
+        default_input_type="email",
+        source_channel=source_channel,
+    )
+
+@app.post("/v1/scan/image")
+async def scan_image(
+    image_file: UploadFile = File(...),
+    source_channel: Optional[str] = Form("image_upload"),
+):
+    """
+    Compatibility wrapper. Extracts OCR evidence, then starts orchestrated scan.
+    """
+    extraction = await extract_image_for_orchestration(
+        image_file=image_file,
+        source_channel=source_channel,
+    )
+    return await _start_orchestrated_from_extraction(
+        extraction,
+        fallback_label="imagine",
+        default_input_type="image_ocr",
+        source_channel=source_channel,
+    )
+
+
+@app.post("/v1/scan/pdf")
+async def scan_pdf(
+    pdf_file: UploadFile = File(...),
+    source_channel: Optional[str] = Form("pdf_upload"),
+):
+    """
+    Compatibility wrapper. Extracts PDF OCR evidence, then starts orchestrated scan.
+    """
+    extraction = await extract_pdf_for_orchestration(
+        pdf_file=pdf_file,
+        source_channel=source_channel,
+    )
+    return await _start_orchestrated_from_extraction(
+        extraction,
+        fallback_label="PDF",
+        default_input_type="pdf_ocr",
+        source_channel=source_channel,
+    )
 
 
 @app.post("/v1/feedback")

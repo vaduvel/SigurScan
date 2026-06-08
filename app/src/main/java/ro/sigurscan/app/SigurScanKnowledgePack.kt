@@ -69,6 +69,7 @@ data class ClaimVerifierTarget(
 data class ScenarioCorpusEntry(
     @SerializedName("scenario_id")
     val scenarioId: String,
+    val title: String? = null,
     val family: String,
     @SerializedName("claimed_brand_or_role")
     val claimedBrandOrRole: String,
@@ -76,10 +77,8 @@ data class ScenarioCorpusEntry(
     val typicalTextPatterns: List<String> = emptyList(),
     @SerializedName("requested_asset")
     val requestedAsset: List<String> = emptyList(),
-    @SerializedName("max_verdict_supported_without_provider_scan")
-    val maxVerdictWithoutProviderScan: String? = null,
-    @SerializedName("max_verdict_supported_with_provider_scan")
-    val maxVerdictWithProviderScan: String? = null,
+    val signals: List<String> = emptyList(),
+    val examples: List<Any> = emptyList(),
     @SerializedName("acceptance_test_idea")
     val acceptanceTestIdea: String? = null
 )
@@ -94,9 +93,7 @@ data class RomaniaKnowledgeLayerFile(
     @SerializedName("scenario_corpus")
     val scenarioCorpus: List<ScenarioCorpusEntry> = emptyList(),
     @SerializedName("signal_mapping")
-    val signalMapping: List<Map<String, Any>> = emptyList(),
-    @SerializedName("acceptance_tests")
-    val acceptanceTests: List<Map<String, Any>> = emptyList()
+    val signalMapping: List<Map<String, Any>> = emptyList()
 )
 
 object SigurScanKnowledgePack {
@@ -123,7 +120,7 @@ object SigurScanKnowledgePack {
     }
 
     fun initializeFromJson(json: String) {
-        loaded = gson.fromJson(json, RomaniaKnowledgeLayerFile::class.java) ?: RomaniaKnowledgeLayerFile()
+        loaded = (gson.fromJson(json, RomaniaKnowledgeLayerFile::class.java) ?: RomaniaKnowledgeLayerFile()).normalized()
         registryVersion = fingerprint(loaded.officialRegistryUpdates, loaded.brandWarnings)
         corpusVersion = fingerprint(loaded.scenarioCorpus, loaded.claimVerifierTargets, loaded.signalMapping)
     }
@@ -226,6 +223,70 @@ object SigurScanKnowledgePack {
             .lowercase(Locale.US)
             .removePrefix("www.")
             .trimEnd('.')
+    }
+
+    private fun RomaniaKnowledgeLayerFile.normalized(): RomaniaKnowledgeLayerFile {
+        return copy(
+            officialRegistryUpdates = officialRegistryUpdates.orEmpty().map { it.normalized() },
+            brandWarnings = brandWarnings.orEmpty().map { it.normalized() },
+            claimVerifierTargets = claimVerifierTargets.orEmpty().map { it.normalized() },
+            scenarioCorpus = scenarioCorpus.orEmpty().map { it.normalized() },
+            signalMapping = signalMapping.orEmpty()
+        )
+    }
+
+    private fun OfficialRegistryUpdate.normalized(): OfficialRegistryUpdate {
+        return copy(
+            officialDomains = officialDomains.orEmpty(),
+            officialAppsOrChannels = officialAppsOrChannels.orEmpty(),
+            approvedTrackingOrPartnerDomains = approvedTrackingOrPartnerDomains.orEmpty(),
+            sourceUrls = sourceUrls.orEmpty()
+        )
+    }
+
+    private fun BrandWarningPackEntry.normalized(): BrandWarningPackEntry {
+        return copy(neverAskFor = neverAskFor.orEmpty())
+    }
+
+    private fun ClaimVerifierTarget.normalized(): ClaimVerifierTarget {
+        return copy(
+            officialSources = officialSources.orEmpty(),
+            legitimateExamples = legitimateExamples.orEmpty(),
+            fakeExamples = fakeExamples.orEmpty()
+        )
+    }
+
+    private fun ScenarioCorpusEntry.normalized(): ScenarioCorpusEntry {
+        val patterns = typicalTextPatterns.orEmpty()
+        val fallbackPatterns = if (patterns.isEmpty()) {
+            (examples.orEmpty().map(::exampleToText) + signals.orEmpty() + listOfNotNull(title, claimedBrandOrRole))
+        } else {
+            patterns
+        }
+        return copy(
+            scenarioId = scenarioId.orEmpty(),
+            title = title,
+            family = family.orEmpty(),
+            claimedBrandOrRole = claimedBrandOrRole.orEmpty(),
+            typicalTextPatterns = fallbackPatterns.filter { it.isNotBlank() },
+            requestedAsset = requestedAsset.orEmpty(),
+            signals = signals.orEmpty(),
+            examples = examples.orEmpty().map(::exampleToText)
+        )
+    }
+
+    private fun exampleToText(value: Any?): String {
+        if (value == null) return ""
+        if (value is String) return value
+        if (value is Map<*, *>) {
+            return listOfNotNull(
+                value["sample_text"],
+                value["text"],
+                value["example"],
+                value["expected_targets"]
+            ).joinToString(" ")
+        }
+        return value.toString()
     }
 
     private fun fingerprint(vararg payloads: Any?): String {

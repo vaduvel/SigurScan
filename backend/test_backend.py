@@ -25,6 +25,7 @@ from services.redirect_resolver import (
     query_rotld_whois,
     check_domain_age,
     check_mx_records,
+    resolve_redirects_safely,
 )
 from services.scam_atlas import ScamAtlasEngine
 from services.offer_claim_verifier import verify_offer_claim
@@ -34,7 +35,7 @@ from services.telemetry import (
     summarize_feedback_records,
     summarize_feedback_trend,
 )
-from services import scam_atlas, supabase_store, url_reputation
+from services import redirect_resolver, scam_atlas, supabase_store, url_reputation
 from eval.evaluate import run_threshold_sweep
 from email import policy
 from email.message import EmailMessage
@@ -56,6 +57,12 @@ from main import (
     _apply_provider_gate_verdict,
     _project_provider_gate_verdict,
 )
+
+
+@pytest.fixture(autouse=True)
+def _disable_live_mistral_semantic_pillar_by_default(monkeypatch):
+    monkeypatch.setattr(app_main, "MISTRAL_SEMANTIC_API_KEY", "")
+
 
 def test_pii_redaction():
     print("Testing PII Redactor...")
@@ -498,7 +505,8 @@ def test_provider_gate_keeps_text_only_social_fraud_high_risk():
 
     assert result["risk_level"] == "high"
     assert result["risk_score"] >= 85
-    assert result["detected_family_id"] == "provider-gate-semantic-high-risk"
+    assert result["detected_family_id"] == analysis["evidence"]["scam_family"]["id"]
+    assert result["evidence"]["provider_gate"]["detected_family_id"] == "provider-gate-semantic-high-risk"
 
 
 def test_provider_gate_official_safety_education_does_not_trigger_false_positive():
@@ -678,7 +686,7 @@ def test_scam_atlas_yoxo_onelink_surface_domain_is_not_brand_mismatch():
     assert "șantaj digital" not in " ".join(result["reasons"]).lower()
 
 
-def test_scan_text_yoxo_onelink_fast_path_is_safe_when_deeplink_is_delegated(monkeypatch):
+def test_scan_text_legacy_endpoint_starts_orchestrated_without_final_verdict(monkeypatch):
     client = TestClient(app_main.app)
     text = (
         "In 24 de ore se va efectua automat plata abonamentului tau Orange YOXO cu numarul 0755287867. "
@@ -706,33 +714,23 @@ def test_scan_text_yoxo_onelink_fast_path_is_safe_when_deeplink_is_delegated(mon
             }
         ]
 
-    async def fake_ai_explanation(text, analysis_payload, resolved_urls):
-        return {
-            "verdict_summary": "Pare sigur.",
-            "explanation": "Domeniul deep-link este delegat YOXO și providerii sunt curați.",
-            "offer_analysis": "Inconclusiv.",
-            "key_dangers": [],
-            "safe_actions": [],
-        }
-
-    async def fake_ai_explanation(*args, **kwargs):
-        return {"verdict_summary": "", "explanation": ""}
+    def fail_if_provider_runs_in_post(*args, **kwargs):
+        raise AssertionError("Legacy /v1/scan/text must only create an orchestrated job in POST.")
 
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
-        patched.setattr(app_main, "_safe_scan_url_list", fake_stale_yoxo_onelink_scan)
-        patched.setattr(app_main, "_gather_external_intel_safe", _clean_external_intel_for_resolved_urls)
-        patched.setattr(app_main, "_enrich_offer_claim_verification_async", _fake_inconclusive_offer_claim)
-        patched.setattr(app_main, "_build_ai_explanation_async", fake_ai_explanation)
+        patched.setattr(app_main, "_safe_scan_url_list", fail_if_provider_runs_in_post)
+        patched.setattr(app_main, "_gather_external_intel_safe", fail_if_provider_runs_in_post)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
         response = client.post("/v1/scan/text", json={"text": text, "source_channel": "android_native"})
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["user_risk_label"] == "SIGUR"
-    assert payload["risk_level"] == "low"
-    assert payload["detected_family_id"] == "provider-gate-official-clean"
-    assert payload["evidence"]["provider_gate"]["official_destination"] is True
+    assert payload["status"] == "scanning"
+    assert payload["result"] is None
+    assert str(payload["scan_id"]).startswith("orch_")
+    assert "user_risk_label" not in payload
+    assert "risk_level" not in payload
 
 
 def test_provider_gate_deeplink_to_untrusted_destination_stays_suspicious():
@@ -1015,6 +1013,81 @@ def test_orchestrated_post_accepts_without_running_providers(monkeypatch):
     assert payload["pillars"]["claim_verifier"]["status"] == "not_required"
     assert payload["pillars"]["urlscan"]["status"] == "pending"
     assert payload["preview"]["screenshot_url"] is None
+
+
+def test_orchestrated_reputation_stage_runs_mistral_as_semantic_pillar(monkeypatch):
+    job = {
+        "scan_id": "orch_semantic_test",
+        "pipeline_stage": "reputation_ready",
+        "redacted_text": "Promo magazin: verifică oferta aici https://example.com/promo",
+        "source_channel": "sms",
+        "resolved_urls": [
+            {
+                "url": "https://example.com/promo",
+                "final_url": "https://example.com/promo",
+                "final_hostname": "example.com",
+                "final_registered_domain": "example.com",
+                "success": True,
+            }
+        ],
+        "threat_intel": {},
+        "orchestration_metrics": {
+            "poll_count": 0,
+            "stage_sequence": [],
+            "stage_durations_ms": {},
+        },
+    }
+
+    def fake_analyze(text, resolved_urls, **kwargs):
+        return {
+            "risk_score": 0,
+            "risk_level": "low",
+            "detected_family": "Context benign",
+            "detected_family_id": "semantic-test",
+            "claimed_brand": "Nespecificat",
+            "reasons": [],
+            "safe_actions": [],
+            "evidence": {
+                "external_intel_summary": {
+                    "google_web_risk": {"status": "clean", "verdict": "clean", "consulted": True},
+                    "virustotal": {"status": "clean", "verdict": "clean", "consulted": True},
+                }
+            },
+        }
+
+    def fake_mistral(payload):
+        return {
+            "risk_class": "benign",
+            "claim_matches_known_scam_family": False,
+            "matched_family": None,
+            "claim_matches_legit_template": True,
+            "matched_template": "normal_promo",
+            "reason_codes": ["semantic:benign_marketing"],
+            "confidence": 0.86,
+        }
+
+    async def fake_finalize(candidate, request):
+        return candidate
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
+        patched.setattr(app_main, "ENABLE_MISTRAL_SEMANTIC_PILLAR", True)
+        patched.setattr(app_main, "MISTRAL_SEMANTIC_API_KEY", "test-key")
+        patched.setattr(app_main, "_analyze_with_reputation", fake_analyze)
+        patched.setattr(app_main, "_claim_verifier_required", lambda analysis: False)
+        patched.setattr(app_main, "_call_mistral_semantic_review", fake_mistral)
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main, "_finalize_orchestrated_job_if_ready", fake_finalize)
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+
+        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+
+    review = refreshed["analysis"]["evidence"]["semantic_review"]
+    assert review["source"] == "mistral_semantic_pillar"
+    assert review["risk_class"] == "benign"
+    assert review["claim_matches_legit_template"] is True
+    assert review["claim_matches_known_scam_family"] is False
+    assert "user_risk_label" not in review
 
 
 def test_orchestrated_text_scan_completes_safe_after_urlscan_preview(monkeypatch):
@@ -2065,7 +2138,8 @@ def test_orchestrated_fan_payment_scam_finalizes_dangerous_when_urlscan_rejects_
     assert payload["preview"]["screenshot_url"] is None
     assert payload["result"]["user_risk_label"] == "PERICULOS"
     assert payload["result"]["risk_level"] == "high"
-    assert payload["result"]["detected_family_id"] == "provider-gate-decisive-structural-danger"
+    assert payload["result"]["detected_family_id"] == "F04"
+    assert payload["result"]["evidence"]["provider_gate"]["detected_family_id"] == "provider-gate-decisive-structural-danger"
 
 
 def test_orchestrated_hard_malicious_provider_finalizes_even_when_urlscan_rejects(monkeypatch):
@@ -2304,7 +2378,52 @@ def test_click_target_extraction_from_email_html():
     assert any(item["source_tag"] == "input" and item["source_attr"] == "formaction" for item in targets)
 
 
-def test_scan_email_classifies_button_only_cta_as_risky(monkeypatch):
+def test_extract_email_endpoint_returns_intake_evidence_without_verdict():
+    client = TestClient(app_main.app)
+    html = """
+    <html><body>
+      <p>Comanda ta a fost expediată.</p>
+      <a href="https://awb.fan.ro/hJ90LuI0605A8">Urmărește coletul</a>
+    </body></html>
+    """
+
+    response = client.post("/v1/extract/email", data={"html_content": html, "source_channel": "android_test"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["input_type"] == "email"
+    assert "https://awb.fan.ro/hJ90LuI0605A8" in payload["extracted_urls"]
+    assert payload["buttons"][0]["original_url"] == "https://awb.fan.ro/hJ90LuI0605A8"
+    assert "risk_level" not in payload
+    assert "risk_score" not in payload
+    assert "user_risk_label" not in payload
+
+
+def test_extract_image_endpoint_returns_ocr_evidence_without_verdict(monkeypatch):
+    client = TestClient(app_main.app)
+
+    async def fake_extract_text_for_scan(filename, file_bytes, extract_fn):
+        return "Vezi detalii aici https://example.com/status", None
+
+    monkeypatch.setattr(app_main, "extract_text_for_scan", fake_extract_text_for_scan)
+
+    response = client.post(
+        "/v1/extract/image",
+        data={"source_channel": "android_test"},
+        files={"image_file": ("screenshot.png", b"not-a-real-image-but-valid-for-contract", "image/png")},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["input_type"] == "image_ocr"
+    assert payload["redacted_text"] == "Vezi detalii aici https://example.com/status"
+    assert "https://example.com/status" in payload["extracted_urls"]
+    assert "risk_level" not in payload
+    assert "risk_score" not in payload
+    assert "user_risk_label" not in payload
+
+
+def test_extract_email_captures_button_only_cta_without_verdict(monkeypatch):
     html = """
     <html>
       <body>
@@ -2343,16 +2462,14 @@ def test_scan_email_classifies_button_only_cta_as_risky(monkeypatch):
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "_safe_scan_url_list", fake_safe_scan)
         patched.setattr(app_main, "_gather_external_intel_safe", lambda urls, **kwargs: {})
-        response = client.post("/v1/scan/email", data={"html_content": html})
+        response = client.post("/v1/extract/email", data={"html_content": html})
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload.get("risk_level") == "pending"
-    assert payload.get("user_risk_label") == "NECUNOSCUT"
-    assert payload.get("evidence", {}).get("verdict_gate", {}).get("label") == "PENDING"
-    assert any("scanarea" in reason.lower() or "dovezile" in reason.lower() for reason in payload.get("reasons", []))
     assert any(item.get("source_tag") == "button" and item.get("source_attr") == "onclick" for item in payload.get("buttons", []))
     assert any(item.get("original_url") == "https://phish-revolut.example/release" for item in payload.get("buttons", []))
+    assert "risk_level" not in payload
+    assert "user_risk_label" not in payload
 
 
 def test_click_target_extraction_from_relative_and_js_protocol_html():
@@ -2676,17 +2793,13 @@ def test_scan_email_detects_relative_button_link(monkeypatch):
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "_safe_scan_url_list", fake_safe_scan)
         patched.setattr(app_main, "_gather_external_intel_safe", lambda urls, **kwargs: {})
-        response = client.post("/v1/scan/email", data={"html_content": html})
+        response = client.post("/v1/extract/email", data={"html_content": html})
 
     assert response.status_code == 200
     payload = response.json()
     assert any(item.get("original_url") == "/unlock" for item in payload.get("buttons", []))
-    assert payload.get("risk_level") == "pending"
-    assert payload.get("evidence", {}).get("verdict_gate", {}).get("label") == "PENDING"
-    assert any(
-        "scan" in reason.lower() or "verific" in reason.lower()
-        for reason in payload.get("reasons", [])
-    )
+    assert "risk_level" not in payload
+    assert "user_risk_label" not in payload
 
 
 def test_button_text_only_cta_is_captured_with_sensitive_flag(monkeypatch):
@@ -2726,14 +2839,14 @@ def test_button_text_only_cta_is_captured_with_sensitive_flag(monkeypatch):
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "_safe_scan_url_list", fake_safe_scan)
         patched.setattr(app_main, "_gather_external_intel_safe", _clean_external_intel_for_resolved_urls)
-        response = client.post("/v1/scan/email", data={"html_content": html})
+        response = client.post("/v1/extract/email", data={"html_content": html})
 
     assert response.status_code == 200
     payload = response.json()
     buttons = payload.get("buttons", [])
     assert any(item.get("original_url") == "https://rev-unlock.example/reset" for item in buttons)
     assert any(item.get("is_sensitive_cta") for item in buttons)
-    assert payload.get("user_risk_text") in {"Periculos", "Suspect", "Neclar", "Probabil sigur"}
+    assert "user_risk_text" not in payload
 
 
 def test_scan_email_detects_form_action_relative(monkeypatch):
@@ -2769,7 +2882,7 @@ def test_scan_email_detects_form_action_relative(monkeypatch):
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "_safe_scan_url_list", fake_safe_scan)
         patched.setattr(app_main, "_gather_external_intel_safe", _clean_external_intel_for_resolved_urls)
-        response = client.post("/v1/scan/email", data={"html_content": html})
+        response = client.post("/v1/extract/email", data={"html_content": html})
 
     assert response.status_code == 200
     payload = response.json()
@@ -2931,15 +3044,13 @@ def test_scan_email_infers_uber_from_deep_link_without_visible_brand(monkeypatch
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "_safe_scan_url_list", fake_safe_scan)
         patched.setattr(app_main, "_gather_external_intel_safe", _clean_external_intel_for_resolved_urls)
-        response = client.post("/v1/scan/email", data={"html_content": html})
+        response = client.post("/v1/extract/email", data={"html_content": html})
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["claimed_brand"] == "Uber"
-    assert payload["risk_level"] == "low"
-    assert payload["risk_score"] == 10
     assert payload["inferred_brand_hints"] == ["Uber"]
-    assert not any("extensie de domeniu neobișnuită" in reason.lower() for reason in payload["reasons"])
+    assert "risk_level" not in payload
+    assert "claimed_brand" not in payload
 
 
 def test_plain_benign_external_url_is_not_suspicious_by_itself():
@@ -2992,6 +3103,13 @@ def test_provider_gate_uses_infrastructure_signals_for_lookalike_domain():
         ],
         "evidence": {
             "has_domain_mismatch": True,
+            "url_lexical": {
+                "penalty": 50,
+                "has_signal": True,
+                "reasons": [
+                    "Detecție Typosquatting: Domeniul 'bcr-login-secure.example' este extrem de similar cu brandul oficial 'BCR'",
+                ],
+            },
             "extracted_urls": [
                 {
                     "url": "https://bcr-login-secure.example/card",
@@ -3542,6 +3660,50 @@ def test_ssrf_guard_in_redirect_resolver():
     assert _is_scan_target_blocked("https://fancourier.ro") is None
 
     print("  - Redirect resolver SSRF guard: PASS\n")
+
+
+def test_redirect_resolver_follows_shortener_to_large_pdf_without_library_redirect_error(monkeypatch):
+    """Short links must expose the final URL so urlscan can scan the real destination."""
+    class FakeResponse:
+        def __init__(self, status_code, headers):
+            self.status_code = status_code
+            self.headers = headers
+
+        def close(self):
+            return None
+
+    class FakeSession:
+        def __init__(self):
+            self.max_redirects = None
+
+        def get(self, url, headers, timeout, allow_redirects, stream, verify):
+            assert allow_redirects is False
+            if self.max_redirects == 0:
+                raise redirect_resolver.requests.exceptions.TooManyRedirects()
+            if url == "https://bit.ly/4qt0UnU":
+                return FakeResponse(
+                    301,
+                    {"Location": "https://www.helpnet.ro/data/images/_orig/6/3_55726.pdf"},
+                )
+            if url == "https://www.helpnet.ro/data/images/_orig/6/3_55726.pdf":
+                return FakeResponse(
+                    200,
+                    {"Content-Type": "application/pdf", "Content-Length": "6016873"},
+                )
+            raise AssertionError(f"Unexpected URL {url}")
+
+    monkeypatch.setattr(redirect_resolver.requests, "Session", FakeSession)
+    monkeypatch.setattr(redirect_resolver, "check_domain_age", lambda domain: (None, None))
+    monkeypatch.setattr(redirect_resolver, "check_mx_records", lambda domain: None)
+
+    result = resolve_redirects_safely("https://bit.ly/4qt0UnU", max_redirects=20)
+
+    assert result["success"] is True
+    assert result["error_message"] is None
+    assert result["final_url"] == "https://www.helpnet.ro/data/images/_orig/6/3_55726.pdf"
+    assert result["redirect_count"] == 1
+    assert result["uses_shortener"] is True
+    assert result["redirect_chain"][-1]["body_scan_skipped_reason"].startswith("Content length too large")
 
 
 def test_meta_refresh_detection():
