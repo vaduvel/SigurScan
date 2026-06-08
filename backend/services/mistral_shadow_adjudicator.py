@@ -136,8 +136,9 @@ def maybe_run_shadow_adjudication(
             fallback_reason = "validator_rejected"
 
     latency_ms = int((time.monotonic() - started) * 1000)
+    hash_suffix = str(evidence_hash or "nohash").replace("sha256:", "")[:16]
     event = {
-        "scan_id": scan_id,
+        "scan_id": f"{scan_id}:shadow:{hash_suffix}",
         "event_type": "adjudication_shadow",
         "input_type": input_type,
         "source_channel": source_channel,
@@ -169,6 +170,10 @@ def maybe_run_shadow_adjudication(
             "cache_hit": cache_hit,
             "latency_ms": latency_ms,
             "model": MISTRAL_MODEL,
+        },
+        "metadata": {
+            "parent_scan_id": scan_id,
+            "evidence_hash": evidence_hash,
         },
     }
     log_scan_event(event)

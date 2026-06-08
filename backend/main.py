@@ -3026,7 +3026,8 @@ def _build_shadow_adjudication_payload(
 
     for row in records:
         total += 1
-        scan_id = str(row.get("scan_id") or "").strip()
+        metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+        scan_id = str(metadata.get("parent_scan_id") or row.get("scan_id") or "").strip()
         evidence = row.get("evidence") if isinstance(row.get("evidence"), dict) else {}
         gate = evidence.get("gate") if isinstance(evidence.get("gate"), dict) else {}
         shadow = evidence.get("shadow") if isinstance(evidence.get("shadow"), dict) else None
