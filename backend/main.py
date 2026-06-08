@@ -2347,8 +2347,6 @@ def _request_sensitivity_from_signals(
         return "otp"
     if re.search(r"\b(cvv|cvc|date(?:le)? de card|num[aă]r(?:ul)? de card)\b", normalized) and direct_sensitive_request:
         return "card"
-    if re.search(r"\b(cont sigur|transfer[aă] fondurile|transfer[aă] bani|iban)\b", normalized):
-        return "transfer"
 
     if sensitive_url_path and not official_destination:
         for entry in resolved_urls or []:
@@ -2358,6 +2356,19 @@ def _request_sensitivity_from_signals(
                 return "card"
             if any(token in path for token in ("otp", "login", "auth", "password", "parola")):
                 return "password"
+
+    money_request_pattern = (
+        r"(?:bani|lei|euro|cash|numerar|sum[ăa]|garan[țt]ie|opera[țt]ie|cau[țt]iune|cautiune)"
+    )
+    money_action_pattern = (
+        r"(?:transfer[aă]?|trimite[țt]i?|trimite|trimit|achit[aă]?|pl[ăa]te[șs]te|plati[țt]i?|depune|depun[eă]|virament|iban)"
+    )
+    if (
+        re.search(r"\b(cont sigur|transfer[aă] fondurile|transfer[aă] bani|iban)\b", normalized)
+        or re.search(rf"\b{money_action_pattern}\b.{{0,80}}\b{money_request_pattern}\b", normalized)
+        or re.search(rf"\b{money_request_pattern}\b.{{0,80}}\b{money_action_pattern}\b", normalized)
+    ):
+        return "transfer"
 
     return "none"
 
@@ -2434,7 +2445,7 @@ def _semantic_review_for_decision_bundle(
             "source": "provider_decisive_no_semantic_needed",
         }
 
-    if known and confidence >= 0.25 and supports_high_text_only:
+    if known and confidence >= 0.20 and supports_high_text_only:
         risk_class = "high"
     elif known and confidence >= 0.20:
         risk_class = "medium"

@@ -509,6 +509,23 @@ def test_provider_gate_keeps_text_only_social_fraud_high_risk():
     assert result["evidence"]["provider_gate"]["detected_family_id"] == "provider-gate-semantic-high-risk"
 
 
+def test_provider_gate_text_only_accident_money_transfer_without_iban_is_high_risk():
+    text = (
+        "Buna ziua, nepotul dvs a avut accident si are nevoie urgent de 4500 lei pentru operatie. "
+        "Trimiteti banii acum prin transfer."
+    )
+    local_engine = ScamAtlasEngine()
+    analysis = local_engine.analyze(text, urls=[])
+
+    result = _apply_provider_gate_verdict(analysis, [], raw_text=text)
+
+    assert result["risk_level"] == "high"
+    assert result["risk_score"] >= 85
+    assert result["detected_family_id"] == "F14"
+    assert result["evidence"]["decision_bundle"]["request"]["sensitive"] == "transfer"
+    assert result["evidence"]["provider_gate"]["detected_family_id"] == "provider-gate-semantic-high-risk"
+
+
 def test_provider_gate_official_safety_education_does_not_trigger_false_positive():
     analysis = {
         "claimed_brand": "Bolt",
