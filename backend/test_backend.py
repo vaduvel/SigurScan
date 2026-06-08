@@ -1490,6 +1490,120 @@ def test_orchestration_dashboard_renders_minimal_html(monkeypatch):
     assert "Nu există alerte" in body
 
 
+def test_shadow_adjudication_payload_summarizes_disagreements_and_feedback(monkeypatch):
+    records = [
+        {
+            "scan_id": "scan_a",
+            "event_type": "adjudication_shadow",
+            "user_risk_label": "SUSPECT",
+            "evidence": {
+                "evidence_hash": "sha256:a",
+                "gate": {"label": "SUSPECT", "risk_level": "medium", "risk_score": 50},
+                "shadow": {
+                    "label": "PERICULOS",
+                    "confidence": 0.84,
+                    "motiv_ro": "Cere date pe domeniu neoficial.",
+                },
+                "valid": True,
+                "latency_ms": 1200,
+                "cache_hit": False,
+                "model": "mistral-small-2503",
+            },
+        },
+        {
+            "scan_id": "scan_b",
+            "event_type": "adjudication_shadow",
+            "user_risk_label": "SUSPECT",
+            "evidence": {
+                "evidence_hash": "sha256:b",
+                "gate": {"label": "SUSPECT", "risk_level": "medium", "risk_score": 50},
+                "shadow": None,
+                "valid": False,
+                "fallback_reason": "validator_rejected",
+                "latency_ms": 3000,
+                "cache_hit": True,
+                "model": "mistral-small-2503",
+            },
+        },
+        {"scan_id": "orch_ignored", "event_type": "orchestrated_poll", "metadata": {}},
+    ]
+    feedback = [
+        {"scan_id": "scan_a", "feedback": "false_negative", "timestamp": 10},
+    ]
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "load_scan_records", lambda limit=None: records)
+        patched.setattr(app_main, "load_feedback_records", lambda: feedback)
+        payload = app_main._build_shadow_adjudication_payload(
+            limit=100,
+            fallback_rate_alert=0.1,
+            disagreement_rate_alert=0.1,
+            latency_p95_alert_ms=2000,
+        )
+
+    assert payload["events_considered"] == 2
+    assert payload["valid"] == 1
+    assert payload["fallback"] == 1
+    assert payload["fallback_rate"] == 0.5
+    assert payload["agreement"]["disagreements"] == 1
+    assert payload["cache"]["hits"] == 1
+    assert payload["feedback_comparison"]["labeled"] == 1
+    assert payload["feedback_comparison"]["shadow_would_improve"] == 1
+    assert payload["promotion_gate"]["can_promote"] is False
+    alert_codes = {alert["code"] for alert in payload["alerts"]}
+    assert "mistral_shadow_fallback_rate_high" in alert_codes
+    assert "mistral_shadow_disagreement_rate_high" in alert_codes
+    assert payload["examples"]["disagreements"][0]["scan_id"] == "scan_a"
+    assert payload["examples"]["fallbacks"][0]["fallback_reason"] == "validator_rejected"
+
+
+def test_shadow_adjudication_dashboard_renders_minimal_html(monkeypatch):
+    with monkeypatch.context() as patched:
+        patched.setattr(
+            app_main,
+            "_build_shadow_adjudication_payload",
+            lambda **kwargs: {
+                "events_considered": 2,
+                "valid": 1,
+                "fallback": 1,
+                "fallback_rate": 0.5,
+                "agreement": {"disagreements": 1, "disagreement_rate": 1.0},
+                "latency_ms": {"avg": 1200, "p95": 1200, "max": 1200, "samples": 1},
+                "cache": {"hits": 1, "hit_rate": 0.5},
+                "feedback_comparison": {
+                    "labeled": 1,
+                    "shadow_would_improve": 1,
+                    "shadow_would_regress": 0,
+                },
+                "promotion_gate": {
+                    "can_promote": False,
+                    "current_labeled_real_messages": 1,
+                    "min_labeled_real_messages": 150,
+                },
+                "alerts": [],
+                "examples": {
+                    "disagreements": [
+                        {
+                            "scan_id": "scan_a",
+                            "gate_label": "SUSPECT",
+                            "shadow_label": "PERICULOS",
+                            "confidence": 0.84,
+                            "reason": "Cere date.",
+                        }
+                    ],
+                    "fallbacks": [],
+                },
+            },
+        )
+        response = app_main.shadow_adjudication_dashboard(limit=100)
+
+    body = response.body.decode("utf-8")
+    assert "SigurScan Shadow Adjudication" in body
+    assert "Dezacorduri validate" in body
+    assert "scan_a" in body
+    assert "Nu există fallback-uri" in body
+
+
 def test_orchestrated_urlscan_submit_requires_owned_reservation(monkeypatch):
     job = {
         "scan_id": "orch_urlscan_reservation",

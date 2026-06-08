@@ -2932,6 +2932,260 @@ def _build_orchestration_telemetry_payload(
             "retry_failures": conflict_retry_failures,
         },
         "alerts": alerts,
+}
+
+
+def _label_to_shadow_prediction(label: Any) -> Optional[bool]:
+    normalized = str(label or "").strip().upper()
+    if normalized == "PERICULOS":
+        return True
+    if normalized in {"SIGUR", "SUSPECT", "NECUNOSCUT"}:
+        return False
+    return None
+
+
+def _shadow_feedback_actual(feedback_row: Dict[str, Any], gate_prediction: Optional[bool]) -> Optional[bool]:
+    raw_actual = feedback_row.get("actual_is_scam")
+    if isinstance(raw_actual, bool):
+        return raw_actual
+    if isinstance(raw_actual, str):
+        normalized_actual = raw_actual.strip().lower()
+        if normalized_actual in {"true", "1", "yes", "scam"}:
+            return True
+        if normalized_actual in {"false", "0", "no", "legit"}:
+            return False
+
+    feedback = str(feedback_row.get("feedback") or "").strip().lower()
+    if feedback == "false_positive":
+        return False
+    if feedback == "false_negative":
+        return True
+    if feedback == "correct":
+        return gate_prediction
+    return None
+
+
+def _latest_feedback_by_scan_id(rows: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    latest: Dict[str, Dict[str, Any]] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        scan_id = str(row.get("scan_id") or "").strip()
+        if not scan_id:
+            continue
+        try:
+            row_ts = int(row.get("timestamp") or row.get("event_ts") or 0)
+        except Exception:
+            row_ts = 0
+        existing = latest.get(scan_id)
+        try:
+            existing_ts = int(existing.get("timestamp") or existing.get("event_ts") or 0) if existing else -1
+        except Exception:
+            existing_ts = -1
+        if existing is None or row_ts >= existing_ts:
+            latest[scan_id] = row
+    return latest
+
+
+def _int_percentile(values: List[int], percentile: float) -> Optional[int]:
+    if not values:
+        return None
+    ordered = sorted(int(value) for value in values)
+    if len(ordered) == 1:
+        return ordered[0]
+    clamped = max(0.0, min(1.0, percentile))
+    index = int(round((len(ordered) - 1) * clamped))
+    return ordered[index]
+
+
+def _build_shadow_adjudication_payload(
+    *,
+    limit: int = 1000,
+    fallback_rate_alert: float = 0.05,
+    disagreement_rate_alert: float = 0.25,
+    latency_p95_alert_ms: int = 2500,
+    max_examples: int = 20,
+) -> Dict[str, Any]:
+    records = [
+        row
+        for row in load_scan_records(limit)
+        if isinstance(row, dict) and str(row.get("event_type") or "") == "adjudication_shadow"
+    ]
+    feedback_by_scan = _latest_feedback_by_scan_id(load_feedback_records())
+
+    by_gate_label: Counter[str] = Counter()
+    by_shadow_label: Counter[str] = Counter()
+    by_fallback_reason: Counter[str] = Counter()
+    by_model: Counter[str] = Counter()
+    latencies: List[int] = []
+    total = valid = fallback = cache_hits = agreements = disagreements = 0
+    labeled_feedback = gate_errors = shadow_errors = shadow_would_improve = shadow_would_regress = 0
+    disagreement_examples: List[Dict[str, Any]] = []
+    fallback_examples: List[Dict[str, Any]] = []
+    feedback_examples: List[Dict[str, Any]] = []
+
+    for row in records:
+        total += 1
+        scan_id = str(row.get("scan_id") or "").strip()
+        evidence = row.get("evidence") if isinstance(row.get("evidence"), dict) else {}
+        gate = evidence.get("gate") if isinstance(evidence.get("gate"), dict) else {}
+        shadow = evidence.get("shadow") if isinstance(evidence.get("shadow"), dict) else None
+        gate_label = str(gate.get("label") or row.get("user_risk_label") or "NECUNOSCUT").strip().upper()
+        by_gate_label[gate_label] += 1
+
+        try:
+            latencies.append(int(evidence.get("latency_ms")))
+        except Exception:
+            pass
+        if evidence.get("cache_hit"):
+            cache_hits += 1
+        model = str(evidence.get("model") or "").strip()
+        if model:
+            by_model[model] += 1
+
+        if shadow is not None and evidence.get("valid") is not False:
+            valid += 1
+            shadow_label = str(shadow.get("label") or "NECUNOSCUT").strip().upper()
+            by_shadow_label[shadow_label] += 1
+            if gate_label == shadow_label:
+                agreements += 1
+            else:
+                disagreements += 1
+                if len(disagreement_examples) < max_examples:
+                    disagreement_examples.append({
+                        "scan_id": scan_id,
+                        "gate_label": gate_label,
+                        "shadow_label": shadow_label,
+                        "confidence": shadow.get("confidence"),
+                        "reason": shadow.get("motiv_ro"),
+                        "evidence_hash": evidence.get("evidence_hash"),
+                    })
+        else:
+            fallback += 1
+            reason = str(evidence.get("fallback_reason") or "unknown").strip()
+            by_fallback_reason[reason] += 1
+            if len(fallback_examples) < max_examples:
+                fallback_examples.append({
+                    "scan_id": scan_id,
+                    "gate_label": gate_label,
+                    "fallback_reason": reason,
+                    "evidence_hash": evidence.get("evidence_hash"),
+                })
+
+        feedback_row = feedback_by_scan.get(scan_id)
+        if isinstance(feedback_row, dict) and shadow is not None:
+            gate_pred = _label_to_shadow_prediction(gate_label)
+            shadow_pred = _label_to_shadow_prediction(shadow.get("label"))
+            actual = _shadow_feedback_actual(feedback_row, gate_pred)
+            if actual is not None and gate_pred is not None and shadow_pred is not None:
+                labeled_feedback += 1
+                gate_wrong = gate_pred != actual
+                shadow_wrong = shadow_pred != actual
+                gate_errors += int(gate_wrong)
+                shadow_errors += int(shadow_wrong)
+                if gate_wrong and not shadow_wrong:
+                    shadow_would_improve += 1
+                if not gate_wrong and shadow_wrong:
+                    shadow_would_regress += 1
+                if (gate_wrong or shadow_wrong) and len(feedback_examples) < max_examples:
+                    feedback_examples.append({
+                        "scan_id": scan_id,
+                        "actual_is_scam": actual,
+                        "gate_label": gate_label,
+                        "shadow_label": shadow.get("label"),
+                        "feedback": feedback_row.get("feedback"),
+                        "shadow_would_improve": gate_wrong and not shadow_wrong,
+                        "shadow_would_regress": (not gate_wrong) and shadow_wrong,
+                    })
+
+    valid_rate = valid / total if total else 0.0
+    fallback_rate = fallback / total if total else 0.0
+    disagreement_rate = disagreements / valid if valid else 0.0
+    cache_hit_rate = cache_hits / total if total else 0.0
+    latency_avg = int(sum(latencies) / len(latencies)) if latencies else None
+    latency_p95 = _int_percentile(latencies, 0.95)
+    alerts: List[Dict[str, Any]] = []
+    if fallback_rate > fallback_rate_alert:
+        alerts.append({
+            "severity": "watch",
+            "code": "mistral_shadow_fallback_rate_high",
+            "message": "Rata de fallback/validator reject este peste prag; promptul sau bundle-ul trebuie inspectat.",
+            "rate": round(fallback_rate, 4),
+        })
+    if disagreement_rate > disagreement_rate_alert:
+        alerts.append({
+            "severity": "watch",
+            "code": "mistral_shadow_disagreement_rate_high",
+            "message": "Mistral diferă des de gate pe cazuri ambigue; verifică exemplele înainte de promovare.",
+            "rate": round(disagreement_rate, 4),
+        })
+    if latency_p95 is not None and latency_p95 > latency_p95_alert_ms:
+        alerts.append({
+            "severity": "watch",
+            "code": "mistral_shadow_latency_p95_high",
+            "message": "Latența p95 a adjudicatorului shadow depășește bugetul.",
+            "p95_ms": latency_p95,
+        })
+    if shadow_would_regress:
+        alerts.append({
+            "severity": "high",
+            "code": "mistral_shadow_feedback_regressions",
+            "message": "Pe feedback etichetat există cazuri unde shadow ar fi fost mai slab decât gate-ul.",
+            "count": shadow_would_regress,
+        })
+
+    return {
+        "generated_at": int(time.time()),
+        "events_considered": total,
+        "valid": valid,
+        "fallback": fallback,
+        "valid_rate": round(valid_rate, 4),
+        "fallback_rate": round(fallback_rate, 4),
+        "agreement": {
+            "agreements": agreements,
+            "disagreements": disagreements,
+            "disagreement_rate": round(disagreement_rate, 4),
+        },
+        "latency_ms": {
+            "avg": latency_avg,
+            "p95": latency_p95,
+            "max": max(latencies) if latencies else None,
+            "samples": len(latencies),
+        },
+        "cache": {
+            "hits": cache_hits,
+            "hit_rate": round(cache_hit_rate, 4),
+        },
+        "by_gate_label": dict(by_gate_label),
+        "by_shadow_label": dict(by_shadow_label),
+        "by_fallback_reason": dict(by_fallback_reason),
+        "by_model": dict(by_model),
+        "feedback_comparison": {
+            "labeled": labeled_feedback,
+            "gate_errors": gate_errors,
+            "shadow_errors": shadow_errors,
+            "shadow_would_improve": shadow_would_improve,
+            "shadow_would_regress": shadow_would_regress,
+        },
+        "examples": {
+            "disagreements": disagreement_examples,
+            "fallbacks": fallback_examples,
+            "feedback_deltas": feedback_examples,
+        },
+        "alerts": alerts,
+        "promotion_gate": {
+            "min_labeled_real_messages": 150,
+            "current_labeled_real_messages": labeled_feedback,
+            "fallback_rate_target": 0.05,
+            "latency_p95_target_ms": latency_p95_alert_ms,
+            "can_promote": (
+                labeled_feedback >= 150
+                and fallback_rate <= 0.05
+                and shadow_would_regress == 0
+                and (latency_p95 is None or latency_p95 <= latency_p95_alert_ms)
+                and shadow_errors <= gate_errors
+            ),
+        },
     }
 
 
@@ -5745,6 +5999,185 @@ def orchestration_dashboard(
   <section class="panel">
     <h2>Evenimente</h2>
     <table><thead><tr><th>Event</th><th>Count</th></tr></thead><tbody>{event_rows}</tbody></table>
+  </section>
+</body>
+</html>
+"""
+    return HTMLResponse(content=html)
+
+
+@app.get("/v1/adjudication/shadow")
+def shadow_adjudication_telemetry(
+    limit: int = 1000,
+    fallback_rate_alert: float = 0.05,
+    disagreement_rate_alert: float = 0.25,
+    latency_p95_alert_ms: int = 2500,
+) -> Dict[str, Any]:
+    if limit <= 0:
+        raise HTTPException(status_code=400, detail="limit trebuie sa fie strict pozitiv.")
+    if limit > 10000:
+        raise HTTPException(status_code=400, detail="limit maxim este 10000.")
+    if fallback_rate_alert < 0 or fallback_rate_alert > 1:
+        raise HTTPException(status_code=400, detail="fallback_rate_alert trebuie sa fie intre 0 si 1.")
+    if disagreement_rate_alert < 0 or disagreement_rate_alert > 1:
+        raise HTTPException(status_code=400, detail="disagreement_rate_alert trebuie sa fie intre 0 si 1.")
+    if latency_p95_alert_ms <= 0:
+        raise HTTPException(status_code=400, detail="latency_p95_alert_ms trebuie sa fie strict pozitiv.")
+    return {
+        "shadow_adjudication": _build_shadow_adjudication_payload(
+            limit=limit,
+            fallback_rate_alert=fallback_rate_alert,
+            disagreement_rate_alert=disagreement_rate_alert,
+            latency_p95_alert_ms=latency_p95_alert_ms,
+        )
+    }
+
+
+@app.get("/v1/adjudication/dashboard", response_class=HTMLResponse)
+def shadow_adjudication_dashboard(
+    limit: int = 1000,
+    fallback_rate_alert: float = 0.05,
+    disagreement_rate_alert: float = 0.25,
+    latency_p95_alert_ms: int = 2500,
+) -> HTMLResponse:
+    if limit <= 0:
+        raise HTTPException(status_code=400, detail="limit trebuie sa fie strict pozitiv.")
+    if limit > 10000:
+        raise HTTPException(status_code=400, detail="limit maxim este 10000.")
+    payload = _build_shadow_adjudication_payload(
+        limit=limit,
+        fallback_rate_alert=fallback_rate_alert,
+        disagreement_rate_alert=disagreement_rate_alert,
+        latency_p95_alert_ms=latency_p95_alert_ms,
+    )
+    agreement = payload.get("agreement", {}) if isinstance(payload.get("agreement"), dict) else {}
+    latency = payload.get("latency_ms", {}) if isinstance(payload.get("latency_ms"), dict) else {}
+    cache = payload.get("cache", {}) if isinstance(payload.get("cache"), dict) else {}
+    feedback = payload.get("feedback_comparison", {}) if isinstance(payload.get("feedback_comparison"), dict) else {}
+    promotion = payload.get("promotion_gate", {}) if isinstance(payload.get("promotion_gate"), dict) else {}
+    alerts = payload.get("alerts") if isinstance(payload.get("alerts"), list) else []
+    examples = payload.get("examples", {}) if isinstance(payload.get("examples"), dict) else {}
+
+    def card(title: str, value: Any, hint: str = "") -> str:
+        return (
+            "<section class='card'>"
+            f"<span>{_html_escape(title)}</span>"
+            f"<strong>{_html_escape(value)}</strong>"
+            f"<small>{_html_escape(hint)}</small>"
+            "</section>"
+        )
+
+    alert_html = "".join(
+        f"<li class='{_html_escape(alert.get('severity', 'watch'))}'>"
+        f"<strong>{_html_escape(alert.get('code'))}</strong> - {_html_escape(alert.get('message'))}"
+        "</li>"
+        for alert in alerts
+    ) or "<li class='ok'>Nu există alerte pe fereastra curentă.</li>"
+
+    disagreement_rows = "".join(
+        "<tr>"
+        f"<td>{_html_escape(item.get('scan_id'))}</td>"
+        f"<td>{_html_escape(item.get('gate_label'))}</td>"
+        f"<td>{_html_escape(item.get('shadow_label'))}</td>"
+        f"<td>{_html_escape(item.get('confidence'))}</td>"
+        f"<td>{_html_escape(item.get('reason'))}</td>"
+        "</tr>"
+        for item in examples.get("disagreements", [])
+        if isinstance(item, dict)
+    ) or "<tr><td colspan='5'>Nu există dezacorduri validate.</td></tr>"
+
+    fallback_rows = "".join(
+        "<tr>"
+        f"<td>{_html_escape(item.get('scan_id'))}</td>"
+        f"<td>{_html_escape(item.get('gate_label'))}</td>"
+        f"<td>{_html_escape(item.get('fallback_reason'))}</td>"
+        "</tr>"
+        for item in examples.get("fallbacks", [])
+        if isinstance(item, dict)
+    ) or "<tr><td colspan='3'>Nu există fallback-uri.</td></tr>"
+
+    html = f"""
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SigurScan Shadow Adjudication</title>
+  <style>
+    :root {{
+      color-scheme: light;
+      --bg: #f6f8fc;
+      --card: #ffffff;
+      --ink: #172033;
+      --muted: #62708a;
+      --line: #dde5f1;
+      --blue: #316bff;
+      --red: #c7332f;
+      --amber: #ad6500;
+      --green: #087f5b;
+    }}
+    body {{
+      margin: 0;
+      padding: 32px;
+      background: var(--bg);
+      color: var(--ink);
+      font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }}
+    header {{ margin-bottom: 24px; }}
+    h1 {{ margin: 0 0 6px; font-size: 28px; }}
+    p {{ margin: 0; color: var(--muted); }}
+    .grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin: 24px 0;
+    }}
+    .card, section.panel {{
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 12px 30px rgba(24, 39, 75, .06);
+    }}
+    .card {{ padding: 18px; }}
+    section.panel {{ padding: 20px; margin: 16px 0; }}
+    .card span, small {{ color: var(--muted); display: block; }}
+    .card strong {{ display: block; font-size: 30px; margin: 8px 0; }}
+    table {{ width: 100%; border-collapse: collapse; }}
+    th, td {{ border-bottom: 1px solid var(--line); padding: 10px; text-align: left; vertical-align: top; }}
+    th {{ color: var(--muted); font-weight: 700; }}
+    li {{ margin: 8px 0; }}
+    .high {{ color: var(--red); }}
+    .watch {{ color: var(--amber); }}
+    .ok {{ color: var(--green); }}
+    code {{ background: #eef3ff; color: var(--blue); padding: 2px 6px; border-radius: 8px; }}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>SigurScan Shadow Adjudication</h1>
+    <p>Compară gate-ul determinist cu Mistral shadow. Nu schimbă verdictul userului și nu rulează providerii.</p>
+  </header>
+  <div class="grid">
+    {card("Evenimente shadow", payload.get("events_considered"), f"limit={limit}")}
+    {card("Validate", payload.get("valid"), f"fallback={payload.get('fallback')}")}
+    {card("Dezacorduri", agreement.get("disagreements"), f"rate={agreement.get('disagreement_rate')}")}
+    {card("Fallback rate", payload.get("fallback_rate"), "validator reject / timeout")}
+    {card("Latență p95", latency.get("p95"), f"avg={latency.get('avg')} ms")}
+    {card("Cache hit rate", cache.get("hit_rate"), f"hits={cache.get('hits')}")}
+    {card("Feedback etichetat", feedback.get("labeled"), f"improve={feedback.get('shadow_would_improve')} regress={feedback.get('shadow_would_regress')}")}
+    {card("Promovabil", promotion.get("can_promote"), f"{promotion.get('current_labeled_real_messages')}/{promotion.get('min_labeled_real_messages')} mesaje")}
+  </div>
+  <section class="panel">
+    <h2>Alerte</h2>
+    <ul>{alert_html}</ul>
+  </section>
+  <section class="panel">
+    <h2>Dezacorduri validate</h2>
+    <table><thead><tr><th>Scan</th><th>Gate</th><th>Mistral</th><th>Confidence</th><th>Motiv</th></tr></thead><tbody>{disagreement_rows}</tbody></table>
+  </section>
+  <section class="panel">
+    <h2>Fallback / Validator Reject</h2>
+    <table><thead><tr><th>Scan</th><th>Gate</th><th>Motiv fallback</th></tr></thead><tbody>{fallback_rows}</tbody></table>
   </section>
 </body>
 </html>
