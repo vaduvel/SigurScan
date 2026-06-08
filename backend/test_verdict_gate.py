@@ -253,3 +253,52 @@ def test_unknown_clean_new_domain_stays_suspect_without_manual_registry():
 
     assert result["label"] == "SUSPECT"
     assert result["reason_codes"] == ["unknown_but_clean"]
+
+
+def test_unknown_clean_established_marketing_domain_ignores_semantic_false_positive():
+    bundle = {
+        "schema": "sigurscan_evidence_bundle_v2",
+        "input": {
+            "type": "sms",
+            "redacted_text": "SALE pana la -50%! Pantofi de top la jumatate de pret. https://snrs.it/0BJIIOV #MODIVOclub",
+        },
+        "resolution": {
+            "status": "resolved",
+            "completeness": True,
+            "final_url": "https://epantofi.ro/c/epantofi/omnibus_discount",
+        },
+        "providers": {
+            "verdict": "clean",
+            "hits": ["google_web_risk", "virustotal", "urlhaus", "urlscan"],
+            "completeness": True,
+        },
+        "identity": {
+            "claimed_brand": None,
+            "status": "unknown",
+            "tld_suspicious": False,
+            "domain_age_days": 5522,
+            "domain_reputation": "established",
+            "completeness": True,
+        },
+        "request": {"sensitive": "none", "channel": "official", "completeness": True},
+        "context": {
+            "urgency": True,
+            "passive_payment": False,
+            "apk_or_remote_mention": False,
+        },
+        "semantic_review": {
+            "status": "done",
+            "claim_matches_known_scam_family": True,
+            "matched_family": "marketing_false_positive",
+            "claim_matches_legit_template": False,
+            "matched_template": None,
+            "reason_codes": ["semantic:high"],
+            "risk_class": "high",
+            "completeness": True,
+        },
+    }
+
+    result = verdict(bundle)
+
+    assert result["label"] == "SIGUR"
+    assert result["reason_codes"] == ["clean_established_domain"]

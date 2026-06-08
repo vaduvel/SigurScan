@@ -193,7 +193,6 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
         and sensitive == "none"
         and not tld_suspicious
         and _domain_is_established(identity)
-        and semantic_risk in {"unknown", "benign", "low"}
     ):
         return _result("SIGUR", ["clean_established_domain"], confidence=86)
 
