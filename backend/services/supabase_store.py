@@ -200,6 +200,7 @@ def load_reputation_cache() -> Dict[str, Any]:
 def save_reputation_cache(cache: Dict[str, Any]) -> None:
     if not is_supabase_enabled() or not isinstance(cache, dict):
         return
+    rows: List[Dict[str, Any]] = []
     for url_hash, entry in cache.items():
         if not isinstance(entry, dict):
             continue
@@ -216,7 +217,18 @@ def save_reputation_cache(cache: Dict[str, Any]) -> None:
         }
         if expires_at:
             row["expires_at"] = expires_at
-        _post_json("url_reputation_cache", row, "resolution=merge-duplicates,return=minimal")
+        rows.append(row)
+    if not rows:
+        return
+    try:
+        requests.post(
+            _table_url("url_reputation_cache"),
+            headers=_headers("resolution=merge-duplicates,return=minimal"),
+            json=rows,
+            timeout=SUPABASE_TIMEOUT_SECONDS,
+        ).raise_for_status()
+    except Exception:
+        return
 
 
 def save_scan_job(job: Dict[str, Any]) -> bool:

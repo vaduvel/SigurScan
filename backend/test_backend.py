@@ -3874,7 +3874,7 @@ def test_reputation_cache_persists_only_touched_remote_entries(monkeypatch, tmp_
     monkeypatch.setattr(
         url_reputation,
         "_fetch_urlhaus",
-        lambda urls: {
+        lambda urls, auth_key=None: {
             url_reputation._url_hash(urls[0]): {
                 "status": "clean",
                 "threat_type": "unknown",
@@ -3896,6 +3896,96 @@ def test_reputation_cache_persists_only_touched_remote_entries(monkeypatch, tmp_
     assert saved_remote_subsets
     assert set(saved_remote_subsets[0].keys()) == {new_key}
     assert old_key not in saved_remote_subsets[0]
+
+
+def test_urlhaus_without_auth_key_is_not_consulted(monkeypatch):
+    def fail_post(*args, **kwargs):
+        raise AssertionError("URLhaus must not be called without Auth-Key.")
+
+    monkeypatch.setattr(url_reputation, "URLHAUS_AUTH_KEY", "")
+    monkeypatch.setattr(url_reputation.requests, "post", fail_post)
+
+    result = url_reputation._fetch_urlhaus(["https://example.com/path"])
+    key = url_reputation._url_hash("https://example.com/path")
+
+    assert result[key]["status"] == "unknown"
+    assert result[key]["details"]["status"] == "not_configured"
+
+
+def test_urlhaus_uses_auth_key_header_and_form_payload(monkeypatch):
+    captured = {}
+
+    class FakeResponse:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"query_status": "no_results"}
+
+    def fake_post(url, *, data, headers, timeout):
+        captured["url"] = url
+        captured["data"] = data
+        captured["headers"] = headers
+        captured["timeout"] = timeout
+        return FakeResponse()
+
+    monkeypatch.setattr(url_reputation.requests, "post", fake_post)
+
+    result = url_reputation._fetch_urlhaus(["https://example.com/path"], "urlhaus-secret")
+    key = url_reputation._url_hash("https://example.com/path")
+
+    assert captured["headers"] == {"Auth-Key": "urlhaus-secret"}
+    assert captured["data"] == {"url": "https://example.com/path"}
+    assert result[key]["status"] == "clean"
+    assert result[key]["details"]["status"] == "not_listed"
+
+
+def test_local_reputation_cache_is_lru_capped(monkeypatch):
+    now = int(time.time())
+    old_key = "old"
+    middle_key = "middle"
+    newest_key = "newest"
+    monkeypatch.setattr(url_reputation, "REPUTATION_CACHE_MAX_ITEMS", 2)
+    monkeypatch.setattr(url_reputation, "REPUTATION_CACHE_TTL_SECONDS", 100)
+
+    pruned = url_reputation._prune_cache_for_save(
+        {
+            old_key: {"created_at": now - 50, "cached_at": now - 50, "expires_at": now + 50},
+            middle_key: {"created_at": now - 20, "cached_at": now - 20, "expires_at": now + 80},
+            newest_key: {"created_at": now - 1, "cached_at": now - 1, "expires_at": now + 99},
+        }
+    )
+
+    assert set(pruned.keys()) == {middle_key, newest_key}
+
+
+def test_supabase_reputation_cache_uses_single_batch_upsert(monkeypatch):
+    posted = []
+
+    class FakeResponse:
+        @staticmethod
+        def raise_for_status():
+            return None
+
+    def fake_post(url, *, headers, json, timeout):
+        posted.append({"url": url, "headers": headers, "json": json, "timeout": timeout})
+        return FakeResponse()
+
+    monkeypatch.setattr(supabase_store, "SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setattr(supabase_store, "SUPABASE_SERVICE_ROLE_KEY", "service-role")
+    monkeypatch.setattr(supabase_store.requests, "post", fake_post)
+
+    supabase_store.save_reputation_cache(
+        {
+            "hash-a": {"url": "https://a.example", "verdict": "clean", "sources": {}, "details": "ignored"},
+            "hash-b": {"url": "https://b.example", "verdict": "unknown", "sources": {}},
+        }
+    )
+
+    assert len(posted) == 1
+    assert isinstance(posted[0]["json"], list)
+    assert {row["url_hash"] for row in posted[0]["json"]} == {"hash-a", "hash-b"}
+    assert "resolution=merge-duplicates" in posted[0]["headers"]["Prefer"]
 
 
 def test_virustotal_single_engine_is_suspicious_not_malicious(monkeypatch):

@@ -50,6 +50,11 @@ VIRUS_TOTAL_API_URL = "https://www.virustotal.com/api/v3/urls/"
 URLHAUS_API_URL = "https://urlhaus-api.abuse.ch/v1/url/"
 VIRUS_TOTAL_TIMEOUT_SECONDS = float(os.getenv("VIRUS_TOTAL_TIMEOUT_SECONDS", "3.0"))
 URLHAUS_TIMEOUT_SECONDS = float(os.getenv("URLHAUS_TIMEOUT_SECONDS", "3.0"))
+URLHAUS_AUTH_KEY = (
+    os.getenv("URLHAUS_AUTH_KEY", "").strip()
+    or os.getenv("URLHAUS_API_KEY", "").strip()
+    or os.getenv("ABUSECH_AUTH_KEY", "").strip()
+)
 VIRUS_TOTAL_MALICIOUS_CONSENSUS_MIN_ENGINES = max(
     1,
     int(os.getenv("VIRUSTOTAL_HARD_MALICIOUS_MIN_ENGINES", "2")),
@@ -57,6 +62,7 @@ VIRUS_TOTAL_MALICIOUS_CONSENSUS_MIN_ENGINES = max(
 
 DEFAULT_CACHE_TTL_SECONDS = int(os.getenv("URL_REPUTATION_CACHE_TTL_SECONDS", "43200"))
 MAX_REPUTATION_URLS = int(os.getenv("MAX_REPUTATION_URLS", "60"))
+REPUTATION_CACHE_MAX_ITEMS = int(os.getenv("URL_REPUTATION_CACHE_MAX_ITEMS", "1000"))
 DEFAULT_REPUTATION_CACHE_PATH = Path(__file__).resolve().parents[1] / "data" / "url_reputation_cache.json"
 REPUTATION_CACHE_PATH = Path(
     os.getenv("URL_REPUTATION_CACHE_PATH", str(DEFAULT_REPUTATION_CACHE_PATH)),
@@ -149,15 +155,43 @@ def _load_cache(path: Path) -> Dict[str, Any]:
     return {}
 
 
+def _prune_cache_for_save(data: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(data, dict):
+        return {}
+    max_items = max(0, REPUTATION_CACHE_MAX_ITEMS)
+    if max_items <= 0 or len(data) <= max_items:
+        return data
+    now = int(time.time())
+    valid_items = [
+        (key, value)
+        for key, value in data.items()
+        if isinstance(value, dict) and _coerce_int(value.get("expires_at", 0), 0) > now
+    ]
+    if len(valid_items) < max_items:
+        valid_items = [(key, value) for key, value in data.items() if isinstance(value, dict)]
+
+    def sort_key(item: tuple[str, Dict[str, Any]]) -> int:
+        value = item[1]
+        return max(
+            _coerce_int(value.get("cached_at", 0), 0),
+            _coerce_int(value.get("created_at", 0), 0),
+            _coerce_int(value.get("expires_at", 0), 0) - REPUTATION_CACHE_TTL_SECONDS,
+        )
+
+    kept = sorted(valid_items, key=sort_key, reverse=True)[:max_items]
+    return {key: value for key, value in kept}
+
+
 def _save_cache(path: Path, data: Dict[str, Any], remote_subset: Optional[Dict[str, Any]] = None) -> None:
     # Local file cache keeps the full snapshot, but Supabase must only receive
     # entries touched by this request. Upserting the entire cache for one URL
     # turns a single reputation lookup into hundreds of network writes.
     supabase_store.save_reputation_cache(remote_subset if remote_subset is not None else data)
     try:
+        pruned_data = _prune_cache_for_save(data)
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2, sort_keys=True)
+            json.dump(pruned_data, f, ensure_ascii=False, indent=2, sort_keys=True)
     except Exception:
         # Cache persistence is best-effort only.
         return
@@ -550,10 +584,24 @@ def _fetch_virustotal(urls: List[str], api_key: Optional[str]) -> Dict[str, Dict
     return output
 
 
-def _fetch_urlhaus(urls: List[str]) -> Dict[str, Dict[str, Any]]:
+def _urlhaus_auth_key() -> str:
+    return URLHAUS_AUTH_KEY
+
+
+def _fetch_urlhaus(urls: List[str], auth_key: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
     output: Dict[str, Dict[str, Any]] = {}
+    auth_key = (auth_key if auth_key is not None else _urlhaus_auth_key()).strip()
     for url in urls:
         key = _url_hash(url)
+        if not auth_key:
+            output[key] = {
+                "status": "unknown",
+                "threat_type": "unknown",
+                "score": 0,
+                "details": {"status": "not_configured", "provider": "urlhaus"},
+                "query_ms": 0,
+            }
+            continue
         output[key] = {
             "status": "error",
             "threat_type": "error",
@@ -565,7 +613,8 @@ def _fetch_urlhaus(urls: List[str]) -> Dict[str, Dict[str, Any]]:
             start = time.perf_counter()
             response = requests.post(
                 URLHAUS_API_URL,
-                json={"url": url},
+                data={"url": url},
+                headers={"Auth-Key": auth_key},
                 timeout=URLHAUS_TIMEOUT_SECONDS,
             )
             query_ms = int((time.perf_counter() - start) * 1000)
@@ -725,8 +774,9 @@ def get_reputation_for_urls(
         web_risk_enabled = has_web_risk_key()
         web_risk_matches = check_urls_against_web_risk(need_fetch) if web_risk_enabled else {}
         vt_key = os.getenv("VIRUSTOTAL_API_KEY", "").strip() or None
+        urlhaus_key = _urlhaus_auth_key()
         vt_matches = _fetch_virustotal(need_fetch, vt_key) if include_virustotal else {}
-        urlhaus_matches = _fetch_urlhaus(need_fetch) if include_urlhaus else {}
+        urlhaus_matches = _fetch_urlhaus(need_fetch, urlhaus_key) if include_urlhaus else {}
         should_persist_results = persist_partial or (include_virustotal and include_urlhaus)
 
         for url in need_fetch:
@@ -771,12 +821,12 @@ def get_reputation_for_urls(
                 "status": "unknown" if not include_urlhaus else "error",
                 "threat_type": "unknown" if not include_urlhaus else "error",
                 "score": 0,
-                "details": {"status": urlhaus_default_error},
+                "details": {"status": "not_configured" if include_urlhaus and not urlhaus_key else urlhaus_default_error},
                 "query_ms": 0,
             })
             per_source[URLHAUS_SOURCE] = {
                 "status": urlhaus_entry.get("status", "unknown"),
-                "consulted": bool(include_urlhaus),
+                "consulted": bool(include_urlhaus and urlhaus_key),
                 "threat_type": urlhaus_entry.get("threat_type", "unknown"),
                 "details": urlhaus_entry.get("details", {}),
                 "score": _coerce_int(urlhaus_entry.get("score", 0), 0),
