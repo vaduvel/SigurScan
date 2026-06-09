@@ -27,6 +27,7 @@ program
   .option('--bucket <name>', 'Supabase storage bucket', process.env.STORAGE_BUCKET || 'previews')
   .option('--cache-table <name>', 'Supabase cache table', process.env.CACHE_TABLE || 'fast_preview_cache')
   .option('--alias-table <name>', 'Optional Supabase alias table from original URL hash to final URL hash', process.env.ALIAS_TABLE || 'fast_preview_alias_cache')
+  .option('--runs-table <name>', 'Optional Supabase operational run audit table', process.env.RUNS_TABLE || 'fast_preview_capture_runs')
   .option('--cache-ttl-days <days>', 'Cache TTL days', process.env.CACHE_TTL_DAYS || '7')
   .option('--max-redirect-hops <n>', 'Maximum redirect hops', process.env.MAX_REDIRECT_HOPS || '10')
   .option('--nav-timeout-seconds <seconds>', 'Hard navigation timeout', process.env.NAV_TIMEOUT_SECONDS || '20')
@@ -52,6 +53,12 @@ const SKIP_RESERVED = String(opts.skipReserved).toLowerCase() !== 'false';
 const CHROMIUM_SANDBOX = String(opts.chromiumSandbox).toLowerCase() !== 'false';
 const CLEANUP_EXPIRED = String(opts.cleanupExpired).toLowerCase() !== 'false';
 const CLEANUP_LIMIT = Math.max(1, Number(opts.cleanupLimit) || 200);
+const WORKER_VERSION = '1.1.0';
+const RUN_STARTED_AT_MS = Date.now();
+const RUN_ID = process.env.GITHUB_RUN_ID
+  ? `github_${process.env.GITHUB_RUN_ID}_${process.env.GITHUB_RUN_ATTEMPT || '1'}`
+  : `worker_${RUN_STARTED_AT_MS}_${crypto.randomBytes(4).toString('hex')}`;
+const TRIGGER_SOURCE = process.env.GITHUB_ACTIONS === 'true' ? 'github_actions' : 'local_or_container';
 
 const supabaseEnabled = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY);
 const supabase = supabaseEnabled
@@ -71,6 +78,7 @@ const stats = {
   expiredRowsDeleted: 0,
   expiredScreenshotsDeleted: 0,
   cleanupErrors: [],
+  auditErrors: [],
   failedDeadUrls: 0,
   failed: []
 };
@@ -534,6 +542,46 @@ async function cleanupExpiredSupabaseCache(bucket, table) {
   stats.expiredRowsDeleted += hashes.length;
 }
 
+function captureRunAuditRow(finishedAt = null) {
+  const finalReport = {
+    screenshots_captured_new: stats.screenshotsCapturedNew,
+    skipped_cached_fresh: stats.skippedAlreadyCachedFresh,
+    skipped_reserved: stats.skippedReserved,
+    expired_rows_deleted: stats.expiredRowsDeleted,
+    expired_screenshots_deleted: stats.expiredScreenshotsDeleted,
+    failed: stats.failedDeadUrls,
+    cleanup_error_count: stats.cleanupErrors.length
+  };
+  return {
+    run_id: RUN_ID,
+    worker_version: WORKER_VERSION,
+    trigger_source: TRIGGER_SOURCE,
+    dry_run: Boolean(opts.dryRun),
+    started_at: new Date(RUN_STARTED_AT_MS).toISOString(),
+    finished_at: finishedAt,
+    duration_ms: finishedAt ? Math.max(0, Date.now() - RUN_STARTED_AT_MS) : null,
+    total_inputs: stats.totalEmailsParsed,
+    total_raw_urls: stats.totalRawUrlsFound,
+    unique_urls: stats.uniqueUrlsAfterDedup,
+    captured_new: stats.screenshotsCapturedNew,
+    skipped_fresh: stats.skippedAlreadyCachedFresh,
+    skipped_reserved: stats.skippedReserved,
+    expired_rows_deleted: stats.expiredRowsDeleted,
+    expired_screenshots_deleted: stats.expiredScreenshotsDeleted,
+    failed: stats.failedDeadUrls,
+    cleanup_error_count: stats.cleanupErrors.length,
+    final_report: finalReport
+  };
+}
+
+async function saveCaptureRunAudit(finishedAt = null) {
+  if (!supabaseEnabled || !opts.runsTable || opts.dryRun) return;
+  const { error } = await supabase
+    .from(opts.runsTable)
+    .upsert(captureRunAuditRow(finishedAt), { onConflict: 'run_id' });
+  if (error) stats.auditErrors.push(`capture_run_audit_failed:${error.message}`);
+}
+
 async function createBrowser() {
   return chromium.launch({
     headless: true,
@@ -777,19 +825,27 @@ async function main() {
     return;
   }
 
-  await cleanupExpiredSupabaseCache(opts.bucket, opts.cacheTable);
-
-  const browser = await createBrowser();
-  const limit = pLimit(CONCURRENCY);
-  const tasks = uniqueInputs.map(input => limit(() => captureOne(browser, input, outDir, opts.bucket, opts.cacheTable)));
-  await Promise.all(tasks);
-  await browser.close();
-
-  await fs.writeFile(path.join(outDir, 'final_report.json'), JSON.stringify(stats, null, 2));
-  printReport();
-  if (!supabaseEnabled) {
-    console.log(`\nLocal manifest: ${path.join(outDir, 'manifest.json')}`);
-    console.log(`Local screenshots: ${path.join(outDir, 'screenshots')}`);
+  let browser = null;
+  await saveCaptureRunAudit();
+  try {
+    await cleanupExpiredSupabaseCache(opts.bucket, opts.cacheTable);
+    browser = await createBrowser();
+    const limit = pLimit(CONCURRENCY);
+    const tasks = uniqueInputs.map(input => limit(() => captureOne(browser, input, outDir, opts.bucket, opts.cacheTable)));
+    await Promise.all(tasks);
+  } catch (error) {
+    stats.failedDeadUrls += 1;
+    stats.failed.push({ original_url: null, error: `run_failed:${error?.message || error}` });
+    throw error;
+  } finally {
+    await browser?.close().catch(() => {});
+    await saveCaptureRunAudit(nowIso());
+    await fs.writeFile(path.join(outDir, 'final_report.json'), JSON.stringify(stats, null, 2));
+    printReport();
+    if (!supabaseEnabled) {
+      console.log(`\nLocal manifest: ${path.join(outDir, 'manifest.json')}`);
+      console.log(`Local screenshots: ${path.join(outDir, 'screenshots')}`);
+    }
   }
 }
 
@@ -804,6 +860,7 @@ function printReport() {
   console.log(`expired cache rows deleted:     ${stats.expiredRowsDeleted}`);
   console.log(`expired screenshots deleted:    ${stats.expiredScreenshotsDeleted}`);
   console.log(`cleanup errors:                 ${stats.cleanupErrors.length}`);
+  console.log(`audit errors:                   ${stats.auditErrors.length}`);
   console.log(`failed / dead URLs:             ${stats.failedDeadUrls}`);
   if (stats.cleanupErrors.length) {
     console.log('\nCleanup errors:');

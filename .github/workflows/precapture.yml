@@ -49,6 +49,7 @@ jobs:
           STORAGE_BUCKET: previews
           CACHE_TABLE: fast_preview_cache
           ALIAS_TABLE: fast_preview_alias_cache
+          RUNS_TABLE: fast_preview_capture_runs
           CACHE_TTL_DAYS: "14"
           CONCURRENCY: "1"
           MAX_URLS: ${{ github.event.inputs.max_urls || '50' }}
@@ -70,6 +71,7 @@ jobs:
             "--chromium-sandbox" "false"
             "--cleanup-expired" "true"
             "--cleanup-limit" "200"
+            "--runs-table" "fast_preview_capture_runs"
           )
           if [ "${{ github.event.inputs.dry_run || 'false' }}" = "true" ]; then
             args+=("--dry-run")

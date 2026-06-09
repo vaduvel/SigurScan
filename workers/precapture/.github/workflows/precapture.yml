@@ -24,6 +24,7 @@ jobs:
           STORAGE_BUCKET: previews
           CACHE_TABLE: fast_preview_cache
           ALIAS_TABLE: fast_preview_alias_cache
+          RUNS_TABLE: fast_preview_capture_runs
           CACHE_TTL_DAYS: "14"
           MAX_URLS: "50"
           CONCURRENCY: "1"
@@ -39,7 +40,8 @@ jobs:
             --max-urls 50 \
             --chromium-sandbox false \
             --cleanup-expired true \
-            --cleanup-limit 200
+            --cleanup-limit 200 \
+            --runs-table fast_preview_capture_runs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
