@@ -29,6 +29,7 @@ from services.redirect_resolver import (
 )
 from services.scam_atlas import ScamAtlasEngine
 from services.offer_claim_verifier import verify_offer_claim
+from services import offer_claim_verifier
 from services.telemetry import (
     build_feedback_evaluation_rows,
     run_feedback_threshold_sweep,
@@ -208,6 +209,110 @@ def test_offer_claim_verifier_prefers_fast_official_fetch_before_gemini(monkeypa
     assert result["status"] == "confirmed"
     assert result["method"] == "official_page_fetch"
     assert result["official_source_found"] is True
+
+
+def test_offer_claim_gemini_grounding_is_bounded_for_25_flash(monkeypatch):
+    captured = {}
+
+    class FakeModels:
+        def generate_content(self, *, model, contents, config):
+            captured["model"] = model
+            captured["config"] = config
+            return type(
+                "Response",
+                (),
+                {
+                    "text": json.dumps(
+                        {
+                            "status": "confirmed",
+                            "summary": "Confirmat pe surse oficiale.",
+                            "evidence_urls": ["https://example.com/offer"],
+                            "official_source_found": True,
+                            "confidence": 80,
+                        }
+                    )
+                },
+            )()
+
+    class FakeClient:
+        def __init__(self, api_key):
+            captured["api_key"] = api_key
+            self.models = FakeModels()
+
+    monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
+    monkeypatch.setenv("OFFER_CLAIM_GEMINI_MODEL", "gemini-2.5-flash")
+    monkeypatch.setenv("OFFER_CLAIM_GEMINI_TIMEOUT_SECONDS", "4.0")
+    monkeypatch.setattr(offer_claim_verifier.genai, "Client", FakeClient)
+    offer_claim_verifier._GEMINI_CLIENT_CACHE.clear()
+    monkeypatch.setattr(offer_claim_verifier, "OFFER_CLAIM_GEMINI_TIMEOUT_SECONDS", 4.0)
+
+    result = offer_claim_verifier._verify_with_gemini_search(
+        text="Oferta test https://example.com",
+        claimed_brand="Example",
+        official_domains=["example.com"],
+        final_urls=["https://example.com"],
+        query="Oferta test Example",
+        claim_target={"claim_type": "test"},
+    )
+
+    config = captured["config"]
+    assert result["status"] == "confirmed"
+    assert captured["model"] == "gemini-2.5-flash"
+    assert config.http_options.timeout == 4000
+    assert config.max_output_tokens == 512
+    assert config.response_mime_type == "application/json"
+    assert config.thinking_config.thinking_budget == 0
+    assert config.tools and config.tools[0].google_search is not None
+
+
+def test_offer_claim_gemini_grounding_uses_minimal_thinking_for_35_flash(monkeypatch):
+    captured = {}
+
+    class FakeModels:
+        def generate_content(self, *, model, contents, config):
+            captured["model"] = model
+            captured["config"] = config
+            return type(
+                "Response",
+                (),
+                {
+                    "text": json.dumps(
+                        {
+                            "status": "inconclusive",
+                            "summary": "Nu este concludent.",
+                            "evidence_urls": [],
+                            "official_source_found": False,
+                            "confidence": 10,
+                        }
+                    )
+                },
+            )()
+
+    class FakeClient:
+        def __init__(self, api_key):
+            self.models = FakeModels()
+
+    monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
+    monkeypatch.setenv("OFFER_CLAIM_GEMINI_MODEL", "gemini-3.5-flash")
+    monkeypatch.setattr(offer_claim_verifier.genai, "Client", FakeClient)
+    offer_claim_verifier._GEMINI_CLIENT_CACHE.clear()
+    monkeypatch.setattr(offer_claim_verifier, "OFFER_CLAIM_GEMINI_TIMEOUT_SECONDS", 5.0)
+    monkeypatch.setattr(offer_claim_verifier, "OFFER_CLAIM_GEMINI_THINKING_LEVEL", "minimal")
+
+    result = offer_claim_verifier._verify_with_gemini_search(
+        text="Oferta test https://example.com",
+        claimed_brand="Example",
+        official_domains=["example.com"],
+        final_urls=["https://example.com"],
+        query="Oferta test Example",
+        claim_target={"claim_type": "test"},
+    )
+
+    config = captured["config"]
+    assert result["status"] == "inconclusive"
+    assert captured["model"] == "gemini-3.5-flash"
+    assert config.http_options.timeout == 5000
+    assert config.thinking_config.thinking_level == offer_claim_verifier.types.ThinkingLevel.MINIMAL
 
 
 def test_offer_claim_verifier_uses_runtime_knowledge_sources_for_yoxo(monkeypatch):

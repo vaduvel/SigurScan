@@ -39,6 +39,12 @@ ENABLE_OFFER_CLAIM_WEB_CHECK = os.getenv("ENABLE_OFFER_CLAIM_WEB_CHECK", "true")
     "on",
 }
 OFFER_CLAIM_HTTP_TIMEOUT_SECONDS = float(os.getenv("OFFER_CLAIM_HTTP_TIMEOUT_SECONDS", "3.0"))
+OFFER_CLAIM_GEMINI_TIMEOUT_SECONDS = float(
+    os.getenv("OFFER_CLAIM_GEMINI_TIMEOUT_SECONDS", os.getenv("AI_OFFER_CLAIM_TIMEOUT_SECONDS", "5.0"))
+)
+OFFER_CLAIM_GEMINI_MAX_OUTPUT_TOKENS = int(os.getenv("OFFER_CLAIM_GEMINI_MAX_OUTPUT_TOKENS", "512"))
+OFFER_CLAIM_GEMINI_THINKING_BUDGET = int(os.getenv("OFFER_CLAIM_GEMINI_THINKING_BUDGET", "0"))
+OFFER_CLAIM_GEMINI_THINKING_LEVEL = os.getenv("OFFER_CLAIM_GEMINI_THINKING_LEVEL", "minimal").strip().lower()
 MAX_OFFER_CLAIM_OFFICIAL_PAGES = int(os.getenv("MAX_OFFER_CLAIM_OFFICIAL_PAGES", "4"))
 
 STOPWORDS = {
@@ -102,6 +108,7 @@ def _load_runtime_knowledge() -> Dict[str, Any]:
 
 RUNTIME_KNOWLEDGE = _load_runtime_knowledge()
 CLAIM_VERIFIER_TARGETS = RUNTIME_KNOWLEDGE.get("claim_verifier_targets", [])
+_GEMINI_CLIENT_CACHE: Dict[str, Any] = {}
 
 
 def verify_offer_claim(
@@ -202,13 +209,21 @@ Reguli:
 """
 
     try:
-        client = genai.Client(api_key=api_key)
+        client = _gemini_client(api_key)
+        model = os.getenv("OFFER_CLAIM_GEMINI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash"
+        config_kwargs: Dict[str, Any] = {
+            "tools": [types.Tool(google_search=types.GoogleSearch())],
+            "http_options": types.HttpOptions(timeout=_gemini_timeout_ms()),
+            "max_output_tokens": OFFER_CLAIM_GEMINI_MAX_OUTPUT_TOKENS,
+            "response_mime_type": "application/json",
+        }
+        thinking_config = _gemini_thinking_config(model)
+        if thinking_config is not None:
+            config_kwargs["thinking_config"] = thinking_config
         response = client.models.generate_content(
-            model=os.getenv("OFFER_CLAIM_GEMINI_MODEL", "gemini-2.5-flash"),
+            model=model,
             contents=prompt,
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(google_search=types.GoogleSearch())],
-            ),
+            config=types.GenerateContentConfig(**config_kwargs),
         )
         raw = _extract_json_text(response.text or "")
         data = json.loads(raw)
@@ -246,7 +261,7 @@ Reguli:
         return _payload(
             "inconclusive",
             "unknown",
-            "AI web search temporarily unavailable.",
+            f"AI web search temporarily unavailable ({type(exc).__name__}).",
             confidence=0,
             claimed_brand=claimed_brand,
             official_domains=official_domains,
@@ -255,6 +270,35 @@ Reguli:
             method="gemini_google_search_error",
             knowledge_target=claim_target.get("claim_type") if isinstance(claim_target, dict) else None,
         )
+
+
+def _gemini_client(api_key: str):
+    cached = _GEMINI_CLIENT_CACHE.get(api_key)
+    if cached is None:
+        cached = genai.Client(api_key=api_key)
+        _GEMINI_CLIENT_CACHE[api_key] = cached
+    return cached
+
+
+def _gemini_timeout_ms() -> int:
+    return max(500, int(max(0.1, OFFER_CLAIM_GEMINI_TIMEOUT_SECONDS) * 1000))
+
+
+def _gemini_thinking_config(model: str):
+    if not SDK_AVAILABLE:
+        return None
+    model_name = (model or "").strip().lower()
+    if "gemini-2.5" in model_name:
+        return types.ThinkingConfig(thinking_budget=OFFER_CLAIM_GEMINI_THINKING_BUDGET)
+    if "gemini-3" in model_name:
+        level = {
+            "minimal": types.ThinkingLevel.MINIMAL,
+            "low": types.ThinkingLevel.LOW,
+            "medium": types.ThinkingLevel.MEDIUM,
+            "high": types.ThinkingLevel.HIGH,
+        }.get(OFFER_CLAIM_GEMINI_THINKING_LEVEL, types.ThinkingLevel.MINIMAL)
+        return types.ThinkingConfig(thinking_level=level)
+    return None
 
 
 def _extract_json_text(value: str) -> str:
