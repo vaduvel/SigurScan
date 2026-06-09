@@ -6066,6 +6066,7 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
                     cache_entry = _urlscan_preview_cache_entry_from_job(job)
                     if cache_entry:
                         _save_urlscan_preview_cache(cache_entry)
+                        preview["cache_saved"] = True
                 elif _urlscan_pending_has_timed_out(job):
                     urlscan_state["status"] = "timeout"
                     _increment_orchestrated_metric(job, "urlscan_timeout_count")

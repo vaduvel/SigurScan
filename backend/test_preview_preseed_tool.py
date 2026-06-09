@@ -57,6 +57,7 @@ class _FakeClientPreviewAfterSubmit:
                     "status": "scanning",
                     "preview": {
                         "cache_hit": False,
+                        "cache_saved": False,
                         "final_url": "https://www.fancourier.ro/",
                         "report_url": "https://urlscan.io/result/fan-new/",
                         "screenshot_url": "https://backend/v1/sandbox/urlscan/fan-new/screenshot",
@@ -69,6 +70,7 @@ class _FakeClientPreviewAfterSubmit:
                 "status": "complete",
                 "preview": {
                     "cache_hit": False,
+                    "cache_saved": True,
                     "final_url": "https://www.fancourier.ro/",
                     "report_url": "https://urlscan.io/result/fan-new/",
                     "screenshot_url": "https://backend/v1/sandbox/urlscan/fan-new/screenshot",
@@ -173,4 +175,5 @@ def test_preseed_one_waits_for_complete_when_preview_is_not_cached_yet():
 
     assert result["status"] == "preview_ready"
     assert result["cache_hit"] is False
+    assert result["cache_saved"] is True
     assert client.poll_count == 2

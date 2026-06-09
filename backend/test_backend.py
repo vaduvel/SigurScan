@@ -2834,6 +2834,7 @@ def test_orchestrated_urlscan_preview_cache_saves_when_screenshot_ready(monkeypa
         refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
 
     assert refreshed["urlscan"]["screenshot_ready"] is True
+    assert refreshed["preview"]["cache_saved"] is True
     assert saved
     assert saved[0]["final_url"] == "https://bilete.sublime.ro/regulament.pdf"
     assert saved[0]["screenshot_url"] == "https://backend/v1/sandbox/urlscan/urlscan-ready-for-cache/screenshot"

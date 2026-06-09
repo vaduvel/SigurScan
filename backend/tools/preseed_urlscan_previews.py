@@ -95,14 +95,15 @@ def preseed_one(
         last_payload = payload if isinstance(payload, dict) else {}
         preview = last_payload.get("preview") if isinstance(last_payload.get("preview"), dict) else {}
         preview_is_cached = bool(preview.get("cache_hit"))
-        preview_is_complete = last_payload.get("status") == "complete"
-        if preview.get("screenshot_url") and (preview_is_cached or preview_is_complete):
+        preview_is_saved = bool(preview.get("cache_saved"))
+        if preview.get("screenshot_url") and (preview_is_cached or preview_is_saved):
             return {
                 "label": seed.get("label"),
                 "url": seed.get("url"),
                 "status": "preview_ready",
                 "scan_id": scan_id,
                 "cache_hit": preview_is_cached,
+                "cache_saved": preview_is_saved,
                 "final_url": preview.get("final_url"),
                 "report_url": preview.get("report_url"),
                 "screenshot_url": preview.get("screenshot_url"),
