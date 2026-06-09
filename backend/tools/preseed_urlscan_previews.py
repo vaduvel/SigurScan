@@ -135,10 +135,13 @@ def run_preseed(
     client: requests.Session | None = None,
     dry_run: bool = True,
     limit: int | None = None,
+    offset: int = 0,
     timeout_seconds: int = 90,
     poll_interval_seconds: float = 2.0,
 ) -> list[dict[str, Any]]:
     selected = list(seeds)
+    if isinstance(offset, int) and offset > 0:
+        selected = selected[offset:]
     if isinstance(limit, int) and limit > 0:
         selected = selected[:limit]
     if dry_run:
@@ -164,6 +167,7 @@ def main() -> int:
     parser.add_argument("--seed-file", default=str(DEFAULT_SEED_PATH))
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
     parser.add_argument("--limit", type=int, default=5)
+    parser.add_argument("--offset", type=int, default=0)
     parser.add_argument("--timeout", type=int, default=90)
     parser.add_argument("--poll-interval", type=float, default=2.0)
     parser.add_argument("--execute", action="store_true", help="Actually call the backend. Default is dry-run.")
@@ -175,6 +179,7 @@ def main() -> int:
         base_url=args.base_url,
         dry_run=not args.execute,
         limit=args.limit,
+        offset=args.offset,
         timeout_seconds=args.timeout,
         poll_interval_seconds=args.poll_interval,
     )

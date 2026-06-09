@@ -118,6 +118,22 @@ def test_run_preseed_dry_run_does_not_call_network():
     assert client.calls == []
 
 
+def test_run_preseed_supports_offset_for_chunking():
+    result = preseed.run_preseed(
+        [
+            {"label": "A", "url": "https://a.example"},
+            {"label": "B", "url": "https://b.example"},
+            {"label": "C", "url": "https://c.example"},
+        ],
+        base_url="https://backend.example",
+        dry_run=True,
+        offset=1,
+        limit=1,
+    )
+
+    assert result == [{"label": "B", "url": "https://b.example", "status": "dry_run"}]
+
+
 def test_preseed_one_posts_url_payload_and_stops_on_preview():
     client = _FakeClient()
 
