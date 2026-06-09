@@ -53,7 +53,7 @@ const SKIP_RESERVED = String(opts.skipReserved).toLowerCase() !== 'false';
 const CHROMIUM_SANDBOX = String(opts.chromiumSandbox).toLowerCase() !== 'false';
 const CLEANUP_EXPIRED = String(opts.cleanupExpired).toLowerCase() !== 'false';
 const CLEANUP_LIMIT = Math.max(1, Number(opts.cleanupLimit) || 200);
-const WORKER_VERSION = '1.1.0';
+const WORKER_VERSION = '1.2.0';
 const RUN_STARTED_AT_MS = Date.now();
 const RUN_ID = process.env.GITHUB_RUN_ID
   ? `github_${process.env.GITHUB_RUN_ID}_${process.env.GITHUB_RUN_ATTEMPT || '1'}`

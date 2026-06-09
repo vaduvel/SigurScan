@@ -1,6 +1,6 @@
 {
   "name": "sigurscan-precapture-worker",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "description": "SigurScan URL preview pre-capture worker: parse emails/URL lists, capture safe previews with Playwright, upload to Supabase or local manifest.",
