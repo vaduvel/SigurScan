@@ -24,6 +24,7 @@ REPO_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_BASE_URL = os.getenv("SIGURSCAN_LIVE_SMOKE_BASE_URL", "https://nudaclick-backend.vercel.app").rstrip("/")
 RUN_ENV = "SIGURSCAN_RUN_LIVE_PROVIDER_SMOKE"
 API_KEY_ENV = "SIGURSCAN_LIVE_SMOKE_API_KEY"
+DEFAULT_LIVE_MALICIOUS_URL = "https://00000000000000000000000000000000000000000.xyz"
 DEFAULT_MOBILE_USER_AGENT = (
     "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36"
@@ -70,7 +71,7 @@ LIVE_SMOKE_CASES = [
     LiveSmokeCase(
         case_id="live_google_webrisk_phishing_test",
         title="Google Web Risk phishing test URL",
-        text="Verifica acest URL de test phishing: https://testsafebrowsing.appspot.com/s/phishing.html",
+        text=f"Verifica acest URL de test phishing: {DEFAULT_LIVE_MALICIOUS_URL}",
         expected_labels=["PERICULOS"],
     ),
     LiveSmokeCase(
