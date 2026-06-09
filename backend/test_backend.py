@@ -214,36 +214,44 @@ def test_offer_claim_verifier_prefers_fast_official_fetch_before_gemini(monkeypa
 def test_offer_claim_gemini_grounding_is_bounded_for_25_flash(monkeypatch):
     captured = {}
 
-    class FakeModels:
-        def generate_content(self, *, model, contents, config):
-            captured["model"] = model
-            captured["config"] = config
-            return type(
-                "Response",
-                (),
-                {
-                    "text": json.dumps(
-                        {
-                            "status": "confirmed",
-                            "summary": "Confirmat pe surse oficiale.",
-                            "evidence_urls": ["https://example.com/offer"],
-                            "official_source_found": True,
-                            "confidence": 80,
-                        }
-                    )
-                },
-            )()
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
 
-    class FakeClient:
-        def __init__(self, api_key):
-            captured["api_key"] = api_key
-            self.models = FakeModels()
+        def json(self):
+            return {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": json.dumps(
+                                        {
+                                            "status": "confirmed",
+                                            "summary": "Confirmat pe surse oficiale.",
+                                            "evidence_urls": ["https://example.com/offer"],
+                                            "official_source_found": True,
+                                            "confidence": 80,
+                                        }
+                                    )
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+
+    def fake_post(url, *, params, json, timeout):
+        captured["url"] = url
+        captured["params"] = params
+        captured["json"] = json
+        captured["timeout"] = timeout
+        return FakeResponse()
 
     monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
     monkeypatch.setenv("OFFER_CLAIM_GEMINI_MODEL", "gemini-2.5-flash")
     monkeypatch.setenv("OFFER_CLAIM_GEMINI_TIMEOUT_SECONDS", "4.0")
-    monkeypatch.setattr(offer_claim_verifier.genai, "Client", FakeClient)
-    offer_claim_verifier._GEMINI_CLIENT_CACHE.clear()
+    monkeypatch.setattr(offer_claim_verifier.requests, "post", fake_post)
     monkeypatch.setattr(offer_claim_verifier, "OFFER_CLAIM_GEMINI_TIMEOUT_SECONDS", 4.0)
 
     result = offer_claim_verifier._verify_with_gemini_search(
@@ -255,49 +263,55 @@ def test_offer_claim_gemini_grounding_is_bounded_for_25_flash(monkeypatch):
         claim_target={"claim_type": "test"},
     )
 
-    config = captured["config"]
     assert result["status"] == "confirmed"
-    assert captured["model"] == "gemini-2.5-flash"
-    assert config.http_options.timeout == 4000
-    assert config.max_output_tokens == 512
-    assert config.response_mime_type == "application/json"
-    assert config.thinking_config.thinking_budget == 0
-    assert config.tools and config.tools[0].google_search is not None
+    assert "gemini-2.5-flash:generateContent" in captured["url"]
+    assert captured["params"] == {"key": "test-gemini-key"}
+    assert captured["timeout"] == 4.0
+    assert captured["json"]["tools"] == [{"google_search": {}}]
+    assert captured["json"]["generationConfig"]["maxOutputTokens"] == 512
 
 
-def test_offer_claim_gemini_grounding_uses_minimal_thinking_for_35_flash(monkeypatch):
-    captured = {}
+def test_offer_claim_gemini_grounding_falls_back_to_web_risk_key(monkeypatch):
+    calls = []
 
-    class FakeModels:
-        def generate_content(self, *, model, contents, config):
-            captured["model"] = model
-            captured["config"] = config
-            return type(
-                "Response",
-                (),
-                {
-                    "text": json.dumps(
-                        {
-                            "status": "inconclusive",
-                            "summary": "Nu este concludent.",
-                            "evidence_urls": [],
-                            "official_source_found": False,
-                            "confidence": 10,
+    class FakeResponse:
+        def __init__(self, ok):
+            self.ok = ok
+
+        def raise_for_status(self):
+            if not self.ok:
+                raise RuntimeError("RESOURCE_EXHAUSTED")
+
+        def json(self):
+            return {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": json.dumps(
+                                        {
+                                            "status": "confirmed",
+                                            "summary": "Confirmat cu cheia fallback.",
+                                            "evidence_urls": ["https://example.com/offer"],
+                                            "official_source_found": True,
+                                            "confidence": 75,
+                                        }
+                                    )
+                                }
+                            ]
                         }
-                    )
-                },
-            )()
+                    }
+                ]
+            }
 
-    class FakeClient:
-        def __init__(self, api_key):
-            self.models = FakeModels()
+    def fake_post(url, *, params, json, timeout):
+        calls.append(params["key"])
+        return FakeResponse(ok=params["key"] == "working-web-risk-key")
 
-    monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
-    monkeypatch.setenv("OFFER_CLAIM_GEMINI_MODEL", "gemini-3.5-flash")
-    monkeypatch.setattr(offer_claim_verifier.genai, "Client", FakeClient)
-    offer_claim_verifier._GEMINI_CLIENT_CACHE.clear()
-    monkeypatch.setattr(offer_claim_verifier, "OFFER_CLAIM_GEMINI_TIMEOUT_SECONDS", 5.0)
-    monkeypatch.setattr(offer_claim_verifier, "OFFER_CLAIM_GEMINI_THINKING_LEVEL", "minimal")
+    monkeypatch.setenv("GEMINI_API_KEY", "quota-hit-gemini-key")
+    monkeypatch.setenv("GOOGLE_WEB_RISK_API_KEY", "working-web-risk-key")
+    monkeypatch.setattr(offer_claim_verifier.requests, "post", fake_post)
 
     result = offer_claim_verifier._verify_with_gemini_search(
         text="Oferta test https://example.com",
@@ -308,11 +322,98 @@ def test_offer_claim_gemini_grounding_uses_minimal_thinking_for_35_flash(monkeyp
         claim_target={"claim_type": "test"},
     )
 
-    config = captured["config"]
+    assert calls == ["quota-hit-gemini-key", "working-web-risk-key"]
+    assert result["status"] == "confirmed"
+    assert result["method"] == "gemini_google_search"
+
+
+def test_offer_claim_gemini_grounding_accepts_non_json_text_with_official_url(monkeypatch):
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {"text": "Da, hipo.ro există și pagina oficială este https://www.hipo.ro/ADT_TM."}
+                            ]
+                        }
+                    }
+                ]
+            }
+
+    monkeypatch.setattr(offer_claim_verifier.requests, "post", lambda *args, **kwargs: FakeResponse())
+
+    monkeypatch.setenv("GEMINI_API_KEY", "working-gemini-key")
+    monkeypatch.delenv("GOOGLE_WEB_RISK_API_KEY", raising=False)
+
+    result = offer_claim_verifier._verify_with_gemini_search(
+        text="Hipo iti recomanda evenimentul Angajatori de TOP. https://www.hipo.ro/ADT_TM",
+        claimed_brand="Hipo",
+        official_domains=["hipo.ro"],
+        final_urls=["https://www.hipo.ro/ADT_TM"],
+        query="Hipo Angajatori de TOP",
+        claim_target={"claim_type": "event"},
+    )
+
+    assert result["status"] == "confirmed"
+    assert result["official_source_found"] is True
+    assert result["evidence_urls"] == ["https://www.hipo.ro/ADT_TM"]
+
+
+def test_offer_claim_gemini_grounding_uses_minimal_thinking_for_35_flash(monkeypatch):
+    captured = {}
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": json.dumps(
+                                        {
+                                            "status": "inconclusive",
+                                            "summary": "Nu este concludent.",
+                                            "evidence_urls": [],
+                                            "official_source_found": False,
+                                            "confidence": 10,
+                                        }
+                                    )
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+
+    def fake_post(url, *, params, json, timeout):
+        captured["url"] = url
+        return FakeResponse()
+
+    monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
+    monkeypatch.setenv("OFFER_CLAIM_GEMINI_MODEL", "gemini-3.5-flash")
+    monkeypatch.setattr(offer_claim_verifier.requests, "post", fake_post)
+    monkeypatch.setattr(offer_claim_verifier, "OFFER_CLAIM_GEMINI_TIMEOUT_SECONDS", 5.0)
+
+    result = offer_claim_verifier._verify_with_gemini_search(
+        text="Oferta test https://example.com",
+        claimed_brand="Example",
+        official_domains=["example.com"],
+        final_urls=["https://example.com"],
+        query="Oferta test Example",
+        claim_target={"claim_type": "test"},
+    )
+
     assert result["status"] == "inconclusive"
-    assert captured["model"] == "gemini-3.5-flash"
-    assert config.http_options.timeout == 5000
-    assert config.thinking_config.thinking_level == offer_claim_verifier.types.ThinkingLevel.MINIMAL
+    assert "gemini-3.5-flash:generateContent" in captured["url"]
 
 
 def test_offer_claim_verifier_uses_runtime_knowledge_sources_for_yoxo(monkeypatch):

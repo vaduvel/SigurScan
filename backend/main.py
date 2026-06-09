@@ -4627,6 +4627,7 @@ def _orchestrated_metrics(job: Dict[str, Any]) -> Dict[str, Any]:
         job["orchestration_metrics"] = metrics
     metrics.setdefault("poll_count", 0)
     metrics.setdefault("stage_durations_ms", {})
+    metrics.setdefault("component_durations_ms", {})
     metrics.setdefault("stage_sequence", [])
     metrics.setdefault("conflict_merge_count", 0)
     metrics.setdefault("conflict_merge_retry_count", 0)
@@ -4644,6 +4645,30 @@ def _increment_orchestrated_metric(job: Dict[str, Any], key: str, amount: int = 
         metrics[key] = int(metrics.get(key, 0) or 0) + int(amount)
     except Exception:
         metrics[key] = int(amount)
+
+
+def _record_orchestrated_component_duration(job: Dict[str, Any], component: str, started_at: float) -> None:
+    if not isinstance(job, dict):
+        return
+    elapsed_ms = max(0, int((time.perf_counter() - started_at) * 1000))
+    metrics = _orchestrated_metrics(job)
+    durations = metrics.setdefault("component_durations_ms", {})
+    if not isinstance(durations, dict):
+        durations = {}
+        metrics["component_durations_ms"] = durations
+    key = str(component or "unknown")
+    try:
+        durations[key] = int(durations.get(key, 0) or 0) + elapsed_ms
+    except Exception:
+        durations[key] = elapsed_ms
+
+
+def _timed_orchestrated_component(job: Dict[str, Any], component: str, fn):
+    started_at = time.perf_counter()
+    try:
+        return fn()
+    finally:
+        _record_orchestrated_component_duration(job, component, started_at)
 
 
 def _set_orchestrated_stage(job: Dict[str, Any], next_stage: str) -> None:
@@ -4693,6 +4718,7 @@ def _emit_orchestrated_telemetry(event_type: str, job: Dict[str, Any], **metadat
                     "poll_count": metrics.get("poll_count"),
                     "age_ms": max(0, int(time.time()) - int(job.get("created_at") or int(time.time()))) * 1000,
                     "stage_durations_ms": metrics.get("stage_durations_ms", {}),
+                    "component_durations_ms": metrics.get("component_durations_ms", {}),
                     "urlscan_status": urlscan_state.get("status"),
                     "urlscan_uuid": urlscan_state.get("uuid"),
                     "conflict_merge_count": metrics.get("conflict_merge_count", 0),
@@ -4765,14 +4791,16 @@ def _merge_orchestrated_conflict_job(reloaded: Dict[str, Any], local: Dict[str, 
     if local_metrics:
         merged_metrics = dict(merged.get("orchestration_metrics") if isinstance(merged.get("orchestration_metrics"), dict) else {})
         for key, value in local_metrics.items():
-            if key == "stage_durations_ms" and isinstance(value, dict):
+            if key in {"stage_durations_ms", "component_durations_ms"} and isinstance(value, dict):
                 durations = dict(merged_metrics.get("stage_durations_ms") if isinstance(merged_metrics.get("stage_durations_ms"), dict) else {})
+                if key == "component_durations_ms":
+                    durations = dict(merged_metrics.get("component_durations_ms") if isinstance(merged_metrics.get("component_durations_ms"), dict) else {})
                 for stage_name, duration_ms in value.items():
                     try:
                         durations[str(stage_name)] = max(int(durations.get(stage_name, 0) or 0), int(duration_ms))
                     except Exception:
                         continue
-                merged_metrics["stage_durations_ms"] = durations
+                merged_metrics[key] = durations
             elif key == "stage_sequence" and isinstance(value, list):
                 existing_sequence = merged_metrics.get("stage_sequence")
                 if not isinstance(existing_sequence, list) or len(value) > len(existing_sequence):
@@ -5219,6 +5247,7 @@ def _orchestrated_status_payload(job: Dict[str, Any]) -> Dict[str, Any]:
     pillars = _build_orchestrated_pillars(job)
     preview = job.get("preview") if isinstance(job.get("preview"), dict) else {}
     result = job.get("result") if isinstance(job.get("result"), dict) else None
+    metrics = _orchestrated_metrics(job)
     if result is not None and result.get("is_final", True) is not False:
         status = "complete"
     elif _has_required_pillar_error(pillars):
@@ -5239,6 +5268,13 @@ def _orchestrated_status_payload(job: Dict[str, Any]) -> Dict[str, Any]:
         "pillars": pillars,
         "preview": preview,
         "result": result,
+        "diagnostics": {
+            "pipeline_stage": job.get("pipeline_stage"),
+            "poll_count": metrics.get("poll_count", 0),
+            "stage_durations_ms": metrics.get("stage_durations_ms", {}),
+            "component_durations_ms": metrics.get("component_durations_ms", {}),
+            "urlscan_status": (job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}).get("status"),
+        },
     }
 
 
@@ -5394,7 +5430,11 @@ async def _submit_orchestrated_urlscan_preview_once(job: Dict[str, Any], request
             country=options.get("country") or URLSCAN_COUNTRY_DEFAULT or None,
             customagent=options.get("customagent") or URLSCAN_CUSTOM_AGENT_DEFAULT or None,
         )
-        submitted_urlscan = await _submit_orchestrated_urlscan(str(primary_final_url), urlscan_payload, request)
+        started_at = time.perf_counter()
+        try:
+            submitted_urlscan = await _submit_orchestrated_urlscan(str(primary_final_url), urlscan_payload, request)
+        finally:
+            _record_orchestrated_component_duration(job, "urlscan.submit", started_at)
         submitted_urlscan["submit_owner"] = submit_owner
         submitted_urlscan["submit_started_at"] = urlscan_state.get("submit_started_at")
         job["urlscan"] = submitted_urlscan
@@ -5541,41 +5581,73 @@ async def _create_orchestrated_job(payload: OrchestratedScanRequest) -> Dict[str
 async def _run_orchestrated_fast_lane(job: Dict[str, Any], request: Request) -> Dict[str, Any]:
     redacted_text = str(job.get("redacted_text") or "")
     urls = job.get("urls") if isinstance(job.get("urls"), list) else []
-    resolved_urls = _safe_scan_url_list([str(url) for url in urls if str(url).strip()])
+    resolved_urls = _timed_orchestrated_component(
+        job,
+        "fast_lane.resolve_urls",
+        lambda: _safe_scan_url_list([str(url) for url in urls if str(url).strip()]),
+    )
     job["resolved_urls"] = resolved_urls
     job.setdefault("extra_fields", {})["resolved_urls"] = resolved_urls
     _set_orchestrated_stage(job, "resolved")
     _emit_orchestrated_telemetry("orchestrated_stage_resolved", job, fast_lane=True)
 
-    threat_intel = _gather_external_intel_safe(
-        resolved_urls,
-        include_virustotal=True,
-        include_urlhaus=True,
-        persist_partial=False,
+    threat_intel = _timed_orchestrated_component(
+        job,
+        "fast_lane.reputation",
+        lambda: _gather_external_intel_safe(
+            resolved_urls,
+            include_virustotal=True,
+            include_urlhaus=True,
+            persist_partial=False,
+        ),
     )
-    summary = _external_intel_summary_from_threat_intel(threat_intel)
+    summary = _timed_orchestrated_component(
+        job,
+        "fast_lane.reputation_summary",
+        lambda: _external_intel_summary_from_threat_intel(threat_intel),
+    )
     job["threat_intel"] = threat_intel
 
     if _has_bad_provider_verdict(summary):
-        analysis = _provider_reputation_context_analysis(redacted_text, resolved_urls, summary)
+        analysis = _timed_orchestrated_component(
+            job,
+            "fast_lane.provider_context_analysis",
+            lambda: _provider_reputation_context_analysis(redacted_text, resolved_urls, summary),
+        )
         analysis.setdefault("evidence", {})["source_channel"] = job.get("source_channel")
-        _enrich_local_semantic_review(redacted_text, analysis)
+        _timed_orchestrated_component(
+            job,
+            "fast_lane.local_semantic_review",
+            lambda: _enrich_local_semantic_review(redacted_text, analysis),
+        )
         _attach_offer_claim_verification(
             analysis,
             _skipped_offer_claim_payload("Claim web check skipped because hard reputation evidence is already decisive."),
         )
         claim_required = False
     else:
-        analysis = _analyze_with_reputation(
-            redacted_text,
-            resolved_urls,
-            fast_reputation=True,
-            threat_intel_override=threat_intel,
-            allow_deep_fallback=False,
+        analysis = _timed_orchestrated_component(
+            job,
+            "fast_lane.engine_analysis",
+            lambda: _analyze_with_reputation(
+                redacted_text,
+                resolved_urls,
+                fast_reputation=True,
+                threat_intel_override=threat_intel,
+                allow_deep_fallback=False,
+            ),
         )
         analysis.setdefault("evidence", {})["source_channel"] = job.get("source_channel")
-        _enrich_local_semantic_review(redacted_text, analysis)
-        claim_required = _claim_verifier_required(analysis)
+        _timed_orchestrated_component(
+            job,
+            "fast_lane.local_semantic_review",
+            lambda: _enrich_local_semantic_review(redacted_text, analysis),
+        )
+        claim_required = _timed_orchestrated_component(
+            job,
+            "fast_lane.claim_required_check",
+            lambda: _claim_verifier_required(analysis),
+        )
         _attach_offer_claim_verification(
             analysis,
             _skipped_offer_claim_payload(
@@ -5583,7 +5655,11 @@ async def _run_orchestrated_fast_lane(job: Dict[str, Any], request: Request) -> 
             ),
         )
 
-    primary_entry = _select_primary_resolved_url(resolved_urls, analysis)
+    primary_entry = _timed_orchestrated_component(
+        job,
+        "fast_lane.primary_url_picker",
+        lambda: _select_primary_resolved_url(resolved_urls, analysis),
+    )
     primary_final_url = None
     if primary_entry:
         primary_final_url = primary_entry.get("final_url") or primary_entry.get("url") or primary_entry.get("original_url")
@@ -5595,10 +5671,18 @@ async def _run_orchestrated_fast_lane(job: Dict[str, Any], request: Request) -> 
     preview = job.setdefault("preview", {})
     preview["final_url"] = primary_final_url
     _set_orchestrated_stage(job, "analysis_ready")
-    job = _persist_orchestrated_job(job)
+    job = _timed_orchestrated_component(
+        job,
+        "fast_lane.persist_analysis_ready",
+        lambda: _persist_orchestrated_job(job),
+    )
     _emit_orchestrated_telemetry("orchestrated_stage_analysis_ready", job, fast_lane=True, claim_required=claim_required)
 
-    return await _finalize_orchestrated_job_if_ready(job, request)
+    started_at = time.perf_counter()
+    try:
+        return await _finalize_orchestrated_job_if_ready(job, request)
+    finally:
+        _record_orchestrated_component_duration(job, "fast_lane.finalize", started_at)
 
 
 async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Dict[str, Any]:
@@ -5782,7 +5866,11 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
     if should_refresh_urlscan:
         try:
             if urlscan_status == "finished" and not urlscan_state.get("screenshot_ready"):
-                screenshot_ready = await _urlscan_screenshot_is_ready(str(urlscan_state["uuid"]))
+                started_at = time.perf_counter()
+                try:
+                    screenshot_ready = await _urlscan_screenshot_is_ready(str(urlscan_state["uuid"]))
+                finally:
+                    _record_orchestrated_component_duration(job, "urlscan.screenshot_probe", started_at)
                 urlscan_state["screenshot_ready"] = screenshot_ready
                 if screenshot_ready:
                     urlscan_state["details"] = str(urlscan_state.get("verdict") or "urlscan result este gata")
@@ -5791,7 +5879,11 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
                 job["urlscan"] = urlscan_state
                 result = None
             else:
-                result = await get_urlscan_result(str(urlscan_state["uuid"]), request)
+                started_at = time.perf_counter()
+                try:
+                    result = await get_urlscan_result(str(urlscan_state["uuid"]), request)
+                finally:
+                    _record_orchestrated_component_duration(job, "urlscan.result_poll", started_at)
         except HTTPException as exc:
             if urlscan_status not in {"finished", "timeout"}:
                 urlscan_state["status"] = "error"

@@ -175,8 +175,8 @@ def _verify_with_gemini_search(
     query: str,
     claim_target: Optional[Dict[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
-    api_key = os.getenv("GEMINI_API_KEY", "").strip()
-    if not api_key or not SDK_AVAILABLE:
+    api_keys = _gemini_api_key_candidates()
+    if not api_keys:
         return None
 
     prompt = f"""
@@ -208,60 +208,27 @@ Reguli:
 - inconclusive dacă sursele sunt insuficiente, blocate, ambigue sau query-ul nu este concret.
 """
 
-    try:
-        client = _gemini_client(api_key)
-        model = os.getenv("OFFER_CLAIM_GEMINI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash"
-        config_kwargs: Dict[str, Any] = {
-            "tools": [types.Tool(google_search=types.GoogleSearch())],
-            "http_options": types.HttpOptions(timeout=_gemini_timeout_ms()),
-            "max_output_tokens": OFFER_CLAIM_GEMINI_MAX_OUTPUT_TOKENS,
-            "response_mime_type": "application/json",
-        }
-        thinking_config = _gemini_thinking_config(model)
-        if thinking_config is not None:
-            config_kwargs["thinking_config"] = thinking_config
-        response = client.models.generate_content(
-            model=model,
-            contents=prompt,
-            config=types.GenerateContentConfig(**config_kwargs),
-        )
-        raw = _extract_json_text(response.text or "")
-        data = json.loads(raw)
-        status = _normalize_status(data.get("status"))
-        evidence_urls = _clean_urls(data.get("evidence_urls") or [])
-        confidence = _clamp_int(data.get("confidence"), 0, 100)
-        summary = str(data.get("summary") or "").strip()[:500]
-        return _payload(
-            status,
-            _severity_for_status(status),
-            summary or _default_summary(status),
-            confidence=confidence,
-            claimed_brand=claimed_brand,
-            official_domains=official_domains,
-            query=query,
-            evidence_urls=evidence_urls,
-            method="gemini_google_search",
-            official_source_found=bool(data.get("official_source_found")),
-            knowledge_target=claim_target.get("claim_type") if isinstance(claim_target, dict) else None,
-        )
-    except Exception as exc:
-        if "SSL" in str(exc) or "certificate" in str(exc).lower():
-            return _payload(
-                "inconclusive",
-                "unknown",
-                f"AI web search certificate issue: {type(exc).__name__}.",
-                confidence=0,
+    last_error: Optional[Exception] = None
+    for api_key in api_keys:
+        try:
+            return _call_gemini_grounding(
+                api_key=api_key,
+                prompt=prompt,
                 claimed_brand=claimed_brand,
                 official_domains=official_domains,
                 query=query,
-                evidence_urls=[],
-                method="gemini_google_search_error",
-                knowledge_target=claim_target.get("claim_type") if isinstance(claim_target, dict) else None,
+                claim_target=claim_target,
             )
+        except Exception as exc:
+            last_error = exc
+            continue
+
+    exc = last_error or RuntimeError("Gemini grounding unavailable")
+    if "SSL" in str(exc) or "certificate" in str(exc).lower():
         return _payload(
             "inconclusive",
             "unknown",
-            f"AI web search temporarily unavailable ({type(exc).__name__}).",
+            f"AI web search certificate issue: {type(exc).__name__}.",
             confidence=0,
             claimed_brand=claimed_brand,
             official_domains=official_domains,
@@ -270,6 +237,175 @@ Reguli:
             method="gemini_google_search_error",
             knowledge_target=claim_target.get("claim_type") if isinstance(claim_target, dict) else None,
         )
+    return _payload(
+        "inconclusive",
+        "unknown",
+        f"AI web search temporarily unavailable ({type(exc).__name__}).",
+        confidence=0,
+        claimed_brand=claimed_brand,
+        official_domains=official_domains,
+        query=query,
+        evidence_urls=[],
+        method="gemini_google_search_error",
+        knowledge_target=claim_target.get("claim_type") if isinstance(claim_target, dict) else None,
+    )
+
+
+def _call_gemini_grounding(
+    *,
+    api_key: str,
+    prompt: str,
+    claimed_brand: Optional[str],
+    official_domains: List[str],
+    query: str,
+    claim_target: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    model = os.getenv("OFFER_CLAIM_GEMINI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash"
+    endpoint = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{urllib.parse.quote(model, safe='')}:generateContent"
+    )
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "tools": [{"google_search": {}}],
+        "generationConfig": {
+            "maxOutputTokens": OFFER_CLAIM_GEMINI_MAX_OUTPUT_TOKENS,
+            "temperature": 0,
+        },
+    }
+    response = requests.post(
+        endpoint,
+        params={"key": api_key},
+        json=payload,
+        timeout=max(0.5, OFFER_CLAIM_GEMINI_TIMEOUT_SECONDS),
+    )
+    response.raise_for_status()
+    response_payload = response.json()
+    raw_text = _gemini_rest_text(response_payload)
+    raw = _extract_json_text(raw_text)
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return _payload_from_grounding_text(
+            response=response_payload,
+            raw_text=raw_text,
+            claimed_brand=claimed_brand,
+            official_domains=official_domains,
+            query=query,
+            claim_target=claim_target,
+        )
+    status = _normalize_status(data.get("status"))
+    evidence_urls = _clean_urls(data.get("evidence_urls") or [])
+    confidence = _clamp_int(data.get("confidence"), 0, 100)
+    summary = str(data.get("summary") or "").strip()[:500]
+    return _payload(
+        status,
+        _severity_for_status(status),
+        summary or _default_summary(status),
+        confidence=confidence,
+        claimed_brand=claimed_brand,
+        official_domains=official_domains,
+        query=query,
+        evidence_urls=evidence_urls,
+        method="gemini_google_search",
+        official_source_found=bool(data.get("official_source_found")),
+        knowledge_target=claim_target.get("claim_type") if isinstance(claim_target, dict) else None,
+    )
+
+
+def _payload_from_grounding_text(
+    *,
+    response: Any,
+    raw_text: str,
+    claimed_brand: Optional[str],
+    official_domains: List[str],
+    query: str,
+    claim_target: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    evidence_urls = _clean_urls(_extract_grounding_urls(response) + _extract_urls_from_text(raw_text))
+    official_source_found = _has_official_evidence_url(evidence_urls, official_domains)
+    lowered = raw_text.lower()
+    if official_source_found and not any(marker in lowered for marker in ("nu am găsit", "nu am gasit", "not found", "inconclusive")):
+        status = "confirmed"
+        confidence = 65
+    elif any(marker in lowered for marker in ("nu am găsit", "nu am gasit", "not found")):
+        status = "not_found"
+        confidence = 55
+    else:
+        status = "inconclusive"
+        confidence = 25 if evidence_urls else 0
+    summary = re.sub(r"\s+", " ", raw_text).strip()[:500] or _default_summary(status)
+    return _payload(
+        status,
+        _severity_for_status(status),
+        summary,
+        confidence=confidence,
+        claimed_brand=claimed_brand,
+        official_domains=official_domains,
+        query=query,
+        evidence_urls=evidence_urls,
+        method="gemini_google_search",
+        official_source_found=official_source_found,
+        knowledge_target=claim_target.get("claim_type") if isinstance(claim_target, dict) else None,
+    )
+
+
+def _extract_grounding_urls(response: Any) -> List[str]:
+    urls: List[str] = []
+    if isinstance(response, dict):
+        for candidate in response.get("candidates") or []:
+            metadata = candidate.get("groundingMetadata") or candidate.get("grounding_metadata") or {}
+            for chunk in metadata.get("groundingChunks") or metadata.get("grounding_chunks") or []:
+                web = chunk.get("web") if isinstance(chunk, dict) else None
+                uri = web.get("uri") if isinstance(web, dict) else None
+                if uri:
+                    urls.append(str(uri))
+        return urls
+    candidates = getattr(response, "candidates", None) or []
+    for candidate in candidates:
+        metadata = getattr(candidate, "grounding_metadata", None) or getattr(candidate, "groundingMetadata", None)
+        chunks = getattr(metadata, "grounding_chunks", None) or getattr(metadata, "groundingChunks", None) or []
+        for chunk in chunks:
+            web = getattr(chunk, "web", None)
+            uri = getattr(web, "uri", None) if web is not None else None
+            if uri:
+                urls.append(str(uri))
+    return urls
+
+
+def _gemini_rest_text(response_payload: Dict[str, Any]) -> str:
+    parts: List[str] = []
+    for candidate in response_payload.get("candidates") or []:
+        content = candidate.get("content") if isinstance(candidate, dict) else None
+        for part in (content or {}).get("parts") or []:
+            text = part.get("text") if isinstance(part, dict) else None
+            if text:
+                parts.append(str(text))
+    return "\n".join(parts)
+
+
+def _extract_urls_from_text(value: str) -> List[str]:
+    return [url.rstrip(".,;:!?)]}") for url in re.findall(r"https?://[^\s\"'<>),]+", value or "")]
+
+
+def _has_official_evidence_url(urls: List[str], official_domains: List[str]) -> bool:
+    allowed = {str(domain or "").lower().lstrip(".") for domain in official_domains if domain}
+    if not allowed:
+        return False
+    for url in urls:
+        host = (urllib.parse.urlparse(url).hostname or "").lower()
+        if any(host == domain or host.endswith("." + domain) for domain in allowed):
+            return True
+    return False
+
+
+def _gemini_api_key_candidates() -> List[str]:
+    keys: List[str] = []
+    for env_name in ("GEMINI_API_KEY", "GOOGLE_WEB_RISK_API_KEY"):
+        value = os.getenv(env_name, "").strip()
+        if value and value not in keys:
+            keys.append(value)
+    return keys
 
 
 def _gemini_client(api_key: str):
@@ -281,7 +417,9 @@ def _gemini_client(api_key: str):
 
 
 def _gemini_timeout_ms() -> int:
-    return max(500, int(max(0.1, OFFER_CLAIM_GEMINI_TIMEOUT_SECONDS) * 1000))
+    # Google GenAI SDK rejects manual deadlines below 10s. The product-level
+    # timeout is enforced by the orchestrator around this provider call.
+    return max(10_000, int(max(0.1, OFFER_CLAIM_GEMINI_TIMEOUT_SECONDS) * 1000))
 
 
 def _gemini_thinking_config(model: str):
