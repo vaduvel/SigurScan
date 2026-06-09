@@ -1,0 +1,51 @@
+[
+  {
+    "case_id": "live_msg_mpy",
+    "title": "SafeBuyback SMS (short link)",
+    "text": "Buna ziua! Suntem o companie de energie mobila partajata. Faceți cu usurință bani prin reciclare și închiriere. Puteți lucra cu un singur telefon mobil și există o garanție de venit stabilă de 35-500 USD pe zi. Dacă sunteți interesat, vă rugăm să contactați telegrama:@Frank24495. Codul pentru confirmarea telefonului este: 4346. Introdu acest cod în aplicație în ecranul Confirmă telefon sau dă click aici https://mpy.io/f/2?a=4346 pentru confirmare.",
+    "expected_labels": ["SUSPECT", "SIGUR"],
+    "max_seconds": 180
+  },
+  {
+    "case_id": "live_msg_hipo",
+    "title": "Hipo event campaign",
+    "text": "Hipo iti recomanda evenimentul Angajatori de TOP. Inscrie-te https://www.hipo.ro/ADT_TM si vino pe 13-14 Octombrie la Centrul Regional de Afaceri Timisoara.",
+    "expected_labels": ["SIGUR", "SUSPECT"],
+    "max_seconds": 180
+  },
+  {
+    "case_id": "live_msg_sameday",
+    "title": "Sameday delivery update",
+    "text": "Buna! Estimatul de livrare a comenzii 1ONB24189408625 este azi, 13:15-15:15. Ai optiuni la delivery2.sameday.ro/4Af6SMi6FtC9MCsd6 Tel 0766649065 Rbs 296.8 lei",
+    "expected_labels": ["SIGUR", "SUSPECT"],
+    "max_seconds": 180
+  },
+  {
+    "case_id": "live_msg_bitly_cont",
+    "title": "Bitly account helper",
+    "text": "Multumim ca ai cumparat de la noi. Fa-ti cont acum si ai toate facturile online sau din magazin intr-un loc: https://bit.ly/cont-mg",
+    "expected_labels": ["SIGUR", "SUSPECT"],
+    "max_seconds": 180
+  },
+  {
+    "case_id": "live_msg_deeplink_muciro",
+    "title": "Android deep link + phone confirmation",
+    "text": "Buna! Estimatul de livrare a comenzii ...? Acceseaza muciro://1484962952940779 Altfel contacteaza-ne la *2020. iv8KfIvKdCi",
+    "expected_labels": ["SUSPECT", "SIGUR"],
+    "max_seconds": 180
+  },
+  {
+    "case_id": "live_msg_microsoft_code",
+    "title": "Microsoft auth code SMS",
+    "text": "Use 4152223 as Microsoft account security code. Go passwordless with Microsoft Authenticator https://aka.ms/authapp",
+    "expected_labels": ["SIGUR", "SUSPECT"],
+    "max_seconds": 180
+  },
+  {
+    "case_id": "live_msg_cetelem",
+    "title": "Cetelem promo credit",
+    "text": "Nu amana renovarea fix pana la toamna! La Cetelem ai chiar azi un credit care vine la fix, cu dobanda fixa. Suna la 0213051234 sau intra pe bit.ly/38EsUAf",
+    "expected_labels": ["SIGUR", "SUSPECT"],
+    "max_seconds": 180
+  }
+]

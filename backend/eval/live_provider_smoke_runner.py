@@ -102,6 +102,40 @@ def _blocked_live_target(text: str) -> Optional[str]:
     return None
 
 
+def _load_cases_from_file(path: str) -> List[LiveSmokeCase]:
+    cases_path = Path(path)
+    raw = json.loads(cases_path.read_text(encoding="utf-8"))
+    parsed: List[LiveSmokeCase] = []
+    for idx, item in enumerate(raw if isinstance(raw, list) else []):
+        if not isinstance(item, dict):
+            continue
+
+        case_id = str(item.get("case_id") or item.get("id") or f"custom_case_{idx + 1}")
+        title = str(item.get("title") or item.get("case_name") or case_id)
+        text = str(
+            item.get("text")
+            or item.get("input")
+            or item.get("message")
+            or item.get("content")
+            or ""
+        ).strip()
+        if not text:
+            continue
+
+        expected = item.get("expected_labels") or item.get("expected_user_action_range") or ["SIGUR", "SUSPECT", "PERICULOS"]
+        max_seconds = int(item.get("max_seconds") or item.get("max_timeout_seconds") or 120)
+        parsed.append(
+            LiveSmokeCase(
+                case_id=case_id,
+                title=title,
+                text=text,
+                expected_labels=list(expected) if isinstance(expected, list) else [str(expected)],
+                max_seconds=max_seconds,
+            )
+        )
+    return parsed
+
+
 def _post_scan(base_url: str, case: LiveSmokeCase, timeout: float) -> Dict[str, Any]:
     payload = {
         "input_type": "text",
@@ -271,15 +305,22 @@ def main() -> int:
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
     parser.add_argument("--output", default="build/reports/live_provider_smoke.json")
     parser.add_argument("--case", action="append", help="Run only selected case id. Repeat for multiple cases.")
+    parser.add_argument("--cases-file", help="JSON array with case records {case_id,title,text,input,expected_labels,max_seconds}.")
     parser.add_argument("--poll-interval", type=float, default=3.0)
     parser.add_argument("--timeout", type=float, default=60.0)
     parser.add_argument("--dry-run", action="store_true", help="Print selected cases without calling live providers.")
     args = parser.parse_args()
 
     selected = LIVE_SMOKE_CASES
+    if args.cases_file:
+        selected = _load_cases_from_file(args.cases_file)
+        if not selected:
+            print(f"No valid cases loaded from file: {args.cases_file}", file=sys.stderr)
+            return 2
+
     if args.case:
         wanted = set(args.case)
-        selected = [case for case in LIVE_SMOKE_CASES if case.case_id in wanted]
+        selected = [case for case in selected if case.case_id in wanted]
     if not selected:
         print("No matching live smoke cases selected.", file=sys.stderr)
         return 2
