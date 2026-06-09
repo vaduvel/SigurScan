@@ -34,6 +34,7 @@ program
   .option('--max-urls <n>', 'Maximum URLs to process in one run', process.env.MAX_URLS || '50')
   .option('--concurrency <n>', 'Concurrent browser captures', process.env.CONCURRENCY || '2')
   .option('--user-agent <ua>', 'Browser user-agent', process.env.USER_AGENT || 'SigurScanPreviewBot/1.0 (+https://sigurscan.ro/bot)')
+  .option('--chromium-sandbox <bool>', 'Enable Chromium sandbox when the host supports it', process.env.CHROMIUM_SANDBOX || 'true')
   .option('--skip-reserved <bool>', 'Skip .test/.example/.invalid/.localhost', 'true')
   .option('--dry-run', 'Only parse/extract URLs; no browser, no upload')
   .parse(process.argv);
@@ -46,6 +47,7 @@ const MAX_SCREENSHOT_HEIGHT = Math.max(600, Number(opts.maxScreenshotHeight) || 
 const MAX_URLS = Math.max(1, Number(opts.maxUrls) || 50);
 const CONCURRENCY = Number(opts.concurrency);
 const SKIP_RESERVED = String(opts.skipReserved).toLowerCase() !== 'false';
+const CHROMIUM_SANDBOX = String(opts.chromiumSandbox).toLowerCase() !== 'false';
 
 const supabaseEnabled = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY);
 const supabase = supabaseEnabled
@@ -488,7 +490,7 @@ async function uploadOrWrite(row, screenshotBuffer, outDir, bucket, table) {
 async function createBrowser() {
   return chromium.launch({
     headless: true,
-    chromiumSandbox: true
+    chromiumSandbox: CHROMIUM_SANDBOX
   });
 }
 

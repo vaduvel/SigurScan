@@ -27,13 +27,15 @@ jobs:
           CACHE_TTL_DAYS: "14"
           MAX_URLS: "50"
           CONCURRENCY: "1"
+          CHROMIUM_SANDBOX: "false"
         run: |
           node src/index.js \
             --email-source ./samples/official_preview_targets.ro.json \
             --out-dir ./output/official \
             --concurrency 1 \
             --nav-timeout-seconds 20 \
-            --max-urls 50
+            --max-urls 50 \
+            --chromium-sandbox false
       - uses: actions/upload-artifact@v4
         if: always()
         with:

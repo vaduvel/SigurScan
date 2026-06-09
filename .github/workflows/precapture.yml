@@ -55,6 +55,7 @@ jobs:
           MAX_REDIRECT_HOPS: "10"
           NAV_TIMEOUT_SECONDS: "20"
           MAX_SCREENSHOT_HEIGHT: "5000"
+          CHROMIUM_SANDBOX: "false"
           USER_AGENT: "SigurScanPreviewBot/1.0 (+https://sigurscan.ro/bot)"
         run: |
           args=(
@@ -64,6 +65,7 @@ jobs:
             "--nav-timeout-seconds" "20"
             "--max-screenshot-height" "5000"
             "--max-urls" "${{ github.event.inputs.max_urls || '50' }}"
+            "--chromium-sandbox" "false"
           )
           if [ "${{ github.event.inputs.dry_run || 'false' }}" = "true" ]; then
             args+=("--dry-run")
