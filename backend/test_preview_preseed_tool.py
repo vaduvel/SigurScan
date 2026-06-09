@@ -121,6 +121,35 @@ class _FakeClientCompleteBeforeCacheSaved:
         )
 
 
+class _FakeClientTimeoutThenCacheSaved:
+    def __init__(self):
+        self.calls = []
+        self.poll_count = 0
+
+    def post(self, url, json=None, timeout=None):
+        self.calls.append(("post", url, json, timeout))
+        return _FakeResponse({"scan_id": "orch_seed_4"})
+
+    def get(self, url, timeout=None):
+        self.poll_count += 1
+        self.calls.append(("get", url, None, timeout))
+        if self.poll_count == 1:
+            raise preseed.requests.Timeout("poll timed out")
+        return _FakeResponse(
+            {
+                "status": "complete",
+                "preview": {
+                    "cache_hit": False,
+                    "cache_saved": True,
+                    "final_url": "https://www.anaf.ro/",
+                    "report_url": "https://urlscan.io/result/anaf/",
+                    "screenshot_url": "https://backend/v1/sandbox/urlscan/anaf/screenshot",
+                },
+                "result": {"user_risk_label": "SIGUR"},
+            }
+        )
+
+
 def test_load_seed_urls_filters_disabled_and_normalizes(tmp_path: Path):
     seed_path = tmp_path / "seed.json"
     seed_path.write_text(
@@ -225,6 +254,23 @@ def test_preseed_one_keeps_polling_after_complete_until_cache_saved():
 
     result = preseed.preseed_one(
         {"label": "Orange", "url": "https://www.orange.ro/"},
+        base_url="https://backend.example/",
+        client=client,
+        timeout_seconds=20,
+        poll_interval_seconds=0,
+        sleep=lambda _: None,
+    )
+
+    assert result["status"] == "preview_ready"
+    assert result["cache_saved"] is True
+    assert client.poll_count == 2
+
+
+def test_preseed_one_retries_poll_timeout_until_cache_saved():
+    client = _FakeClientTimeoutThenCacheSaved()
+
+    result = preseed.preseed_one(
+        {"label": "ANAF", "url": "https://www.anaf.ro/"},
         base_url="https://backend.example/",
         client=client,
         timeout_seconds=20,

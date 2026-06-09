@@ -89,9 +89,13 @@ def preseed_one(
 
     last_payload: dict[str, Any] = {}
     while time.time() - started_at <= timeout_seconds:
-        response = session.get(f"{base}/v1/scan/orchestrated/{scan_id}", timeout=request_timeout_seconds)
-        response.raise_for_status()
-        payload = response.json()
+        try:
+            response = session.get(f"{base}/v1/scan/orchestrated/{scan_id}", timeout=request_timeout_seconds)
+            response.raise_for_status()
+            payload = response.json()
+        except requests.Timeout:
+            sleep(poll_interval_seconds)
+            continue
         last_payload = payload if isinstance(payload, dict) else {}
         preview = last_payload.get("preview") if isinstance(last_payload.get("preview"), dict) else {}
         preview_is_cached = bool(preview.get("cache_hit"))
