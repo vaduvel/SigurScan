@@ -503,6 +503,117 @@ def test_provider_gate_exposes_established_domain_as_positive_context():
     assert summary["infra_domain_age"]["verdict"] == "established_domain"
 
 
+def test_provider_gate_banking_safety_warning_with_phone_and_otp_is_not_high_risk():
+    text = (
+        "Banca Transilvania: am blocat tranzacția de 1.250 RON la card. "
+        "Dacă NU recunoașteți, apelați 0264 308 028. "
+        "Nu comunicați NICIODATĂ codul OTP sau PIN-ul."
+    )
+    analysis = {
+        "claimed_brand": "Banca Transilvania",
+        "risk_level": "medium",
+        "risk_score": 55,
+        "detected_family": "Avertizare securitate",
+        "detected_family_id": "bank_safety_warning",
+        "reasons": [],
+        "evidence": {
+            "external_intel_summary": {},
+            "semantic_review": {
+                "status": "done",
+                "claim_matches_known_scam_family": False,
+                "matched_family": None,
+                "claim_matches_legit_template": True,
+                "matched_template": "bank_security_warning",
+                "reason_codes": ["semantic:benign_safety_warning"],
+                "risk_class": "benign",
+                "completeness": True,
+            },
+        },
+    }
+
+    result = _apply_provider_gate_verdict(analysis, [], raw_text=text)
+
+    assert result["risk_level"] != "high"
+    provider_gate = result["evidence"]["provider_gate"]
+    decision_bundle = result["evidence"]["decision_bundle"]
+    assert provider_gate["direct_sensitive_request"] is False
+    assert decision_bundle["request"]["sensitive"] == "none"
+    assert result["evidence"]["verdict_gate"]["label"] in {"SIGUR", "SUSPECT"}
+
+
+def test_provider_gate_multi_url_official_lure_does_not_mask_phishing_link():
+    text = (
+        "eMAG: comanda #4471 a fost livrată. Detalii: https://www.emag.ro — "
+        "Dacă NU ai comandat, anulează aici: https://bit.ly/emag-anulare"
+    )
+    analysis = {
+        "claimed_brand": "eMAG",
+        "risk_level": "medium",
+        "risk_score": 60,
+        "detected_family": "Curier/eMAG phishing",
+        "detected_family_id": "emag_cancel_phishing",
+        "reasons": [],
+        "evidence": {
+            "external_intel_summary": {
+                "google_web_risk": {"status": "clean", "verdict": "clean", "consulted": True},
+                "virustotal": {"status": "clean", "verdict": "clean", "consulted": True},
+                "urlhaus": {"status": "clean", "verdict": "clean", "consulted": True},
+            },
+            "semantic_review": {
+                "status": "done",
+                "claim_matches_known_scam_family": True,
+                "matched_family": "delivery_order_cancellation_phishing",
+                "claim_matches_legit_template": False,
+                "matched_template": None,
+                "reason_codes": ["semantic:high"],
+                "risk_class": "high",
+                "completeness": True,
+            },
+            "url_lexical": {
+                "reasons": ["typosquatting / lookalike domain detected"],
+            },
+        },
+    }
+    resolved_urls = [
+        {
+            "url": "https://www.emag.ro",
+            "final_url": "https://www.emag.ro",
+            "hostname": "www.emag.ro",
+            "final_hostname": "www.emag.ro",
+            "registered_domain": "emag.ro",
+            "final_registered_domain": "emag.ro",
+            "success": True,
+            "domain_age_days": 7000,
+        },
+        {
+            "url": "https://bit.ly/emag-anulare",
+            "final_url": "https://emag-comenzi-retur.top/anulare",
+            "hostname": "bit.ly",
+            "final_hostname": "emag-comenzi-retur.top",
+            "registered_domain": "bit.ly",
+            "final_registered_domain": "emag-comenzi-retur.top",
+            "success": True,
+            "domain_age_days": 2,
+        },
+    ]
+
+    pillars = {
+        "final_url": {"status": "ok", "required": True},
+        "google_web_risk": {"status": "ok", "required": True},
+        "virustotal": {"status": "ok", "required": True},
+        "urlscan": {"status": "pending", "required": False},
+        "claim_verifier": {"status": "ok", "required": True},
+        "semantic_review": {"status": "ok", "required": True},
+    }
+
+    result = _apply_provider_gate_verdict(analysis, resolved_urls, raw_text=text, pillars=pillars)
+
+    assert result["risk_level"] == "high"
+    assert result["evidence"]["verdict_gate"]["label"] == "PERICULOS"
+    assert result["evidence"]["decision_bundle"]["identity"]["status"] in {"lookalike", "unrelated"}
+    assert result["evidence"]["provider_gate"]["official_destination"] is False
+
+
 def test_provider_gate_does_not_mark_new_first_party_domain_as_low_risk():
     analysis = {
         "claimed_brand": "Nespecificat",
@@ -1556,6 +1667,115 @@ def test_orchestrated_post_accepts_without_running_providers(monkeypatch):
     assert payload["preview"]["screenshot_url"] is None
 
 
+def test_orchestrated_first_poll_runs_fast_lane_and_submits_preview(monkeypatch):
+    calls = []
+    job = {
+        "scan_id": "orch_fast_lane",
+        "created_at": int(time.time()),
+        "pipeline_stage": "queued",
+        "status": "scanning",
+        "input_type": "text",
+        "source_channel": "android_native",
+        "urls": ["https://buyback.yoxo.ro"],
+        "redacted_text": "YOXO buyback https://buyback.yoxo.ro",
+        "analysis": {},
+        "resolved_urls": [],
+        "primary_final_url": None,
+        "claim_verifier_required": False,
+        "urlscan": {"status": "queued"},
+        "preview": {},
+        "extra_fields": {},
+        "sandbox_options": {},
+        "orchestration_metrics": {"poll_count": 0, "stage_sequence": [], "stage_durations_ms": {}},
+    }
+    resolved_urls = [
+        {
+            "url": "https://buyback.yoxo.ro",
+            "final_url": "https://buyback.yoxo.ro",
+            "hostname": "buyback.yoxo.ro",
+            "final_hostname": "buyback.yoxo.ro",
+            "registered_domain": "yoxo.ro",
+            "final_registered_domain": "yoxo.ro",
+            "success": True,
+            "domain_age_days": 2500,
+        }
+    ]
+
+    def fake_external_intel(urls, *args, **kwargs):
+        calls.append(kwargs)
+        output = _clean_web_risk_and_vt_for_resolved_urls(urls)
+        for entry in output.values():
+            entry.setdefault("sources", {})["urlhaus"] = {
+                "status": "clean",
+                "consulted": True,
+                "score": 0,
+                "threat_type": "unknown",
+            }
+        return output
+
+    def fake_analyze(text, urls, **kwargs):
+        summary = app_main._external_intel_summary_from_threat_intel(kwargs["threat_intel_override"])
+        return {
+            "risk_score": 10,
+            "risk_level": "low",
+            "detected_family": "Provideri curați",
+            "detected_family_id": "clean",
+            "claimed_brand": "YOXO",
+            "reasons": [],
+            "safe_actions": [],
+            "evidence": {
+                "external_intel_summary": summary,
+                "semantic_review": {
+                    "status": "done",
+                    "risk_class": "benign",
+                    "claim_matches_known_scam_family": False,
+                    "claim_matches_legit_template": True,
+                    "matched_template": "official_notice",
+                    "completeness": True,
+                },
+            },
+        }
+
+    async def fake_submit(url, payload, request):
+        return {
+            "uuid": "urlscan-fast-lane",
+            "status": "pending",
+            "submitted_url": url,
+            "report_url": "https://urlscan.io/result/urlscan-fast-lane/",
+            "screenshot_url": "/v1/sandbox/urlscan/urlscan-fast-lane/screenshot",
+        }
+
+    async def fake_ai(*args, **kwargs):
+        return {"summary": "ok", "bullets": []}
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "_safe_scan_url_list", lambda urls: resolved_urls)
+        patched.setattr(app_main, "_gather_external_intel_safe", fake_external_intel)
+        patched.setattr(app_main, "_analyze_with_reputation", fake_analyze)
+        patched.setattr(app_main, "_claim_verifier_required", lambda analysis: False)
+        patched.setattr(app_main, "_submit_orchestrated_urlscan", fake_submit)
+        patched.setattr(app_main, "_build_ai_explanation_async", fake_ai)
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+
+    assert refreshed["pipeline_stage"] == "urlscan_submitted"
+    assert refreshed["result"]["user_risk_label"] == "SIGUR"
+    assert refreshed["result"]["is_final"] is True
+    assert refreshed["urlscan"]["uuid"] == "urlscan-fast-lane"
+    assert refreshed["urlscan"]["status"] == "pending"
+    assert refreshed["preview"]["report_url"] == "https://urlscan.io/result/urlscan-fast-lane/"
+    assert refreshed["preview"]["screenshot_url"] == "/v1/sandbox/urlscan/urlscan-fast-lane/screenshot"
+    assert calls == [
+        {
+            "include_virustotal": True,
+            "include_urlhaus": True,
+            "persist_partial": False,
+        }
+    ]
+
+
 def test_orchestrated_resolved_stage_collects_fast_reputation_without_urlhaus(monkeypatch):
     calls = []
     job = {
@@ -1900,16 +2120,13 @@ def test_orchestrated_scan_finalizes_when_urlscan_report_exists_but_screenshot_i
     assert payload["result"]["is_final"] is True
 
 
-def test_orchestrated_clean_verdict_does_not_wait_for_urlscan_submit(monkeypatch):
+def test_orchestrated_clean_verdict_submits_preview_before_complete(monkeypatch):
     client = TestClient(app_main.app)
     message = (
         "Ai un telefon sau o tableta pe care nu le mai folosesti? "
         "Acum le poti transforma rapid in bani cu serviciul de buy-back YOXO. "
         "Afla cat valoreaza dispozitivul tau si incepe procesul chiar acum: buyback.yoxo.ro"
     )
-
-    def fail_urlscan_submit(*args, **kwargs):
-        raise AssertionError("Clean blocking pillars must finalize before urlscan submit.")
 
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
@@ -1918,13 +2135,13 @@ def test_orchestrated_clean_verdict_does_not_wait_for_urlscan_submit(monkeypatch
         patched.setattr(app_main, "_safe_scan_url_list", _fake_yoxo_safe_scan)
         patched.setattr(app_main, "_gather_external_intel_safe", _clean_external_intel_for_resolved_urls)
         patched.setattr(app_main, "_enrich_offer_claim_verification_async", _fake_confirmed_offer_claim)
-        patched.setattr(app_main.requests, "post", fail_urlscan_submit)
+        patched.setattr(app_main.requests, "post", _fake_urlscan_post)
 
         start = client.post(
             "/v1/scan/orchestrated",
             json={"input_type": "text", "text": message, "source_channel": "android_native"},
         ).json()
-        response, payload = _poll_orchestrated(client, start["scan_id"], count=6)
+        response, payload = _poll_orchestrated(client, start["scan_id"], count=1)
 
     assert response.status_code == 200
     assert payload["status"] == "complete"
@@ -1932,7 +2149,8 @@ def test_orchestrated_clean_verdict_does_not_wait_for_urlscan_submit(monkeypatch
     assert payload["result"]["risk_level"] == "low"
     assert payload["pillars"]["urlscan"]["required"] is False
     assert payload["pillars"]["urlscan"]["status"] == "pending"
-    assert payload["preview"]["report_url"] is None
+    assert payload["preview"]["report_url"] == "https://urlscan.io/result/urlscan-yoxo-1/"
+    assert payload["preview"]["screenshot_url"] == "http://testserver/v1/sandbox/urlscan/urlscan-yoxo-1/screenshot"
 
 
 def test_orchestrated_urlscan_late_risk_upgrades_provisional_safe_verdict(monkeypatch):
@@ -1957,8 +2175,8 @@ def test_orchestrated_urlscan_late_risk_upgrades_provisional_safe_verdict(monkey
             "/v1/scan/orchestrated",
             json={"input_type": "text", "text": message, "source_channel": "android_native"},
         ).json()
-        _, provisional = _poll_orchestrated(client, start["scan_id"], count=6)
-        _, upgraded = _poll_orchestrated(client, start["scan_id"], count=2)
+        _, provisional = _poll_orchestrated(client, start["scan_id"], count=1)
+        _, upgraded = _poll_orchestrated(client, start["scan_id"], count=1)
 
     assert provisional["status"] == "complete"
     assert provisional["result"]["user_risk_label"] == "SIGUR"

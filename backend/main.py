@@ -1871,13 +1871,15 @@ def _has_bad_provider_verdict(summary: Dict[str, Any]) -> bool:
 
 
 def _official_destination_confirmed(resolved_urls: List[Dict[str, Any]], claimed_brand: str) -> bool:
+    saw_allowed_destination = False
     for entry in resolved_urls:
         reg_domain = str(entry.get("final_registered_domain") or entry.get("registered_domain") or "").lower()
         hostname = str(entry.get("final_hostname") or entry.get("hostname") or "").lower()
         if not hostname and (entry.get("final_url") or entry.get("url")):
             hostname = urllib.parse.urlparse(str(entry.get("final_url") or entry.get("url") or "")).hostname or ""
         if engine._is_context_allowed_domain(reg_domain, hostname=hostname, claimed_brand=claimed_brand):
-            return True
+            saw_allowed_destination = True
+            continue
         original_hostname = str(entry.get("hostname") or "").lower()
         original_reg_domain = str(entry.get("registered_domain") or "").lower()
         if not original_hostname and entry.get("url"):
@@ -1896,8 +1898,27 @@ def _official_destination_confirmed(resolved_urls: List[Dict[str, Any]], claimed
             and final_hostname in {"apps.apple.com", "play.google.com"}
             and "yoxo" in urllib.parse.unquote(final_url).lower()
         ):
-            return True
-    return False
+            saw_allowed_destination = True
+            continue
+
+        final_url = str(entry.get("final_url") or entry.get("url") or "")
+        normalized_brand = _normalize_claimed_brand(claimed_brand)
+        compact_brand = _compact_brand_match_token(normalized_brand)
+        compact_domain = _compact_brand_match_token(reg_domain or hostname)
+        try:
+            age_days = int(entry.get("domain_age_days")) if entry.get("domain_age_days") is not None else None
+        except (TypeError, ValueError):
+            age_days = None
+        suspicious_unofficial = bool(
+            entry.get("uses_shortener")
+            or (age_days is not None and age_days < DOMAIN_SUSPICIOUS_AGE_DAYS)
+            or reg_domain.endswith((".top", ".xyz", ".click", ".work", ".quest", ".icu", ".shop"))
+            or (compact_brand and compact_brand in compact_domain)
+            or any(token in final_url.lower() for token in ("login", "auth", "card", "pay", "plata", "anulare", "confirm"))
+        )
+        if suspicious_unofficial:
+            return False
+    return saw_allowed_destination
 
 
 def _normalize_claimed_brand(raw_brand: str) -> str:
@@ -2431,6 +2452,9 @@ def _request_sensitivity_from_signals(
     resolved_urls: List[Dict[str, Any]],
 ) -> str:
     normalized = _normalise_obfuscated_text(raw_text or "").lower()
+    if _looks_like_official_safety_education(normalized):
+        direct_sensitive_request = False
+        brand_warning = {"triggered": False, "matched_assets": []}
     matched_assets = set(brand_warning.get("matched_assets") or []) if isinstance(brand_warning, dict) else set()
 
     logistics_pin_context = official_destination and bool(
@@ -5315,6 +5339,52 @@ async def _submit_orchestrated_urlscan(
         }
 
 
+async def _submit_orchestrated_urlscan_preview_once(job: Dict[str, Any], request: Request) -> Dict[str, Any]:
+    primary_final_url = job.get("primary_final_url")
+    urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
+    urlscan_status = str(urlscan_state.get("status") or "").strip().lower()
+    if primary_final_url and urlscan_status in {"queued", "", "skipped"}:
+        submit_owner = f"urlscan_{os.urandom(6).hex()}"
+        job["urlscan"] = {
+            "status": "submitting",
+            "submitted_url": str(primary_final_url),
+            "submit_owner": submit_owner,
+            "submit_started_at": int(time.time()),
+            "details": "urlscan submit rezervat pentru instanta curenta.",
+        }
+        _set_orchestrated_stage(job, "urlscan_submitting")
+        job = _persist_orchestrated_job(job)
+        urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
+        if urlscan_state.get("submit_owner") != submit_owner or urlscan_state.get("uuid"):
+            _increment_orchestrated_metric(job, "urlscan_reservation_guard_hits")
+            _emit_orchestrated_telemetry("orchestrated_urlscan_reservation_guard", job)
+            return job
+
+        primary_final_url = job.get("primary_final_url")
+        options = job.get("sandbox_options") if isinstance(job.get("sandbox_options"), dict) else {}
+        urlscan_payload = OrchestratedScanRequest(
+            input_type=str(job.get("input_type") or "text"),
+            source_channel=str(job.get("source_channel") or "android_native"),
+            visibility=options.get("visibility") or URLSCAN_VISIBILITY_DEFAULT,
+            country=options.get("country") or URLSCAN_COUNTRY_DEFAULT or None,
+            customagent=options.get("customagent") or URLSCAN_CUSTOM_AGENT_DEFAULT or None,
+        )
+        submitted_urlscan = await _submit_orchestrated_urlscan(str(primary_final_url), urlscan_payload, request)
+        submitted_urlscan["submit_owner"] = submit_owner
+        submitted_urlscan["submit_started_at"] = urlscan_state.get("submit_started_at")
+        job["urlscan"] = submitted_urlscan
+        preview = job.setdefault("preview", {})
+        preview["screenshot_url"] = job["urlscan"].get("screenshot_url") or preview.get("screenshot_url")
+        preview["report_url"] = job["urlscan"].get("report_url")
+        preview["final_url"] = primary_final_url
+    elif not primary_final_url:
+        job["urlscan"] = {"status": "skipped", "details": "Nu exista URL pentru preview."}
+    _set_orchestrated_stage(job, "urlscan_submitted")
+    job = _persist_orchestrated_job(job)
+    _emit_orchestrated_telemetry("orchestrated_urlscan_submitted", job)
+    return job
+
+
 def _build_orchestrated_text_context(payload: OrchestratedScanRequest) -> Dict[str, Any]:
     input_type = (payload.input_type or "text").strip().lower()
     source_channel = payload.source_channel or "android_native"
@@ -5443,6 +5513,70 @@ async def _create_orchestrated_job(payload: OrchestratedScanRequest) -> Dict[str
     return job
 
 
+async def _run_orchestrated_fast_lane(job: Dict[str, Any], request: Request) -> Dict[str, Any]:
+    redacted_text = str(job.get("redacted_text") or "")
+    urls = job.get("urls") if isinstance(job.get("urls"), list) else []
+    resolved_urls = _safe_scan_url_list([str(url) for url in urls if str(url).strip()])
+    job["resolved_urls"] = resolved_urls
+    job.setdefault("extra_fields", {})["resolved_urls"] = resolved_urls
+    _set_orchestrated_stage(job, "resolved")
+    _emit_orchestrated_telemetry("orchestrated_stage_resolved", job, fast_lane=True)
+
+    threat_intel = _gather_external_intel_safe(
+        resolved_urls,
+        include_virustotal=True,
+        include_urlhaus=True,
+        persist_partial=False,
+    )
+    summary = _external_intel_summary_from_threat_intel(threat_intel)
+    job["threat_intel"] = threat_intel
+
+    if _has_bad_provider_verdict(summary):
+        analysis = _provider_reputation_context_analysis(redacted_text, resolved_urls, summary)
+        analysis.setdefault("evidence", {})["source_channel"] = job.get("source_channel")
+        await _enrich_semantic_review_async(redacted_text, analysis, resolved_urls)
+        _attach_offer_claim_verification(
+            analysis,
+            _skipped_offer_claim_payload("Claim web check skipped because hard reputation evidence is already decisive."),
+        )
+        claim_required = False
+    else:
+        analysis = _analyze_with_reputation(
+            redacted_text,
+            resolved_urls,
+            fast_reputation=True,
+            threat_intel_override=threat_intel,
+            allow_deep_fallback=False,
+        )
+        analysis.setdefault("evidence", {})["source_channel"] = job.get("source_channel")
+        await _enrich_semantic_review_async(redacted_text, analysis, resolved_urls)
+        claim_required = _claim_verifier_required(analysis)
+        if claim_required:
+            await _enrich_offer_claim_verification_async(redacted_text, analysis, resolved_urls)
+        else:
+            _attach_offer_claim_verification(
+                analysis,
+                _skipped_offer_claim_payload("Claim web check skipped because no concrete offer/brand claim was detected."),
+            )
+
+    primary_entry = _select_primary_resolved_url(resolved_urls, analysis)
+    primary_final_url = None
+    if primary_entry:
+        primary_final_url = primary_entry.get("final_url") or primary_entry.get("url") or primary_entry.get("original_url")
+
+    job["analysis"] = analysis
+    job["claim_verifier_required"] = claim_required
+    job["primary_final_url"] = primary_final_url
+    preview = job.setdefault("preview", {})
+    preview["final_url"] = primary_final_url
+    _set_orchestrated_stage(job, "analysis_ready")
+    job = _persist_orchestrated_job(job)
+    _emit_orchestrated_telemetry("orchestrated_stage_analysis_ready", job, fast_lane=True, claim_required=claim_required)
+
+    job = await _submit_orchestrated_urlscan_preview_once(job, request)
+    return await _finalize_orchestrated_job_if_ready(job, request)
+
+
 async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Dict[str, Any]:
     _increment_orchestrated_metric(job, "poll_count")
     stage = str(job.get("pipeline_stage") or "queued").strip().lower()
@@ -5453,14 +5587,7 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
         return await _finalize_orchestrated_job_if_ready(job, request)
 
     if stage == "queued":
-        urls = job.get("urls") if isinstance(job.get("urls"), list) else []
-        resolved_urls = _safe_scan_url_list([str(url) for url in urls if str(url).strip()])
-        job["resolved_urls"] = resolved_urls
-        job.setdefault("extra_fields", {})["resolved_urls"] = resolved_urls
-        _set_orchestrated_stage(job, "resolved")
-        job = _persist_orchestrated_job(job)
-        _emit_orchestrated_telemetry("orchestrated_stage_resolved", job)
-        return job
+        return await _run_orchestrated_fast_lane(job, request)
 
     if stage == "resolved":
         redacted_text = str(job.get("redacted_text") or "")
@@ -5599,48 +5726,7 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
         return await _finalize_orchestrated_job_if_ready(job, request)
 
     if stage == "analysis_ready":
-        primary_final_url = job.get("primary_final_url")
-        urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
-        urlscan_status = str(urlscan_state.get("status") or "").strip().lower()
-        if primary_final_url and urlscan_status in {"queued", "", "skipped"}:
-            submit_owner = f"urlscan_{os.urandom(6).hex()}"
-            job["urlscan"] = {
-                "status": "submitting",
-                "submitted_url": str(primary_final_url),
-                "submit_owner": submit_owner,
-                "submit_started_at": int(time.time()),
-                "details": "urlscan submit rezervat pentru instanta curenta.",
-            }
-            _set_orchestrated_stage(job, "urlscan_submitting")
-            job = _persist_orchestrated_job(job)
-            urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
-            if urlscan_state.get("submit_owner") != submit_owner or urlscan_state.get("uuid"):
-                _increment_orchestrated_metric(job, "urlscan_reservation_guard_hits")
-                _emit_orchestrated_telemetry("orchestrated_urlscan_reservation_guard", job)
-                return await _finalize_orchestrated_job_if_ready(job, request)
-
-            primary_final_url = job.get("primary_final_url")
-            options = job.get("sandbox_options") if isinstance(job.get("sandbox_options"), dict) else {}
-            urlscan_payload = OrchestratedScanRequest(
-                input_type=str(job.get("input_type") or "text"),
-                source_channel=str(job.get("source_channel") or "android_native"),
-                visibility=options.get("visibility") or URLSCAN_VISIBILITY_DEFAULT,
-                country=options.get("country") or URLSCAN_COUNTRY_DEFAULT or None,
-                customagent=options.get("customagent") or URLSCAN_CUSTOM_AGENT_DEFAULT or None,
-            )
-            submitted_urlscan = await _submit_orchestrated_urlscan(str(primary_final_url), urlscan_payload, request)
-            submitted_urlscan["submit_owner"] = submit_owner
-            submitted_urlscan["submit_started_at"] = urlscan_state.get("submit_started_at")
-            job["urlscan"] = submitted_urlscan
-            preview = job.setdefault("preview", {})
-            preview["screenshot_url"] = job["urlscan"].get("screenshot_url") or preview.get("screenshot_url")
-            preview["report_url"] = job["urlscan"].get("report_url")
-            preview["final_url"] = primary_final_url
-        elif not primary_final_url:
-            job["urlscan"] = {"status": "skipped", "details": "Nu exista URL pentru preview."}
-        _set_orchestrated_stage(job, "urlscan_submitted")
-        job = _persist_orchestrated_job(job)
-        _emit_orchestrated_telemetry("orchestrated_urlscan_submitted", job)
+        job = await _submit_orchestrated_urlscan_preview_once(job, request)
         return await _finalize_orchestrated_job_if_ready(job, request)
 
     if stage == "urlscan_submitting":

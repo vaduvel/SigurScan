@@ -302,3 +302,122 @@ def test_unknown_clean_established_marketing_domain_ignores_semantic_false_posit
 
     assert result["label"] == "SIGUR"
     assert result["reason_codes"] == ["clean_established_domain"]
+
+
+def test_established_domain_cannot_override_brand_mismatch_and_card_request():
+    bundle = {
+        "schema": "sigurscan_evidence_bundle_v2",
+        "input": {
+            "type": "sms",
+            "redacted_text": (
+                "DHL: coletul dvs. este reținut la vamă. Achitați taxa de 12,40 RON "
+                "pentru livrare: https://www.tipografia-arteum.ro/dhl/plata — "
+                "actualizați datele cardului în 24h."
+            ),
+        },
+        "resolution": {
+            "status": "resolved",
+            "completeness": True,
+            "final_url": "https://www.tipografia-arteum.ro/dhl/plata",
+        },
+        "providers": {"verdict": "clean", "hits": ["google_web_risk", "virustotal", "urlhaus"], "completeness": True},
+        "identity": {
+            "claimed_brand": "DHL",
+            "status": "unrelated",
+            "tld_suspicious": False,
+            "domain_age_days": 2800,
+            "domain_reputation": "established",
+            "completeness": True,
+        },
+        "request": {"sensitive": "card", "channel": "unofficial_site", "completeness": True},
+        "context": {"urgency": True, "passive_payment": False, "apk_or_remote_mention": False},
+        "semantic_review": {
+            "status": "done",
+            "claim_matches_known_scam_family": True,
+            "matched_family": "delivery_phishing",
+            "claim_matches_legit_template": False,
+            "matched_template": None,
+            "reason_codes": ["semantic:high"],
+            "risk_class": "high",
+            "completeness": True,
+        },
+    }
+
+    result = verdict(bundle)
+
+    assert result["label"] == "PERICULOS"
+    assert result["reason_codes"][0] in {"identity_spoof", "sensitive_wrong_channel"}
+
+
+def test_homoglyph_identity_spoof_stays_dangerous_even_with_clean_providers():
+    bundle = {
+        "schema": "sigurscan_evidence_bundle_v2",
+        "input": {
+            "type": "sms",
+            "redacted_text": "ING Home'Bank: autentificare suspectă detectată. Confirmați identitatea: https://ıng-home.ro/verificare",
+        },
+        "resolution": {"status": "resolved", "completeness": True, "final_url": "https://xn--ng-home-qqa.ro/verificare"},
+        "providers": {"verdict": "clean", "hits": ["google_web_risk", "virustotal", "urlhaus"], "completeness": True},
+        "identity": {
+            "claimed_brand": "ING",
+            "status": "lookalike",
+            "tld_suspicious": True,
+            "domain_age_days": 3,
+            "domain_reputation": "new",
+            "completeness": True,
+        },
+        "request": {"sensitive": "none", "channel": "unofficial_site", "completeness": True},
+        "context": {"urgency": False, "passive_payment": False, "apk_or_remote_mention": False},
+        "semantic_review": {
+            "status": "done",
+            "claim_matches_known_scam_family": True,
+            "matched_family": "banking_login_phishing",
+            "claim_matches_legit_template": False,
+            "matched_template": None,
+            "reason_codes": ["semantic:high", "idn:homoglyph"],
+            "risk_class": "high",
+            "completeness": True,
+        },
+    }
+
+    result = verdict(bundle)
+
+    assert result["label"] == "PERICULOS"
+    assert result["reason_codes"] == ["identity_spoof"]
+
+
+def test_delegated_deeplink_clean_young_domain_can_be_safe():
+    bundle = {
+        "schema": "sigurscan_evidence_bundle_v2",
+        "input": {
+            "type": "sms",
+            "redacted_text": "Vodafone: factura ta pe luna mai este disponibilă. Vizualizează: https://vfro.page.link/8Hk2",
+        },
+        "resolution": {"status": "resolved", "completeness": True, "final_url": "https://vfro.page.link/8Hk2"},
+        "providers": {"verdict": "clean", "hits": ["google_web_risk", "virustotal", "urlhaus"], "completeness": True},
+        "identity": {
+            "claimed_brand": "Vodafone România",
+            "status": "delegated",
+            "tld_suspicious": False,
+            "domain_age_days": 22,
+            "domain_reputation": "new",
+            "completeness": True,
+        },
+        "request": {"sensitive": "none", "channel": "official", "completeness": True},
+        "context": {"urgency": False, "passive_payment": True, "apk_or_remote_mention": False},
+        "semantic_review": {
+            "status": "done",
+            "claim_matches_known_scam_family": False,
+            "matched_family": None,
+            "claim_matches_legit_template": True,
+            "matched_template": "official_invoice_notice",
+            "reason_codes": ["semantic:benign"],
+            "risk_class": "benign",
+            "completeness": True,
+        },
+    }
+
+    result = verdict(bundle)
+
+    assert result["label"] == "SIGUR"
+    assert result["reason_codes"] == ["official_clean"]
