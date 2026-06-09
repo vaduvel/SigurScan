@@ -2229,7 +2229,8 @@ def test_orchestrated_reputation_stage_runs_mistral_as_semantic_pillar(monkeypat
         refreshed = asyncio.run(app_main._refresh_orchestrated_job(refreshed, None))
 
     review = refreshed["analysis"]["evidence"]["semantic_review"]
-    assert refreshed["pipeline_stage"] == "claim_ready"
+    assert refreshed["pipeline_stage"] == "analysis_ready"
+    assert refreshed["analysis"]["evidence"]["offer_claim_verification"]["status"] == "skipped"
     assert review["source"] == "mistral_semantic_pillar"
     assert review["risk_class"] == "benign"
     assert review["claim_matches_legit_template"] is True

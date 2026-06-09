@@ -5821,10 +5821,21 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
         resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
         analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
         await _enrich_semantic_review_async(redacted_text, analysis, resolved_urls)
+        claim_required = bool(job.get("claim_verifier_required", _claim_verifier_required(analysis)))
+        if not claim_required:
+            _attach_offer_claim_verification(
+                analysis,
+                _skipped_offer_claim_payload("Claim web check skipped because no concrete offer/brand claim was detected."),
+            )
         job["analysis"] = analysis
-        _set_orchestrated_stage(job, "claim_ready")
+        job["claim_verifier_required"] = claim_required
+        _set_orchestrated_stage(job, "claim_ready" if claim_required else "analysis_ready")
         job = _persist_orchestrated_job(job)
-        _emit_orchestrated_telemetry("orchestrated_stage_claim_ready", job)
+        _emit_orchestrated_telemetry(
+            "orchestrated_stage_claim_ready" if claim_required else "orchestrated_stage_analysis_ready",
+            job,
+            claim_required=claim_required,
+        )
         return job
 
     if stage == "claim_ready":

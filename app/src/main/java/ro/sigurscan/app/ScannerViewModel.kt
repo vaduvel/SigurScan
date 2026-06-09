@@ -109,6 +109,20 @@ internal fun urlscanScreenshotUrl(uuid: String): String = "https://urlscan.io/sc
 
 internal fun urlscanReportUrl(uuid: String): String = "https://urlscan.io/result/$uuid/"
 
+internal const val ORCHESTRATED_POLLING_BUDGET_MILLIS = 180_000L
+
+internal fun orchestratedPollDelayMillis(response: OrchestratedScanResponse): Long {
+    val urlscan = response.pillars?.get("urlscan")
+    return if (
+        urlscan?.status.equals("pending", ignoreCase = true) &&
+        !urlscan?.ref.isNullOrBlank()
+    ) {
+        3_000L
+    } else {
+        1_000L
+    }
+}
+
 data class PendingSharedFile(
     val id: String = UUID.randomUUID().toString(),
     val uri: Uri,
@@ -1101,11 +1115,9 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         var response = api.startOrchestratedScan(orchestratedRequest(rawInput, htmlPayload, urls))
         publishOrchestratedResponse(response, rawInput, urls, preliminary?.scanId)
 
-        var attempts = 0
-        val maxAttempts = 32
-        while (shouldContinueOrchestratedPolling(response) && attempts < maxAttempts) {
-            attempts += 1
-            kotlinx.coroutines.delay(5000)
+        val pollingDeadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(ORCHESTRATED_POLLING_BUDGET_MILLIS)
+        while (shouldContinueOrchestratedPolling(response) && System.nanoTime() < pollingDeadlineNanos) {
+            kotlinx.coroutines.delay(orchestratedPollDelayMillis(response))
             response = api.getOrchestratedScan(response.scanId)
             publishOrchestratedResponse(response, rawInput, urls, response.scanId)
         }

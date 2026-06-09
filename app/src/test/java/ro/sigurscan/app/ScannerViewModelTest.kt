@@ -11,6 +11,46 @@ class ScannerViewModelTest {
     }
 
     @Test
+    fun orchestratedPollingAdvancesInternalStagesQuickly() {
+        val response = OrchestratedScanResponse(
+            scanId = "orch-internal",
+            status = "scanning",
+            pillars = mapOf(
+                "urlscan" to OrchestratedPillarState(
+                    status = "pending",
+                    required = false,
+                    details = "urlscan verdict nu a pornit."
+                )
+            )
+        )
+
+        assertEquals(1_000L, orchestratedPollDelayMillis(response))
+    }
+
+    @Test
+    fun orchestratedPollingBacksOffWhileUrlscanProcesses() {
+        val response = OrchestratedScanResponse(
+            scanId = "orch-urlscan",
+            status = "scanning",
+            pillars = mapOf(
+                "urlscan" to OrchestratedPillarState(
+                    status = "pending",
+                    required = false,
+                    details = "urlscan verdict este in procesare.",
+                    ref = "urlscan-uuid"
+                )
+            )
+        )
+
+        assertEquals(3_000L, orchestratedPollDelayMillis(response))
+    }
+
+    @Test
+    fun orchestratedPollingBudgetOutlivesBackendControlledTimeouts() {
+        assertTrue(ORCHESTRATED_POLLING_BUDGET_MILLIS >= 180_000L)
+    }
+
+    @Test
     fun uploadedMediaAndMailUseOrchestratedPipelineAfterExtraction() {
         val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
         val apiSource = File("src/main/java/ro/sigurscan/app/SigurScanApi.kt").readText()
