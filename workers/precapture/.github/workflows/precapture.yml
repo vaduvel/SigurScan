@@ -28,6 +28,8 @@ jobs:
           MAX_URLS: "50"
           CONCURRENCY: "1"
           CHROMIUM_SANDBOX: "false"
+          CLEANUP_EXPIRED: "true"
+          CLEANUP_LIMIT: "200"
         run: |
           node src/index.js \
             --email-source ./samples/official_preview_targets.ro.json \
@@ -35,7 +37,9 @@ jobs:
             --concurrency 1 \
             --nav-timeout-seconds 20 \
             --max-urls 50 \
-            --chromium-sandbox false
+            --chromium-sandbox false \
+            --cleanup-expired true \
+            --cleanup-limit 200
       - uses: actions/upload-artifact@v4
         if: always()
         with:

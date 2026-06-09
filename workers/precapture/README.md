@@ -66,6 +66,8 @@ SUPABASE_URL=https://xxxx.supabase.co
 SUPABASE_SERVICE_KEY=service_role_key_here
 STORAGE_BUCKET=previews
 CACHE_TABLE=fast_preview_cache
+CLEANUP_EXPIRED=true
+CLEANUP_LIMIT=200
 ```
 
 Apoi:
@@ -75,6 +77,8 @@ node src/index.js --email-source ./emails --out-dir ./output/run1
 ```
 
 Workerul va încărca screenshot-ul în bucket și va face upsert în tabel.
+La începutul fiecărui run non-dry-run, șterge controlat maximum
+`CLEANUP_LIMIT` rânduri expirate și imaginile lor din bucket.
 
 ## Input acceptat
 

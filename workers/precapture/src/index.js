@@ -35,6 +35,8 @@ program
   .option('--concurrency <n>', 'Concurrent browser captures', process.env.CONCURRENCY || '2')
   .option('--user-agent <ua>', 'Browser user-agent', process.env.USER_AGENT || 'SigurScanPreviewBot/1.0 (+https://sigurscan.ro/bot)')
   .option('--chromium-sandbox <bool>', 'Enable Chromium sandbox when the host supports it', process.env.CHROMIUM_SANDBOX || 'true')
+  .option('--cleanup-expired <bool>', 'Delete expired cache rows and screenshots before capture', process.env.CLEANUP_EXPIRED || 'true')
+  .option('--cleanup-limit <n>', 'Maximum expired cache rows to delete in one run', process.env.CLEANUP_LIMIT || '200')
   .option('--skip-reserved <bool>', 'Skip .test/.example/.invalid/.localhost', 'true')
   .option('--dry-run', 'Only parse/extract URLs; no browser, no upload')
   .parse(process.argv);
@@ -48,6 +50,8 @@ const MAX_URLS = Math.max(1, Number(opts.maxUrls) || 50);
 const CONCURRENCY = Number(opts.concurrency);
 const SKIP_RESERVED = String(opts.skipReserved).toLowerCase() !== 'false';
 const CHROMIUM_SANDBOX = String(opts.chromiumSandbox).toLowerCase() !== 'false';
+const CLEANUP_EXPIRED = String(opts.cleanupExpired).toLowerCase() !== 'false';
+const CLEANUP_LIMIT = Math.max(1, Number(opts.cleanupLimit) || 200);
 
 const supabaseEnabled = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY);
 const supabase = supabaseEnabled
@@ -64,6 +68,9 @@ const stats = {
   screenshotsCapturedNew: 0,
   skippedAlreadyCachedFresh: 0,
   skippedReserved: 0,
+  expiredRowsDeleted: 0,
+  expiredScreenshotsDeleted: 0,
+  cleanupErrors: [],
   failedDeadUrls: 0,
   failed: []
 };
@@ -487,6 +494,46 @@ async function uploadOrWrite(row, screenshotBuffer, outDir, bucket, table) {
   await fs.writeFile(manifestPath, JSON.stringify(existing, null, 2));
 }
 
+async function cleanupExpiredSupabaseCache(bucket, table) {
+  if (!supabaseEnabled || !CLEANUP_EXPIRED) return;
+
+  const { data, error } = await supabase
+    .from(table)
+    .select('url_hash,screenshot_path')
+    .lt('expires_at', nowIso())
+    .limit(CLEANUP_LIMIT);
+  if (error) {
+    stats.cleanupErrors.push(`expired_cache_select_failed:${error.message}`);
+    return;
+  }
+
+  const rows = Array.isArray(data) ? data : [];
+  if (!rows.length) return;
+
+  const screenshotPaths = [...new Set(
+    rows
+      .map(row => String(row?.screenshot_path || '').trim().replace(/^\/+/, ''))
+      .filter(Boolean)
+  )];
+  if (screenshotPaths.length) {
+    const { error: storageError } = await supabase.storage.from(bucket).remove(screenshotPaths);
+    if (storageError) {
+      stats.cleanupErrors.push(`expired_screenshot_delete_failed:${storageError.message}`);
+    } else {
+      stats.expiredScreenshotsDeleted += screenshotPaths.length;
+    }
+  }
+
+  const hashes = rows.map(row => row?.url_hash).filter(Boolean);
+  if (!hashes.length) return;
+  const { error: deleteError } = await supabase.from(table).delete().in('url_hash', hashes);
+  if (deleteError) {
+    stats.cleanupErrors.push(`expired_cache_delete_failed:${deleteError.message}`);
+    return;
+  }
+  stats.expiredRowsDeleted += hashes.length;
+}
+
 async function createBrowser() {
   return chromium.launch({
     headless: true,
@@ -730,6 +777,8 @@ async function main() {
     return;
   }
 
+  await cleanupExpiredSupabaseCache(opts.bucket, opts.cacheTable);
+
   const browser = await createBrowser();
   const limit = pLimit(CONCURRENCY);
   const tasks = uniqueInputs.map(input => limit(() => captureOne(browser, input, outDir, opts.bucket, opts.cacheTable)));
@@ -752,7 +801,16 @@ function printReport() {
   console.log(`screenshots captured (new):     ${stats.screenshotsCapturedNew}`);
   console.log(`skipped cached & fresh:         ${stats.skippedAlreadyCachedFresh}`);
   console.log(`skipped reserved/test domains:  ${stats.skippedReserved}`);
+  console.log(`expired cache rows deleted:     ${stats.expiredRowsDeleted}`);
+  console.log(`expired screenshots deleted:    ${stats.expiredScreenshotsDeleted}`);
+  console.log(`cleanup errors:                 ${stats.cleanupErrors.length}`);
   console.log(`failed / dead URLs:             ${stats.failedDeadUrls}`);
+  if (stats.cleanupErrors.length) {
+    console.log('\nCleanup errors:');
+    for (const error of stats.cleanupErrors.slice(0, 20)) {
+      console.log(`- ${error}`);
+    }
+  }
   if (stats.failed.length) {
     console.log('\nFailures:');
     for (const f of stats.failed.slice(0, 50)) {
