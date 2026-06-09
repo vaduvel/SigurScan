@@ -29,9 +29,7 @@
     {"id":"official_digi_home","brand_id":"digi","display_name":"DIGI","url":"https://www.digi.ro/","source_url":"https://www.digi.ro/","confidence":"high"},
     {"id":"official_hidroelectrica_alert","brand_id":"hidroelectrica","display_name":"Hidroelectrica Fraude Online","url":"https://www.hidroelectrica.ro/press-release/be34ffdd-821e-5bed-e6c1-1868bbf7cb79","source_url":"https://www.hidroelectrica.ro/press-release/be34ffdd-821e-5bed-e6c1-1868bbf7cb79","confidence":"high"},
     {"id":"official_ppc_home","brand_id":"ppc","display_name":"PPC Energy","url":"https://www.ppcenergy.ro/","source_url":"https://www.ppcenergy.ro/","confidence":"high"},
-    {"id":"official_myppc_login","brand_id":"ppc","display_name":"myPPC","url":"https://myppc.ppcenergy.ro/","source_url":"https://myppc.ppcenergy.ro/","confidence":"high"},
     {"id":"official_eon_home","brand_id":"eon","display_name":"E.ON Romania","url":"https://www.eon.ro/","source_url":"https://www.eon.ro/","confidence":"high"},
-    {"id":"official_eon_myline","brand_id":"eon","display_name":"E.ON Myline","url":"https://www.eon.ro/myline/login","source_url":"https://www.eon.ro/myline/login","confidence":"high"},
     {"id":"official_ghiseul_home","brand_id":"ghiseul","display_name":"Ghiseul.ro","url":"https://www.ghiseul.ro/","source_url":"https://www.ghiseul.ro/","confidence":"high"}
   ]
 }

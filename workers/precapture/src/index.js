@@ -161,7 +161,7 @@ function privacySkipReason(url) {
   const parsed = parsedHttpUrl(url);
   if (!parsed) return 'invalid_url';
   const pathAndQuery = `${parsed.pathname}?${parsed.searchParams.toString()}`.toLowerCase();
-  if (/(reset|magic[-_]?link|password|session|auth|token|otp|invoice|factura|payment|plata)/i.test(pathAndQuery)) {
+  if (/(reset|magic[-_]?link|password|session|auth|login|sign[-_]?in|token|otp|invoice|factura|payment|plata)/i.test(pathAndQuery)) {
     return 'privacy_skipped:sensitive_path_or_query';
   }
   for (const [key, value] of parsed.searchParams.entries()) {
