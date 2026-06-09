@@ -2753,6 +2753,28 @@ def test_orchestrated_fast_lane_attaches_cached_preview_before_submit_stage(monk
     assert refreshed["analysis"]["evidence"]["external_intel_summary"]["urlscan"]["cache_hit"] is True
 
 
+def test_urlscan_preview_cache_saves_submitted_url_alias(monkeypatch):
+    app_main._URLSCAN_PREVIEW_CACHE.clear()
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main.supabase_store, "save_urlscan_preview_cache", lambda entry: None)
+        app_main._save_urlscan_preview_cache(
+            {
+                "uuid": "sameday-cache",
+                "submitted_url": "https://www.sameday.ro/",
+                "final_url": "https://sameday.ro/",
+                "report_url": "https://urlscan.io/result/sameday-cache/",
+                "screenshot_url": "https://backend/v1/sandbox/urlscan/sameday-cache/screenshot",
+                "verdict": "No malicious classification",
+                "severity": "low",
+            }
+        )
+
+    assert app_main._load_urlscan_preview_cache("https://sameday.ro/") is not None
+    submitted_alias = app_main._load_urlscan_preview_cache("https://www.sameday.ro/")
+    assert submitted_alias is not None
+    assert submitted_alias["final_url"] == "https://sameday.ro/"
+
+
 def test_orchestrated_urlscan_preview_cache_saves_when_screenshot_ready(monkeypatch):
     job = {
         "scan_id": "orch_urlscan_cache_save",

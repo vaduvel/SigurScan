@@ -1,0 +1,65 @@
+{
+  "description": "Curated official URLs for optional SigurScan preview cache warm-up. Use backend/tools/preseed_urlscan_previews.py --execute only when intentionally spending urlscan quota.",
+  "urls": [
+    {
+      "label": "FAN Courier official",
+      "brand": "FAN Courier",
+      "url": "https://www.fancourier.ro/"
+    },
+    {
+      "label": "Sameday delivery official",
+      "brand": "Sameday",
+      "url": "https://www.sameday.ro/"
+    },
+    {
+      "label": "Posta Romana official",
+      "brand": "Posta Romana",
+      "url": "https://www.posta-romana.ro/"
+    },
+    {
+      "label": "ANAF official",
+      "brand": "ANAF",
+      "url": "https://www.anaf.ro/"
+    },
+    {
+      "label": "DNSC official",
+      "brand": "DNSC",
+      "url": "https://www.dnsc.ro/"
+    },
+    {
+      "label": "Orange Romania official",
+      "brand": "Orange",
+      "url": "https://www.orange.ro/"
+    },
+    {
+      "label": "YOXO official",
+      "brand": "YOXO",
+      "url": "https://www.yoxo.ro/"
+    },
+    {
+      "label": "eMAG official",
+      "brand": "eMAG",
+      "url": "https://www.emag.ro/"
+    },
+    {
+      "label": "OLX Romania official",
+      "brand": "OLX",
+      "url": "https://www.olx.ro/"
+    },
+    {
+      "label": "BT official",
+      "brand": "Banca Transilvania",
+      "url": "https://www.bancatransilvania.ro/"
+    },
+    {
+      "label": "Hipo official",
+      "brand": "Hipo",
+      "url": "https://www.hipo.ro/"
+    },
+    {
+      "label": "Ghiseul official",
+      "brand": "Ghiseul.ro",
+      "url": "https://www.ghiseul.ro/"
+    }
+  ]
+}

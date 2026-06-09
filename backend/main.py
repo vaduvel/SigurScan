@@ -4628,37 +4628,45 @@ def _save_urlscan_preview_cache(entry: Dict[str, Any]) -> None:
     if not isinstance(entry, dict):
         return
     final_url = str(entry.get("final_url") or entry.get("submitted_url") or "").strip()
+    submitted_url = str(entry.get("submitted_url") or "").strip()
     screenshot_url = str(entry.get("screenshot_url") or "").strip()
     report_url = str(entry.get("report_url") or "").strip()
-    cache_key = _urlscan_preview_cache_key(final_url)
-    canonical_url = _canonical_urlscan_preview_cache_url(final_url)
-    if not cache_key or not canonical_url or not final_url or not screenshot_url or not report_url:
+    if not final_url or not screenshot_url or not report_url:
         return
     hostname = (urllib.parse.urlparse(final_url).hostname or "").lower()
-    cache_entry = {
-        "url_hash": cache_key,
-        "canonical_url": canonical_url,
-        "final_url": final_url,
-        "final_registered_domain": _extract_domain_root(hostname),
-        "uuid": entry.get("uuid"),
-        "status": "finished",
-        "submitted_url": entry.get("submitted_url") or final_url,
-        "report_url": report_url,
-        "screenshot_url": screenshot_url,
-        "screenshot_ready": True,
-        "verdict": entry.get("verdict") or "No malicious classification",
-        "severity": entry.get("severity") or "low",
-        "details": entry.get("details") or "urlscan preview cached",
-        "score": entry.get("score") or 0,
-        "categories": entry.get("categories") or [],
-        "brands": entry.get("brands") or [],
-        "expires_at": int(time.time()) + URLSCAN_PREVIEW_CACHE_TTL_SECONDS,
-    }
-    _URLSCAN_PREVIEW_CACHE[cache_key] = cache_entry
-    if len(_URLSCAN_PREVIEW_CACHE) > URLSCAN_PREVIEW_CACHE_MAX_ENTRIES:
-        oldest_key = next(iter(_URLSCAN_PREVIEW_CACHE))
-        _URLSCAN_PREVIEW_CACHE.pop(oldest_key, None)
-    supabase_store.save_urlscan_preview_cache(cache_entry)
+    lookup_urls = [final_url]
+    if submitted_url and _canonical_urlscan_preview_cache_url(submitted_url) != _canonical_urlscan_preview_cache_url(final_url):
+        lookup_urls.append(submitted_url)
+
+    for lookup_url in lookup_urls:
+        cache_key = _urlscan_preview_cache_key(lookup_url)
+        canonical_url = _canonical_urlscan_preview_cache_url(lookup_url)
+        if not cache_key or not canonical_url:
+            continue
+        cache_entry = {
+            "url_hash": cache_key,
+            "canonical_url": canonical_url,
+            "final_url": final_url,
+            "final_registered_domain": _extract_domain_root(hostname),
+            "uuid": entry.get("uuid"),
+            "status": "finished",
+            "submitted_url": submitted_url or final_url,
+            "report_url": report_url,
+            "screenshot_url": screenshot_url,
+            "screenshot_ready": True,
+            "verdict": entry.get("verdict") or "No malicious classification",
+            "severity": entry.get("severity") or "low",
+            "details": entry.get("details") or "urlscan preview cached",
+            "score": entry.get("score") or 0,
+            "categories": entry.get("categories") or [],
+            "brands": entry.get("brands") or [],
+            "expires_at": int(time.time()) + URLSCAN_PREVIEW_CACHE_TTL_SECONDS,
+        }
+        _URLSCAN_PREVIEW_CACHE[cache_key] = cache_entry
+        if len(_URLSCAN_PREVIEW_CACHE) > URLSCAN_PREVIEW_CACHE_MAX_ENTRIES:
+            oldest_key = next(iter(_URLSCAN_PREVIEW_CACHE))
+            _URLSCAN_PREVIEW_CACHE.pop(oldest_key, None)
+        supabase_store.save_urlscan_preview_cache(cache_entry)
 
 
 def _merge_threat_intel_sources(
