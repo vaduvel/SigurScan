@@ -5288,6 +5288,7 @@ def test_health_reports_provider_config_without_secrets(monkeypatch):
         patched.setenv("MISTRAL_API_KEY", "super-secret-mistral")
         patched.setenv("GEMINI_API_KEY", "super-secret-gemini")
         patched.setenv("GOOGLE_WEB_RISK_API_KEY", "super-secret-webrisk")
+        patched.setenv("URLHAUS_AUTH_KEY", "super-secret-urlhaus")
         patched.setenv("ENABLE_PHISHING_DATABASE", "true")
         patched.setattr(app_main, "URLSCAN_API_KEY", "super-secret-urlscan")
         patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
@@ -5297,6 +5298,7 @@ def test_health_reports_provider_config_without_secrets(monkeypatch):
     assert payload["config"]["providers"]["urlscan"]["configured"] is True
     assert payload["config"]["providers"]["google_web_risk"]["configured"] is True
     assert payload["config"]["providers"]["phishing_database"]["configured"] is True
+    assert payload["config"]["providers"]["urlhaus"]["configured"] is True
     assert payload["config"]["providers"]["ai_explanation"]["configured"] is True
     assert "super-secret" not in serialized
 

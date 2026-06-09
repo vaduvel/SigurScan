@@ -204,6 +204,7 @@ def _provider_config_status() -> Dict[str, Any]:
 
     web_risk_configured = _env_present("GOOGLE_WEB_RISK_API_KEY")
     phishing_database_enabled = os.getenv("ENABLE_PHISHING_DATABASE", "true").strip().lower() in {"1", "true", "yes", "on"}
+    urlhaus_configured = _env_present("URLHAUS_AUTH_KEY", "URLHAUS_API_KEY", "ABUSECH_AUTH_KEY")
     mistral_configured = _env_present("MISTRAL_API_KEY")
     gemini_configured = _env_present("GEMINI_API_KEY")
     offer_claim_configured = gemini_configured
@@ -223,6 +224,10 @@ def _provider_config_status() -> Dict[str, Any]:
             "phishing_database": {
                 "configured": phishing_database_enabled and not PRIVACY_SAFE_MODE,
                 "policy": "open_feed_runtime_reputation",
+            },
+            "urlhaus": {
+                "configured": urlhaus_configured and not PRIVACY_SAFE_MODE,
+                "policy": "abuse_ch_runtime_reputation",
             },
             "ai_explanation": {
                 "configured": (mistral_configured or gemini_configured) and ENABLE_CLOUD_AI_EXPLANATION,
