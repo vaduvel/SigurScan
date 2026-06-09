@@ -5108,19 +5108,31 @@ def _has_required_pillar_error(pillars: Dict[str, Dict[str, Any]]) -> bool:
 
 def _urlscan_pending_has_timed_out(job: Dict[str, Any]) -> bool:
     urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
-    if str(urlscan_state.get("status") or "").strip().lower() != "pending":
+    status = str(urlscan_state.get("status") or "").strip().lower()
+    waiting_for_result = status == "pending"
+    waiting_for_screenshot = status == "finished" and not urlscan_state.get("screenshot_ready")
+    if not waiting_for_result and not waiting_for_screenshot:
         return False
     created_at = int(job.get("created_at") or int(time.time()))
     return int(time.time()) - created_at >= ORCHESTRATED_URLSCAN_PENDING_TIMEOUT_SECONDS
 
 
 def _urlscan_enhancement_done(job: Dict[str, Any]) -> bool:
+    analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
+    evidence = analysis.get("evidence") if isinstance(analysis.get("evidence"), dict) else {}
+    summary = evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {}
+    if _has_bad_provider_verdict(summary):
+        # Hard provider evidence is already decisive. A screenshot remains useful,
+        # but it must never delay a protective PERICULOS result.
+        return True
     raw_urls = job.get("urls") if isinstance(job.get("urls"), list) else []
     if not raw_urls:
         return True
     urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
     status = str(urlscan_state.get("status") or "").strip().lower()
-    return status in {"finished", "error", "timeout", "rate_limited", "skipped"}
+    if status == "finished":
+        return bool(urlscan_state.get("screenshot_ready"))
+    return status in {"error", "timeout", "rate_limited", "skipped"}
 
 
 def _baseline_pillars_ready_without_urlscan(pillars: Dict[str, Dict[str, Any]]) -> bool:
@@ -5248,7 +5260,9 @@ def _orchestrated_status_payload(job: Dict[str, Any]) -> Dict[str, Any]:
     preview = job.get("preview") if isinstance(job.get("preview"), dict) else {}
     result = job.get("result") if isinstance(job.get("result"), dict) else None
     metrics = _orchestrated_metrics(job)
-    if result is not None and result.get("is_final", True) is not False:
+    result_is_final = result is not None and result.get("is_final", True) is not False
+    enhancement_done = _urlscan_enhancement_done(job)
+    if result_is_final and enhancement_done:
         status = "complete"
     elif _has_required_pillar_error(pillars):
         status = "incomplete"
@@ -5261,6 +5275,8 @@ def _orchestrated_status_payload(job: Dict[str, Any]) -> Dict[str, Any]:
         "status_message": (
             "Scanarea este finalizata."
             if status == "complete"
+            else "Verdictul este pregatit. Finalizam preview-ul securizat."
+            if result_is_final and not enhancement_done
             else "Scanarea continua pana cand pilonii necesari returneaza date."
             if status == "scanning"
             else "Scanarea nu are toti pilonii necesari pentru verdict sigur."
@@ -5281,7 +5297,7 @@ def _orchestrated_status_payload(job: Dict[str, Any]) -> Dict[str, Any]:
 def _orchestrated_can_finalize_result(job: Dict[str, Any], pillars: Dict[str, Dict[str, Any]]) -> bool:
     if str(job.get("pipeline_stage") or "").strip().lower() == "done":
         return True
-    return _all_required_pillars_terminal(pillars)
+    return _all_required_pillars_terminal(pillars) and _urlscan_enhancement_done(job)
 
 
 def _orchestrated_result_is_final(job: Dict[str, Any], analysis: Dict[str, Any]) -> bool:
@@ -5666,23 +5682,24 @@ async def _run_orchestrated_fast_lane(job: Dict[str, Any], request: Request) -> 
 
     job["analysis"] = analysis
     job["claim_verifier_required"] = claim_required
-    job["skip_cloud_ai_explanation"] = True
     job["primary_final_url"] = primary_final_url
     preview = job.setdefault("preview", {})
     preview["final_url"] = primary_final_url
-    _set_orchestrated_stage(job, "analysis_ready")
+    next_stage = "analysis_ready" if _has_bad_provider_verdict(summary) else "semantic_ready"
+    _set_orchestrated_stage(job, next_stage)
     job = _timed_orchestrated_component(
         job,
-        "fast_lane.persist_analysis_ready",
+        f"fast_lane.persist_{next_stage}",
         lambda: _persist_orchestrated_job(job),
     )
-    _emit_orchestrated_telemetry("orchestrated_stage_analysis_ready", job, fast_lane=True, claim_required=claim_required)
-
-    started_at = time.perf_counter()
-    try:
-        return await _finalize_orchestrated_job_if_ready(job, request)
-    finally:
-        _record_orchestrated_component_duration(job, "fast_lane.finalize", started_at)
+    _emit_orchestrated_telemetry(
+        f"orchestrated_stage_{next_stage}",
+        job,
+        fast_lane=True,
+        claim_required=claim_required,
+        decisive_provider=next_stage == "analysis_ready",
+    )
+    return job
 
 
 async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Dict[str, Any]:
@@ -5876,6 +5893,13 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
                     urlscan_state["details"] = str(urlscan_state.get("verdict") or "urlscan result este gata")
                     preview = job.setdefault("preview", {})
                     preview["screenshot_url"] = urlscan_state.get("screenshot_url") or preview.get("screenshot_url")
+                elif _urlscan_pending_has_timed_out(job):
+                    urlscan_state["status"] = "timeout"
+                    _increment_orchestrated_metric(job, "urlscan_timeout_count")
+                    urlscan_state["details"] = (
+                        "urlscan a finalizat raportul, dar captura nu a devenit disponibila "
+                        "in timpul maxim permis."
+                    )
                 job["urlscan"] = urlscan_state
                 result = None
             else:

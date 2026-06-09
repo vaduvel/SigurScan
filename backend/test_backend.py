@@ -1901,7 +1901,7 @@ def test_orchestrated_post_accepts_without_running_providers(monkeypatch):
     assert payload["preview"]["screenshot_url"] is None
 
 
-def test_orchestrated_first_poll_runs_fast_lane_without_blocking_on_preview(monkeypatch):
+def test_orchestrated_first_poll_runs_fast_lane_without_publishing_final_verdict(monkeypatch):
     calls = []
     job = {
         "scan_id": "orch_fast_lane",
@@ -1973,24 +1973,20 @@ def test_orchestrated_first_poll_runs_fast_lane_without_blocking_on_preview(monk
     async def fail_submit(url, payload, request):
         raise AssertionError("First orchestrated poll must not submit urlscan preview.")
 
-    async def fail_ai(*args, **kwargs):
-        raise AssertionError("First orchestrated poll must use deterministic explanation, not cloud AI.")
-
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "_safe_scan_url_list", lambda urls: resolved_urls)
         patched.setattr(app_main, "_gather_external_intel_safe", fake_external_intel)
         patched.setattr(app_main, "_analyze_with_reputation", fake_analyze)
         patched.setattr(app_main, "_claim_verifier_required", lambda analysis: False)
         patched.setattr(app_main, "_submit_orchestrated_urlscan", fail_submit)
-        patched.setattr(app_main, "_build_ai_explanation_async", fail_ai)
         patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
         patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
         refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
 
-    assert refreshed["pipeline_stage"] == "analysis_ready"
-    assert refreshed["result"]["user_risk_label"] == "SIGUR"
-    assert refreshed["result"]["is_final"] is True
+    assert refreshed["pipeline_stage"] == "semantic_ready"
+    assert "result" not in refreshed
+    assert refreshed.get("skip_cloud_ai_explanation") is not True
     assert refreshed["urlscan"]["status"] == "queued"
     assert refreshed["preview"].get("report_url") is None
     assert refreshed["preview"].get("screenshot_url") is None
@@ -2001,6 +1997,42 @@ def test_orchestrated_first_poll_runs_fast_lane_without_blocking_on_preview(monk
             "persist_partial": False,
         }
     ]
+
+
+def test_orchestrated_status_stays_scanning_until_urlscan_enhancement_is_terminal():
+    job = {
+        "scan_id": "orch_preview_pending",
+        "status": "scanning",
+        "pipeline_stage": "urlscan_submitted",
+        "urls": ["https://example.com"],
+        "resolved_urls": [{"final_url": "https://example.com"}],
+        "primary_final_url": "https://example.com",
+        "analysis": {},
+        "result": {"is_final": True, "user_risk_label": "SIGUR"},
+        "urlscan": {"status": "pending", "uuid": "urlscan-1"},
+        "preview": {"final_url": "https://example.com", "report_url": None, "screenshot_url": None},
+        "orchestration_metrics": {"poll_count": 1, "stage_sequence": [], "stage_durations_ms": {}},
+    }
+
+    pending = app_main._orchestrated_status_payload(job)
+    job["urlscan"] = {"status": "error", "details": "scan prevented"}
+    terminal = app_main._orchestrated_status_payload(job)
+
+    assert pending["status"] == "scanning"
+    assert "preview" in pending["status_message"].lower()
+    assert terminal["status"] == "complete"
+
+
+def test_urlscan_finished_without_screenshot_is_not_enhancement_done():
+    job = {
+        "urls": ["https://example.com"],
+        "urlscan": {"status": "finished", "uuid": "urlscan-1", "screenshot_ready": False},
+    }
+
+    assert app_main._urlscan_enhancement_done(job) is False
+
+    job["urlscan"]["screenshot_ready"] = True
+    assert app_main._urlscan_enhancement_done(job) is True
 
 
 def test_orchestrated_resolved_stage_collects_fast_reputation_without_urlhaus(monkeypatch):
@@ -2316,7 +2348,7 @@ def test_orchestrated_text_scan_completes_safe_after_urlscan_preview(monkeypatch
     assert payload["result"]["evidence"]["provider_gate"]["urlscan_consulted"] is True
 
 
-def test_orchestrated_scan_finalizes_when_urlscan_report_exists_but_screenshot_is_not_ready(monkeypatch):
+def test_orchestrated_scan_waits_when_urlscan_report_exists_but_screenshot_is_not_ready(monkeypatch):
     client = TestClient(app_main.app)
     message = (
         "Ai un telefon sau o tableta pe care nu le mai folosesti? "
@@ -2340,11 +2372,10 @@ def test_orchestrated_scan_finalizes_when_urlscan_report_exists_but_screenshot_i
         response, payload = _poll_orchestrated(client, start["scan_id"], count=8)
 
     assert response.status_code == 200
-    assert payload["status"] == "complete"
+    assert payload["status"] == "scanning"
     assert payload["pillars"]["urlscan"]["status"] == "ok"
-    assert payload["result"]["user_risk_label"] == "SIGUR"
-    assert payload["result"]["risk_level"] == "low"
-    assert payload["result"]["is_final"] is True
+    assert payload["result"] is None
+    assert payload["preview"]["screenshot_url"] is not None
 
 
 def test_orchestrated_clean_verdict_submits_preview_before_complete(monkeypatch):
@@ -2368,19 +2399,18 @@ def test_orchestrated_clean_verdict_submits_preview_before_complete(monkeypatch)
             "/v1/scan/orchestrated",
             json={"input_type": "text", "text": message, "source_channel": "android_native"},
         ).json()
-        response, payload = _poll_orchestrated(client, start["scan_id"], count=1)
+        response, payload = _poll_orchestrated(client, start["scan_id"], count=3)
         _, with_preview = _poll_orchestrated(client, start["scan_id"], count=1)
 
     assert response.status_code == 200
-    assert payload["status"] == "complete"
-    assert payload["result"]["user_risk_label"] == "SIGUR"
-    assert payload["result"]["risk_level"] == "low"
+    assert payload["status"] == "scanning"
+    assert payload["result"] is None
     assert payload["pillars"]["urlscan"]["required"] is False
     assert payload["pillars"]["urlscan"]["status"] == "pending"
     assert payload["preview"]["report_url"] is None
     assert payload["preview"]["screenshot_url"] is None
-    assert with_preview["status"] == "complete"
-    assert with_preview["result"]["user_risk_label"] == "SIGUR"
+    assert with_preview["status"] == "scanning"
+    assert with_preview["result"] is None
     assert with_preview["pillars"]["urlscan"]["status"] == "pending"
     assert with_preview["preview"]["report_url"] == "https://urlscan.io/result/urlscan-yoxo-1/"
     assert with_preview["preview"]["screenshot_url"] == "http://testserver/v1/sandbox/urlscan/urlscan-yoxo-1/screenshot"
@@ -2408,16 +2438,16 @@ def test_orchestrated_urlscan_late_risk_upgrades_provisional_safe_verdict(monkey
             "/v1/scan/orchestrated",
             json={"input_type": "text", "text": message, "source_channel": "android_native"},
         ).json()
-        _, provisional = _poll_orchestrated(client, start["scan_id"], count=1)
+        _, provisional = _poll_orchestrated(client, start["scan_id"], count=3)
         _, preview_pending = _poll_orchestrated(client, start["scan_id"], count=1)
         _, upgraded = _poll_orchestrated(client, start["scan_id"], count=1)
 
-    assert provisional["status"] == "complete"
-    assert provisional["result"]["user_risk_label"] == "SIGUR"
+    assert provisional["status"] == "scanning"
+    assert provisional["result"] is None
     assert provisional["pillars"]["urlscan"]["status"] == "pending"
     assert provisional["preview"]["report_url"] is None
-    assert preview_pending["status"] == "complete"
-    assert preview_pending["result"]["user_risk_label"] == "SIGUR"
+    assert preview_pending["status"] == "scanning"
+    assert preview_pending["result"] is None
     assert preview_pending["pillars"]["urlscan"]["status"] == "pending"
     assert preview_pending["preview"]["report_url"] == "https://urlscan.io/result/urlscan-yoxo-1/"
     assert upgraded["status"] == "complete"
@@ -2456,7 +2486,7 @@ def test_orchestrated_scan_keeps_clean_verdict_when_urlscan_screenshot_times_out
 
     assert response.status_code == 200
     assert payload["status"] == "complete"
-    assert payload["pillars"]["urlscan"]["status"] == "ok"
+    assert payload["pillars"]["urlscan"]["status"] == "error"
     assert "captura" in payload["pillars"]["urlscan"]["details"].lower()
     assert payload["result"]["user_risk_label"] == "SIGUR"
     assert payload["result"]["risk_level"] == "low"
@@ -2701,7 +2731,7 @@ def test_orchestrated_final_verdict_reuses_ai_explanation_cache(monkeypatch):
         ],
         "primary_final_url": "https://buyback.yoxo.ro",
         "claim_verifier_required": False,
-        "urlscan": {"uuid": "urlscan-finished", "status": "finished", "verdict": "clean", "screenshot_ready": False},
+        "urlscan": {"uuid": "urlscan-finished", "status": "finished", "verdict": "clean", "screenshot_ready": True},
         "preview": {},
         "extra_fields": {},
     }
