@@ -274,6 +274,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
 	            .readTimeout(75, TimeUnit.SECONDS)
 	            .writeTimeout(30, TimeUnit.SECONDS)
 	            .connectTimeout(20, TimeUnit.SECONDS)
+	            .addInterceptor(ApiKeyInterceptor(BuildConfig.SIGURSCAN_API_KEY))
 	            .addInterceptor(logging)
 	            .build()
 

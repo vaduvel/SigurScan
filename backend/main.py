@@ -65,7 +65,7 @@ from services.telemetry import (
     run_feedback_threshold_sweep,
     summarize_feedback_records,
 )
-from services import supabase_store
+from services import play_integrity, rate_limiter, supabase_store
 from services.google_vision_ocr import (
     has_vision_key,
     extract_text_with_vision,
@@ -122,6 +122,33 @@ ALLOWED_API_KEYS = {
     ).split(",")
     if key.strip()
 }
+
+# Operator-only keys: never shipped in the app, never interchangeable with the
+# client keys above. Comma-separated to allow rotation.
+ADMIN_API_KEYS = {
+    key.strip()
+    for key in (os.getenv("SIGURSCAN_ADMIN_API_KEYS") or "").split(",")
+    if key.strip()
+}
+
+# Operator telemetry/dashboards. Fail closed: without configured admin keys
+# these return 403 even in deployments that leave client auth disabled.
+ADMIN_ONLY_PATHS = {
+    "/v1/orchestration/dashboard",
+    "/v1/orchestration/telemetry",
+    "/v1/feedback/summary",
+    "/v1/adjudication/shadow",
+    "/v1/adjudication/dashboard",
+}
+
+PUBLIC_PATHS = {"/", "/health", "/healthz", "/privacy", "/privacy-policy", "/docs", "/openapi.json", "/redoc"}
+
+# GET-only screenshot proxy consumed by image loaders (Coil) that cannot attach
+# auth headers. Unguessable urlscan UUID in the path; rate limiting still applies.
+_SCREENSHOT_PROXY_PATH_RE = re.compile(r"^/v1/sandbox/urlscan/[^/]+/screenshot$")
+
+# Scan intake routes covered by Play Integrity once it leaves "off" mode.
+_INTEGRITY_GUARDED_PREFIXES = ("/v1/scan/", "/v1/extract/", "/v1/sandbox/urlscan")
 
 ENABLE_RATE_LIMIT = os.getenv("ENABLE_RATE_LIMIT", "true").strip().lower() in {"1", "true", "yes", "on"}
 RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
@@ -192,9 +219,6 @@ ALLOWED_ORIGINS = [
 if not ALLOWED_ORIGINS:
     ALLOWED_ORIGINS = DEFAULT_ALLOWED_ORIGINS.split(",")
 
-_request_buckets: Dict[tuple, deque] = defaultdict(deque)
-
-
 def _env_present(*names: str) -> bool:
     return any(os.getenv(name, "").strip() for name in names)
 
@@ -211,7 +235,10 @@ def _provider_config_status() -> Dict[str, Any]:
     return {
         "privacy_safe_mode": PRIVACY_SAFE_MODE,
         "rate_limit_enabled": ENABLE_RATE_LIMIT,
+        "rate_limit_backend": rate_limiter.backend_mode(),
         "api_key_required": REQUIRE_API_KEY,
+        "admin_api_configured": bool(ADMIN_API_KEYS),
+        "play_integrity_mode": play_integrity.mode(),
         "providers": {
             "urlscan": {
                 "configured": bool(URLSCAN_API_KEY) and not PRIVACY_SAFE_MODE,
@@ -268,38 +295,70 @@ app.add_middleware(
 )
 
 
+def _extract_api_key(request: Request) -> str:
+    api_key = request.headers.get("X-API-KEY") or ""
+    if not api_key and request.headers.get("Authorization"):
+        candidate = request.headers.get("Authorization", "").strip()
+        if candidate.lower().startswith("bearer "):
+            api_key = candidate.split(" ", 1)[1]
+    return api_key.strip()
+
+
+def _is_screenshot_proxy_path(path: str) -> bool:
+    return bool(_SCREENSHOT_PROXY_PATH_RE.match(path))
+
+
+def _is_integrity_guarded_path(path: str) -> bool:
+    return path.startswith(_INTEGRITY_GUARDED_PREFIXES)
+
+
 @app.middleware("http")
 async def security_guard(request: Request, call_next):
-    if request.url.path in {"/", "/health", "/healthz", "/privacy", "/privacy-policy", "/docs", "/openapi.json", "/redoc"}:
+    path = request.url.path
+    if path in PUBLIC_PATHS or request.method == "OPTIONS":
         return await call_next(request)
 
-    # Optional shared API key gate
-    if REQUIRE_API_KEY:
-        api_key = request.headers.get("X-API-KEY")
-        if not api_key and request.headers.get("Authorization"):
-            candidate = request.headers.get("Authorization", "").strip()
-            if candidate.lower().startswith("bearer "):
-                api_key = candidate.split(" ", 1)[1]
+    api_key = _extract_api_key(request)
 
-        if not api_key or (ALLOWED_API_KEYS and api_key not in ALLOWED_API_KEYS):
+    # Operator endpoints: separate admin keys, fail closed when unconfigured.
+    if path in ADMIN_ONLY_PATHS:
+        if not ADMIN_API_KEYS:
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Admin access is not configured on this deployment."},
+            )
+        if not api_key or api_key not in ADMIN_API_KEYS:
+            return JSONResponse(status_code=401, content={"detail": "Missing or invalid admin API key."})
+    elif REQUIRE_API_KEY and not (request.method == "GET" and _is_screenshot_proxy_path(path)):
+        # Fail closed: requiring a key while configuring none is a deployment
+        # error and must not silently open the API.
+        if not api_key or api_key not in (ALLOWED_API_KEYS | ADMIN_API_KEYS):
             return JSONResponse(status_code=401, content={"detail": "Missing or invalid API key."})
 
-    # Basic per-client rate limit (best effort in single-instance mode)
-    if ENABLE_RATE_LIMIT:
-        client_key = (request.client.host if request.client else "anonymous", request.url.path)
-        now = time.time()
-        bucket = _request_buckets[client_key]
-        while bucket and now - bucket[0] > RATE_LIMIT_WINDOW_SECONDS:
-            bucket.popleft()
+    if play_integrity.mode() != "off" and request.method == "POST" and _is_integrity_guarded_path(path):
+        verdict = play_integrity.evaluate_request_token(
+            request.headers.get(play_integrity.INTEGRITY_TOKEN_HEADER, "")
+        )
+        if verdict["block"]:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Play Integrity verification failed.", "integrity": verdict["result"]},
+            )
 
-        if len(bucket) >= RATE_LIMIT_PER_MINUTE:
+    if ENABLE_RATE_LIMIT:
+        decision = await asyncio.to_thread(
+            rate_limiter.check_sync,
+            api_key or None,
+            request.client.host if request.client else "anonymous",
+            path,
+            RATE_LIMIT_PER_MINUTE,
+        )
+        if not decision.allowed:
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Too many requests. Try again later."},
-                headers={"Retry-After": str(RATE_LIMIT_WINDOW_SECONDS)},
+                headers={"Retry-After": str(decision.retry_after_seconds or RATE_LIMIT_WINDOW_SECONDS)},
             )
-
-        bucket.append(now)
 
     return await call_next(request)
 
