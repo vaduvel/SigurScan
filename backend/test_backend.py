@@ -7115,6 +7115,99 @@ def test_backend_security_defaults_are_launch_safe():
     assert "https://nudaclick-backend.vercel.app" in app_main.ALLOWED_ORIGINS
 
 
+def test_gemini_explainer_handles_429_gracefully(monkeypatch):
+    """Test that 429 rate limit returns empty dict without blocking verdict."""
+    from services import gemini_explainer as ge
+
+    def fake_429(*args, **kwargs):
+        raise Exception("429 Rate limit exceeded")
+
+    monkeypatch.setattr(ge.genai, "Client", lambda **kw: type("Client", (), {
+        "models": type("Models", (), {
+            "generate_content": fake_429
+        })()
+    })())
+
+    result = ge._call_gemini("test prompt")
+    assert result == {}, "Should return empty dict on 429, not raise"
+
+
+def test_gemini_explainer_handles_invalid_model_gracefully(monkeypatch):
+    """Test that invalid model returns empty dict without blocking verdict."""
+    from services import gemini_explainer as ge
+
+    def fake_invalid_model(*args, **kwargs):
+        raise Exception("404 Model not found: gemini-invalid-model")
+
+    monkeypatch.setattr(ge.genai, "Client", lambda **kw: type("Client", (), {
+        "models": type("Models", (), {
+            "generate_content": fake_invalid_model
+        })()
+    })())
+
+    result = ge._call_gemini("test prompt")
+    assert result == {}, "Should return empty dict on invalid model, not raise"
+
+
+def test_gemini_explainer_handles_timeout_gracefully(monkeypatch):
+    """Test that timeout returns empty dict without blocking verdict."""
+    from services import gemini_explainer as ge
+
+    def fake_timeout(*args, **kwargs):
+        raise Exception("504 Deadline Exceeded")
+
+    monkeypatch.setattr(ge.genai, "Client", lambda **kw: type("Client", (), {
+        "models": type("Models", (), {
+            "generate_content": fake_timeout
+        })()
+    })())
+
+    result = ge._call_gemini("test prompt")
+    assert result == {}, "Should return empty dict on timeout, not raise"
+
+
+def test_gemini_explainer_handles_regional_block_gracefully(monkeypatch):
+    """Test that regional block (403) returns empty dict without blocking verdict."""
+    from services import gemini_explainer as ge
+
+    def fake_regional_block(*args, **kwargs):
+        raise Exception("403 User location not supported for the API")
+
+    monkeypatch.setattr(ge.genai, "Client", lambda **kw: type("Client", (), {
+        "models": type("Models", (), {
+            "generate_content": fake_regional_block
+        })()
+    })())
+
+    result = ge._call_gemini("test prompt")
+    assert result == {}, "Should return empty dict on regional block, not raise"
+
+
+def test_gemini_explainer_error_does_not_block_verdict():
+    """Verify that verdict_gate logic is independent of AI explanation."""
+    from services import verdict_gate
+    from services.gemini_explainer import generate_fallback_explanation
+
+    # EvidenceGate verdict is deterministic - should not depend on AI explanation
+    bundle = {
+        "schema": "sigurscan_evidence_bundle_v2",
+        "input": {"type": "text", "redacted_text": "test"},
+        "resolution": {"status": "resolved", "completeness": True, "final_url": "https://example.com"},
+        "providers": {"verdict": "clean", "hits": [], "completeness": True},
+        "identity": {"claimed_brand": "Test", "status": "official", "tld_suspicious": False, "completeness": True},
+        "request": {"sensitive": "none", "channel": "android_native", "completeness": True},
+        "context": {},
+        "semantic_review": {"status": "done", "completeness": True, "risk_class": "low"},
+    }
+
+    result = verdict_gate.verdict(bundle)
+    assert result["label"] in {"SIGUR", "SUSPECT", "PERICULOS", "PENDING"}
+    # Fallback explanation should work independently
+    fallback = generate_fallback_explanation("test", {"risk_level": "low", "claimed_brand": "Test"})
+    assert "verdict_summary" in fallback
+    assert "explanation" in fallback
+
+
 if __name__ == "__main__":
     print("=== Running Backend Local Unit Tests ===")
     test_pii_redaction()

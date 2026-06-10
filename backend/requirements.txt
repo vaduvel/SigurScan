@@ -3,7 +3,7 @@ uvicorn
 pydantic
 tldextract
 requests
-google-genai
+google-genai>=1.65.0
 beautifulsoup4
 python-multipart
 email-validator
