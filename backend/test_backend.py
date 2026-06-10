@@ -7122,7 +7122,7 @@ def test_gemini_explainer_handles_429_gracefully(monkeypatch):
     def fake_429(*args, **kwargs):
         raise Exception("429 Rate limit exceeded")
 
-    monkeypatch.setattr(ge.genai, "Client", lambda: type("Client", (), {
+    monkeypatch.setattr(ge.genai, "Client", lambda **kw: type("Client", (), {
         "models": type("Models", (), {
             "generate_content": fake_429
         })()
@@ -7139,7 +7139,7 @@ def test_gemini_explainer_handles_invalid_model_gracefully(monkeypatch):
     def fake_invalid_model(*args, **kwargs):
         raise Exception("404 Model not found: gemini-invalid-model")
 
-    monkeypatch.setattr(ge.genai, "Client", lambda: type("Client", (), {
+    monkeypatch.setattr(ge.genai, "Client", lambda **kw: type("Client", (), {
         "models": type("Models", (), {
             "generate_content": fake_invalid_model
         })()
@@ -7152,12 +7152,11 @@ def test_gemini_explainer_handles_invalid_model_gracefully(monkeypatch):
 def test_gemini_explainer_handles_timeout_gracefully(monkeypatch):
     """Test that timeout returns empty dict without blocking verdict."""
     from services import gemini_explainer as ge
-    import asyncio
 
-    async def fake_timeout(*args, **kwargs):
-        raise asyncio.TimeoutError("Timeout")
+    def fake_timeout(*args, **kwargs):
+        raise Exception("504 Deadline Exceeded")
 
-    monkeypatch.setattr(ge.genai, "Client", lambda: type("Client", (), {
+    monkeypatch.setattr(ge.genai, "Client", lambda **kw: type("Client", (), {
         "models": type("Models", (), {
             "generate_content": fake_timeout
         })()
@@ -7174,7 +7173,7 @@ def test_gemini_explainer_handles_regional_block_gracefully(monkeypatch):
     def fake_regional_block(*args, **kwargs):
         raise Exception("403 User location not supported for the API")
 
-    monkeypatch.setattr(ge.genai, "Client", lambda: type("Client", (), {
+    monkeypatch.setattr(ge.genai, "Client", lambda **kw: type("Client", (), {
         "models": type("Models", (), {
             "generate_content": fake_regional_block
         })()

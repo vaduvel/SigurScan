@@ -4,8 +4,6 @@ from typing import Dict, Any, List
 import re
 import logging
 import requests
-import asyncio
-
 logger = logging.getLogger("gemini_explainer")
 
 # Try importing the Google GenAI SDK
@@ -124,31 +122,24 @@ def _call_gemini(prompt: str) -> Dict[str, Any]:
     if not api_key or not SDK_AVAILABLE:
         return {}
 
-    # Initialize Google GenAI client (it picks up GEMINI_API_KEY automatically)
-    client = genai.Client()
+    timeout_ms = int(GEMINI_TIMEOUT_SECONDS * 1000)
+    client = genai.Client(http_options=types.HttpOptions(timeout=timeout_ms))
     try:
-        # Use asyncio.wait_for to enforce strict timeout on the sync call
-        response = asyncio.run(asyncio.wait_for(
-            asyncio.to_thread(
-                client.models.generate_content,
-                model=GEMINI_MODEL,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json"
-                )
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
             ),
-            timeout=GEMINI_TIMEOUT_SECONDS
-        ))
-    except asyncio.TimeoutError:
-        logger.warning("Gemini API timeout after %.1fs (model=%s)", GEMINI_TIMEOUT_SECONDS, GEMINI_MODEL)
-        return {}
+        )
     except Exception as e:
-        # Handle specific error cases gracefully
         error_str = str(e).lower()
         if "429" in error_str or "rate limit" in error_str or "quota" in error_str:
             logger.warning("Gemini rate limited (429): %s", e)
         elif "403" in error_str or "region" in error_str or "location" in error_str:
             logger.warning("Gemini regional block (403/region): %s", e)
+        elif "deadline" in error_str or "timeout" in error_str or "timed out" in error_str:
+            logger.warning("Gemini timeout after %.1fs (model=%s)", GEMINI_TIMEOUT_SECONDS, GEMINI_MODEL)
         elif "not found" in error_str or "invalid model" in error_str:
             logger.warning("Gemini invalid model (%s): %s", GEMINI_MODEL, e)
         else:
