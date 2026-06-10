@@ -89,6 +89,33 @@ def test_first_poll_publishes_provisional_verdict_before_urlscan(monkeypatch):
     assert "preliminar" in payload["status_message"].lower()
 
 
+def test_first_poll_returns_provisional_without_entering_llm_stage(monkeypatch):
+    """BLOCKER 6: the provisional verdict ships from fast-lane evidence; the
+    cloud-LLM semantic/claim stage must never run synchronously inside the
+    first poll (a slow LLM would otherwise push the poll toward maxDuration)."""
+    client = TestClient(app_main.app)
+    semantic_calls = []
+
+    async def recording_semantic(text, analysis, resolved_urls):
+        semantic_calls.append(True)
+        app_main._enrich_local_semantic_review(text, analysis)
+
+    with monkeypatch.context() as patched:
+        _patch_clean_scan(patched, urlscan_get=None)
+        patched.setattr(app_main, "_enrich_semantic_review_async", recording_semantic)
+
+        start = _start_scan(client)
+        _, first = _poll_orchestrated(client, start["scan_id"], count=1)
+        first_poll_semantic_calls = list(semantic_calls)
+        _, second = _poll_orchestrated(client, start["scan_id"], count=1)
+
+    assert first["result"] is not None
+    assert first["result"]["is_final"] is False
+    assert not first_poll_semantic_calls, "LLM semantic stage must not run in the first poll"
+    assert semantic_calls, "semantic enrichment must run on a later poll"
+    assert second["result"] is not None
+
+
 def test_deferred_explanation_upgrades_on_next_poll_without_blocking_first(monkeypatch):
     client = TestClient(app_main.app)
     explainer_calls = []

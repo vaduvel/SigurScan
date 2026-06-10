@@ -4616,6 +4616,16 @@ ORCHESTRATED_DEFER_AI_EXPLANATION = (
 # Prevents the fast deterministic bundle from exceeding this limit.
 # Set to 0 to disable server-side time budget entirely.
 MAX_SINGLE_POLL_SERVER_WORK_MS = int(os.getenv("MAX_SINGLE_POLL_SERVER_WORK_MS", "7500"))
+# Worst-case wall-clock cost of the cloud-LLM enrichment stages: semantic +
+# claim run in parallel (max of their timeouts), and the stage handler can
+# also build the AI explanation at finalize. The collapse loop refuses to
+# ENTER an LLM stage with less remaining budget than this, because the budget
+# check between iterations cannot interrupt a stage that is already running.
+_LLM_STAGE_HEADROOM_SECONDS = (
+    max(MISTRAL_SEMANTIC_TIMEOUT_SECONDS, AI_OFFER_CLAIM_TIMEOUT_SECONDS)
+    + AI_EXPLANATION_TIMEOUT_SECONDS
+    + 1.0
+)
 URLSCAN_PREVIEW_CACHE_TTL_SECONDS = int(os.getenv("URLSCAN_PREVIEW_CACHE_TTL_SECONDS", str(7 * 24 * 60 * 60)))
 URLSCAN_PREVIEW_CACHE_MAX_ENTRIES = int(os.getenv("URLSCAN_PREVIEW_CACHE_MAX_ENTRIES", "512"))
 FAST_PREVIEW_CACHE_MAX_ENTRIES = int(os.getenv("FAST_PREVIEW_CACHE_MAX_ENTRIES", "512"))
@@ -6148,6 +6158,12 @@ async def _run_orchestrated_fast_lane(job: Dict[str, Any], request: Request) -> 
         claim_required=claim_required,
         decisive_provider=next_stage == "analysis_ready",
     )
+    if ORCHESTRATED_EARLY_VERDICT and next_stage == "semantic_ready":
+        # Publish the provisional verdict from the local semantic pillar
+        # (status=done) before any cloud-LLM stage runs. The first poll then
+        # returns a verdict in fast-lane time even when LLMs are slow; the
+        # semantic/claim enrichment and urlscan can only refine or raise it.
+        job = await _finalize_orchestrated_job_if_ready(job, request)
     return job
 
 
@@ -6498,6 +6514,14 @@ async def get_orchestrated_scan(scan_id: str, request: Request):
             while time.perf_counter() < budget_deadline:
                 stage = str(job.get("pipeline_stage") or "").strip().lower()
                 if stage in {"done", "urlscan_submitting", "urlscan_submitted"}:
+                    break
+                # Cloud-LLM stages may consume their full timeouts once
+                # entered; the deadline check above cannot interrupt them.
+                # Enter them only with enough remaining budget so a single
+                # poll can never approach the serverless maxDuration.
+                if stage in {"semantic_ready", "claim_ready"} and (
+                    budget_deadline - time.perf_counter() < _LLM_STAGE_HEADROOM_SECONDS
+                ):
                     break
                 previous_stage = stage
                 job = await _refresh_orchestrated_job(job, request)
