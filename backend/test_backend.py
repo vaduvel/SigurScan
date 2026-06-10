@@ -92,6 +92,11 @@ def _isolate_urlscan_preview_cache(monkeypatch):
     app_main._FAST_PREVIEW_CACHE.clear()
 
 
+@pytest.fixture(autouse=True)
+def _mock_whois_ssl_signals(monkeypatch):
+    monkeypatch.setattr(app_main, "check_domain_ssl_parallel", _fake_domain_signals_neutral)
+
+
 def test_pii_redaction():
     print("Testing PII Redactor...")
     
@@ -1892,6 +1897,11 @@ def _fake_yoxo_safe_scan(urls):
             }
         )
     return resolved
+
+
+async def _fake_domain_signals_neutral(domain: str) -> dict:
+    return {"ssl": {"valid": True, "cert_age_days": 365, "issuer_org": "Test CA"},
+            "rdap": {"age_days": 365 * 5, "registered": True}}
 
 
 async def _fake_confirmed_offer_claim(text, analysis, resolved_urls):

@@ -54,6 +54,7 @@ from services.verdict_gate import verdict as reduce_verdict
 from services.mistral_shadow_adjudicator import maybe_run_shadow_adjudication
 from services.offer_claim_verifier import verify_offer_claim
 from services.url_reputation import get_reputation_cache_stats, get_reputation_for_urls
+from services.whois_ssl_signals import check_domain_ssl_parallel, domain_risk_from_signals
 from services.telemetry import (
     build_feedback_evaluation_rows,
     summarize_feedback_trend,
@@ -2284,6 +2285,13 @@ def _collect_infrastructure_flags(
             continue
 
     youngest_domain_age_days = min(age_days) if age_days else None
+
+    # Merge RDAP/SSL deterministic signals from WHOIS/RDAP parallel check.
+    domain_signals = evidence.get("domain_signals") if isinstance(evidence.get("domain_signals"), dict) else {}
+    rdap_age = domain_signals.get("domain_age_days")
+    if rdap_age is not None and youngest_domain_age_days is None:
+        youngest_domain_age_days = rdap_age
+
     return {
         "typosquat": "typosquatting" in lexical_text or "lookalike" in lexical_text or "mismatch critic" in lexical_text,
         "homoglyph": "homoglif" in lexical_text or "homoglyph" in lexical_text,
@@ -2295,6 +2303,11 @@ def _collect_infrastructure_flags(
         "url_behaviour": bool(url_behaviour),
         "url_transport": bool(url_transport),
         "youngest_domain_age_days": youngest_domain_age_days,
+        "rdap_inexistent": bool(domain_signals.get("rdap_404")),
+        "domain_young": bool(domain_signals.get("domain_young")),
+        "ssl_invalid": bool(domain_signals.get("ssl_valid") is False),
+        "cert_very_young": bool(domain_signals.get("cert_young")),
+        "host_unreachable": bool(domain_signals.get("unreachable")),
     }
 
 
@@ -2352,6 +2365,35 @@ def _augment_summary_with_infra_flags(summary: Dict[str, Any], infra_flags: Dict
             "consulted": True,
             "details": "backend url_transport flags present",
         }
+
+    if infra_flags.get("rdap_inexistent"):
+        # Weighted signal only, never terminal: severity stays below "high" so
+        # _providers_verdict cannot turn an RDAP 404 into a standalone
+        # PERICULOS (rdap.org 404s also happen for TLDs it cannot route).
+        summary["infra_rdap"] = {
+            "status": "suspicious",
+            "verdict": "inexistent_domain",
+            "severity": "medium",
+            "consulted": True,
+            "details": "Domeniul nu apare în registrul RDAP (404); semnal ponderat, nu verdict.",
+        }
+
+    if infra_flags.get("ssl_invalid"):
+        # severity stays below "high": standalone invalid SSL is a weighted
+        # signal; the terminal path for SSL is the deterministic combo rule
+        # (young domain + invalid SSL + impersonated brand) in verdict_gate.
+        summary["infra_ssl"] = {
+            "status": "suspicious",
+            "verdict": "invalid_certificate",
+            "severity": "medium",
+            "consulted": True,
+            "details": "Certificatul SSL este invalid sau auto-semnat",
+        }
+
+    # host_unreachable intentionally does NOT enter the provider summary: a
+    # pseudo-provider entry with unknown status would block official_clean on
+    # transient network errors. The signal still flows via identity context
+    # (host_unreachable) and the weighted risk score.
 
 
 def _provider_verdict_for_decision_bundle(
@@ -2417,11 +2459,32 @@ def _identity_status_for_decision_bundle(
     domain_age_days = _first_domain_age_days(resolved_urls)
     domain_reputation = _domain_reputation_from_age(domain_age_days)
 
+    # Merge WHOIS/RDAP+SSL deterministic signals into the identity context.
+    domain_signals = evidence.get("domain_signals") if isinstance(evidence.get("domain_signals"), dict) else {}
+    rdap_age = domain_signals.get("domain_age_days")
+    if rdap_age is not None and domain_age_days is None:
+        domain_age_days = rdap_age
+        domain_reputation = _domain_reputation_from_age(domain_age_days)
+
     def _with_domain_context(payload: Dict[str, Any]) -> Dict[str, Any]:
         if domain_age_days is not None:
             payload["domain_age_days"] = domain_age_days
             payload["domain_reputation"] = domain_reputation
+        if domain_signals:
+            if domain_signals.get("rdap_404"):
+                payload["rdap_inexistent"] = True
+            if domain_signals.get("ssl_valid") is False:
+                payload["ssl_invalid"] = True
+            if domain_signals.get("unreachable"):
+                payload["host_unreachable"] = True
         return payload
+
+    def _domain_from_signals_suspicious() -> bool:
+        return bool(
+            domain_signals.get("rdap_404")
+            or domain_signals.get("domain_young")
+            or domain_signals.get("ssl_valid") is False
+        )
 
     if official_destination:
         raw_registered = ""
@@ -2432,7 +2495,7 @@ def _identity_status_for_decision_bundle(
         return _with_domain_context({
             "claimed_brand": claimed_brand if _normalize_claimed_brand(claimed_brand) else None,
             "status": "delegated" if raw_registered and final_registered and raw_registered != final_registered else "official",
-            "tld_suspicious": False,
+            "tld_suspicious": _domain_from_signals_suspicious(),
             "completeness": True,
         })
 
@@ -2447,6 +2510,7 @@ def _identity_status_for_decision_bundle(
                 or infra_flags.get("homoglyph")
                 or infra_flags.get("punycode")
                 or infra_flags.get("very_new_domain")
+                or _domain_from_signals_suspicious()
             ),
             "completeness": True,
         })
@@ -2458,6 +2522,7 @@ def _identity_status_for_decision_bundle(
         or infra_flags.get("punycode")
         or infra_flags.get("very_new_domain")
         or infra_flags.get("suspicious_domain_age")
+        or _domain_from_signals_suspicious()
     ):
         return _with_domain_context({
             "claimed_brand": inferred_first_party,
@@ -2474,6 +2539,7 @@ def _identity_status_for_decision_bundle(
             or infra_flags.get("homoglyph")
             or infra_flags.get("punycode")
             or infra_flags.get("very_new_domain")
+            or _domain_from_signals_suspicious()
         ),
         "completeness": True,
     })
@@ -6064,6 +6130,25 @@ async def _run_orchestrated_fast_lane(job: Dict[str, Any], request: Request) -> 
     _set_orchestrated_stage(job, "resolved")
     _emit_orchestrated_telemetry("orchestrated_stage_resolved", job, fast_lane=True)
 
+    # WHOIS/RDAP + SSL: free deterministic signals in parallel with reputation intel
+    domain_signals: Dict[str, Any] = {}
+    primary_final_host = None
+    primary_entry = _select_primary_resolved_url(resolved_urls, {"claimed_brand": "Nespecificat"})
+    if primary_entry:
+        primary_final_host = (primary_entry.get("final_hostname") or
+                              urllib.parse.urlparse(str(primary_entry.get("final_url") or "")).hostname or
+                              None)
+    if primary_final_host:
+        try:
+            domain_check = await check_domain_ssl_parallel(primary_final_host)
+            domain_signals = domain_risk_from_signals(
+                domain_check.get("ssl", {}),
+                domain_check.get("rdap", {}),
+                primary_final_host,
+            )
+        except Exception as exc:
+            domain_signals = {"signal_score": 0, "flags": ["error"], "error": str(exc)}
+
     threat_intel = _timed_orchestrated_component(
         job,
         "fast_lane.reputation",
@@ -6127,6 +6212,26 @@ async def _run_orchestrated_fast_lane(job: Dict[str, Any], request: Request) -> 
                 "Claim web check deferred by fast lane; verdict uses provider reputation, identity, atlas and local Tier1."
             ),
         )
+
+    if domain_signals:
+        analysis.setdefault("evidence", {})["domain_signals"] = domain_signals
+        signal_score = domain_signals.get("signal_score", 0)
+        existing_score = analysis.get("risk_score", 0)
+        if isinstance(existing_score, (int, float)):
+            analysis["risk_score"] = min(max(int(existing_score) + signal_score, 0), 100)
+        if domain_signals.get("rdap_404"):
+            analysis.setdefault("reasons", []).append("Domeniul nu exista in registru (RDAP 404)")
+        if domain_signals.get("domain_young"):
+            analysis.setdefault("reasons", []).append("Domeniul este foarte tanar (sub 30 de zile)")
+        if domain_signals.get("ssl_valid") is False:
+            analysis.setdefault("reasons", []).append("Certificatul SSL este invalid sau auto-semnat")
+        signal_flags = list(domain_signals.get("flags") or [])
+        if signal_flags:
+            existing_rag = analysis.get("rag_signals")
+            if isinstance(existing_rag, list):
+                existing_rag.extend(signal_flags)
+            else:
+                analysis["rag_signals"] = signal_flags
 
     primary_entry = _timed_orchestrated_component(
         job,

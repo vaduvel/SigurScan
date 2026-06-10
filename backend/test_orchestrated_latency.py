@@ -29,9 +29,19 @@ YOXO_MESSAGE = (
 )
 
 
+async def _fake_domain_signals_neutral(domain: str) -> dict:
+    return {"ssl": {"valid": True, "cert_age_days": 365, "issuer_org": "Test CA"},
+            "rdap": {"age_days": 365 * 5, "registered": True}}
+
+
 @pytest.fixture(autouse=True)
 def _disable_live_mistral(monkeypatch):
     monkeypatch.setattr(app_main, "MISTRAL_SEMANTIC_API_KEY", "")
+
+
+@pytest.fixture(autouse=True)
+def _mock_whois_ssl_signals(monkeypatch):
+    monkeypatch.setattr(app_main, "check_domain_ssl_parallel", _fake_domain_signals_neutral)
 
 
 @pytest.fixture(autouse=True)

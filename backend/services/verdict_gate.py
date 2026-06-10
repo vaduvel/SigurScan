@@ -122,6 +122,16 @@ def _domain_is_established(identity: Dict[str, Any]) -> bool:
     )
 
 
+def _domain_is_young(identity: Dict[str, Any]) -> bool:
+    age_days = _domain_age_days(identity)
+    return age_days is not None and age_days < 30
+
+
+def _has_impersonated_brand(identity: Dict[str, Any]) -> bool:
+    status = _norm(identity.get("status"))
+    return status in {"lookalike", "unrelated"}
+
+
 def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
     """Pure SigurScan verdict reducer.
 
@@ -155,6 +165,21 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
     # 2. Clear impersonation plus dangerous request or suspicious TLD.
     if identity_status in BAD_IDENTITY and (tld_suspicious or hard_sensitive):
         return _result("PERICULOS", ["identity_spoof"], confidence=90)
+
+    # NOTE: rdap_inexistent is intentionally NOT a terminal rule. rdap.org
+    # returns 404 both for non-existent domains and for TLDs it cannot route
+    # (.ro/ROTLD is weakly federated), so a hard PERICULOS here would flag
+    # every legitimate .ro domain. It stays a weighted signal only
+    # (domain_risk_from_signals adds +60).
+
+    # 2b. Deterministic combo: young domain (<30d) + invalid SSL + impersonated
+    # brand → PERICULOS without any urlscan/LLM (FN=0 guard).
+    if (
+        _domain_is_young(identity)
+        and identity.get("ssl_invalid")
+        and _has_impersonated_brand(identity)
+    ):
+        return _result("PERICULOS", ["young_domain_invalid_ssl_impersonation"], confidence=92)
 
     # 3. Sensitive credential/card/remote/crypto asks on wrong channels are hard
     # danger. Money-transfer asks are contextual and need semantic severity.
