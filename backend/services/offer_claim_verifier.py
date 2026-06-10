@@ -211,7 +211,7 @@ Reguli:
     last_error: Optional[Exception] = None
     for api_key in api_keys:
         try:
-            return _call_gemini_grounding(
+            result = _call_gemini_grounding(
                 api_key=api_key,
                 prompt=prompt,
                 claimed_brand=claimed_brand,
@@ -219,6 +219,7 @@ Reguli:
                 query=query,
                 claim_target=claim_target,
             )
+            return _enforce_official_evidence_alignment(result, official_domains)
         except Exception as exc:
             last_error = exc
             continue
@@ -295,7 +296,9 @@ def _call_gemini_grounding(
             claim_target=claim_target,
         )
     status = _normalize_status(data.get("status"))
-    evidence_urls = _clean_urls(data.get("evidence_urls") or [])
+    evidence_urls = _clean_urls(
+        list(data.get("evidence_urls") or []) + _extract_grounding_urls(response_payload)
+    )
     confidence = _clamp_int(data.get("confidence"), 0, 100)
     summary = str(data.get("summary") or "").strip()[:500]
     return _payload(
@@ -563,13 +566,20 @@ def _official_domains_for_claim(
     claim_target: Optional[Dict[str, Any]] = None,
 ) -> List[str]:
     domains: List[str] = []
-    if claimed_brand and claimed_brand in brand_registry:
-        domains.extend(brand_registry[claimed_brand])
-    domains.extend(_claim_target_source_domains(claim_target))
+    brand_domains = list(brand_registry.get(claimed_brand, [])) if claimed_brand else []
+    domains.extend(brand_domains)
+    if not claimed_brand:
+        domains.extend(_claim_target_source_domains(claim_target))
     for url in final_urls:
         host = urllib.parse.urlparse(url).hostname or ""
-        if host:
-            domains.append(host.lower().removeprefix("www."))
+        normalized_host = host.lower().removeprefix("www.")
+        if normalized_host and domains and (
+            any(
+                normalized_host == domain or normalized_host.endswith(f".{domain}")
+                for domain in domains
+            )
+        ):
+            domains.append(normalized_host)
     return list(dict.fromkeys(domains))
 
 
@@ -618,8 +628,12 @@ def _official_candidate_urls(
     claim_target: Optional[Dict[str, Any]] = None,
 ) -> List[str]:
     urls: List[str] = []
-    urls.extend(_claim_target_source_urls(claim_target))
     official_set = set(official_domains)
+    urls.extend(
+        url
+        for url in _claim_target_source_urls(claim_target)
+        if _has_official_evidence_url([url], official_domains)
+    )
     for url in final_urls:
         host = (urllib.parse.urlparse(url).hostname or "").lower().removeprefix("www.")
         if any(host == domain or host.endswith(f".{domain}") for domain in official_set):
@@ -627,6 +641,27 @@ def _official_candidate_urls(
     for domain in official_domains:
         urls.append(f"https://{domain}/")
     return list(dict.fromkeys(urls))
+
+
+def _enforce_official_evidence_alignment(
+    result: Dict[str, Any],
+    official_domains: List[str],
+) -> Dict[str, Any]:
+    normalized = dict(result or {})
+    evidence_urls = _clean_urls(normalized.get("evidence_urls") or [])
+    official_source_found = _has_official_evidence_url(evidence_urls, official_domains)
+    normalized["evidence_urls"] = evidence_urls
+    normalized["official_source_found"] = official_source_found
+    if normalized.get("status") == "confirmed" and not official_source_found:
+        normalized["status"] = "inconclusive"
+        normalized["verdict"] = "inconclusive"
+        normalized["severity"] = "unknown"
+        normalized["confidence"] = min(_clamp_int(normalized.get("confidence"), 0, 100), 35)
+        normalized["summary"] = (
+            "Claim evidence did not come from the claimed brand's official domains."
+        )
+        normalized["details"] = normalized["summary"]
+    return normalized
 
 
 def _normalize_host(raw: str) -> str:

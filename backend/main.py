@@ -2537,9 +2537,9 @@ def _semantic_review_for_decision_bundle(
             "source": "provider_decisive_no_semantic_needed",
         }
 
-    if known and confidence >= 0.20 and supports_high_text_only:
+    if known and confidence >= 0.35 and supports_high_text_only:
         risk_class = "high"
-    elif known and confidence >= 0.20:
+    elif known and confidence >= 0.25:
         risk_class = "medium"
     else:
         risk_class = "unknown"
@@ -6123,23 +6123,35 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
         redacted_text = str(job.get("redacted_text") or "")
         resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
         analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
-        await _enrich_semantic_review_async(redacted_text, analysis, resolved_urls)
         claim_required = bool(job.get("claim_verifier_required", _claim_verifier_required(analysis)))
-        if not claim_required:
+        evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
+        summary = evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {}
+        if claim_required and not _has_bad_provider_verdict(summary):
+            await asyncio.gather(
+                _enrich_semantic_review_async(redacted_text, analysis, resolved_urls),
+                _enrich_offer_claim_verification_async(redacted_text, analysis, resolved_urls),
+            )
+        else:
+            await _enrich_semantic_review_async(redacted_text, analysis, resolved_urls)
             _attach_offer_claim_verification(
                 analysis,
-                _skipped_offer_claim_payload("Claim web check skipped because no concrete offer/brand claim was detected."),
+                _skipped_offer_claim_payload(
+                    "Claim web check skipped because hard reputation evidence is already decisive."
+                    if _has_bad_provider_verdict(summary)
+                    else "Claim web check skipped because no concrete offer/brand claim was detected."
+                ),
             )
         job["analysis"] = analysis
         job["claim_verifier_required"] = claim_required
-        _set_orchestrated_stage(job, "claim_ready" if claim_required else "analysis_ready")
+        _set_orchestrated_stage(job, "analysis_ready")
         job = _persist_orchestrated_job(job)
         _emit_orchestrated_telemetry(
-            "orchestrated_stage_claim_ready" if claim_required else "orchestrated_stage_analysis_ready",
+            "orchestrated_stage_analysis_ready",
             job,
             claim_required=claim_required,
+            parallel_enrichment=claim_required and not _has_bad_provider_verdict(summary),
         )
-        return job
+        return await _finalize_orchestrated_job_if_ready(job, request)
 
     if stage == "claim_ready":
         redacted_text = str(job.get("redacted_text") or "")

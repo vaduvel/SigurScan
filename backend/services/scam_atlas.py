@@ -115,6 +115,14 @@ def _normalize_atlas_family(raw: Any) -> Optional[Dict[str, Any]]:
             *examples,
         ]
     )
+    match_parts = _coerce_str_list(
+        [
+            raw.get("hook"),
+            raw.get("claimed_brand_or_role"),
+            family_name,
+            *signals,
+        ]
+    )
     asks_for = _coerce_str_list(raw.get("asks_for") or raw.get("requested_asset"))
 
     return {
@@ -122,6 +130,7 @@ def _normalize_atlas_family(raw: Any) -> Optional[Dict[str, Any]]:
         "title": str(raw.get("title") or family_name).strip(),
         "family": family_name,
         "hook": " | ".join(_dedupe_preserve_order(hook_parts)),
+        "match_text": " | ".join(_dedupe_preserve_order(match_parts)),
         "asks_for": _dedupe_preserve_order(asks_for),
         "safe_actions": _dedupe_preserve_order(_coerce_str_list(raw.get("safe_actions"))),
         "channels": _dedupe_preserve_order(_coerce_str_list(raw.get("channels"))),
@@ -1199,38 +1208,68 @@ class ScamAtlasEngine:
         """
         best_match = None
         highest_score = 0.0
+        highest_quality = -1
 
+        generic_tokens = {
+            "acest", "aceasta", "aici", "către", "catre", "com", "confirmare",
+            "detalii", "http", "https", "link", "mesaj", "online", "pentru",
+            "prin", "romania", "românia", "servicii", "test", "verifica", "verifică",
+            "www",
+        }
+
+        def semantic_tokens(value: str) -> set[str]:
+            return {
+                token
+                for token in re.findall(r"\b[\wșțîâă]+\b", (value or "").lower())
+                if len(token) >= 4 and token not in generic_tokens
+            }
+
+        def contains_phrase(value: str, phrase: str) -> bool:
+            normalized_phrase = str(phrase or "").strip().lower()
+            if not normalized_phrase:
+                return False
+            return bool(re.search(rf"(?<!\w){re.escape(normalized_phrase)}(?!\w)", value.lower()))
+
+        text_words = semantic_tokens(text)
         for family in self.families:
             score = 0.0
             family_name = family.get("family", "").lower()
-            hook = family.get("hook", "").lower()
+            hook = family.get("match_text", family.get("hook", "")).lower()
             asks_for = family.get("asks_for") or []
             
             # Match by claimed brand
             if claimed_brand:
-                # E.g. "FAN Courier" matches family "Curier fals / FAN Courier"
-                if claimed_brand.lower() in family_name or claimed_brand.lower() in hook:
-                    score += 0.5
+                claimed_role = str(family.get("claimed_brand_or_role") or "").lower()
+                if claimed_brand.lower() in family_name or claimed_brand.lower() in claimed_role:
+                    score += 0.25
 
-            # Match keywords from hook
-            hook_words = set(re.findall(r'\b\w+\b', hook))
-            text_words = set(re.findall(r'\b\w+\b', text.lower()))
+            # Match only meaningful runtime family tokens. Examples and URL boilerplate
+            # are intentionally excluded from match_text during normalization.
+            hook_words = semantic_tokens(hook)
             overlap = hook_words.intersection(text_words)
             if overlap:
-                score += len(overlap) * 0.1
+                score += min(0.48, len(overlap) * 0.12)
 
             asks_overlap = 0
             for ask in asks_for:
                 if not ask:
                     continue
-                if ask.lower() in text.lower():
+                if contains_phrase(text, ask):
                     asks_overlap += 1
             if asks_overlap:
-                score += min(0.5, asks_overlap * 0.15)
+                score += min(0.5, asks_overlap * 0.2)
 
             # Check if any red flags or channel matches
-            if score > highest_score:
+            family_quality = (
+                len(family.get("signals") or []) * 2
+                + len(family.get("asks_for") or [])
+                + len(family.get("examples") or [])
+            )
+            if score > highest_score or (
+                score == highest_score and score > 0 and family_quality > highest_quality
+            ):
                 highest_score = score
+                highest_quality = family_quality
                 best_match = family
 
         # Default fallback family if score is low
@@ -1283,9 +1322,9 @@ class ScamAtlasEngine:
             risk_class = "unknown"
         elif family_key.startswith("guard/") or "guard/" in family_key or "legitim" in family_key:
             risk_class = "benign"
-        elif supports_high_text_only:
+        elif supports_high_text_only and confidence >= 0.35:
             risk_class = "high"
-        elif confidence >= 0.2:
+        elif confidence >= 0.25:
             risk_class = "medium"
 
         confidence_class = "high" if confidence >= 0.5 else "medium" if confidence >= 0.25 else "low"
@@ -1672,7 +1711,7 @@ class ScamAtlasEngine:
             confidence,
             supports_high_text_only=high_risk_text_only_family,
         )
-        if not urls and confidence >= 0.25 and high_risk_text_only_family:
+        if not urls and confidence >= 0.2 and high_risk_text_only_family:
             score += 75
             reasons.append(
                 "Scenariu de fraudă socială confirmat în corpusul România: fără link de scanat, "

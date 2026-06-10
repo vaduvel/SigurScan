@@ -52,6 +52,8 @@ dns_error:ENOTFOUND
 capture_failed:Timeout 20000ms exceeded
 capture_failed:redirect_hops_exceeded:12
 http_status:404
+blocked_by_origin:http_status:403
+transient_capture_failure:capture_failed:net::ERR_HTTP2_PROTOCOL_ERROR
 ```
 
 ## UI interpretation

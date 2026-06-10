@@ -34,6 +34,7 @@ try {
 
   if (files.includes('manifest.json')) throw new Error('privacy-skipped URL was persisted to manifest');
   if (report.skippedSensitive !== 1) throw new Error('privacy skip metric was not recorded');
+  if (report.failedDeadUrls !== 0) throw new Error('privacy skip must not be counted as a failed/dead URL');
   if (/fake-private-token|test@example\.com|\/reset\?/i.test(reportText)) {
     throw new Error('sensitive URL data leaked into final_report.json');
   }

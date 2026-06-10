@@ -225,6 +225,86 @@ def test_offer_claim_verifier_prefers_fast_official_fetch_before_gemini(monkeypa
     assert result["official_source_found"] is True
 
 
+def test_offer_claim_verifier_does_not_confirm_brand_from_cross_brand_knowledge_source(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_WEB_RISK_API_KEY", raising=False)
+    monkeypatch.setattr(
+        offer_claim_verifier,
+        "CLAIM_VERIFIER_TARGETS",
+        [
+            {
+                "claim_type": "servicii telecom",
+                "exemple_legitime": ["oferte si servicii telecom"],
+                "surse_oficiale_folosim": [{"url": "https://www.orange.ro/oferte"}],
+            }
+        ],
+    )
+    checked_urls = []
+
+    def fake_fetch(url):
+        checked_urls.append(url)
+        if "orange.ro" in url:
+            return "verifica ofertele si serviciile digi"
+        return ""
+
+    monkeypatch.setattr("services.offer_claim_verifier._fetch_page_text", fake_fetch)
+
+    result = verify_offer_claim(
+        "Verifica ofertele si serviciile DIGI pe https://www.digi.ro/",
+        {"claimed_brand": "DIGI România"},
+        [{"final_url": "https://www.digi.ro/", "final_hostname": "www.digi.ro"}],
+        brand_registry={"DIGI România": ["digi.ro"], "Orange România": ["orange.ro"]},
+    )
+
+    assert result["status"] != "confirmed"
+    assert result["official_source_found"] is False
+    assert all("orange.ro" not in url for url in checked_urls)
+
+
+def test_offer_claim_verifier_never_treats_unknown_claimed_brand_destination_as_official():
+    domains = offer_claim_verifier._official_domains_for_claim(
+        "Brand inventat",
+        ["https://brand-inventat-login.example/card"],
+        {"DIGI România": ["digi.ro"]},
+        claim_target={
+            "claim_type": "servicii telecom",
+            "surse_oficiale_folosim": [{"url": "https://www.orange.ro/oferte"}],
+        },
+    )
+
+    assert domains == []
+
+
+def test_offer_claim_gemini_confirmation_requires_brand_official_evidence(monkeypatch):
+    monkeypatch.setattr(offer_claim_verifier, "_gemini_api_key_candidates", lambda: ["test-key"])
+    monkeypatch.setattr(
+        offer_claim_verifier,
+        "_call_gemini_grounding",
+        lambda **kwargs: offer_claim_verifier._payload(
+            "confirmed",
+            "low",
+            "A similar telecom message exists.",
+            confidence=90,
+            claimed_brand="DIGI România",
+            official_domains=["digi.ro"],
+            evidence_urls=["https://www.orange.ro/help/frauda-sms"],
+            method="gemini_google_search",
+            official_source_found=True,
+        ),
+    )
+
+    result = offer_claim_verifier._verify_with_gemini_search(
+        text="Verifica ofertele si serviciile DIGI",
+        claimed_brand="DIGI România",
+        official_domains=["digi.ro"],
+        final_urls=["https://www.digi.ro/"],
+        query="DIGI oferte servicii",
+    )
+
+    assert result["status"] == "inconclusive"
+    assert result["official_source_found"] is False
+
+
 def test_offer_claim_gemini_grounding_is_bounded_for_25_flash(monkeypatch):
     captured = {}
 
@@ -1203,6 +1283,31 @@ def test_scam_atlas_text_only_social_fraud_escalates_to_high_risk():
         assert "fraudă socială" in " ".join(result["reasons"])
 
 
+def test_scam_atlas_official_brand_notice_does_not_match_unrelated_high_risk_family():
+    text = "Verifica ofertele si serviciile DIGI pe https://www.digi.ro/"
+    result = ScamAtlasEngine().analyze(
+        text,
+        urls=[
+            {
+                "url": "https://www.digi.ro/",
+                "final_url": "https://www.digi.ro/",
+                "hostname": "www.digi.ro",
+                "final_hostname": "www.digi.ro",
+                "registered_domain": "digi.ro",
+                "final_registered_domain": "digi.ro",
+                "success": True,
+                "domain_age_days": 9657,
+            }
+        ],
+    )
+
+    review = result["evidence"]["semantic_review"]
+    assert result["claimed_brand"] == "DIGI România"
+    assert result["detected_family_id"] != "F03"
+    assert review["risk_class"] != "high"
+    assert review["claim_matches_known_scam_family"] is False
+
+
 def test_legitimate_otp_safety_message_does_not_create_circular_brand_warning():
     text = (
         "BT: codul tău de autentificare este 532424. Nu îl comunica nimănui, "
@@ -1310,7 +1415,7 @@ def test_provider_gate_text_only_accident_money_transfer_without_iban_is_high_ri
 
     assert result["risk_level"] == "high"
     assert result["risk_score"] >= 85
-    assert result["detected_family_id"] == "F14"
+    assert result["detected_family_id"] == "RO_SCN_009_ACCIDENT_NEPOT"
     assert result["evidence"]["decision_bundle"]["request"]["sensitive"] == "transfer"
     assert result["evidence"]["provider_gate"]["detected_family_id"] == "provider-gate-semantic-high-risk"
 
@@ -2249,6 +2354,77 @@ def test_orchestrated_reputation_stage_runs_mistral_as_semantic_pillar(monkeypat
     assert "user_risk_label" not in review
 
 
+def test_orchestrated_semantic_and_required_claim_run_in_parallel_in_one_poll(monkeypatch):
+    started = set()
+    job = {
+        "scan_id": "orch_parallel_enrichment",
+        "pipeline_stage": "semantic_ready",
+        "redacted_text": "DIGI: verifică oferta pe https://www.digi.ro/",
+        "source_channel": "sms",
+        "resolved_urls": [
+            {
+                "url": "https://www.digi.ro/",
+                "final_url": "https://www.digi.ro/",
+                "final_hostname": "www.digi.ro",
+                "final_registered_domain": "digi.ro",
+                "success": True,
+            }
+        ],
+        "claim_verifier_required": True,
+        "analysis": {
+            "claimed_brand": "DIGI România",
+            "evidence": {
+                "external_intel_summary": {
+                    "google_web_risk": {"status": "clean", "consulted": True},
+                }
+            },
+        },
+        "orchestration_metrics": {"poll_count": 0, "stage_sequence": [], "stage_durations_ms": {}},
+    }
+
+    async def fake_semantic(text, analysis, resolved_urls):
+        started.add("semantic")
+        await asyncio.sleep(0)
+        assert "claim" in started
+        analysis.setdefault("evidence", {})["semantic_review"] = {
+            "status": "done",
+            "risk_class": "benign",
+            "completeness": True,
+        }
+
+    async def fake_claim(text, analysis, resolved_urls):
+        started.add("claim")
+        await asyncio.sleep(0)
+        assert "semantic" in started
+        app_main._attach_offer_claim_verification(
+            analysis,
+            {
+                "provider": "ai_offer_web_check",
+                "status": "confirmed",
+                "verdict": "confirmed",
+                "severity": "low",
+                "summary": "confirmed",
+                "confidence": 80,
+            },
+        )
+
+    async def fake_finalize(candidate, request):
+        return candidate
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "_enrich_semantic_review_async", fake_semantic)
+        patched.setattr(app_main, "_enrich_offer_claim_verification_async", fake_claim)
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main, "_finalize_orchestrated_job_if_ready", fake_finalize)
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+
+    assert started == {"semantic", "claim"}
+    assert refreshed["pipeline_stage"] == "analysis_ready"
+    assert refreshed["analysis"]["evidence"]["semantic_review"]["status"] == "done"
+    assert refreshed["analysis"]["evidence"]["offer_claim_verification"]["status"] == "confirmed"
+
+
 def test_mistral_semantic_review_cannot_downgrade_atlas_high_risk_family():
     fallback = {
         "status": "done",
@@ -2423,11 +2599,11 @@ def test_orchestrated_clean_verdict_submits_preview_before_complete(monkeypatch)
     assert payload["result"] is None
     assert payload["pillars"]["urlscan"]["required"] is False
     assert payload["pillars"]["urlscan"]["status"] == "pending"
-    assert payload["preview"]["report_url"] is None
+    assert payload["preview"]["report_url"] == "https://urlscan.io/result/urlscan-yoxo-1/"
     assert payload["preview"]["screenshot_url"] is None
-    assert with_preview["status"] == "scanning"
-    assert with_preview["result"] is None
-    assert with_preview["pillars"]["urlscan"]["status"] == "pending"
+    assert with_preview["status"] == "complete"
+    assert with_preview["result"]["user_risk_label"] == "SIGUR"
+    assert with_preview["pillars"]["urlscan"]["status"] == "error"
     assert with_preview["preview"]["report_url"] == "https://urlscan.io/result/urlscan-yoxo-1/"
     assert with_preview["preview"]["screenshot_url"] is None
     assert with_preview["preview"]["image_url"] is None
@@ -2462,10 +2638,10 @@ def test_orchestrated_urlscan_late_risk_upgrades_provisional_safe_verdict(monkey
     assert provisional["status"] == "scanning"
     assert provisional["result"] is None
     assert provisional["pillars"]["urlscan"]["status"] == "pending"
-    assert provisional["preview"]["report_url"] is None
-    assert preview_pending["status"] == "scanning"
-    assert preview_pending["result"] is None
-    assert preview_pending["pillars"]["urlscan"]["status"] == "pending"
+    assert provisional["preview"]["report_url"] == "https://urlscan.io/result/urlscan-yoxo-1/"
+    assert preview_pending["status"] == "complete"
+    assert preview_pending["result"]["user_risk_label"] == "PERICULOS"
+    assert preview_pending["pillars"]["urlscan"]["status"] == "ok"
     assert preview_pending["preview"]["report_url"] == "https://urlscan.io/result/urlscan-yoxo-1/"
     assert upgraded["status"] == "complete"
     assert upgraded["pillars"]["urlscan"]["status"] == "ok"

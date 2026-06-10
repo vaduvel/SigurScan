@@ -15,6 +15,7 @@ import { chromium } from 'playwright';
 import { createClient } from '@supabase/supabase-js';
 import ipaddr from 'ipaddr.js';
 import pLimit from 'p-limit';
+import { captureFailurePolicy, shouldRetryCapture } from './capture-policy.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,6 +32,7 @@ program
   .option('--cache-ttl-days <days>', 'Cache TTL days', process.env.CACHE_TTL_DAYS || '7')
   .option('--max-redirect-hops <n>', 'Maximum redirect hops', process.env.MAX_REDIRECT_HOPS || '10')
   .option('--nav-timeout-seconds <seconds>', 'Hard navigation timeout', process.env.NAV_TIMEOUT_SECONDS || '20')
+  .option('--transient-retries <n>', 'Bounded retries for timeout/HTTP2/5xx failures', process.env.TRANSIENT_RETRIES || '1')
   .option('--max-screenshot-height <px>', 'Maximum screenshot height in pixels', process.env.MAX_SCREENSHOT_HEIGHT || '5000')
   .option('--max-urls <n>', 'Maximum URLs to process in one run', process.env.MAX_URLS || '50')
   .option('--concurrency <n>', 'Concurrent browser captures', process.env.CONCURRENCY || '2')
@@ -46,6 +48,7 @@ const opts = program.opts();
 const CACHE_TTL_DAYS = Number(opts.cacheTtlDays);
 const MAX_REDIRECT_HOPS = Number(opts.maxRedirectHops);
 const NAV_TIMEOUT_MS = Number(opts.navTimeoutSeconds) * 1000;
+const TRANSIENT_RETRIES = Math.max(0, Math.min(2, Number(opts.transientRetries) || 0));
 const MAX_SCREENSHOT_HEIGHT = Math.max(600, Number(opts.maxScreenshotHeight) || 5000);
 const MAX_URLS = Math.max(1, Number(opts.maxUrls) || 50);
 const CONCURRENCY = Number(opts.concurrency);
@@ -53,7 +56,7 @@ const SKIP_RESERVED = String(opts.skipReserved).toLowerCase() !== 'false';
 const CHROMIUM_SANDBOX = String(opts.chromiumSandbox).toLowerCase() !== 'false';
 const CLEANUP_EXPIRED = String(opts.cleanupExpired).toLowerCase() !== 'false';
 const CLEANUP_LIMIT = Math.max(1, Number(opts.cleanupLimit) || 200);
-const WORKER_VERSION = '1.2.0';
+const WORKER_VERSION = '1.3.0';
 const RUN_STARTED_AT_MS = Date.now();
 const RUN_ID = process.env.GITHUB_RUN_ID
   ? `github_${process.env.GITHUB_RUN_ID}_${process.env.GITHUB_RUN_ATTEMPT || '1'}`
@@ -74,12 +77,16 @@ const stats = {
   uniqueUrlsAfterDedup: 0,
   screenshotsCapturedNew: 0,
   skippedAlreadyCachedFresh: 0,
+  skippedFailureBackoff: 0,
   skippedReserved: 0,
   skippedSensitive: 0,
   expiredRowsDeleted: 0,
   expiredScreenshotsDeleted: 0,
   cleanupErrors: [],
   auditErrors: [],
+  blockedByOrigin: 0,
+  blockedOrigins: [],
+  transientRetries: 0,
   failedDeadUrls: 0,
   failed: []
 };
@@ -201,10 +208,7 @@ function seedCategoryFromInput(input) {
 }
 
 function statusFromError(error) {
-  const text = String(error || '').toLowerCase();
-  if (text.includes('blocked') || text.includes('reserved') || text.includes('private_ip')) return 'blocked';
-  if (text.includes('dns_no_records') || text.includes('http_status:404') || text.includes('http_status:410')) return 'dead';
-  return 'error';
+  return captureFailurePolicy(error).status;
 }
 
 function safeErrorText(error) {
@@ -498,6 +502,21 @@ async function isCachedFresh(urlHash, outDir, table, ttlDays) {
   return Boolean(found && isFresh(found, ttlDays) && found.status === 'ready' && found.screenshot_path);
 }
 
+async function isFailureBackoffFresh(urlHash, outDir, table, ttlDays) {
+  if (supabaseEnabled) {
+    const { data, error } = await supabase
+      .from(table)
+      .select('url_hash,captured_at,expires_at,status')
+      .eq('url_hash', urlHash)
+      .maybeSingle();
+    if (error) return false;
+    return Boolean(data && isFresh(data, ttlDays) && ['dead', 'error'].includes(data.status));
+  }
+  const rows = await loadLocalManifest(outDir);
+  const found = rows.find(r => r.url_hash === urlHash);
+  return Boolean(found && isFresh(found, ttlDays) && ['dead', 'error'].includes(found.status));
+}
+
 async function uploadOrWrite(row, screenshotBuffer, outDir, bucket, table) {
   // Skipped/blocked targets may contain reset tokens, OTPs, personal data,
   // private hosts, or other user-specific data. Keep only aggregate metrics.
@@ -592,11 +611,14 @@ function captureRunAuditRow(finishedAt = null) {
   const finalReport = {
     screenshots_captured_new: stats.screenshotsCapturedNew,
     skipped_cached_fresh: stats.skippedAlreadyCachedFresh,
+    skipped_failure_backoff: stats.skippedFailureBackoff,
     skipped_reserved: stats.skippedReserved,
     skipped_sensitive: stats.skippedSensitive,
     expired_rows_deleted: stats.expiredRowsDeleted,
     expired_screenshots_deleted: stats.expiredScreenshotsDeleted,
     failed: stats.failedDeadUrls,
+    blocked_by_origin: stats.blockedByOrigin,
+    transient_retries: stats.transientRetries,
     cleanup_error_count: stats.cleanupErrors.length
   };
   return {
@@ -661,6 +683,28 @@ async function getScreenshotClip(page) {
   return { x: 0, y: 0, width: size.width, height: size.height };
 }
 
+async function navigateWithTransientRetry(page, originalUrl) {
+  let lastError = null;
+  for (let attempt = 0; attempt <= TRANSIENT_RETRIES; attempt += 1) {
+    try {
+      const response = await page.goto(originalUrl, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT_MS });
+      const responseError = response && !response.ok() ? `http_status:${response.status()}` : null;
+      if (responseError && shouldRetryCapture(responseError, attempt, TRANSIENT_RETRIES)) {
+        stats.transientRetries += 1;
+        await page.waitForTimeout(250);
+        continue;
+      }
+      return response;
+    } catch (error) {
+      lastError = error;
+      if (!shouldRetryCapture(error?.message || error, attempt, TRANSIENT_RETRIES)) throw error;
+      stats.transientRetries += 1;
+      await page.waitForTimeout(250);
+    }
+  }
+  throw lastError || new Error('capture_retry_exhausted');
+}
+
 async function captureOne(browser, input, outDir, bucket, table) {
   const originalUrl = input.originalUrl;
   const originalHost = hostnameFromUrl(originalUrl);
@@ -672,8 +716,6 @@ async function captureOne(browser, input, outDir, bucket, table) {
     const reason = blockedPort || privacyReason;
     const row = privacySkipResult(originalUrl, reason);
     stats.skippedSensitive += 1;
-    stats.failedDeadUrls += 1;
-    stats.failed.push(safeFailureReference(originalUrl, reason));
     return row;
   }
 
@@ -708,6 +750,19 @@ async function captureOne(browser, input, outDir, bucket, table) {
     stats.failedDeadUrls += 1;
     stats.failed.push(safeFailureReference(originalUrl, preflight.reason));
     return row;
+  }
+
+  const normalizedOriginal = normalizeUrl(originalUrl) || originalUrl;
+  if (await isFailureBackoffFresh(sha256(normalizedOriginal), outDir, table, CACHE_TTL_DAYS)) {
+    stats.skippedFailureBackoff += 1;
+    return makeBaseRow({
+      input,
+      finalUrl: normalizedOriginal,
+      redirectChain: [normalizedOriginal],
+      status: 'error',
+      reachable: false,
+      error: 'skipped_failure_backoff',
+    });
   }
 
   const context = await browser.newContext({
@@ -750,7 +805,7 @@ async function captureOne(browser, input, outDir, bucket, table) {
   let row;
   let screenshotBuffer = null;
   try {
-    const response = await page.goto(originalUrl, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT_MS });
+    const response = await navigateWithTransientRetry(page, originalUrl);
     await page.waitForTimeout(1000);
 
     const finalUrlRaw = page.url();
@@ -785,7 +840,9 @@ async function captureOne(browser, input, outDir, bucket, table) {
     }
 
     const reachable = Boolean(response && response.ok());
-    const error = response ? (response.ok() ? null : `http_status:${response.status()}`) : 'http_response_missing';
+    const rawError = response ? (response.ok() ? null : `http_status:${response.status()}`) : 'http_response_missing';
+    const failurePolicy = captureFailurePolicy(rawError);
+    const error = rawError ? `${failurePolicy.reason}:${rawError}` : null;
     if (!reachable) {
       row = makeBaseRow({
         input,
@@ -798,8 +855,13 @@ async function captureOne(browser, input, outDir, bucket, table) {
       row.http_status = response ? response.status() : null;
       row.page_title = await safeTitle(page);
       await uploadOrWrite(row, null, outDir, bucket, table);
-      stats.failedDeadUrls += 1;
-      stats.failed.push(safeFailureReference(originalUrl, row.error));
+      if (failurePolicy.reason === 'blocked_by_origin') {
+        stats.blockedByOrigin += 1;
+        stats.blockedOrigins.push(safeFailureReference(originalUrl, row.error));
+      } else {
+        stats.failedDeadUrls += 1;
+        stats.failed.push(safeFailureReference(originalUrl, row.error));
+      }
       return row;
     }
 
@@ -824,7 +886,9 @@ async function captureOne(browser, input, outDir, bucket, table) {
     return row;
   } catch (err) {
     const fallbackFinal = normalizeUrl(page.url()) || normalizeUrl(originalUrl) || originalUrl;
-    const error = `capture_failed:${err.message}`;
+    const rawError = `capture_failed:${err.message}`;
+    const failurePolicy = captureFailurePolicy(rawError);
+    const error = `${failurePolicy.reason}:${rawError}`;
     row = makeBaseRow({
       input,
       finalUrl: fallbackFinal,
@@ -834,8 +898,13 @@ async function captureOne(browser, input, outDir, bucket, table) {
       error
     });
     await uploadOrWrite(row, null, outDir, bucket, table);
-    stats.failedDeadUrls += 1;
-    stats.failed.push(safeFailureReference(originalUrl, row.error));
+    if (failurePolicy.reason === 'blocked_by_origin') {
+      stats.blockedByOrigin += 1;
+      stats.blockedOrigins.push(safeFailureReference(originalUrl, row.error));
+    } else {
+      stats.failedDeadUrls += 1;
+      stats.failed.push(safeFailureReference(originalUrl, row.error));
+    }
     return row;
   } finally {
     await context.close().catch(() => {});
@@ -916,12 +985,15 @@ function printReport() {
   console.log(`unique URLs after dedup:        ${stats.uniqueUrlsAfterDedup}`);
   console.log(`screenshots captured (new):     ${stats.screenshotsCapturedNew}`);
   console.log(`skipped cached & fresh:         ${stats.skippedAlreadyCachedFresh}`);
+  console.log(`skipped failure backoff:        ${stats.skippedFailureBackoff}`);
   console.log(`skipped reserved/test domains:  ${stats.skippedReserved}`);
   console.log(`skipped sensitive/private:      ${stats.skippedSensitive}`);
   console.log(`expired cache rows deleted:     ${stats.expiredRowsDeleted}`);
   console.log(`expired screenshots deleted:    ${stats.expiredScreenshotsDeleted}`);
   console.log(`cleanup errors:                 ${stats.cleanupErrors.length}`);
   console.log(`audit errors:                   ${stats.auditErrors.length}`);
+  console.log(`blocked by origin (403/401):    ${stats.blockedByOrigin}`);
+  console.log(`transient retries:              ${stats.transientRetries}`);
   console.log(`failed / dead URLs:             ${stats.failedDeadUrls}`);
   if (stats.cleanupErrors.length) {
     console.log('\nCleanup errors:');
@@ -935,6 +1007,12 @@ function printReport() {
       console.log(`- ${f.host || 'n/a'} [${f.url_hash || 'no-hash'}] :: ${f.error}`);
     }
     if (stats.failed.length > 50) console.log(`... +${stats.failed.length - 50} more`);
+  }
+  if (stats.blockedOrigins.length) {
+    console.log('\nBlocked by origin:');
+    for (const entry of stats.blockedOrigins.slice(0, 50)) {
+      console.log(`- ${entry.host || 'n/a'} [${entry.url_hash || 'no-hash'}] :: ${entry.error}`);
+    }
   }
 }
 

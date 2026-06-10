@@ -19,6 +19,8 @@ Worker Node.js + Playwright pentru capturi cache de URL-uri din emailuri sau lis
 9. Captureaza PNG cu inaltime limitata, pentru a evita paginile infinite/ostile.
 10. Scrie în Supabase sau local fallback: `manifest.json` + `/screenshots`.
 11. Nu persistă deloc URL-urile marcate `skipped`/`blocked`; rapoartele conțin doar hash + host.
+12. Reîncearcă o singură dată erorile tranzitorii (`timeout`, HTTP/2, 5xx/429), dar nu încearcă să ocolească răspunsurile anti-bot `401/403`.
+13. Aplică backoff pe rândurile `dead`/`error` încă proaspete, ca seed-ul zilnic să nu lovească repetat aceleași pagini blocate.
 
 ## Ce NU face
 
@@ -142,6 +144,7 @@ verdict_role=none
 - Pentru producție: rulează workerul în job queue, nu direct din request user-facing.
 - TTL default: 7 zile.
 - Nu rula pe providerii live în buclă infinită; marchează `timeout`/`dead` și gata.
+- `401/403` înseamnă `blocked_by_origin`, nu URL mort; captura rămâne indisponibilă fără a influența verdictul.
 
 ## Contract pentru UI
 
