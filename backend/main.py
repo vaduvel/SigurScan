@@ -4640,7 +4640,15 @@ def _normalize_fast_preview_cache_entry(entry: Any) -> Optional[Dict[str, Any]]:
     if not _urlscan_preview_cache_is_fresh(entry):
         return None
 
+    now = int(time.time())
     image_url = screenshot_path if screenshot_path.startswith(("http://", "https://")) else None
+    try:
+        signed_url_expires_at = int(entry.get("_signed_url_expires_at") or 0)
+    except (TypeError, ValueError):
+        signed_url_expires_at = 0
+    cached_image_url = str(entry.get("image_url") or entry.get("screenshot_url") or "").strip()
+    if not image_url and cached_image_url and signed_url_expires_at > now + 5:
+        image_url = cached_image_url
     if not image_url:
         image_url = supabase_store.create_preview_signed_url(
             screenshot_path,
@@ -4656,6 +4664,8 @@ def _normalize_fast_preview_cache_entry(entry: Any) -> Optional[Dict[str, Any]]:
     normalized["final_url"] = final_url
     normalized["image_url"] = image_url
     normalized["screenshot_url"] = image_url
+    if not screenshot_path.startswith(("http://", "https://")):
+        normalized["_signed_url_expires_at"] = now + max(1, FAST_PREVIEW_SIGNED_URL_TTL_SECONDS - 30)
     normalized["cache_hit"] = True
     normalized["reason"] = None
     return normalized
@@ -4712,7 +4722,10 @@ def _apply_best_preview_cache_hit(job: Dict[str, Any], final_url: Any) -> Dict[s
         return job
     cached_urlscan = _load_urlscan_preview_cache(final_url)
     if cached_urlscan:
-        return _apply_urlscan_preview_cache_hit(job, cached_urlscan)
+        job = _apply_urlscan_preview_cache_hit(job, cached_urlscan)
+        preview = job.get("preview") if isinstance(job.get("preview"), dict) else {}
+        if preview.get("status") == "ready" and (preview.get("image_url") or preview.get("screenshot_url")):
+            return job
     cached_fast = _load_fast_preview_cache(final_url)
     if cached_fast:
         return _apply_fast_preview_cache_hit(job, cached_fast)
@@ -5681,6 +5694,12 @@ async def _submit_orchestrated_urlscan_preview_once(job: Dict[str, Any], request
         cached_preview = _load_urlscan_preview_cache(primary_final_url)
         if cached_preview:
             job = _apply_urlscan_preview_cache_hit(job, cached_preview)
+            preview = job.get("preview") if isinstance(job.get("preview"), dict) else {}
+            if preview.get("status") != "ready" or not (preview.get("image_url") or preview.get("screenshot_url")):
+                cached_fast_preview = _load_fast_preview_cache(primary_final_url)
+                if cached_fast_preview:
+                    job = _apply_fast_preview_cache_hit(job, cached_fast_preview)
+                    _emit_orchestrated_telemetry("orchestrated_fast_preview_cache_hit", job)
             _set_orchestrated_stage(job, "urlscan_submitted")
             job = _persist_orchestrated_job(job)
             _emit_orchestrated_telemetry("orchestrated_urlscan_preview_cache_hit", job)

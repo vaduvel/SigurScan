@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "node src/index.js",
+    "test": "npm run test:privacy",
     "install-browsers": "playwright install --with-deps chromium",
     "test:privacy": "node scripts/verify-privacy-guard.mjs",
     "dry-run": "node src/index.js --email-source ./samples/official_preview_targets.ro.json --out-dir ./output/dry --dry-run",

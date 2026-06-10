@@ -2786,6 +2786,62 @@ def test_orchestrated_urlscan_preview_cache_hit_skips_submit(monkeypatch):
     assert refreshed["analysis"]["evidence"]["external_intel_summary"]["urlscan"]["status"] == "clean"
 
 
+def test_orchestrated_report_only_urlscan_cache_uses_ready_fast_preview(monkeypatch):
+    final_url = "https://www.bnr.ro/"
+    report_only = {
+        "uuid": "cached-report-only",
+        "status": "finished",
+        "submitted_url": final_url,
+        "final_url": final_url,
+        "report_url": "https://urlscan.io/result/cached-report-only/",
+        "screenshot_url": "",
+        "screenshot_ready": False,
+        "verdict": "No malicious classification",
+        "severity": "low",
+        "expires_at": int(time.time()) + 3600,
+    }
+    fast_preview = {
+        "url_hash": app_main._urlscan_preview_cache_key(final_url),
+        "final_url": final_url,
+        "screenshot_path": "https://signed.example/bnr.png",
+        "reachable": True,
+        "status": "ready",
+        "visual_only": True,
+        "verdict_role": "none",
+        "expires_at": int(time.time()) + 3600,
+    }
+    job = {
+        "scan_id": "orch_report_and_fast_preview",
+        "created_at": int(time.time()),
+        "pipeline_stage": "analysis_ready",
+        "primary_final_url": final_url,
+        "resolved_urls": [{"url": final_url, "final_url": final_url}],
+        "urlscan": {"status": "queued"},
+        "preview": {},
+        "analysis": {"evidence": {"external_intel_summary": {}}},
+        "orchestration_metrics": {"poll_count": 0, "stage_sequence": [], "stage_durations_ms": {}},
+    }
+
+    async def fail_submit(*args, **kwargs):
+        raise AssertionError("Report-only urlscan cache must still prevent duplicate submission.")
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "_load_urlscan_preview_cache", lambda value: dict(report_only))
+        patched.setattr(app_main, "_load_fast_preview_cache", lambda value: dict(fast_preview))
+        patched.setattr(app_main, "_submit_orchestrated_urlscan", fail_submit)
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main._submit_orchestrated_urlscan_preview_once(job, None))
+
+    assert refreshed["pipeline_stage"] == "urlscan_submitted"
+    assert refreshed["urlscan"]["report_url"] == "https://urlscan.io/result/cached-report-only/"
+    assert refreshed["urlscan"]["screenshot_ready"] is False
+    assert refreshed["preview"]["status"] == "ready"
+    assert refreshed["preview"]["source"] == "precapture_worker"
+    assert refreshed["preview"]["image_url"] == "https://signed.example/bnr.png"
+    assert refreshed["preview"]["report_url"] == "https://urlscan.io/result/cached-report-only/"
+
+
 def test_urlscan_preview_cache_normalize_accepts_report_only(monkeypatch):
     row = {
         "url_hash": "abcd",
@@ -2870,6 +2926,50 @@ def test_apply_urlscan_preview_cache_hit_reports_pending_when_no_screenshot():
     assert updated["preview"]["reason"] == "urlscan_screenshot_pending"
     assert updated["preview"]["cache_hit"] is True
     assert updated["analysis"]["evidence"]["external_intel_summary"]["urlscan"]["status"] == "clean"
+
+
+def test_best_preview_cache_uses_fast_image_when_urlscan_cache_is_report_only(monkeypatch):
+    final_url = "https://www.fancourier.ro/"
+    urlscan_cached = {
+        "uuid": "report-only-1",
+        "status": "finished",
+        "final_url": final_url,
+        "submitted_url": final_url,
+        "report_url": "https://urlscan.io/result/report-only-1/",
+        "screenshot_url": "",
+        "screenshot_ready": False,
+        "verdict": "No malicious classification",
+        "severity": "low",
+        "expires_at": int(time.time()) + 3600,
+    }
+    fast_cached = {
+        "url_hash": app_main._urlscan_preview_cache_key(final_url),
+        "final_url": final_url,
+        "screenshot_path": "https://signed.example/fancourier.png",
+        "reachable": True,
+        "status": "ready",
+        "visual_only": True,
+        "verdict_role": "none",
+        "expires_at": int(time.time()) + 3600,
+    }
+    job = {
+        "preview": {},
+        "urlscan": {"status": "queued"},
+        "analysis": {"evidence": {"external_intel_summary": {}}},
+        "orchestration_metrics": {"poll_count": 0, "stage_sequence": [], "stage_durations_ms": {}},
+    }
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "_load_urlscan_preview_cache", lambda value: dict(urlscan_cached))
+        patched.setattr(app_main, "_load_fast_preview_cache", lambda value: dict(fast_cached))
+        updated = app_main._apply_best_preview_cache_hit(job, final_url)
+
+    assert updated["urlscan"]["report_url"] == "https://urlscan.io/result/report-only-1/"
+    assert updated["analysis"]["evidence"]["external_intel_summary"]["urlscan"]["status"] == "clean"
+    assert updated["preview"]["status"] == "ready"
+    assert updated["preview"]["source"] == "precapture_worker"
+    assert updated["preview"]["image_url"] == "https://signed.example/fancourier.png"
+    assert updated["preview"]["report_url"] == "https://urlscan.io/result/report-only-1/"
 
 
 def test_orchestrated_fast_lane_attaches_cached_preview_before_submit_stage(monkeypatch):
@@ -2998,6 +3098,37 @@ def test_fast_preview_cache_hit_is_visual_only(monkeypatch):
     assert updated["preview"]["height"] == 2200
     assert updated["urlscan"]["status"] == "queued"
     assert "urlscan" not in updated["analysis"]["evidence"]["external_intel_summary"]
+
+
+def test_fast_preview_memory_cache_reuses_live_signed_url(monkeypatch):
+    final_url = "https://www.fancourier.ro/"
+    cache_key = app_main._urlscan_preview_cache_key(final_url)
+    row = {
+        "url_hash": cache_key,
+        "final_url": final_url,
+        "screenshot_path": f"{cache_key}.png",
+        "reachable": True,
+        "status": "ready",
+        "visual_only": True,
+        "verdict_role": "none",
+        "expires_at": int(time.time()) + 3600,
+    }
+    signed_calls = []
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main.supabase_store, "load_fast_preview_cache", lambda url_hash: dict(row))
+        patched.setattr(
+            app_main.supabase_store,
+            "create_preview_signed_url",
+            lambda path, **kwargs: signed_calls.append(path) or f"https://signed.example/{path}",
+        )
+        first = app_main._load_fast_preview_cache(final_url)
+        second = app_main._load_fast_preview_cache(final_url)
+
+    assert first is not None
+    assert second is not None
+    assert first["image_url"] == second["image_url"]
+    assert signed_calls == [f"{cache_key}.png"]
 
 
 def test_fast_preview_cache_rejects_rows_with_a_verdict_role(monkeypatch):
