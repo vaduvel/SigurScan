@@ -6,7 +6,9 @@ from typing import Any, Dict, List
 USER_LABELS = {"SIGUR", "SUSPECT", "PERICULOS"}
 INTERNAL_LABELS = USER_LABELS | {"PENDING"}
 
-HARD_SENSITIVE_REQUESTS = {"card", "otp", "password", "crypto", "remote"}
+# id_document = cerere CI/CNP/buletin/selfie (ruta ofertă, OP-07 furt de identitate).
+# Tratat ca cerere sensibilă hard: pe canal greșit -> PERICULOS, ca restul.
+HARD_SENSITIVE_REQUESTS = {"card", "otp", "password", "crypto", "remote", "id_document"}
 MONEY_OR_VALUE_REQUESTS = {"transfer"}
 WRONG_CHANNELS = {"reply", "whatsapp", "unofficial_site", "phone"}
 BAD_IDENTITY = {"lookalike", "unrelated"}
