@@ -46,9 +46,9 @@ object SigurColors {
     val RadiusXs = 4
     val RadiusSm = 8
     val RadiusMd = 12
-    val RadiusCard = 16
+    val RadiusCard = 20
     val RadiusXl = 28
-    val RadiusInput = 12
+    val RadiusInput = 14
     val RadiusPill = 100
 
     // Sizing (DS: --ss-*)

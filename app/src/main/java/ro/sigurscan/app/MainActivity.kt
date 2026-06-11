@@ -2193,11 +2193,7 @@ fun ScanInputCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            GridButton(
-                title = "Verifică o Ofertă",
-                desc = "Avansuri, bilete, chirii, contracte sau plăți cerute rapid",
-                icon = Icons.Default.LocalOffer,
-                color = SigurColors.BrandDeep,
+            OfferScanEntryCard(
                 onClick = onScanOffer,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -2274,17 +2270,76 @@ private fun SharedContentFidelityCard(fidelity: SharedContentFidelity, sourceLab
 fun GridButton(title: String, desc: String, icon: ImageVector, color: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier.clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundSurface),
+        colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
         border = BorderStroke(1.dp, SigurColors.GlassBorder),
-        shape = RoundedCornerShape(12.dp)
+        shape = DSCardShape
     ) {
         Column(
-            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+            modifier = Modifier.padding(14.dp).fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(color.copy(alpha = 0.10f), RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(22.dp))
+            }
             Text(title, color = SigurColors.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp))
             Text(desc, color = SigurColors.TextMuted, fontSize = 10.sp, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+@Composable
+fun OfferScanEntryCard(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
+        border = BorderStroke(1.dp, SigurColors.GlassBorder),
+        shape = DSCardShape
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(SigurColors.BrandTint, RoundedCornerShape(16.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LocalOffer,
+                    contentDescription = null,
+                    tint = SigurColors.Brand,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Verifică o ofertă",
+                    color = SigurColors.TextPrimary,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Avansuri, bilete, chirii, contracte sau plăți cerute rapid",
+                    color = SigurColors.TextMuted,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp
+                )
+            }
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = SigurColors.TextSubtle,
+                modifier = Modifier.size(26.dp)
+            )
         }
     }
 }
@@ -2683,17 +2738,26 @@ fun OfferEvidenceSection(offer: OfferEvidenceSummary) {
     }
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundSurface),
+        colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
         border = BorderStroke(1.dp, SigurColors.GlassBorder),
-        shape = RoundedCornerShape(14.dp),
+        shape = DSCardShape,
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.LocalOffer, contentDescription = null, tint = SigurColors.Brand, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Date citite din ofertă", fontWeight = FontWeight.Bold, color = SigurColors.TextPrimary, fontSize = 14.sp)
-                Spacer(modifier = Modifier.weight(1f))
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .background(SigurColors.BrandTint, RoundedCornerShape(14.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.LocalOffer, contentDescription = null, tint = SigurColors.Brand, modifier = Modifier.size(20.dp))
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Date citite din ofertă", fontWeight = FontWeight.Bold, color = SigurColors.TextPrimary, fontSize = 15.sp)
+                    Text("Confirmate din document și comparate cu dovezile scanării", color = SigurColors.TextMuted, fontSize = 11.sp)
+                }
                 DSChip(entityLabel, tone = entityTone)
             }
 
@@ -4130,26 +4194,38 @@ fun OfferConfirmationCard(
 
     Card(
         colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
-        shape = RoundedCornerShape(16.dp),
+        shape = DSCardShape,
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, SigurColors.GlassBorder, RoundedCornerShape(16.dp))
+            .border(1.dp, SigurColors.GlassBorder, DSCardShape)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.LocalOffer, contentDescription = null, tint = SigurColors.Brand, modifier = Modifier.size(24.dp))
-                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                                colors = listOf(Color(0xFF5B86FF), SigurColors.Brand, Color(0xFF3552D6))
+                            ),
+                            shape = RoundedCornerShape(16.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.LocalOffer, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+                }
+                Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Confirmă oferta", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = SigurColors.TextPrimary)
+                    Text("Confirmă oferta", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = SigurColors.TextPrimary)
                     Text(
-                        "Am citit documentul. Corectează câmpurile dacă OCR-ul a greșit, apoi pornim verificarea.",
+                        "Corectează câmpurile citite automat, apoi pornim verificarea completă.",
                         color = SigurColors.TextSecondary,
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
                     )
                 }
                 DSChip(
-                    text = if (missingHints.isEmpty()) "gata de verificat" else "verifică datele",
+                    text = if (missingHints.isEmpty()) "gata" else "de verificat",
                     tone = if (missingHints.isEmpty()) DSChipTone.Safe else DSChipTone.Pending
                 )
             }
@@ -4159,15 +4235,21 @@ fun OfferConfirmationCard(
                 Card(
                     colors = CardDefaults.cardColors(containerColor = SigurColors.PendingLight),
                     border = BorderStroke(1.dp, SigurColors.Pending.copy(alpha = 0.25f)),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text(
-                        text = "Lipsesc sau sunt neclare: ${missingHints.joinToString(", ")}. Dacă documentul nu le conține, le poți lăsa goale.",
-                        color = SigurColors.TextSecondary,
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp,
-                        modifier = Modifier.padding(12.dp)
-                    )
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Icon(Icons.Default.Info, contentDescription = null, tint = SigurColors.Pending, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Lipsesc sau sunt neclare: ${missingHints.joinToString(", ")}. Dacă documentul nu le conține, le poți lăsa goale.",
+                            color = SigurColors.TextSecondary,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
+                        )
+                    }
                 }
             }
 
@@ -4205,14 +4287,22 @@ fun OfferConfirmationCard(
 
             if (draft.links.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Linkuri găsite: ${draft.links.size}", color = SigurColors.TextMuted, fontSize = 11.sp)
-                Text(
-                    draft.links.take(2).joinToString("\n"),
-                    color = SigurColors.TextSecondary,
-                    fontSize = 11.sp,
-                    lineHeight = 15.sp,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundSurface),
+                    border = BorderStroke(1.dp, SigurColors.BorderSubtle),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text("Linkuri găsite: ${draft.links.size}", color = SigurColors.TextMuted, fontSize = 11.sp)
+                        Text(
+                            draft.links.take(2).joinToString("\n"),
+                            color = SigurColors.TextSecondary,
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -4231,9 +4321,9 @@ fun OfferConfirmationCard(
                         )
                     )
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = SigurColors.Brand),
-                shape = RoundedCornerShape(12.dp)
+                shape = DSPillShape
             ) {
                 Icon(Icons.Default.Verified, contentDescription = null, tint = Color.White, modifier = Modifier.size(17.dp))
                 Spacer(modifier = Modifier.width(8.dp))
@@ -4264,14 +4354,14 @@ private fun OfferFieldEditor(
         singleLine = true,
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = SigurColors.Brand,
-            unfocusedBorderColor = SigurColors.BorderSubtle,
+            unfocusedBorderColor = SigurColors.GlassBorder,
             focusedTextColor = SigurColors.TextPrimary,
             unfocusedTextColor = SigurColors.TextPrimary,
-            focusedContainerColor = SigurColors.BackgroundSurface,
-            unfocusedContainerColor = SigurColors.BackgroundSurface,
+            focusedContainerColor = SigurColors.BackgroundCard,
+            unfocusedContainerColor = SigurColors.BackgroundCard,
             cursorColor = SigurColors.Brand
         ),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(SigurColors.RadiusInput.dp),
         modifier = modifier
             .fillMaxWidth()
             .padding(bottom = 10.dp)
