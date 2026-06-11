@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import time
 from typing import Any, List, Optional, TYPE_CHECKING
 from dataclasses import dataclass, field
@@ -20,14 +21,20 @@ CACHE_TTL = 43200  # 12 hours
 _cui_cache: dict[str, tuple[float, dict]] = {}
 _verdict_cache: dict[str, tuple[float, "InvoiceScanResult"]] = {}
 
+_CACHE_HMAC_KEY = b"sigurscan-cache-key-v1"
+
+
+def _hmac_digest(data: str) -> str:
+    return hmac.new(_CACHE_HMAC_KEY, data.encode(), "sha256").hexdigest()
+
 
 def _cache_key(fields) -> str:
     raw = f"{fields.cui}|{fields.iban}|{fields.total}|{fields.data_emitere}|{fields.nr_factura}"
-    return hashlib.sha256(raw.encode()).hexdigest()
+    return _hmac_digest(raw)
 
 
 def _cui_cache_key(cui: str) -> str:
-    return "cui:" + hashlib.sha256(cui.encode()).hexdigest()
+    return "cui:" + _hmac_digest(cui)
 
 
 def _get_cached_cui(cui: str) -> dict | None:
@@ -200,7 +207,7 @@ async def scan_offer(
     qr_payloads: Optional[List[str]] = None,
 ) -> OfferScanResult:
     from services.offer_parser import parse_offer
-    from services.offer_readiness import evaluate_offer_readiness
+    from services.invoice_readiness_gate import evaluate_offer_readiness
     from services.offer_signals import derive_offer_signals
     from services.family_classifier import classify_offer_family
     from services.payment_method_classifier import classify_payment_method

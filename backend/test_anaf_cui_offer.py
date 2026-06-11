@@ -12,7 +12,7 @@ from services.offer_parser import parse_offer
 from services.offer_entity_verifier import verify_offer_entity
 from services.offer_evidence_gate_mapper import build_offer_bundle
 from services.offer_signals import derive_offer_signals
-from services.offer_readiness import evaluate_offer_readiness
+from services.invoice_readiness_gate import evaluate_offer_readiness
 from services.iban_validator import validate_iban
 
 

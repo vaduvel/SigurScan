@@ -12,7 +12,7 @@ from services.invoice_coherence import check_coherence
 from services.iban_validator import validate_iban
 from services.family_classifier import classify_offer_family
 from services.offer_parser import parse_offer
-from services.offer_readiness import evaluate_offer_readiness
+from services.invoice_readiness_gate import evaluate_offer_readiness
 from services.offer_signals import derive_offer_signals
 from services.payment_method_classifier import classify_payment_method
 from services.offer_entity_verifier import verify_offer_entity
