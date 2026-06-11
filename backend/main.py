@@ -95,6 +95,7 @@ PRIVACY_SAFE_MODE = (
 ).strip().lower() in {"1", "true", "yes", "on"}
 ALLOWED_IMAGE_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
 ALLOWED_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
+ALLOWED_PDF_MIME_TYPES = {"application/pdf", "application/x-pdf"}
 ALLOWED_PDF_EXTS = {".pdf"}
 ALLOWED_MOCK_OCR = os.getenv("ALLOW_MOCK_OCR", "false").strip().lower() in {
     "1",
@@ -7432,40 +7433,72 @@ async def scan_pdf(
 
 @app.post("/v1/scan/invoice")
 async def scan_invoice_endpoint(
-    image_file: UploadFile = File(...),
+    image_file: Optional[UploadFile] = File(None),
+    pdf_file: Optional[UploadFile] = File(None),
     source_channel: Optional[str] = Form("android_native"),
 ):
     """
     Invoice-specific scan endpoint.
-    Accepts image, runs OCR, extracts invoice fields, validates IBAN/CUI/brand,
-    checks ANAF registry, and returns structured result with warnings.
+    Accepts an image or PDF, runs OCR, extracts invoice fields, validates
+    IBAN/CUI/brand, checks ANAF registry, and returns structured warnings.
     """
     from services.invoice_orchestrator import scan_invoice
 
-    filename = image_file.filename or "invoice.jpg"
-    image_bytes = await image_file.read()
-    if not image_bytes:
-        raise HTTPException(status_code=400, detail="Imaginea încărcată este goală.")
+    if bool(image_file) == bool(pdf_file):
+        raise HTTPException(
+            status_code=400,
+            detail="Trimite exact o factură: imagine sau PDF.",
+        )
 
-    _validate_file_upload(
-        filename=filename,
-        content_type=image_file.content_type,
-        file_bytes=image_bytes,
-        max_bytes=MAX_IMAGE_BYTES,
-        allowed_exts=ALLOWED_IMAGE_EXTS,
-        allowed_mime_types=ALLOWED_IMAGE_MIME_TYPES,
-    )
+    pdf_annotation_urls: List[str] = []
+    if pdf_file is not None:
+        filename = pdf_file.filename or "invoice.pdf"
+        file_bytes = await pdf_file.read()
+        if not file_bytes:
+            raise HTTPException(status_code=400, detail="PDF-ul încărcat este gol.")
+        _validate_file_upload(
+            filename=filename,
+            content_type=pdf_file.content_type,
+            file_bytes=file_bytes,
+            max_bytes=MAX_PDF_BYTES,
+            allowed_exts=ALLOWED_PDF_EXTS,
+            allowed_mime_types=ALLOWED_PDF_MIME_TYPES,
+        )
+        if not file_bytes.startswith(b"%PDF-"):
+            raise HTTPException(status_code=400, detail="Fișierul nu pare să fie un PDF valid.")
+        pdf_annotation_urls = _extract_pdf_annotation_links(file_bytes)
+        ocr_text, ocr_warning = await extract_text_for_scan(
+            filename=filename,
+            file_bytes=file_bytes,
+            extract_fn=extract_text_from_pdf_with_vision,
+        )
+        source_type = "pdf"
+    else:
+        assert image_file is not None
+        filename = image_file.filename or "invoice.jpg"
+        file_bytes = await image_file.read()
+        if not file_bytes:
+            raise HTTPException(status_code=400, detail="Imaginea încărcată este goală.")
+        _validate_file_upload(
+            filename=filename,
+            content_type=image_file.content_type,
+            file_bytes=file_bytes,
+            max_bytes=MAX_IMAGE_BYTES,
+            allowed_exts=ALLOWED_IMAGE_EXTS,
+            allowed_mime_types=ALLOWED_IMAGE_MIME_TYPES,
+        )
+        ocr_text, ocr_warning = await extract_text_for_scan(
+            filename=filename,
+            file_bytes=file_bytes,
+            extract_fn=extract_text_with_vision,
+        )
+        source_type = "image"
 
-    ocr_text, ocr_warning = await extract_text_for_scan(
-        filename=filename,
-        file_bytes=image_bytes,
-        extract_fn=extract_text_with_vision,
-    )
-
-    extracted_urls = _dedupe_preserve_order(extract_urls(ocr_text))
+    extracted_urls = _dedupe_preserve_order(pdf_annotation_urls + extract_urls(ocr_text))
     result = await scan_invoice(ocr_text, links=extracted_urls)
 
     response = {
+        "source_type": source_type,
         "fields": {
             "emitent": result.fields.emitent,
             "cui": result.fields.cui,

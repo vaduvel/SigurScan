@@ -165,12 +165,13 @@ def _parse_amounts(text: str) -> dict:
             if len(values) > 1:
                 amounts["tva"].append(values[-1])
                 continue
-            if " on " in lower and next_values:
-                amounts["tva"].append(next_values[-1])
-                continue
             if " on " in lower:
                 # "Tax (21% on €18.00)" contains the taxable base, not the tax value.
-                # OCR often moves the actual summary values to a later block.
+                # Only trust a following value if it is directly attached to the label;
+                # otherwise the grouped-summary parser maps the later value block safely.
+                immediate_values = _immediate_next_amount_values(lines, i)
+                if immediate_values:
+                    amounts["tva"].append(immediate_values[-1])
                 continue
             if values:
                 amounts["tva"].append(values[-1])
@@ -206,6 +207,14 @@ def _next_amount_values(lines: list[str], index: int, lookahead: int = 3) -> lis
         values = _extract_amount_values(next_line)
         if values:
             return values
+    return []
+
+
+def _immediate_next_amount_values(lines: list[str], index: int) -> list[float]:
+    for next_line in lines[index + 1 :]:
+        if not next_line.strip():
+            continue
+        return _extract_amount_values(next_line)
     return []
 
 

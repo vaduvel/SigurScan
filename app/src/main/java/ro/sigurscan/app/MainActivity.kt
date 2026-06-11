@@ -346,9 +346,9 @@ fun MainScreen(viewModel: ScannerViewModel) {
         uri?.let { viewModel.onQrPicked(it, context) }
     }
     val invoicePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
-        uri?.let { viewModel.scanInvoiceFromImage(it, context) }
+        uri?.let { viewModel.scanInvoiceFromDocument(it, context) }
     }
     var showQrScanner by remember { mutableStateOf(false) }
     val closeQrScanner = { showQrScanner = false }
@@ -367,7 +367,7 @@ fun MainScreen(viewModel: ScannerViewModel) {
                     onPickImage = { imagePickerLauncher.launch("image/*") },
                     onPickFile = { filePickerLauncher.launch("*/*") },
                     onScanQr = { showQrScanner = true },
-                    onScanInvoice = { invoicePickerLauncher.launch("image/*") }
+                    onScanInvoice = { invoicePickerLauncher.launch(arrayOf("image/*", "application/pdf")) }
                 )
                 "radar" -> RadarTab(viewModel)
                 "triage" -> TriageTab(viewModel)
@@ -383,7 +383,7 @@ fun MainScreen(viewModel: ScannerViewModel) {
                     onPickImage = { imagePickerLauncher.launch("image/*") },
                     onPickFile = { filePickerLauncher.launch("*/*") },
                     onScanQr = { showQrScanner = true },
-                    onScanInvoice = { invoicePickerLauncher.launch("image/*") }
+                    onScanInvoice = { invoicePickerLauncher.launch(arrayOf("image/*", "application/pdf")) }
                 )
             }
 

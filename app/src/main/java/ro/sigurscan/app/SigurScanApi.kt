@@ -288,7 +288,7 @@ interface SigurScanApi {
     @retrofit2.http.Multipart
     @POST("v1/scan/invoice")
     suspend fun scanInvoice(
-        @retrofit2.http.Part image: okhttp3.MultipartBody.Part,
+        @retrofit2.http.Part file: okhttp3.MultipartBody.Part,
         @retrofit2.http.Part("source_channel") sourceChannel: okhttp3.RequestBody
     ): InvoiceScanResponse
 

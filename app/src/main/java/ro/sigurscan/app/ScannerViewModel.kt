@@ -2005,7 +2005,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         publishAssessmentResult(null, result)
     }
 
-    fun scanInvoiceFromImage(uri: Uri, context: Context) {
+    fun scanInvoiceFromDocument(uri: Uri, context: Context) {
         loading = true
         loadingMsg = "Scanăm factura prin OCR..."
         invoiceResult = null
@@ -2013,9 +2013,25 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             var file: File? = null
             try {
+                val fileName = getFileName(uri, context)
+                val mimeType = context.contentResolver.getType(uri).orEmpty().lowercase(Locale.getDefault())
+                val isPdf = mimeType.contains("pdf") || fileName.lowercase(Locale.getDefault()).endsWith(".pdf")
+                val isImage = mimeType.startsWith("image/") || fileName.lowercase(Locale.getDefault()).matches(
+                    Regex(""".*\.(jpg|jpeg|png|webp)$""")
+                )
+                if (!isPdf && !isImage) {
+                    invoiceResult = InvoiceScanResponse(
+                        error = "Alege o factură în format imagine sau PDF."
+                    )
+                    return@launch
+                }
+
+                loadingMsg = if (isPdf) "Scanăm factura PDF..." else "Scanăm factura prin OCR..."
                 file = uriToFile(uri, context, MAX_UPLOAD_BYTES)
-                val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
-                val body = MultipartBody.Part.createFormData("image_file", file.name, requestFile)
+                val mediaType = if (isPdf) "application/pdf" else (mimeType.ifBlank { "image/*" })
+                val partName = if (isPdf) "pdf_file" else "image_file"
+                val requestFile = file.asRequestBody(mediaType.toMediaTypeOrNull())
+                val body = MultipartBody.Part.createFormData(partName, fileName, requestFile)
                 val source = "android_native".toRequestBody("text/plain".toMediaTypeOrNull())
 
                 invoiceResult = api.scanInvoice(body, source)
