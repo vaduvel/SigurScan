@@ -24,6 +24,7 @@ from services import offer_signals as S
 from services.invoice_coherence import CoherenceResult
 from services.invoice_readiness_gate import ReadinessGateResult, ReadinessState
 from services.offer_entity_verifier import OfferEntityResult
+from services.registry_verification.models import RegistryStatus, RegistryVerificationResult
 from services.verdict_gate import verdict as reduce_verdict
 
 if TYPE_CHECKING:
@@ -104,12 +105,29 @@ def _identity(entity: OfferEntityResult, *, readiness_ready: bool) -> tuple[str,
     return "unknown", "Emitent neidentificat"
 
 
+def _registry_no_match_alert(
+    registry_results: List[RegistryVerificationResult], entity: OfferEntityResult
+) -> bool:
+    """NO_MATCH dintr-un registru consultat, pentru o entitate care pretinde firmă,
+    NEconfirmată de ANAF. Doar contribuie la semantic_review; PERICULOS apare numai
+    în combinație (plată + canal riscant), prin reduce_verdict. Dacă ANAF (sursă
+    live, mai puternică) a confirmat firma, un snapshot incomplet nu o subminează.
+    """
+    anaf_confirmed = entity.has_cui and entity.cui_checked and entity.cui_exists
+    if anaf_confirmed or not entity.claims_company:
+        return False
+    return any(
+        r.checked and r.status == RegistryStatus.NO_MATCH for r in registry_results
+    )
+
+
 def _semantic_risk(
     signals: List[str],
     entity: OfferEntityResult,
     coherence: Optional[CoherenceResult],
     family_code: Optional[str],
     family_confidence: float,
+    registry_no_match: bool = False,
 ) -> str:
     high = (
         entity.brand_impersonation
@@ -117,6 +135,7 @@ def _semantic_risk(
         or (entity.has_cui and entity.cui_exists and not entity.cui_active)
         or (S.OFFER_IBAN_INVALID_STRUCTURE in signals and S.OFFER_PRICE_URGENCY in signals)
         or S.OFFER_PAYMENT_METHOD_CRITICAL in signals
+        or registry_no_match
     )
     if high:
         return "high"
@@ -150,14 +169,19 @@ def build_offer_bundle(
     family_confidence: float = 0.0,
     readiness: Optional[ReadinessGateResult] = None,
     redacted_text: Optional[str] = None,
+    registry_results: Optional[List[RegistryVerificationResult]] = None,
 ) -> Dict[str, Any]:
     """Construiește Evidence Bundle v2 din faptele ofertei. Pur, determinist."""
+    registry_results = list(registry_results or [])
     ready = readiness is not None and readiness.state == ReadinessState.READY
     text = redacted_text if redacted_text is not None else (fields.raw_text or "")
     sensitive = _sensitive(fields, signals)
     channel = _channel(fields, signals, sensitive, text)
     identity_status, identity_reason = _identity(entity, readiness_ready=ready)
-    semantic = _semantic_risk(signals, entity, coherence, family_code, family_confidence)
+    semantic = _semantic_risk(
+        signals, entity, coherence, family_code, family_confidence,
+        registry_no_match=_registry_no_match_alert(registry_results, entity),
+    )
 
     bundle: Dict[str, Any] = {
         "schema": "sigurscan_evidence_bundle_v2",
@@ -176,6 +200,12 @@ def build_offer_bundle(
         "context": {
             "offer_family": family_code or "OP-00",
             "offer_signals": list(signals),
+            # Dovezi registru: context, nu verdict. MATCH nu înseamnă „sigur";
+            # NO_MATCH/indisponibil nu înseamnă fraudă. Sortat = determinist.
+            "registry": [
+                r.to_bundle_dict()
+                for r in sorted(registry_results, key=lambda r: r.source_id)
+            ],
         },
     }
     canonical = json.dumps(bundle, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
@@ -193,6 +223,7 @@ def evaluate_offer_verdict(
     family_confidence: float = 0.0,
     readiness: Optional[ReadinessGateResult] = None,
     redacted_text: Optional[str] = None,
+    registry_results: Optional[List[RegistryVerificationResult]] = None,
 ) -> Dict[str, Any]:
     """Bundle ofertă → reduce_verdict (gate-ul unic). Întoarce {bundle, gate}."""
     bundle = build_offer_bundle(
@@ -204,5 +235,6 @@ def evaluate_offer_verdict(
         family_confidence=family_confidence,
         readiness=readiness,
         redacted_text=redacted_text,
+        registry_results=registry_results,
     )
     return {"bundle": bundle, "gate": reduce_verdict(bundle)}
