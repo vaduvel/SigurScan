@@ -134,8 +134,18 @@ private fun handleIncomingIntent(context: Context, intent: Intent?, viewModel: S
                     sourceLabel = sharedTextPayload.sourceLabel,
                     preserveHtml = sharedTextPayload.preserveHtml,
                     autoScan = true,
-                    fidelity = sharedTextPayload.fidelity
+                    fidelity = sharedTextPayload.fidelity,
+                    preservePendingFiles = sharedStreams.isNotEmpty()
                 )
+                sharedStreams.forEach { stream ->
+                    val sourceLabel = sourceLabelForSharedUri(context, stream, sharedType)
+                    viewModel.stageSharedFile(
+                        uri = stream,
+                        context = context,
+                        sourceLabel = sourceLabel,
+                        preserveSharedTextState = true
+                    )
+                }
             }
             sharedStreams.isNotEmpty() -> {
                 val stream = sharedStreams.first()
@@ -170,12 +180,28 @@ private fun handleIncomingIntent(context: Context, intent: Intent?, viewModel: S
         }
 
         viewModel.clearAllPendingShared()
-        sharedStreams.forEach { stream ->
-            val sourceLabel = sourceLabelForSharedUri(context, stream, sharedType)
-            viewModel.stageSharedFile(stream, context, sourceLabel)
+        sharedTextPayload?.let { payload ->
+            viewModel.stageSharedTextPayload(
+                payload = payload.text,
+                sourceLabel = payload.sourceLabel,
+                preserveHtml = payload.preserveHtml,
+                autoScan = true,
+                fidelity = payload.fidelity,
+                preservePendingFiles = true
+            )
         }
 
-        if (sharedStreams.size == 1) {
+        sharedStreams.forEach { stream ->
+            val sourceLabel = sourceLabelForSharedUri(context, stream, sharedType)
+            viewModel.stageSharedFile(
+                uri = stream,
+                context = context,
+                sourceLabel = sourceLabel,
+                preserveSharedTextState = sharedTextPayload != null
+            )
+        }
+
+        if (sharedTextPayload == null && sharedStreams.size == 1) {
             viewModel.scanPendingSharedFile(viewModel.pendingSharedFiles.firstOrNull()?.id ?: "", context)
         }
     }

@@ -78,6 +78,33 @@ class ScannerViewModelTest {
     }
 
     @Test
+    fun sharedIntentMixedTextAndFilesKeepsBothEvidencePaths() {
+        val activitySource = File("src/main/java/ro/sigurscan/app/MainActivity.kt").readText()
+        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+
+        assertTrue(
+            "stageSharedTextPayload must be able to keep attached streams when an email/share intent contains both HTML/text and files.",
+            viewModelSource.contains("preservePendingFiles: Boolean = false")
+        )
+        assertTrue(
+            "stageSharedFile must be able to append files without wiping the already-staged HTML/text evidence.",
+            viewModelSource.contains("preserveSharedTextState: Boolean = false")
+        )
+        assertTrue(
+            "ACTION_SEND with text plus streams must keep the streams queued after auto-scanning text/HTML.",
+            activitySource.contains("preservePendingFiles = sharedStreams.isNotEmpty()")
+        )
+        assertTrue(
+            "ACTION_SEND_MULTIPLE with text plus streams must append files without replacing the text/HTML scan.",
+            activitySource.contains("preserveSharedTextState = sharedTextPayload != null")
+        )
+        assertTrue(
+            "When ACTION_SEND_MULTIPLE contains text, the app must not auto-scan the first attachment over the text scan.",
+            activitySource.contains("if (sharedTextPayload == null && sharedStreams.size == 1)")
+        )
+    }
+
+    @Test
     fun localOfflineEvaluatorStaysNeutralAndCannotEmitRiskVerdict() {
         val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
         val start = viewModelSource.indexOf("private fun evaluateOfflineText(scannedText: String): OfflineAssessment")

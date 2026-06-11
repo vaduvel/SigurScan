@@ -1212,7 +1212,8 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         sourceLabel: String,
         preserveHtml: Boolean = false,
         autoScan: Boolean = false,
-        fidelity: SharedContentFidelity = if (preserveHtml) SharedContentFidelity.FULL_HTML else SharedContentFidelity.PLAIN_TEXT_ONLY
+        fidelity: SharedContentFidelity = if (preserveHtml) SharedContentFidelity.FULL_HTML else SharedContentFidelity.PLAIN_TEXT_ONLY,
+        preservePendingFiles: Boolean = false
     ) {
         if (payload.isBlank()) return
         val decoded = if (preserveHtml) payload else runCatching {
@@ -1232,7 +1233,9 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         pendingSharedSourceLabel = sourceLabel
         sharedContentSourceLabel = sourceLabel
         sharedContentFidelity = fidelity
-        pendingSharedFiles = emptyList()
+        if (!preservePendingFiles) {
+            pendingSharedFiles = emptyList()
+        }
         currentTab = "scan"
 
         if (autoScan) {
@@ -1243,7 +1246,12 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun stageSharedFile(uri: Uri, context: Context, sourceLabel: String) {
+    fun stageSharedFile(
+        uri: Uri,
+        context: Context,
+        sourceLabel: String,
+        preserveSharedTextState: Boolean = false
+    ) {
         if (uri.toString().isBlank()) return
 
         val mime = runCatching {
@@ -1254,16 +1262,18 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             getFileName(uri, context)
         }.getOrElse { "document" }
 
-        pendingSharedInput = null
-        pendingSharedSourceLabel = sourceLabel
-        sharedContentSourceLabel = sourceLabel
-        sharedContentFidelity = SharedContentFidelity.FILE_OR_EMAIL
-        stagedEvidenceHtml = null
-        stagedEvidenceLinks = emptyList()
-        stagedEvidenceText = null
-        stagedEvidenceInputKind = "import_file"
-        stagedEvidenceChannel = "file_or_email"
-        text = ""
+        if (!preserveSharedTextState) {
+            pendingSharedInput = null
+            pendingSharedSourceLabel = sourceLabel
+            sharedContentSourceLabel = sourceLabel
+            sharedContentFidelity = SharedContentFidelity.FILE_OR_EMAIL
+            stagedEvidenceHtml = null
+            stagedEvidenceLinks = emptyList()
+            stagedEvidenceText = null
+            stagedEvidenceInputKind = "import_file"
+            stagedEvidenceChannel = "file_or_email"
+            text = ""
+        }
         currentTab = "scan"
         pendingSharedFiles = pendingSharedFiles + PendingSharedFile(
             uri = uri,
