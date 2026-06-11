@@ -1,6 +1,6 @@
-"""Fast-path behavior of the orchestrated pipeline: stage collapsing within a
-poll time budget, early provisional verdicts before the urlscan report, and
-deferred AI explanations. The legacy stage-per-poll semantics stay covered in
+"""Fast-path behavior of the orchestrated pipeline: early provisional verdicts
+before the urlscan report, one refresh step per poll, and deferred AI
+explanations. The legacy no-provisional semantics stay covered in
 test_backend.py with these features pinned off."""
 
 import os
@@ -62,7 +62,6 @@ def _isolate_preview_caches(monkeypatch):
 def _fast_path_enabled(monkeypatch):
     monkeypatch.setattr(app_main, "ORCHESTRATED_EARLY_VERDICT", True)
     monkeypatch.setattr(app_main, "ORCHESTRATED_DEFER_AI_EXPLANATION", True)
-    monkeypatch.setattr(app_main, "MAX_SINGLE_POLL_SERVER_WORK_MS", 7500)
 
 
 def _patch_clean_scan(patched, urlscan_get=_fake_urlscan_get_clean):
@@ -200,26 +199,8 @@ def test_scan_events_logged_only_for_final_verdicts(monkeypatch):
     assert all(emitted), "provisional verdicts must not pollute scan_events telemetry"
 
 
-def test_collapse_respects_disabled_budget(monkeypatch):
-    monkeypatch.setattr(app_main, "MAX_SINGLE_POLL_SERVER_WORK_MS", 0)
-    monkeypatch.setattr(app_main, "ORCHESTRATED_EARLY_VERDICT", False)
+def test_cloud_explanation_runs_on_follow_up_poll_when_not_deferred(monkeypatch):
     monkeypatch.setattr(app_main, "ORCHESTRATED_DEFER_AI_EXPLANATION", False)
-    client = TestClient(app_main.app)
-    with monkeypatch.context() as patched:
-        _patch_clean_scan(patched, urlscan_get=None)
-
-        start = _start_scan(client)
-        _, payload = _poll_orchestrated(client, start["scan_id"], count=1)
-
-    assert payload["status"] == "scanning"
-    assert payload["result"] is None
-    assert payload["diagnostics"]["pipeline_stage"] in {"semantic_ready", "analysis_ready"}
-
-
-def test_low_poll_budget_defers_ai_explanation(monkeypatch):
-    monkeypatch.setattr(app_main, "MAX_SINGLE_POLL_SERVER_WORK_MS", 1)
-    monkeypatch.setattr(app_main, "ORCHESTRATED_DEFER_AI_EXPLANATION", False)
-    monkeypatch.setattr(app_main, "AI_EXPLANATION_STAGE_HEADROOM_SECONDS", 999999)
     client = TestClient(app_main.app)
     explainer_calls = []
 
@@ -235,27 +216,4 @@ def test_low_poll_budget_defers_ai_explanation(monkeypatch):
         _, payload = _poll_orchestrated(client, start["scan_id"], count=1)
 
     assert payload["result"] is not None
-    assert not explainer_calls, "AI explainer must be deferred when poll budget is insufficient"
-    assert payload["result"].get("explanation", {}).get("source") != "fake-llm"
-
-
-def test_ample_poll_budget_runs_ai_explanation(monkeypatch):
-    monkeypatch.setattr(app_main, "MAX_SINGLE_POLL_SERVER_WORK_MS", 7500)
-    monkeypatch.setattr(app_main, "ORCHESTRATED_DEFER_AI_EXPLANATION", False)
-    monkeypatch.setattr(app_main, "AI_EXPLANATION_STAGE_HEADROOM_SECONDS", 0)
-    client = TestClient(app_main.app)
-    explainer_calls = []
-
-    async def fake_explainer(text, analysis, resolved_urls):
-        explainer_calls.append(True)
-        return {"summary": "cloud explanation", "source": "fake-llm"}
-
-    with monkeypatch.context() as patched:
-        _patch_clean_scan(patched, urlscan_get=None)
-        patched.setattr(app_main, "_build_ai_explanation_async", fake_explainer)
-
-        start = _start_scan(client)
-        _, payload = _poll_orchestrated(client, start["scan_id"], count=1)
-
-    assert payload["result"] is not None
-    assert explainer_calls, "AI explainer must run when poll budget is sufficient"
+    assert explainer_calls, "AI explainer must run when explicit deferral is disabled"

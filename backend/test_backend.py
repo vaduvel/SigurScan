@@ -70,12 +70,10 @@ def _disable_live_mistral_semantic_pillar_by_default(monkeypatch):
 @pytest.fixture(autouse=True)
 def _legacy_orchestrated_pacing(monkeypatch):
     """This module asserts the stage machine one stage per poll, with verdicts
-    finalized only after the urlscan report. The fast-path behavior (stage
-    collapsing, early provisional verdicts, deferred explanations) is covered
-    separately in test_orchestrated_latency.py."""
+    finalized only after the urlscan report. Early provisional verdicts and
+    deferred explanations are covered separately in test_orchestrated_latency.py."""
     monkeypatch.setattr(app_main, "ORCHESTRATED_EARLY_VERDICT", False)
     monkeypatch.setattr(app_main, "ORCHESTRATED_DEFER_AI_EXPLANATION", False)
-    monkeypatch.setattr(app_main, "MAX_SINGLE_POLL_SERVER_WORK_MS", 0)
 
 
 @pytest.fixture(autouse=True)
