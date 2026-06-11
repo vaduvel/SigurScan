@@ -1,0 +1,92 @@
+{
+  "version": "2026-06-11",
+  "disclaimer": "Informatiile sunt educatie juridica generala, nu sfat juridic personalizat si nu inlocuiesc consultarea unui avocat. Articolele si termenele se pot modifica; pentru cazuri concrete adreseaza-te unui specialist sau autoritatilor. SigurScan nu garanteaza un rezultat juridic.",
+  "ai_role": "Doar reformulare prietenoasa a textului din KB, cu trimitere la articolul real. Fara inventii de articole/pedepse. Nu muta niciodata verdictul motorului.",
+  "modules": {
+    "penal": ["art_244", "art_320_323", "art_327", "art_311"],
+    "fiscal": ["art_319_cod_fiscal", "ro_efactura_2026", "mit_scadenta"],
+    "consumator": ["oug_34_2014_retragere", "termen_livrare_30zile", "garantie_2ani", "preturi_libere"],
+    "identitate": ["furt_identitate_ifn"]
+  },
+  "cards": [
+    {
+      "id": "law-inselaciune-244",
+      "triggers": ["avans_apoi_disparitie", "oferta_prea_buna_avans"],
+      "title": "Inselaciunea (art. 244 Cod penal)",
+      "summary": "Inducerea in eroare prin prezentarea ca adevarata a unei fapte mincinoase, pentru folos injust + paguba: 6 luni-3 ani; cu nume/calitati mincinoase ori mijloace frauduloase: 1-5 ani. Avans cerut + disparitie = tabloul clasic al inselaciunii, nu ghinion comercial.",
+      "actions": ["Plangere penala la Politie/Parchet", "Pastreaza toate dovezile (mesaje, factura, dovada platii)"],
+      "source_refs": ["legislatie.just.ro - Cod penal art. 244"]
+    },
+    {
+      "id": "law-fals-inscrisuri-320-323",
+      "triggers": ["factura_contrafacuta", "document_alterat"],
+      "title": "Fals in inscrisuri (art. 320-323 Cod penal)",
+      "summary": "Contrafacerea/alterarea de documente, inclusiv facturi/contracte sub semnatura privata (art. 322) si uzul de fals (art. 323).",
+      "actions": ["Nu plati", "Sesizeaza Politia", "Verifica CUI pe ANAF"],
+      "source_refs": ["legislatie.just.ro - Cod penal art. 320-323"]
+    },
+    {
+      "id": "law-furt-identitate-327",
+      "triggers": ["cerere_copie_ci", "cerere_cnp", "cerere_buletin"],
+      "title": "Furt de identitate -> credite frauduloase (art. 327 + 322 + 244)",
+      "summary": "Cu copie buletin/CI/CNP se pot lua credite IFN/banca pe numele tau. Combina fals privind identitatea (327) + fals in inscrisuri (322) + inselaciune (244).",
+      "actions": ["Nu trimite poza buletin/CNP pentru o vanzare", "Daca ai trimis: anunta banca + Biroul de Credit + plangere Politie + DNSC"],
+      "source_refs": ["legislatie.just.ro - Cod penal art. 327, 322, 244"]
+    },
+    {
+      "id": "law-instrumente-plata-311",
+      "triggers": ["cerere_card_cvv_otp"],
+      "title": "Falsificarea de instrumente de plata (art. 311)",
+      "summary": "Cererea de card/CVV/OTP pentru verificare este indiciu de frauda cu instrumente de plata. Nicio platforma/banca legitima nu cere CVV/OTP.",
+      "actions": ["Nu da datele", "Suna banca", "Raporteaza DNSC"],
+      "source_refs": ["legislatie.just.ro - Cod penal art. 311"]
+    },
+    {
+      "id": "law-factura-319-efactura",
+      "triggers": ["factura_reala_dar_scam", "intrebare_validitate_factura"],
+      "title": "Factura valida != tranzactie legitima (art. 319 Cod fiscal + RO e-Factura)",
+      "summary": "Factura are informatii obligatorii (art. 319). Din 1 ian 2026 B2B/B2C/B2G se transmit in RO e-Factura in 5 zile lucratoare (persoane fizice prin CNP - tranzitoriu pana la 1 iun 2026, OUG 120/2021 mod. OUG 89/2025). DAR o factura corecta fiscal NU garanteaza ca tranzactia e reala.",
+      "actions": ["Verifica emitentul (CUI) pe ANAF", "Nu te baza pe aspectul facturii"],
+      "source_refs": ["Cod fiscal art. 319", "OUG 120/2021 mod. OUG 89/2025"]
+    },
+    {
+      "id": "law-scadenta-urgenta",
+      "triggers": ["presiune_termen_limita", "plateste_azi"],
+      "title": "Mitul zilei de scadenta",
+      "summary": "Nu exista zi de scadenta universala impusa de lege; termenul e cel din contract/factura. 'Plateste azi pana la 17:00' = manipulare prin urgenta artificiala.",
+      "actions": ["Nu te grabi din cauza urgentei", "La cumparaturi online ai drept de retragere 14 zile (cu exceptii)"],
+      "source_refs": ["OUG 34/2014"]
+    },
+    {
+      "id": "law-retragere-14-zile",
+      "triggers": ["renuntare_comanda_online"],
+      "title": "Drept de retragere 14 zile (OUG 34/2014)",
+      "summary": "La cumparaturi la distanta te poti retrage in 14 zile calendaristice, fara motive/penalizari. Daca nu te-a informat, se prelungeste pana la 12 luni + 14 zile. Exceptii: cazare/transport cu data fixa, produse personalizate.",
+      "actions": ["Trimite declaratie de retragere", "Cere rambursarea"],
+      "source_refs": ["OUG 34/2014"]
+    },
+    {
+      "id": "law-preturi-libere",
+      "triggers": ["pret_mare", "pret_50_la_suta"],
+      "title": "Preturile sunt libere",
+      "summary": "Nu exista plafon general de adaos comercial. Turism/auto/chirii/bilete = fara plafon. Singura plafonare (2026) e pe ~17 alimente de baza (OUG 22/2026). Devine ilegal doar daca e practica comerciala inselatoare (Legea 363/2007) sau inselaciune (art. 244).",
+      "actions": ["Verifica emitentul, nu te grabi din cauza pretului"],
+      "source_refs": ["OUG 22/2026", "Legea 363/2007", "Cod penal art. 244"]
+    },
+    {
+      "id": "law-off-platform",
+      "triggers": ["plata_off_platform"],
+      "title": "Plata in afara platformei",
+      "summary": "Nu e infractiune in sine, dar pierzi protectia platformei (fara chargeback, fara garantie) - semnal major de risc.",
+      "actions": ["Plateste doar in platforma", "Raporteaza contul"],
+      "source_refs": ["Airbnb/Booking/OLX Trust & Safety"]
+    }
+  ],
+  "report_channels": [
+    {"name": "112 / Politia", "for": "inselaciune, fals, furt identitate"},
+    {"name": "DNSC", "contact": "dnsc.ro, 1911", "for": "incidente cyber, phishing, fraude online"},
+    {"name": "ANPC", "contact": "anpc.ro", "for": "probleme comerciale, drepturi consumator, retur"},
+    {"name": "ANAF", "contact": "anaf.ro", "for": "facturi false, firme suspecte, verificare CUI/TVA"},
+    {"name": "Banca + Biroul de Credit", "for": "transferuri frauduloase, credite pe numele tau"}
+  ]
+}

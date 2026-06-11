@@ -7065,6 +7065,16 @@ async def _run_orchestrated_offer_fast_lane(job: Dict[str, Any], request: Reques
         },
     }
 
+    # Strat educativ „Ce spune legea" (PR5): rulează DUPĂ gate, doar informativ,
+    # nu modifică niciodată verdictul. Carduri verbatim din data/legal_kb.json.
+    from services.legal_layer import legal_cards_for
+
+    analysis["legal"] = legal_cards_for(
+        signals=offer_signals,
+        family_code=family_id,
+        document_type=(fields.document_type if fields else None),
+    )
+
     job["analysis"] = analysis
     job["claim_verifier_required"] = False
     _set_orchestrated_stage(job, "analysis_ready")
