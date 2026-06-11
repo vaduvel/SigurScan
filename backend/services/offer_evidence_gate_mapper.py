@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from services import offer_signals as S
@@ -34,6 +35,15 @@ _OFFICIAL_PLATFORMS = {
     "iaBilet", "Ticketmaster", "Facebook Marketplace", "Autovit",
 }
 _FAMILY_CONF_FLOOR = 0.35
+
+# Context de tranzacție (plată / contract / credit / rezervare). Fără el, o cerere
+# sensibilă (ex. CI/CNP singur) NU e pe canal greșit → rămâne SUSPECT, nu PERICULOS.
+# PERICULOS apare DOAR în combinație: sensibil hard + context (canal greșit).
+_PAYMENT_CONTEXT = re.compile(
+    r"\b(plat[ăaiț]|pl[ăa]te[șs]?t?e?|avans|transfer|factur|proform|contract|credit|"
+    r"[îi]mprumut|rezervar|garan[țt]i|depozit|abonament|iban|cont(?:ul)?\b)",
+    re.IGNORECASE,
+)
 
 
 def _sensitive(fields: "OfferFields", signals: List[str]) -> str:
@@ -54,15 +64,22 @@ def _sensitive(fields: "OfferFields", signals: List[str]) -> str:
     return "none"
 
 
-def _channel(fields: "OfferFields", signals: List[str], sensitive: str) -> str:
+def _channel(fields: "OfferFields", signals: List[str], sensitive: str, text: str) -> str:
     if S.OFFER_OFF_PLATFORM_PAYMENT in signals:
         return "whatsapp"
     if fields.platform_name in _OFFICIAL_PLATFORMS:
         return "platform"  # nu e în WRONG_CHANNELS
-    if sensitive != "none":
-        # O ofertă/proformă cu cerere de plată e off-rails dacă nu e o platformă oficială.
-        return "unofficial_site"
-    return "unknown"
+    has_context = bool(
+        fields.iban
+        or fields.payment_beneficiary
+        or fields.total is not None
+        or S.OFFER_PAYMENT_METHOD_HIGH_RISK in signals
+        or S.OFFER_PAYMENT_METHOD_CRITICAL in signals
+        or (text and _PAYMENT_CONTEXT.search(text))
+    )
+    # Off-rails DOAR cu context de tranzacție (plată/contract/credit/rezervare).
+    # Altfel canal „unknown" → o cerere sensibilă singură rămâne SUSPECT.
+    return "unofficial_site" if has_context else "unknown"
 
 
 def _identity(entity: OfferEntityResult, *, readiness_ready: bool) -> tuple[str, str]:
@@ -136,11 +153,11 @@ def build_offer_bundle(
 ) -> Dict[str, Any]:
     """Construiește Evidence Bundle v2 din faptele ofertei. Pur, determinist."""
     ready = readiness is not None and readiness.state == ReadinessState.READY
+    text = redacted_text if redacted_text is not None else (fields.raw_text or "")
     sensitive = _sensitive(fields, signals)
-    channel = _channel(fields, signals, sensitive)
+    channel = _channel(fields, signals, sensitive, text)
     identity_status, identity_reason = _identity(entity, readiness_ready=ready)
     semantic = _semantic_risk(signals, entity, coherence, family_code, family_confidence)
-    text = redacted_text if redacted_text is not None else (fields.raw_text or "")
 
     bundle: Dict[str, Any] = {
         "schema": "sigurscan_evidence_bundle_v2",

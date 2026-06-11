@@ -6174,6 +6174,17 @@ def _build_orchestrated_text_context(payload: OrchestratedScanRequest) -> Dict[s
             "extra_fields": {"invoice_scan": True},
         }
 
+    if input_type == "offer":
+        raw_text = _normalise_obfuscated_text((payload.text or payload.url or "").strip())
+        _validate_text_input("Textul ofertei", raw_text, MAX_TEXT_CHARS)
+        return {
+            "input_type": "offer",
+            "source_channel": source_channel,
+            "raw_text": raw_text,
+            "urls": extract_urls(raw_text),
+            "extra_fields": {"offer_scan": True},
+        }
+
     raw_text = _normalise_obfuscated_text((payload.text or payload.url or "").strip())
     _validate_text_input("Textul trimis", raw_text, MAX_TEXT_CHARS)
     return {
@@ -6607,6 +6618,7 @@ async def _run_orchestrated_invoice_fast_lane(job: Dict[str, Any], request: Requ
     evidence["provider_gate"] = provider_gate
     evidence["decision_bundle"] = bundle
     evidence["verdict_gate"] = gate_result
+    evidence["semantic_review"] = semantic_section
 
     label = str(gate_result.get("label") or "PENDING").upper()
     reasons = {
@@ -6635,6 +6647,138 @@ async def _run_orchestrated_invoice_fast_lane(job: Dict[str, Any], request: Requ
     return job
 
 
+async def _run_orchestrated_offer_fast_lane(job: Dict[str, Any], request: Request) -> Dict[str, Any]:
+    """Ruta ofertă: scan_offer (gate unic) → contract analysis. Ruta factură neatinsă."""
+    from services.invoice_orchestrator import scan_offer
+    from services.verdict_gate import verdict as reduce_verdict
+
+    redacted_text = str(job.get("redacted_text") or "")
+    urls = job.get("urls") if isinstance(job.get("urls"), list) else []
+    _set_orchestrated_stage(job, "offer_parse")
+    try:
+        result = await _timed_orchestrated_component(
+            job,
+            "offer_fast_lane.scan_offer",
+            lambda: scan_offer(redacted_text, links=urls),
+        )
+    except Exception as exc:
+        result = None
+        _emit_orchestrated_telemetry("orchestrated_offer_error", job, error=str(exc))
+
+    if result is not None:
+        gate_result = result.gate
+        bundle = result.bundle
+        fields = result.fields
+        entity = result.entity
+        coherence = result.coherence
+        claimed_brand = (entity.claimed_brand if entity else None) or "Nespecificat"
+        family_id = result.family_code
+        family_name = result.family_name
+        warnings = list(result.warnings)
+        offer_signals = list(result.signals)
+    else:
+        # Degradare grațioasă: niciun verdict hard, doar provizoriu.
+        bundle = {
+            "schema": "sigurscan_evidence_bundle_v2",
+            "input": {"type": "offer"},
+            "resolution": {"status": "failed", "completeness": False},
+            "providers": {"verdict": "pending", "completeness": False},
+            "identity": {"status": "unknown", "completeness": False},
+            "request": {"sensitive": "none", "channel": "unknown", "completeness": False},
+            "semantic_review": {"status": "pending", "completeness": False},
+        }
+        gate_result = reduce_verdict(bundle)
+        fields = None
+        entity = None
+        coherence = None
+        claimed_brand = "Nespecificat"
+        family_id = "OP-00"
+        family_name = "Necategorizat"
+        warnings = ["Nu am putut analiza oferta."]
+        offer_signals = []
+
+    label = str(gate_result.get("label") or "PENDING").upper()
+    reasons = {
+        "SIGUR": ["Nu am găsit semnale clare de fraudă."],
+        "SUSPECT": ["Verifică pe canalul oficial înainte să plătești."],
+        "PERICULOS": ["Nu plăti. Datele ofertei nu se aliniază sau metoda de plată e riscantă."],
+        "PENDING": ["Scanarea nu are încă toate dovezile necesare pentru un verdict final."],
+    }.get(label, ["Verifică pe canalul oficial înainte de plată."])
+    safe_actions = {
+        "SIGUR": ["Poți continua dacă recunoști vânzătorul și datele de plată."],
+        "SUSPECT": [
+            "Verifică emitentul pe canalul oficial, nu din linkul din ofertă.",
+            "Nu trimite avans înainte de a confirma.",
+        ],
+        "PERICULOS": [
+            "Nu plăti.",
+            "Nu trimite copie după buletin/CI sau date de card.",
+            "Raportează la DNSC (1911).",
+        ],
+        "PENDING": ["Așteaptă finalizarea verificărilor automate."],
+    }.get(label, ["Așteaptă finalizarea scanării."])
+
+    offer_fields_payload = {
+        "issuer_name": (fields.issuer_name or fields.emitent) if fields else None,
+        "issuer_cui": fields.cui if fields else None,
+        "iban": fields.iban if fields else None,
+        "payment_beneficiary": fields.payment_beneficiary if fields else None,
+        "total_amount": fields.total if fields else None,
+        "currency": fields.currency if fields else "RON",
+        "payment_method": fields.payment_method if fields else None,
+        "document_type": fields.document_type if fields else "offer",
+        "family": family_id,
+    }
+
+    analysis: Dict[str, Any] = {
+        "risk_score": gate_result.get("risk_score"),
+        "risk_level": gate_result.get("risk_level"),
+        "detected_family": family_name,
+        "detected_family_id": family_id,
+        "claimed_brand": claimed_brand,
+        "reasons": reasons,
+        "safe_actions": safe_actions,
+        "evidence": {
+            "source_channel": job.get("source_channel"),
+            "offer": {
+                "fields": offer_fields_payload,
+                "signals": offer_signals,
+                "entity": {
+                    "cui_checked": entity.cui_checked,
+                    "cui_exists": entity.cui_exists,
+                    "cui_active": entity.cui_active,
+                    "denumire": entity.denumire,
+                    "name_matches": entity.name_matches,
+                    "brand_impersonation": entity.brand_impersonation,
+                } if entity else None,
+                "coherence": {"all_ok": coherence.all_ok} if coherence else None,
+                "warnings": warnings,
+                "verdict_gate": gate_result,
+            },
+            "provider_gate": {
+                "version": "verdict_gate_v2",
+                "decision_contract": "sigurscan_evidence_bundle_v2",
+                "risk_level": gate_result.get("risk_level"),
+                "risk_score": gate_result.get("risk_score"),
+                "reason": ", ".join(gate_result.get("reason_codes") or []),
+                "label": gate_result.get("label"),
+                "detected_family_id": family_id,
+                "detected_family": family_name,
+            },
+            "decision_bundle": bundle,
+            "verdict_gate": gate_result,
+            "semantic_review": bundle.get("semantic_review", {"status": "done", "completeness": True}),
+        },
+    }
+
+    job["analysis"] = analysis
+    job["claim_verifier_required"] = False
+    _set_orchestrated_stage(job, "analysis_ready")
+    job = _persist_orchestrated_job(job)
+    _emit_orchestrated_telemetry("orchestrated_stage_analysis_ready", job, offer_fast_lane=True)
+    return job
+
+
 async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Dict[str, Any]:
     _increment_orchestrated_metric(job, "poll_count")
     stage = str(job.get("pipeline_stage") or "queued").strip().lower()
@@ -6645,8 +6789,11 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
         return await _finalize_orchestrated_job_if_ready(job, request)
 
     if stage == "queued":
-        if str(job.get("input_type") or "").strip().lower() == "invoice":
+        job_input_type = str(job.get("input_type") or "").strip().lower()
+        if job_input_type == "invoice":
             return await _run_orchestrated_invoice_fast_lane(job, request)
+        if job_input_type == "offer":
+            return await _run_orchestrated_offer_fast_lane(job, request)
         return await _run_orchestrated_fast_lane(job, request)
 
     if stage == "resolved":

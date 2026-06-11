@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import time
-from typing import Optional
+from typing import Any, List, Optional, TYPE_CHECKING
 from dataclasses import dataclass, field
 from services.invoice_parser import parse_invoice, InvoiceFields
 from services.iban_validator import validate_iban, IbanResult
@@ -10,6 +10,10 @@ from services.invoice_coherence import CoherenceResult, check_coherence
 from services.invoice_readiness_gate import evaluate_readiness, ReadinessGateResult
 from services.brand_registry import detect_claimed_brand, match_brand, BrandMatchResult
 from services.anaf_cui import check_cui
+
+if TYPE_CHECKING:
+    from services.offer_parser import OfferFields
+    from services.offer_entity_verifier import OfferEntityResult
 
 
 CACHE_TTL = 43200  # 12 hours
@@ -170,3 +174,74 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
     )
     _set_cached_verdict(fields, result)
     return result
+
+
+@dataclass
+class OfferScanResult:
+    raw_text: str
+    fields: "OfferFields"
+    readiness: ReadinessGateResult
+    coherence: CoherenceResult
+    iban_valid: Optional[IbanResult]
+    entity: "OfferEntityResult"
+    family_code: str
+    family_name: str
+    family_confidence: float
+    signals: List[str]
+    bundle: dict
+    gate: dict
+    error: Optional[str] = None
+    warnings: list = field(default_factory=list)
+
+
+async def scan_offer(
+    ocr_text: str,
+    links: Optional[List[str]] = None,
+    qr_payloads: Optional[List[str]] = None,
+) -> OfferScanResult:
+    from services.offer_parser import parse_offer
+    from services.offer_readiness import evaluate_offer_readiness
+    from services.offer_signals import derive_offer_signals
+    from services.family_classifier import classify_offer_family
+    from services.payment_method_classifier import classify_payment_method
+    from services.offer_entity_verifier import verify_offer_entity
+    from services.offer_evidence_gate_mapper import evaluate_offer_verdict
+
+    fields = parse_offer(ocr_text, links=links, qr_payloads=qr_payloads, input_type="offer")
+    coherence = check_coherence(
+        subtotal=fields.subtotal, tva=fields.tva, total=fields.total,
+        data_emitere=fields.data_emitere, scadenta=fields.scadenta,
+    )
+    iban_valid = validate_iban(fields.iban) if fields.iban else None
+    payment = classify_payment_method(
+        fields.raw_text,
+        iban_is_trezorerie=bool(iban_valid and iban_valid.is_trezorerie),
+        has_qr=bool(fields.qr_payloads),
+    )
+    family_code, family_name, family_conf = classify_offer_family(fields.raw_text)
+    readiness = evaluate_offer_readiness(fields)
+    entity = await verify_offer_entity(fields, links=fields.urls)
+    signals = derive_offer_signals(
+        fields, iban_result=iban_valid, coherence=coherence, payment=payment,
+        family_code=family_code, readiness=readiness,
+    )
+    out = evaluate_offer_verdict(
+        fields, signals=signals, entity=entity, coherence=coherence,
+        family_code=family_code, family_confidence=family_conf, readiness=readiness,
+        redacted_text=ocr_text,
+    )
+    return OfferScanResult(
+        raw_text=ocr_text,
+        fields=fields,
+        readiness=readiness,
+        coherence=coherence,
+        iban_valid=iban_valid,
+        entity=entity,
+        family_code=family_code,
+        family_name=family_name,
+        family_confidence=family_conf,
+        signals=signals,
+        bundle=out["bundle"],
+        gate=out["gate"],
+        warnings=list(entity.warnings),
+    )
