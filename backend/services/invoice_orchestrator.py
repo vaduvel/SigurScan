@@ -199,6 +199,8 @@ class OfferScanResult:
     gate: dict
     error: Optional[str] = None
     warnings: list = field(default_factory=list)
+    # Dovezi din registre publice (PR4): context structurat, nu verdict.
+    registry: list = field(default_factory=list)
 
 
 async def scan_offer(
@@ -213,6 +215,7 @@ async def scan_offer(
     from services.payment_method_classifier import classify_payment_method
     from services.offer_entity_verifier import verify_offer_entity
     from services.offer_evidence_gate_mapper import evaluate_offer_verdict
+    from services.registry_verification import verify_offer_registries
 
     fields = parse_offer(ocr_text, links=links, qr_payloads=qr_payloads, input_type="offer")
     coherence = check_coherence(
@@ -232,10 +235,12 @@ async def scan_offer(
         fields, iban_result=iban_valid, coherence=coherence, payment=payment,
         family_code=family_code, readiness=readiness,
     )
+    # Registre publice: snapshot-uri locale/stubs oneste — zero apeluri live.
+    registry_results = verify_offer_registries(fields, family_code)
     out = evaluate_offer_verdict(
         fields, signals=signals, entity=entity, coherence=coherence,
         family_code=family_code, family_confidence=family_conf, readiness=readiness,
-        redacted_text=ocr_text,
+        redacted_text=ocr_text, registry_results=registry_results,
     )
     return OfferScanResult(
         raw_text=ocr_text,
@@ -251,4 +256,5 @@ async def scan_offer(
         bundle=out["bundle"],
         gate=out["gate"],
         warnings=list(entity.warnings),
+        registry=registry_results,
     )
