@@ -1,0 +1,13 @@
+{
+  "name": "sigurscan-api-proxy",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "test": "node --test test/*.test.js"
+  },
+  "devDependencies": {
+    "wrangler": "4.99.0"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sigurscan-api-proxy",
+  "main": "src/index.js",
+  "compatibility_date": "2026-06-11",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    {
+      "pattern": "api.sigurscan.com",
+      "custom_domain": true
+    }
+  ],
+  "vars": {
+    "ORIGIN_URL": "https://sigurscan-api-tvszku44fq-ew.a.run.app"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}
