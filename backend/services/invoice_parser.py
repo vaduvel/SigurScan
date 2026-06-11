@@ -6,24 +6,74 @@ from typing import List
 
 CUI_PATTERN = re.compile(r"(?:CUI|CIF|RO)\s*[:\s]*(\d{2,10})\b", re.IGNORECASE)
 IBAN_PATTERN = re.compile(r"RO\d{2}[A-Z0-9]{20,24}", re.IGNORECASE)
+MONTHS = {
+    "january": "01",
+    "jan": "01",
+    "february": "02",
+    "feb": "02",
+    "march": "03",
+    "mar": "03",
+    "april": "04",
+    "apr": "04",
+    "may": "05",
+    "june": "06",
+    "jun": "06",
+    "july": "07",
+    "jul": "07",
+    "august": "08",
+    "aug": "08",
+    "september": "09",
+    "sep": "09",
+    "sept": "09",
+    "october": "10",
+    "oct": "10",
+    "november": "11",
+    "nov": "11",
+    "december": "12",
+    "dec": "12",
+}
+CURRENCY_SYMBOLS = {"€": "EUR", "$": "USD", "£": "GBP"}
+CURRENCY_PATTERN = re.compile(r"\b(RON|LEI|EUR|USD|GBP)\b|[€$£]", re.IGNORECASE)
+AMOUNT_VALUE_PATTERN = re.compile(
+    r"(?:[€$£]\s*(\d[\d\s]*(?:[.,]\d{1,2})?))"
+    r"|(?:(\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:RON|LEI|lei|EUR|USD|GBP|€|\$|£))",
+    re.IGNORECASE,
+)
 AMOUNT_PATTERN = re.compile(
-    r"(?:Total|TVA|Subtotal|Suma|Valoare|Plata|De plata)\s*(?:factur[ai]|plat[iă]|)?[:\s]*"
+    r"(?:Total|TVA|Tax|Subtotal|Amount due|Total due|Balance due|Suma|Valoare|Plata|De plata)\s*(?:factur[ai]|plat[iă]|)?[:\s]*"
     r"(\d[\d\s]*(?:[.,]\d{1,2})?)",
     re.IGNORECASE,
 )
 AMOUNT_WITH_TVA_RATE = re.compile(
-    r"TVA.*?(\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:RON|LEI|lei|Eur|EUR)", re.IGNORECASE
+    r"(?:TVA|Tax).*?(\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:RON|LEI|lei|Eur|EUR|USD|GBP|€|\$|£)", re.IGNORECASE
 )
-AMOUNT_FALLBACK = re.compile(r"(\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:RON|LEI|lei|Eur|EUR)")
+AMOUNT_FALLBACK = re.compile(r"(\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:RON|LEI|lei|Eur|EUR|USD|GBP|€|\$|£)")
 DATE_PATTERN = re.compile(
     r"\b(0[1-9]|[12]\d|3[01])[./](0[1-9]|1[0-2])[./](20\d{2})\b"
 )
-SCADENTA_LABEL = re.compile(r"scaden[ţt][aă]", re.IGNORECASE)
-TOTAL_LABEL = re.compile(r"\btotal\b(?!\s*(?:tva|net))", re.IGNORECASE)
-TVA_LABEL = re.compile(r"\btva\b", re.IGNORECASE)
-SUBTOTAL_LABEL = re.compile(r"\bsubtotal\b|^[ \t]*valoare\b", re.IGNORECASE)
+MONTH_DATE_PATTERN = re.compile(
+    r"\b("
+    r"Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|"
+    r"Jul(?:y)?|Aug(?:ust)?|Sep(?:t|tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?"
+    r")\s+([0-3]?\d),\s*(20\d{2})\b",
+    re.IGNORECASE,
+)
+SCADENTA_LABEL = re.compile(r"scaden[ţt][aă]|\bdue date\b|\bdate due\b|\bpayment due\b", re.IGNORECASE)
+ISSUE_DATE_LABEL = re.compile(r"\bdata\b|\bdate of issue\b|\bissued on\b|\binvoice date\b", re.IGNORECASE)
+TOTAL_LABEL = re.compile(r"\btotal\b(?!\s*(?:tva|net))|\bamount due\b|\bbalance due\b|\btotal due\b", re.IGNORECASE)
+TVA_LABEL = re.compile(r"\btva\b|\btax\b", re.IGNORECASE)
+SUBTOTAL_LABEL = re.compile(r"\bsubtotal\b|^[ \t]*valoare\b|\btotal excluding tax\b", re.IGNORECASE)
 EMITENT_LABEL = re.compile(
     r"(?:furnizor|emitent|prestator|vânzător|vanzator|societatea)\s*[:\s]+(.+?)(?:\n|$)",
+    re.IGNORECASE,
+)
+EMITENT_SKIP_LINE = re.compile(
+    r"^(?:"
+    r"invoice|invoice\s+(?:number|no\.?|#)|date(?:\s+of\s+issue|\s+due)?|issued\s+on|due\s+date|"
+    r"bill\s+to|pay\s+online|description|qty|unit\s+price|subtotal|tax|total|amount\s+due|"
+    r"payment|address|customer|client|page\s+\d+|united\s+states|romania|"
+    r"cui|cif|ro|nr\.?\s|factura|data|scaden|perioada|cod|seria|stimate|tva|iban|tel"
+    r")\b",
     re.IGNORECASE,
 )
 
@@ -38,6 +88,8 @@ class InvoiceFields:
     subtotal: float | None = None
     tva: float | None = None
     total: float | None = None
+    currency: str | None = None
+    invoice_profile: str = "ro"
     iban: str | None = None
     links: List[str] = field(default_factory=list)
     qr_payloads: List[str] = field(default_factory=list)
@@ -70,6 +122,34 @@ def _parse_ro_amount(raw: str) -> float | None:
         return None
 
 
+def _extract_amount_values(line: str) -> list[float]:
+    values: list[float] = []
+    for match in AMOUNT_VALUE_PATTERN.finditer(line):
+        raw_value = match.group(1) or match.group(2)
+        value = _parse_ro_amount(raw_value)
+        if value is not None:
+            values.append(value)
+    if values:
+        return values
+    for match in AMOUNT_PATTERN.finditer(line):
+        value = _parse_ro_amount(match.group(1))
+        if value is not None:
+            values.append(value)
+    return values
+
+
+def _detect_currency(text: str) -> str | None:
+    for match in CURRENCY_PATTERN.finditer(text):
+        token = match.group(0)
+        if token in CURRENCY_SYMBOLS:
+            return CURRENCY_SYMBOLS[token]
+        upper = token.upper()
+        if upper == "LEI":
+            return "RON"
+        return upper
+    return None
+
+
 def _parse_amounts(text: str) -> dict:
     amounts = {"subtotal": [], "tva": [], "total": []}
     lines = text.split("\n")
@@ -77,63 +157,73 @@ def _parse_amounts(text: str) -> dict:
         lower = line.strip().lower()
         if not lower:
             continue
+        values = _extract_amount_values(line)
+        next_values = _next_amount_values(lines, i)
         if TVA_LABEL.search(lower) and "total" not in lower:
-            matched = False
+            if lower in {"tax", "tva"} or "unit price" in lower or lower.startswith("description"):
+                continue
+            if len(values) > 1:
+                amounts["tva"].append(values[-1])
+                continue
+            if " on " in lower and next_values:
+                amounts["tva"].append(next_values[-1])
+                continue
+            if values:
+                amounts["tva"].append(values[-1])
+                continue
+            if next_values:
+                amounts["tva"].append(next_values[-1])
+                continue
             for match in AMOUNT_WITH_TVA_RATE.finditer(line):
                 val = _parse_ro_amount(match.group(1))
                 if val is not None:
                     amounts["tva"].append(val)
-                    matched = True
                     break
-            if not matched:
-                for match in AMOUNT_PATTERN.finditer(line):
-                    val = _parse_ro_amount(match.group(1))
-                    if val is not None:
-                        amounts["tva"].append(val)
-                        matched = True
-                        break
-            if not matched:
-                for match in AMOUNT_FALLBACK.finditer(line):
-                    val = _parse_ro_amount(match.group(1))
-                    if val is not None:
-                        amounts["tva"].append(val)
-                        break
         if SUBTOTAL_LABEL.search(lower):
-            for match in AMOUNT_PATTERN.finditer(line):
-                val = _parse_ro_amount(match.group(1))
-                if val is not None:
-                    amounts["subtotal"].append(val)
-                    break
-            if not amounts["subtotal"]:
-                for match in AMOUNT_FALLBACK.finditer(line):
-                    val = _parse_ro_amount(match.group(1))
-                    if val is not None:
-                        amounts["subtotal"].append(val)
-                        break
-        if TOTAL_LABEL.search(lower) and "net" not in lower:
-            for match in AMOUNT_PATTERN.finditer(line):
-                val = _parse_ro_amount(match.group(1))
-                if val is not None:
-                    amounts["total"].append(val)
-                    break
-            if not amounts["total"]:
-                for match in AMOUNT_FALLBACK.finditer(line):
-                    val = _parse_ro_amount(match.group(1))
-                    if val is not None:
-                        amounts["total"].append(val)
-                        break
+            if values:
+                amounts["subtotal"].append(values[-1])
+                continue
+            if next_values:
+                amounts["subtotal"].append(next_values[-1])
+                continue
+        if TOTAL_LABEL.search(lower) and "net" not in lower and "excluding" not in lower:
+            if values:
+                amounts["total"].append(values[-1])
+                continue
+            if next_values:
+                amounts["total"].append(next_values[-1])
+                continue
     return amounts
+
+
+def _next_amount_values(lines: list[str], index: int, lookahead: int = 3) -> list[float]:
+    for next_line in lines[index + 1 : index + 1 + lookahead]:
+        values = _extract_amount_values(next_line)
+        if values:
+            return values
+    return []
+
+
+def _dates_from_line(line: str) -> list[str]:
+    dates: list[tuple[int, str]] = []
+    for match in DATE_PATTERN.finditer(line):
+        dates.append((match.start(), _normalize_date(match.group(0))))
+    for match in MONTH_DATE_PATTERN.finditer(line):
+        dates.append((match.start(), _normalize_month_date(match.group(0))))
+    return [date for _, date in sorted(dates, key=lambda item: item[0])]
 
 
 def _extract_scadenta(text: str) -> str | None:
     lines = text.split("\n")
     for i, line in enumerate(lines):
         if SCADENTA_LABEL.search(line):
-            for match in DATE_PATTERN.finditer(line):
-                return _normalize_date(match.group(0))
+            dates = _dates_from_line(line)
+            if dates:
+                return dates[0]
             if i + 1 < len(lines):
-                for match in DATE_PATTERN.finditer(lines[i + 1]):
-                    return _normalize_date(match.group(0))
+                dates = _dates_from_line(lines[i + 1])
+                if dates:
+                    return dates[0]
     return None
 
 
@@ -144,11 +234,80 @@ def _normalize_date(raw: str) -> str:
     return raw
 
 
+def _normalize_month_date(raw: str) -> str:
+    match = MONTH_DATE_PATTERN.search(raw)
+    if not match:
+        return raw
+    month = MONTHS[match.group(1).lower()]
+    day = int(match.group(2))
+    year = match.group(3)
+    return f"{year}-{month}-{day:02d}"
+
+
 def _extract_dates(text: str) -> list[str]:
-    dates = []
+    dates: list[tuple[int, str]] = []
     for match in DATE_PATTERN.finditer(text):
-        dates.append(_normalize_date(match.group(0)))
-    return dates
+        dates.append((match.start(), _normalize_date(match.group(0))))
+    for match in MONTH_DATE_PATTERN.finditer(text):
+        dates.append((match.start(), _normalize_month_date(match.group(0))))
+    return [date for _, date in sorted(dates, key=lambda item: item[0])]
+
+
+def _extract_issue_date(text: str) -> str | None:
+    lines = text.split("\n")
+    for i, line in enumerate(lines):
+        if ISSUE_DATE_LABEL.search(line) and not SCADENTA_LABEL.search(line):
+            dates = _dates_from_line(line)
+            if dates:
+                return dates[0]
+            if i + 1 < len(lines):
+                dates = _dates_from_line(lines[i + 1])
+                if dates:
+                    return dates[0]
+    return None
+
+
+def _is_emitent_candidate(line: str) -> bool:
+    candidate = line.strip()
+    if not candidate:
+        return False
+    if _dates_from_line(candidate):
+        return False
+    if EMITENT_SKIP_LINE.search(candidate):
+        return False
+    if "@" in candidate or "http://" in candidate.lower() or "https://" in candidate.lower():
+        return False
+    if re.match(r"^[\d\s,./-]+$", candidate):
+        return False
+    if re.match(r"^\d", candidate):
+        return False
+    return bool(re.search(r"[A-Za-zĂÂÎȘŞȚŢăâîșşțţ]{3,}", candidate))
+
+
+def _extract_invoice_number(text: str) -> str | None:
+    patterns = [
+        r"\binvoice\s+(?:number|no\.?|#)\s*[:#]?\s*([A-Z0-9][A-Z0-9._/-]+)",
+        r"\bfactura\s+seri[aă]\s+\S+\s*/\s*nr[.\s]*\s*([A-Z0-9][A-Z0-9._/-]+)",
+        r"\bseri[aă]\s+\S+\s+nr[.\s]*\s*([A-Z0-9][A-Z0-9._/-]+)",
+        r"\bnr[.\s]*factur[ai]\s*[.:\s]*\s*([A-Z0-9][A-Z0-9._/-]+)",
+        r"\bnum[aă]r[.\s]*factur[ăa]\s*[.:\s]*\s*([A-Z0-9][A-Z0-9._/-]+)",
+        r"\bfactura\s+nr[.\s]*[:#]?\s*([A-Z0-9][A-Z0-9._/-]+)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            return match.group(1).strip().rstrip(".,")
+    return None
+
+
+def _detect_invoice_profile(cui: str | None, iban: str | None, currency: str | None, text: str) -> str:
+    if cui or (iban and iban.upper().startswith("RO")):
+        return "ro"
+    if currency and currency != "RON":
+        return "international"
+    if re.search(r"\binvoice\b|\bdate of issue\b|\bissued on\b|\bamount due\b|\bbill to\b", text, re.IGNORECASE):
+        return "international"
+    return "ro"
 
 
 def parse_invoice(
@@ -172,40 +331,26 @@ def parse_invoice(
     emit_match = EMITENT_LABEL.search(text)
     emitent = emit_match.group(1).strip() if emit_match else None
     if not emitent:
-        for line in text.split("\n")[:5]:
+        for line in text.split("\n")[:15]:
             line = line.strip()
-            if not line:
-                continue
-            if re.search(r"[A-Za-z]{3,}", line) and not re.match(
-                r"^(CUI|CIF|RO|Nr\.?\s|Factura|Data|Scaden|Perioada|Client|Cod|Seria|Stimate|Subtotal|Total|TVA|IBAN|Tel)",
-                line, re.IGNORECASE,
-            ):
+            if _is_emitent_candidate(line):
                 emitent = line
                 break
 
     # Dates
     all_dates = _extract_dates(text)
-    data_emitere = all_dates[0] if len(all_dates) > 0 else None
+    data_emitere = _extract_issue_date(text) or (all_dates[0] if len(all_dates) > 0 else None)
     scadenta = _extract_scadenta(text) or (all_dates[1] if len(all_dates) > 1 else None)
 
     # Amounts
     amounts = _parse_amounts(text)
     subtotal = amounts["subtotal"][0] if amounts["subtotal"] else None
     tva = amounts["tva"][0] if amounts["tva"] else None
-    total = amounts["total"][0] if amounts["total"] else None
+    total = amounts["total"][-1] if amounts["total"] else None
+    currency = _detect_currency(text)
 
-    nr_factura_match = re.search(
-        r"(?:"
-        r"factura\s+seri[aă]\s+\S+\s*/\s*nr[.\s]*"  # Factura seria FDB25 / nr.
-        r"|seri[aă]\s+\S+\s+nr[.\s]*"                # Seria ABC nr.
-        r"|nr[.\s]*factur[ai]"                         # nr. factura / nr factura
-        r"|num[aă]r[.\s]*factur[ăa]"                   # număr factură
-        r"|factura\s+nr[.\s]*"                         # factura nr.
-        r")\s*[.:\s]*\s*(\S+)",
-        text,
-        re.IGNORECASE,
-    )
-    nr_factura = nr_factura_match.group(1).strip().rstrip(".,") if nr_factura_match else None
+    nr_factura = _extract_invoice_number(text)
+    invoice_profile = _detect_invoice_profile(cui, iban, currency, text)
 
     return InvoiceFields(
         emitent=emitent,
@@ -216,6 +361,8 @@ def parse_invoice(
         subtotal=subtotal,
         tva=tva,
         total=total,
+        currency=currency,
+        invoice_profile=invoice_profile,
         iban=iban,
         links=pdf_links or [],
         qr_payloads=qr_payloads or [],

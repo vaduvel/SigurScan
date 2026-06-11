@@ -198,6 +198,8 @@ data class InvoiceFieldsResponse(
     val subtotal: Double? = null,
     val tva: Double? = null,
     val total: Double? = null,
+    val currency: String? = null,
+    @SerializedName("invoice_profile") val invoiceProfile: String? = null,
 )
 
 data class InvoiceReadinessItem(

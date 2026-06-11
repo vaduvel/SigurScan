@@ -7476,6 +7476,8 @@ async def scan_invoice_endpoint(
             "subtotal": result.fields.subtotal,
             "tva": result.fields.tva,
             "total": result.fields.total,
+            "currency": result.fields.currency,
+            "invoice_profile": result.fields.invoice_profile,
         },
         "readiness": {
             "state": result.readiness.state.value,

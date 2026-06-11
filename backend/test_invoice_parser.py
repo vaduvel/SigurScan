@@ -134,3 +134,111 @@ class TestParseInvoice:
     def test_nr_factura_seria_nr(self):
         result = parse_invoice("Seria ABC Nr. 999\nTotal: 100 RON")
         assert result.nr_factura == "999"
+
+    def test_anthropic_saas_invoice_without_ro_cui_or_iban(self):
+        text = """
+        Invoice
+        Invoice number Q4HWLGHJ-0001
+        Date of issue March 1, 2026
+        Date due March 1, 2026
+
+        Anthropic, PBC
+        548 Market Street
+        San Francisco, California 94104
+        support@anthropic.com
+
+        €21.78 due March 1, 2026
+        Pay online
+
+        Description Qty Unit price Tax Amount
+        Claude Pro 1 €18.00 21% €18.00
+        Subtotal €18.00
+        Tax (21% on €18.00) €3.78
+        Total €21.78
+        Amount due €21.78
+        """
+        result = parse_invoice(text)
+        assert result.emitent == "Anthropic, PBC"
+        assert result.nr_factura == "Q4HWLGHJ-0001"
+        assert result.data_emitere == "2026-03-01"
+        assert result.scadenta == "2026-03-01"
+        assert result.subtotal == 18.0
+        assert result.tva == 3.78
+        assert result.total == 21.78
+        assert result.currency == "EUR"
+        assert result.invoice_profile == "international"
+        assert result.cui is None
+        assert result.iban is None
+
+    def test_anthropic_pdf_text_layout_with_labels_and_values_on_separate_lines(self):
+        text = """
+        Invoice
+        Invoice number Q4HWLGHJ-0001
+        Date of issue
+        March 1, 2026
+        Date due
+        March 1, 2026
+        Anthropic, PBC
+        548 Market Street
+        PMB 90375
+        United States
+        support@anthropic.com
+
+        €21.78 due March 1, 2026
+        Pay online
+
+        Description
+        Claude Pro
+        Qty
+        Unit price
+        Tax
+        Amount
+        1
+        €18.00
+        21%
+        €18.00
+        Subtotal
+        €18.00
+        Total excluding tax
+        €18.00
+        Tax (21% on €18.00)
+        €3.78
+        Total
+        €21.78
+        Amount due
+        €21.78
+        """
+        result = parse_invoice(text)
+        assert result.emitent == "Anthropic, PBC"
+        assert result.nr_factura == "Q4HWLGHJ-0001"
+        assert result.data_emitere == "2026-03-01"
+        assert result.scadenta == "2026-03-01"
+        assert result.subtotal == 18.0
+        assert result.tva == 3.78
+        assert result.total == 21.78
+        assert result.currency == "EUR"
+        assert result.invoice_profile == "international"
+
+    def test_openai_saas_invoice_with_usd_dates_and_payment_link(self):
+        text = """
+        Invoice
+        Invoice no. INV-OPENAI-2026-0042
+        Issued on April 6, 2026
+        Due date May 6, 2026
+        OpenAI, L.L.C.
+        support@openai.com
+        Pay online: https://pay.openai.com/invoice/INV-OPENAI-2026-0042
+        Subtotal $20.00
+        Tax $0.00
+        Total due $20.00
+        """
+        result = parse_invoice(text, pdf_links=["https://pay.openai.com/invoice/INV-OPENAI-2026-0042"])
+        assert result.emitent == "OpenAI, L.L.C."
+        assert result.nr_factura == "INV-OPENAI-2026-0042"
+        assert result.data_emitere == "2026-04-06"
+        assert result.scadenta == "2026-05-06"
+        assert result.subtotal == 20.0
+        assert result.tva == 0.0
+        assert result.total == 20.0
+        assert result.currency == "USD"
+        assert result.invoice_profile == "international"

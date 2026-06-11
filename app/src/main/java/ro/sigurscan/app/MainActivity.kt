@@ -3929,15 +3929,22 @@ fun InvoiceResultCard(result: InvoiceScanResponse, onBack: () -> Unit) {
             }
 
             result.fields?.let { f ->
+                val currency = f.currency ?: "RON"
+                val profileLabel = when (f.invoiceProfile) {
+                    "international" -> "Internațională / SaaS"
+                    "ro" -> "România"
+                    else -> f.invoiceProfile ?: "—"
+                }
                 InvoiceFieldRow("Emitent", f.emitent ?: "—")
+                InvoiceFieldRow("Tip factură", profileLabel)
                 InvoiceFieldRow("CUI", f.cui ?: "—")
                 InvoiceFieldRow("IBAN", f.iban ?: "—")
                 InvoiceFieldRow("Nr. Factură", f.nrFactura ?: "—")
                 InvoiceFieldRow("Data", f.dataEmitere ?: "—")
                 InvoiceFieldRow("Scadența", f.scadenta ?: "—")
-                InvoiceFieldRow("Total", f.total?.let { "%.2f RON".format(it) } ?: "—")
-                InvoiceFieldRow("Subtotal", f.subtotal?.let { "%.2f RON".format(it) } ?: "—")
-                InvoiceFieldRow("TVA", f.tva?.let { "%.2f RON".format(it) } ?: "—")
+                InvoiceFieldRow("Total", formatInvoiceAmount(f.total, currency))
+                InvoiceFieldRow("Subtotal", formatInvoiceAmount(f.subtotal, currency))
+                InvoiceFieldRow("Taxă / TVA", formatInvoiceAmount(f.tva, currency))
             }
 
             result.brand?.let { brand ->
@@ -3972,6 +3979,10 @@ fun InvoiceResultCard(result: InvoiceScanResponse, onBack: () -> Unit) {
             }
         }
     }
+}
+
+private fun formatInvoiceAmount(value: Double?, currency: String): String {
+    return value?.let { "%.2f %s".format(it, currency) } ?: "—"
 }
 
 @Composable

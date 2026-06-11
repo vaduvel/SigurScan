@@ -48,6 +48,65 @@ def evaluate_readiness(fields: InvoiceFields, ocr_confidence: float | None = Non
     has_iban = bool(fields.iban)
     has_total = fields.total is not None
     has_dates = bool(fields.data_emitere) and bool(fields.scadenta)
+    is_international_invoice = fields.invoice_profile == "international"
+
+    if is_international_invoice:
+        missing_international = []
+        if not fields.emitent:
+            missing_international.append("emitent")
+        if not fields.nr_factura:
+            missing_international.append("număr factură")
+        if not has_total:
+            missing_international.append("total")
+        if not has_dates:
+            missing_international.append("date")
+        if not fields.currency:
+            missing_international.append("monedă")
+
+        if missing_international:
+            items.append(
+                ReadinessGateItem(
+                    id="missing-international-fields",
+                    label="Câmpuri factură internațională",
+                    detail="Lipsesc: " + ", ".join(missing_international) + ".",
+                    next_action="Verifică manual factura sau încarcă o poză/PDF mai clar.",
+                )
+            )
+            return ReadinessGateResult(
+                state=ReadinessState.LOW_CONFIDENCE,
+                headline="Factura internațională s-a citit parțial",
+                explanation="Nu toate câmpurile comerciale standard au putut fi citite. Fără ele nu putem valida coerent documentul.",
+                next_action="Verifică emitentul, numărul facturii, totalul, moneda și datele înainte de plată.",
+                blocks_safe_verdict=True,
+                items=items,
+            )
+
+        if confidence < 0.6:
+            items.append(
+                ReadinessGateItem(
+                    id="low-ocr-confidence",
+                    label="Document neclar",
+                    detail="Factura internațională s-a citit cu încredere scăzută.",
+                    next_action="Reîncarcă o poză mai clară sau verifică manual datele extrase.",
+                )
+            )
+            return ReadinessGateResult(
+                state=ReadinessState.LOW_CONFIDENCE,
+                headline="Documentul s-a citit parțial",
+                explanation="Datele principale există, dar OCR-ul are încredere scăzută. Te rog verifică-le manual.",
+                next_action="Corectează datele în ecranul de confirmare și reîncearcă.",
+                blocks_safe_verdict=True,
+                items=items,
+            )
+
+        return ReadinessGateResult(
+            state=ReadinessState.READY,
+            headline="Factura internațională poate fi verificată",
+            explanation="Am extras emitentul, numărul facturii, datele, totalul și moneda. CUI/ANAF nu se aplică pentru acest tip de factură.",
+            next_action="Se efectuează verificările automate disponibile.",
+            blocks_safe_verdict=False,
+            items=items,
+        )
 
     if not has_cui and not has_iban:
         items.append(
@@ -133,6 +192,23 @@ def evaluate_readiness(fields: InvoiceFields, ocr_confidence: float | None = Non
 
 
 def _estimate_ocr_confidence(fields: InvoiceFields) -> float:
+    if fields.invoice_profile == "international":
+        total_fields = 6
+        filled = sum(
+            1
+            for f in [
+                fields.emitent,
+                fields.nr_factura,
+                fields.data_emitere,
+                fields.scadenta,
+                fields.currency,
+            ]
+            if f
+        )
+        if fields.total is not None:
+            filled += 1
+        return filled / total_fields
+
     total_fields = 7
     filled = sum(
         1 for f in [fields.cui, fields.iban, fields.emitent, fields.nr_factura,
