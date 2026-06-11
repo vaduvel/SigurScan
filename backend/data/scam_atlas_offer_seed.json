@@ -1,0 +1,140 @@
+{
+  "version": "2026-06-11",
+  "source": "Atlas Oferta+Plata + EvidenceGate Partea II",
+  "power_legend": {
+    "decisiv": "determina aproape sigur frauda -> PERICULOS (de regula in combinatie)",
+    "mediu": "indica suspiciune -> SUSPECT, necesita coroborare",
+    "slab": "singur nu e concludent, conteaza cumulat"
+  },
+  "cross_cutting_modifiers": [
+    {
+      "id": "ai_generated",
+      "label": "Document/site/voce generate AI (deepfake)",
+      "note": "Flag boolean peste orice familie. AI face documentul credibil, nu entitatea reala. Ancora ramane verificarea in registre. AI-detection vizual = semnal slab."
+    }
+  ],
+  "families": [
+    {
+      "code": "OP-00",
+      "name": "Necategorizat",
+      "status": "default",
+      "signals": []
+    },
+    {
+      "code": "OP-01",
+      "name": "Turism / agentii de turism false",
+      "status": "complet",
+      "signals": [
+        {"text": "IBAN pe persoana fizica pentru firma/agentie", "where": "factura/contract/instructiuni plata", "verify": "SANB nume titular vs operator; ANAF/ONRC", "power": "decisiv", "verdict": "periculos_in_combo"},
+        {"text": "Lipsa CUI/licenta pe factura", "where": "factura/contract", "verify": "ANAF v9; lista ANAT (snapshot)", "power": "mediu", "verdict": "suspect"},
+        {"text": "Domeniu email suspect / linkuri neoficiale", "where": "email", "verify": "analiza domeniu typosquat", "power": "mediu", "verdict": "suspect"},
+        {"text": "Pret sub piata + urgenta", "where": "oferta", "verify": "heuristic + context", "power": "mediu", "verdict": "suspect"},
+        {"text": "Plata in afara platformei", "where": "instructiuni plata", "verify": "politici platforma", "power": "decisiv", "verdict": "periculos_in_combo"}
+      ],
+      "verification_sources": ["ANAT (situr.gov.ro/OpenData, snapshot)", "ANAF v9", "ONRC (data.gov.ro)", "SANB", "SITUR"],
+      "payment_risk": {"transfer_cont_personal": "mare", "revolut_fintech": "mare", "crypto": "extrem", "card_3ds_site_oficial": "scazut"}
+    },
+    {
+      "code": "OP-02",
+      "name": "Cazare scurta (Airbnb/Booking/VRBO/FB)",
+      "status": "complet",
+      "signals": [
+        {"text": "IBAN personal pentru chirie scurta / lipsa date firma", "where": "factura/proforma", "verify": "SANB; ANAF/ONRC", "power": "decisiv", "verdict": "periculos_in_combo"},
+        {"text": "Pret sub piata + avans mare de rezervare", "where": "oferta", "verify": "heuristic", "power": "mediu", "verdict": "suspect"},
+        {"text": "Cerere plata in afara platformei", "where": "mesaj/instructiuni", "verify": "canal oficial", "power": "decisiv", "verdict": "periculos_in_combo"},
+        {"text": "CUI inexistent/inactiv in contract", "where": "contract", "verify": "ANAF/ONRC", "power": "mediu", "verdict": "suspect"},
+        {"text": "Cod QR catre plata in cont personal", "where": "factura/confirmare", "verify": "QR decode -> IBAN", "power": "mediu", "verdict": "suspect_to_periculos"}
+      ],
+      "verification_sources": ["Platforme oficiale (mesaje interne)", "ANAF/ONRC", "SANB", "sisteme recenzii"],
+      "payment_risk": {"transfer_revolut": "mare", "card_platforma_oficiala": "scazut"}
+    },
+    {
+      "code": "OP-03",
+      "name": "Chirii termen lung",
+      "status": "complet",
+      "signals": [
+        {"text": "Contract neinregistrat la notar; date proprietar neverificabile", "where": "contract", "verify": "notar/Carte Funciara", "power": "mediu", "verdict": "suspect"},
+        {"text": "IBAN personal pentru garantie", "where": "proforma garantie", "verify": "SANB", "power": "decisiv", "verdict": "periculos_in_combo"},
+        {"text": "Nume firma vs CUI nepotrivit / firma inactiva", "where": "contract", "verify": "ANAF/ONRC", "power": "mediu", "verdict": "suspect"},
+        {"text": "Adresa reala dar nume proprietar care nu corespunde", "where": "contract", "verify": "Carte Funciara/ANCPI", "power": "mediu", "verdict": "suspect"},
+        {"text": "Pret prea mic + presiune avans urgent inainte de vizionare", "where": "oferta", "verify": "heuristic", "power": "mediu", "verdict": "suspect"}
+      ],
+      "verification_sources": ["ANAF/ONRC", "Carte Funciara/ANCPI (contra cost)", "SANB"],
+      "payment_risk": {"transfer_cont_personal": "mare", "numerar_automat": "mare", "agentie_escrow": "scazut"}
+    },
+    {
+      "code": "OP-04",
+      "name": "Vanzare auto (inclusiv transport/import)",
+      "status": "complet",
+      "signals": [
+        {"text": "IBAN vs nume firma nepotrivit", "where": "proforma", "verify": "SANB; ANAF/ONRC", "power": "decisiv", "verdict": "periculos_in_combo"},
+        {"text": "Pret foarte mic + avans mare", "where": "oferta", "verify": "heuristic", "power": "mediu", "verdict": "suspect"},
+        {"text": "Refuz vizionare fizica", "where": "mesaj", "verify": "pattern text", "power": "mediu", "verdict": "suspect"},
+        {"text": "Acte incomplete (lipsa VIN / data prima inmatriculare)", "where": "acte", "verify": "RAR pe VIN", "power": "mediu", "verdict": "suspect"},
+        {"text": "Presiune (altii sunt interesati / plateste azi)", "where": "mesaj", "verify": "pattern text", "power": "mediu", "verdict": "suspect"},
+        {"text": "Cerere copie CI / date complete buletin", "where": "chat/contract", "verify": "regula hard - nimeni real nu cere", "power": "decisiv", "verdict": "periculos", "links_family": "OP-07"}
+      ],
+      "verification_sources": ["RAR Istoric Vehicul (VIN)", "ONRC/ANAF", "SANB", "Biroul de Credit / ANAF SPV"],
+      "payment_risk": {"avans_transfer_revolut": "mare", "plata_la_livrare_dealer_autorizat": "scazut"}
+    },
+    {
+      "code": "OP-05",
+      "name": "Bilete evenimente / vacanta gratuita",
+      "status": "complet",
+      "signals": [
+        {"text": "Vanzator cu profil nou, fara recenzii", "where": "profil", "verify": "reputatie", "power": "mediu", "verdict": "suspect"},
+        {"text": "IBAN personal (biletele oficiale: Eventim/iabilet/Ticketmaster)", "where": "proforma", "verify": "SANB; platforma oficiala", "power": "decisiv", "verdict": "periculos_in_combo"},
+        {"text": "Bilet ca print screen", "where": "imagine", "verify": "cod pe platforma oficiala", "power": "mediu", "verdict": "suspect"},
+        {"text": "Pret sub valoarea nominala", "where": "oferta", "verify": "heuristic", "power": "mediu", "verdict": "suspect"},
+        {"text": "Lipsa factura fiscala (doar proforma fara date firma)", "where": "document", "verify": "ANAF", "power": "mediu", "verdict": "suspect"}
+      ],
+      "verification_sources": ["Platforme ticketing oficiale", "ANPC", "DNSC"],
+      "payment_risk": {"transfer_revolut": "mare", "card_platforma_oficiala": "scazut"}
+    },
+    {
+      "code": "OP-06",
+      "name": "Marketplace general (OLX/FB Marketplace)",
+      "status": "complet",
+      "signals": [
+        {"text": "Solicitare CVV / cod 3D Secure", "where": "link/formular", "verify": "norme bancare - nimeni legitim nu cere", "power": "decisiv", "verdict": "periculos"},
+        {"text": "Domeniu non-olx.ro", "where": "link", "verify": "verificare domeniu", "power": "mediu", "verdict": "suspect"},
+        {"text": "Plata integrala in avans in cont personal", "where": "instructiuni", "verify": "SANB", "power": "mediu", "verdict": "suspect"},
+        {"text": "Factura cu CUI inexistent", "where": "factura", "verify": "ANAF/ONRC", "power": "mediu", "verdict": "suspect"},
+        {"text": "Mutarea discutiei pe WhatsApp", "where": "mesaj", "verify": "canal", "power": "mediu", "verdict": "suspect"}
+      ],
+      "verification_sources": ["OLX/Facebook (chat intern)", "ANAF/ONRC", "SANB"],
+      "payment_risk": {"card_prin_link_extern": "mare", "plata_la_livrare_ramburs": "scazut"}
+    },
+    {
+      "code": "OP-07",
+      "name": "Furt de identitate -> financiar (IFN/credit)",
+      "status": "sustinut",
+      "signals": [
+        {"text": "Cerere copie CI / poza buletin / CNP pentru o simpla vanzare", "where": "chat/contract", "verify": "regula hard", "power": "decisiv", "verdict": "periculos"},
+        {"text": "Trimite poza buletinului ca sa pregatesc contractul + plata avans", "where": "chat", "verify": "pattern text", "power": "mediu", "verdict": "suspect"},
+        {"text": "Factura + desfasurator bancar fals generat dupa ce ai dat datele", "where": "document", "verify": "context", "power": "mediu", "verdict": "suspect"}
+      ],
+      "verification_sources": ["Biroul de Credit", "ANAF SPV", "DNSC/Politie/ANPC"],
+      "payment_risk": {}
+    },
+    {
+      "code": "OP-08",
+      "name": "Joburi false / oferte de munca",
+      "status": "stub",
+      "note": "Fara playbook in corpusul actual. Trateaza ca OP-00 pana la completare. Nu inventa semnale.",
+      "signals": []
+    },
+    {
+      "code": "OP-09",
+      "name": "Investitii / crypto / profit garantat",
+      "status": "partial",
+      "signals": [
+        {"text": "Promisiune profit rapid + cerere aplicatii acces la distanta", "where": "mesaj", "verify": "pattern text", "power": "decisiv", "verdict": "periculos"},
+        {"text": "Metoda irevocabila: crypto / wallet / QR crypto", "where": "instructiuni plata", "verify": "clasificator metoda plata", "power": "decisiv", "verdict": "periculos"},
+        {"text": "Investitie garantata fara sursa licentiata", "where": "oferta", "verify": "ASF SIIF", "power": "mediu", "verdict": "suspect"}
+      ],
+      "verification_sources": ["ASF (registre/liste)", "DNSC"],
+      "payment_risk": {"crypto_wallet": "periculos"}
+    }
+  ]
+}
