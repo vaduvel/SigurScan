@@ -23,7 +23,7 @@ def _cache_key(fields) -> str:
 
 
 def _cui_cache_key(cui: str) -> str:
-    return f"cui:{cui}"
+    return "cui:" + hashlib.sha256(cui.encode()).hexdigest()
 
 
 def _get_cached_cui(cui: str) -> dict | None:
