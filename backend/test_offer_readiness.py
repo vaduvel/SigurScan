@@ -1,6 +1,5 @@
-from services.invoice_readiness_gate import ReadinessState
+from services.invoice_readiness_gate import ReadinessState, evaluate_offer_readiness
 from services.offer_parser import OfferFields, parse_offer
-from services.offer_readiness import evaluate_offer_readiness
 
 
 class TestReadyStates:

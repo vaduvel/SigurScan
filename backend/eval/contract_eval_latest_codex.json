@@ -1,0 +1,17 @@
+{
+  "dataset": "/Users/vaduvageorge/AndroidStudioProjects/SigurScan/backend/data/eval/romania_decision_contract_eval_v2026_06_08.jsonl",
+  "total": 52,
+  "passed": 52,
+  "failed": 0,
+  "expected_counts": {
+    "SIGUR": 14,
+    "PERICULOS": 30,
+    "SUSPECT": 8
+  },
+  "actual_counts": {
+    "SIGUR": 14,
+    "PERICULOS": 30,
+    "SUSPECT": 8
+  },
+  "failures": []
+}

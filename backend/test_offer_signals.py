@@ -1,7 +1,7 @@
 from services.iban_validator import validate_iban
 from services.invoice_coherence import check_coherence
 from services.offer_parser import OfferFields, parse_offer
-from services.offer_readiness import evaluate_offer_readiness
+from services.invoice_readiness_gate import evaluate_offer_readiness
 from services.payment_method_classifier import classify_payment_method
 from services import offer_signals as sig
 from services.offer_signals import derive_offer_signals

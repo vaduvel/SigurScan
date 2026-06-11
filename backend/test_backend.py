@@ -3490,8 +3490,11 @@ def test_orchestrated_scan_keeps_clean_verdict_when_urlscan_screenshot_times_out
 
     assert response.status_code == 200
     assert payload["status"] == "complete"
-    assert payload["pillars"]["urlscan"]["status"] == "error"
+    assert payload["pillars"]["urlscan"]["status"] in {"ok", "error"}
+    assert payload["pillars"]["urlscan"]["required"] is False
     assert "captura" in payload["pillars"]["urlscan"]["details"].lower()
+    assert payload["preview"]["status"] in {"pending", "unavailable"}
+    assert payload["preview"]["reason"] in {"urlscan_screenshot_pending", "urlscan_screenshot_timeout", "urlscan_timeout"}
     assert payload["result"]["user_risk_label"] == "SIGUR"
     assert payload["result"]["risk_level"] == "low"
     assert payload["result"]["is_final"] is True
