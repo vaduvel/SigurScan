@@ -1777,6 +1777,135 @@ def test_scan_text_legacy_endpoint_starts_orchestrated_without_final_verdict(mon
     assert "risk_level" not in payload
 
 
+def _assert_compat_scan_starts_orchestrated_only(payload: dict):
+    assert payload["status"] == "scanning"
+    assert payload["result"] is None
+    assert str(payload["scan_id"]).startswith("orch_")
+    assert "user_risk_label" not in payload
+    assert "risk_level" not in payload
+
+
+def _fail_if_compat_wrapper_runs_provider(*args, **kwargs):
+    raise AssertionError("Compatibility scan endpoints must only create an orchestrated job in POST.")
+
+
+def test_scan_url_legacy_endpoint_starts_orchestrated_without_final_verdict(monkeypatch):
+    client = TestClient(app_main.app)
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
+        patched.setattr(app_main, "_safe_scan_url_list", _fail_if_compat_wrapper_runs_provider)
+        patched.setattr(app_main, "_gather_external_intel_safe", _fail_if_compat_wrapper_runs_provider)
+        patched.setattr(app_main.requests, "post", _fail_if_compat_wrapper_runs_provider)
+        patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
+        response = client.post(
+            "/v1/scan/url",
+            json={"url": "https://example.com", "source_channel": "android_native"},
+        )
+
+    assert response.status_code == 200
+    _assert_compat_scan_starts_orchestrated_only(response.json())
+
+
+def test_scan_email_legacy_endpoint_extracts_then_starts_orchestrated_without_final_verdict(monkeypatch):
+    client = TestClient(app_main.app)
+
+    async def fake_extract_email_for_orchestration(**kwargs):
+        return {
+            "input_type": "email_html",
+            "source_channel": kwargs.get("source_channel") or "email",
+            "redacted_text": "Comanda ta poate fi urmarita.",
+            "extracted_urls": ["https://example.com/tracking"],
+            "html_content": '<a href="https://example.com/tracking">Urmareste coletul</a>',
+            "warning": None,
+        }
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "extract_email_for_orchestration", fake_extract_email_for_orchestration)
+        patched.setattr(app_main, "_safe_scan_url_list", _fail_if_compat_wrapper_runs_provider)
+        patched.setattr(app_main, "_gather_external_intel_safe", _fail_if_compat_wrapper_runs_provider)
+        patched.setattr(app_main.requests, "post", _fail_if_compat_wrapper_runs_provider)
+        patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
+        response = client.post(
+            "/v1/scan/email",
+            data={
+                "source_channel": "gmail_share",
+                "html_content": '<a href="https://example.com/tracking">Urmareste coletul</a>',
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    _assert_compat_scan_starts_orchestrated_only(payload)
+    assert payload["extraction"]["input_type"] == "email_html"
+    assert payload["extraction"]["has_html"] is True
+    assert payload["extraction"]["extracted_url_count"] == 1
+
+
+def test_scan_image_legacy_endpoint_extracts_then_starts_orchestrated_without_final_verdict(monkeypatch):
+    client = TestClient(app_main.app)
+
+    async def fake_extract_image_for_orchestration(**kwargs):
+        return {
+            "input_type": "image_ocr",
+            "source_channel": kwargs.get("source_channel") or "image_upload",
+            "redacted_text": "Verifica oferta pe https://example.com",
+            "extracted_urls": ["https://example.com"],
+            "html_content": None,
+            "warning": None,
+        }
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "extract_image_for_orchestration", fake_extract_image_for_orchestration)
+        patched.setattr(app_main, "_safe_scan_url_list", _fail_if_compat_wrapper_runs_provider)
+        patched.setattr(app_main, "_gather_external_intel_safe", _fail_if_compat_wrapper_runs_provider)
+        patched.setattr(app_main.requests, "post", _fail_if_compat_wrapper_runs_provider)
+        patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
+        response = client.post(
+            "/v1/scan/image",
+            files={"image_file": ("sms.png", b"fake image bytes", "image/png")},
+            data={"source_channel": "whatsapp_image"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    _assert_compat_scan_starts_orchestrated_only(payload)
+    assert payload["extraction"]["input_type"] == "image_ocr"
+    assert payload["extraction"]["extracted_url_count"] == 1
+
+
+def test_scan_pdf_legacy_endpoint_extracts_then_starts_orchestrated_without_final_verdict(monkeypatch):
+    client = TestClient(app_main.app)
+
+    async def fake_extract_pdf_for_orchestration(**kwargs):
+        return {
+            "input_type": "pdf_ocr",
+            "source_channel": kwargs.get("source_channel") or "pdf_upload",
+            "redacted_text": "Factura contine plata catre https://example.com/pay",
+            "extracted_urls": ["https://example.com/pay"],
+            "html_content": None,
+            "warning": None,
+        }
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "extract_pdf_for_orchestration", fake_extract_pdf_for_orchestration)
+        patched.setattr(app_main, "_safe_scan_url_list", _fail_if_compat_wrapper_runs_provider)
+        patched.setattr(app_main, "_gather_external_intel_safe", _fail_if_compat_wrapper_runs_provider)
+        patched.setattr(app_main.requests, "post", _fail_if_compat_wrapper_runs_provider)
+        patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
+        response = client.post(
+            "/v1/scan/pdf",
+            files={"pdf_file": ("factura.pdf", b"%PDF-1.4\n%fake", "application/pdf")},
+            data={"source_channel": "pdf_upload"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    _assert_compat_scan_starts_orchestrated_only(payload)
+    assert payload["extraction"]["input_type"] == "pdf_ocr"
+    assert payload["extraction"]["extracted_url_count"] == 1
+
+
 def test_provider_gate_deeplink_to_untrusted_destination_stays_suspicious():
     analysis = {
         "claimed_brand": "YOXO",
