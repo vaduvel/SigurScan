@@ -27,16 +27,43 @@ object SigurColors {
     val BorderDefault = Color(0x17000000)
     val BorderStrong = Color(0x2E000000)
 
-    val Safe = Color(0xFF22B160)
-    val SafeLight = Color(0x1A22B160)
-    val SafeBorder = Color(0x4022B160)
+    val Safe = Color(0xFF1FA45A)
+    val SafeLight = Color(0x1A1FA45A)
+    val SafeBorder = Color(0x481FA45A)
     val Suspect = Color(0xFFE5870C)
     val SuspectLight = Color(0x1AE5870C)
-    val SuspectBorder = Color(0x40E5870C)
+    val SuspectBorder = Color(0x48E5870C)
     val Dangerous = Color(0xFFE12C2C)
-    val DangerousLight = Color(0x1AE12C2C)
-    val DangerousBorder = Color(0x40E12C2C)
+    val DangerousLight = Color(0x14E12C2C)
+    val DangerousBorder = Color(0x48E12C2C)
+    val Pending = Color(0xFF4873F4)
+    val PendingLight = Color(0x144873F4)
     val Unknown = Color(0xFF7E45EB)
     val UnknownLight = Color(0x1A7E45EB)
     val UnknownBorder = Color(0x407E45EB)
+
+    // Radii (DS: --ss-radius-*)
+    val RadiusXs = 4
+    val RadiusSm = 8
+    val RadiusMd = 12
+    val RadiusCard = 16
+    val RadiusXl = 28
+    val RadiusInput = 12
+    val RadiusPill = 100
+
+    // Sizing (DS: --ss-*)
+    val TouchTarget = 48
+    val AppBarHeight = 64
+    val NavBarHeight = 80
+    val ListItem2Line = 72
+    val TextFieldHeight = 56
+    val ButtonHeight = 48
+    val FabSize = 56
+    val IconSize = 24
+    val AvatarSize = 40
+
+    // Spacing
+    val SpaceScreen = 16
+    val SpaceCard = 16
+    val SpaceStack = 16
 }

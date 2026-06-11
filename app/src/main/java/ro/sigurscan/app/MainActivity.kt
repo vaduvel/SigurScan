@@ -24,7 +24,9 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -50,6 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.viewinterop.AndroidView
@@ -379,19 +382,6 @@ fun ScanTab(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFile: ()
     ) {
         Header()
         
-        if (viewModel.activeCampaignAlert != null) {
-            ActiveCampaignBanner(viewModel.activeCampaignAlert!!) {
-                viewModel.activeCampaignAlert = null
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        CyberHeroDashboard(viewModel.cyberScore, viewModel.scamsBlocked)
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        UserInitiatedScanCard()
-        
         Spacer(modifier = Modifier.height(20.dp))
 
         if (hasActiveScanContext) {
@@ -418,13 +408,21 @@ fun ScanTab(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFile: ()
             Spacer(modifier = Modifier.height(20.dp))
         }
 
-        ActiveCampaignsSection(viewModel.campaigns, viewModel.campaignsLoading)
-
         if (!hasActiveScanContext) {
-            Spacer(modifier = Modifier.height(20.dp))
             ScanInputCard(viewModel, onPickImage, onPickFile, onScanQr)
         }
         
+        Spacer(modifier = Modifier.height(20.dp))
+
+        if (viewModel.activeCampaignAlert != null) {
+            ActiveCampaignBanner(viewModel.activeCampaignAlert!!) {
+                viewModel.activeCampaignAlert = null
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        ActiveCampaignsSection(viewModel.campaigns, viewModel.campaignsLoading)
+
         Spacer(modifier = Modifier.height(20.dp))
         
         NoticeSection()
@@ -779,7 +777,7 @@ fun RadarTab(viewModel: ScannerViewModel) {
             Card(
                 colors = CardDefaults.cardColors(containerColor = SigurColors.DangerousLight),
                 border = BorderStroke(1.dp, SigurColors.DangerousBorder),
-                shape = RoundedCornerShape(12.dp)
+                shape = DSCardShape
             ) {
                 Text(
                     text = viewModel.activeCampaignAlert!!,
@@ -795,7 +793,7 @@ fun RadarTab(viewModel: ScannerViewModel) {
             Card(
                 colors = CardDefaults.cardColors(containerColor = SigurColors.BrandTint),
                 border = BorderStroke(1.dp, SigurColors.Brand.copy(alpha = 0.20f)),
-                shape = RoundedCornerShape(12.dp)
+                shape = DSCardShape
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -844,8 +842,8 @@ fun RadarTab(viewModel: ScannerViewModel) {
 private fun CampaignBottomCard(campaign: ScamCampaign, onOpenMap: () -> Unit) {
     Card(
         colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
-        border = BorderStroke(1.dp, SigurColors.GlassBorder),
-        shape = RoundedCornerShape(12.dp)
+        border = DSCardBorder,
+        shape = DSCardShape
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -881,7 +879,7 @@ private fun CampaignBottomCard(campaign: ScamCampaign, onOpenMap: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = SigurColors.BrandTint),
                 border = BorderStroke(1.dp, SigurColors.Brand),
-                shape = RoundedCornerShape(8.dp)
+                shape = DSPillShape
             ) {
                 Icon(Icons.Default.Place, contentDescription = null, tint = SigurColors.Brand, modifier = Modifier.size(14.dp))
                 Spacer(modifier = Modifier.width(6.dp))
@@ -904,8 +902,8 @@ private fun RadarMapCard(
             .fillMaxWidth()
             .height(280.dp),
         colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundSurface),
-        border = BorderStroke(1.dp, SigurColors.GlassBorder),
-        shape = RoundedCornerShape(12.dp)
+        border = DSCardBorder,
+        shape = DSCardShape
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             if (campaigns.isEmpty()) {
@@ -1241,6 +1239,7 @@ fun EducationTab(viewModel: ScannerViewModel) {
                     .fillMaxWidth()
                     .padding(vertical = 4.dp)
                     .clickable { selectedLesson = lesson },
+                shape = DSCardShape,
                 colors = CardDefaults.cardColors(containerColor = if (isSelected) SigurColors.BrandTint else SigurColors.BackgroundCard),
                 border = BorderStroke(1.dp, if (isSelected) SigurColors.Brand else SigurColors.GlassBorder)
             ) {
@@ -1259,7 +1258,11 @@ fun EducationTab(viewModel: ScannerViewModel) {
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        Card(colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard), border = BorderStroke(1.dp, SigurColors.GlassBorder)) {
+        Card(
+            shape = DSCardShape,
+            colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
+            border = DSCardBorder
+        ) {
             var answerFeedback by remember(selectedLesson.id) { mutableStateOf<String?>(null) }
 
             Column(modifier = Modifier.padding(16.dp)) {
@@ -1289,7 +1292,7 @@ fun EducationTab(viewModel: ScannerViewModel) {
                                 else -> SigurColors.BackgroundSurface
                             }
                         ),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = DSCardShape,
                         border = BorderStroke(1.dp, when {
                             isCorrect -> SigurColors.SafeBorder
                             isWrong -> SigurColors.DangerousBorder
@@ -1335,7 +1338,8 @@ fun MoreTab(viewModel: ScannerViewModel) {
 
         Card(
             colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
-            border = BorderStroke(1.dp, SigurColors.GlassBorder)
+            shape = DSCardShape,
+            border = DSCardBorder
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1449,7 +1453,8 @@ fun SecurityFamilySection(viewModel: ScannerViewModel) {
 
     Card(
         colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
-        border = BorderStroke(1.dp, SigurColors.GlassBorder)
+        shape = DSCardShape,
+        border = DSCardBorder
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Securitate și Familie", color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold)
@@ -1474,6 +1479,7 @@ fun SecurityFamilySection(viewModel: ScannerViewModel) {
                 Button(
                     modifier = Modifier.weight(1f),
                     onClick = { showAddDialog = true },
+                    shape = DSPillShape,
                     colors = ButtonDefaults.buttonColors(containerColor = SigurColors.BrandTint),
                     border = BorderStroke(1.dp, SigurColors.Brand)
                 ) {
@@ -1483,6 +1489,7 @@ fun SecurityFamilySection(viewModel: ScannerViewModel) {
                     modifier = Modifier.weight(1f),
                     onClick = { viewModel.notifyFamilyForCurrentScan() },
                     enabled = viewModel.assessment != null && viewModel.familyMembers.any { it.isProtected },
+                    shape = DSPillShape,
                     colors = ButtonDefaults.buttonColors(containerColor = SigurColors.SafeLight),
                     border = BorderStroke(1.dp, SigurColors.SafeBorder)
                 ) {
@@ -1533,7 +1540,8 @@ fun SecurityFamilySection(viewModel: ScannerViewModel) {
                 viewModel.familyAlerts.forEach { alert ->
                     Card(
                         colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundSurface),
-                        border = BorderStroke(1.dp, SigurColors.GlassBorder),
+                        shape = DSCardShape,
+                        border = DSCardBorder,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 8.dp)
@@ -1593,7 +1601,8 @@ fun ContrastSection() {
 
     Card(
         colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
-        border = BorderStroke(1.dp, SigurColors.GlassBorder)
+        shape = DSCardShape,
+        border = DSCardBorder
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Contrast Checker", color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold)
@@ -1633,7 +1642,7 @@ fun ContrastSection() {
 fun ActiveCampaignBanner(message: String, onDismiss: () -> Unit) {
     Card(
         colors = CardDefaults.cardColors(containerColor = SigurColors.Dangerous),
-        shape = RoundedCornerShape(12.dp),
+        shape = DSCardShape,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -1686,23 +1695,15 @@ fun CampaignItem(campaign: ScamCampaign) {
 
     Card(
         colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
-        border = BorderStroke(1.dp, SigurColors.GlassBorder),
-        shape = RoundedCornerShape(10.dp)
+        border = DSCardBorder,
+        shape = DSCardShape
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    color = if (campaign.risk == "dangerous") SigurColors.DangerousLight else SigurColors.SuspectLight,
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Text(
-                        campaign.risk.uppercase(),
-                        color = if (campaign.risk == "dangerous") SigurColors.Dangerous else SigurColors.Suspect,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Black,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
+                DSChip(
+                    text = campaign.risk.uppercase(),
+                    tone = if (campaign.risk == "dangerous") DSChipTone.Danger else DSChipTone.Suspect
+                )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(campaign.title, color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
@@ -1744,7 +1745,7 @@ fun CampaignItem(campaign: ScamCampaign) {
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = SigurColors.BrandTint),
                     border = BorderStroke(1.dp, SigurColors.Brand),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = DSPillShape
                 ) {
                     Icon(Icons.Default.Place, contentDescription = null, tint = SigurColors.Brand, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(6.dp))
@@ -1776,93 +1777,6 @@ private fun openCampaignOnMap(context: android.content.Context, lat: Double?, lo
     }
 }
 
-@Composable
-fun UserInitiatedScanCard() {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = SigurColors.SafeLight),
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, SigurColors.SafeBorder),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.GppGood,
-                contentDescription = null,
-                tint = SigurColors.Safe
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Scanare doar la alegerea ta",
-                    color = SigurColors.TextPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                )
-                Text(
-                    text = "SigurScan nu citește notificările automat. Scanează doar mesajele, mailurile, pozele sau documentele pe care le partajezi tu.",
-                    color = SigurColors.TextSecondary,
-                    fontSize = 11.sp
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun CyberHeroDashboard(score: Int, blocked: Int) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = SigurColors.BrandTint),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, SigurColors.Brand.copy(alpha = 0.20f)),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(
-                    progress = score / 100f,
-                    modifier = Modifier.size(60.dp),
-                    color = SigurColors.Brand,
-                    trackColor = SigurColors.GlassBorder
-                )
-                Text("$score", color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold)
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Text("Scor de Reziliență", color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text("$blocked scam-uri românești blocate", color = SigurColors.TextSecondary, fontSize = 12.sp)
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = SigurColors.Safe)
-        }
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF0B0F19)
-@Composable
-fun CyberHeroDashboardPreview() {
-    SigurScanTheme {
-        Column(modifier = Modifier.padding(16.dp)) {
-            CyberHeroDashboard(score = 85, blocked = 12)
-        }
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF0B0F19)
-@Composable
-fun NotificationGuardPreview() {
-    SigurScanTheme {
-        Column(modifier = Modifier.padding(16.dp)) {
-            UserInitiatedScanCard()
-        }
-    }
-}
-
 @Preview(showBackground = true, backgroundColor = 0xFF0B0F19)
 @Composable
 fun EvidenceSectionPreview() {
@@ -1879,38 +1793,43 @@ fun EvidenceSectionPreview() {
 
 @Composable
 fun Header() {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(vertical = 20.dp)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .background(
+                    brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                        colors = listOf(Color(0xFF5B86FF), SigurColors.Brand, Color(0xFF3552D6))
+                    ),
+                    shape = RoundedCornerShape(14.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
             Icon(
                 imageVector = Icons.Default.Shield,
                 contentDescription = null,
-                modifier = Modifier.size(28.dp),
-                tint = SigurColors.Brand
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Sigur",
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold,
+                text = "SigurScan",
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = 22.sp),
                 color = SigurColors.TextPrimary
             )
             Text(
-                text = "Scan",
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold,
-                color = SigurColors.Brand
+                text = "Verifici doar ce alegi tu",
+                style = MaterialTheme.typography.bodyMedium,
+                color = SigurColors.TextMuted
             )
         }
-        Text(
-            text = "Asistentul tău anti-scam localizat pentru România",
-            fontSize = 14.sp,
-            color = SigurColors.TextSecondary,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 6.dp)
-        )
     }
 }
 
@@ -1919,35 +1838,39 @@ fun ScanInputCard(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFi
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
-        shape = RoundedCornerShape(16.dp),
+    val heroShape = RoundedCornerShape(24.dp)
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, SigurColors.GlassBorder, RoundedCornerShape(16.dp))
+            .clip(heroShape)
+            .background(
+                brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                    colors = listOf(Color(0xFF5B86FF), SigurColors.Brand, Color(0xFF2F50D4))
+                )
+            )
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             val sharedText = viewModel.pendingSharedInput
             val pendingFiles = viewModel.pendingSharedFiles
             Text(
-                text = "Introduceți mesajul sau linkul suspect",
+                text = "Introdu textul sau linkul suspect",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = SigurColors.TextPrimary
+                color = Color.White
             )
             Text(
-                text = "Copiați un SMS, WhatsApp, e-mail sau link primit și lipiți-l mai jos.",
-                fontSize = 13.sp,
-                color = SigurColors.TextSecondary,
-                modifier = Modifier.padding(vertical = 8.dp)
+                text = "Îți spunem în câteva secunde dacă e o capcană.",
+                fontSize = 14.sp,
+                color = Color.White.copy(alpha = 0.78f),
+                modifier = Modifier.padding(top = 4.dp, bottom = 14.dp)
             )
 
             if (viewModel.loading) {
                 Box(modifier = Modifier.fillMaxWidth().height(150.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = SigurColors.Brand)
+                        CircularProgressIndicator(color = Color.White)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(viewModel.loadingMsg, color = SigurColors.TextPrimary, fontSize = 12.sp)
+                        Text(viewModel.loadingMsg, color = Color.White, fontSize = 12.sp)
                     }
                 }
             } else {
@@ -1965,56 +1888,60 @@ fun ScanInputCard(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFi
                         .fillMaxWidth()
                         .height(150.dp),
                     placeholder = {
-                        Text("Ex: FAN Courier: Pachetul tau nu a putut fi livrat...", color = SigurColors.TextSubtle)
+                        Text(
+                            "Lipește textul sau URL-ul aici",
+                            color = SigurColors.TextMuted
+                        )
                     },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = SigurColors.BackgroundSurface,
-                        unfocusedContainerColor = SigurColors.BackgroundSurface,
-                        focusedBorderColor = SigurColors.Brand,
-                        unfocusedBorderColor = SigurColors.GlassBorder,
+                        focusedContainerColor = Color.White.copy(alpha = 0.94f),
+                        unfocusedContainerColor = Color.White.copy(alpha = 0.90f),
+                        focusedBorderColor = Color.White,
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.70f),
                         focusedTextColor = SigurColors.TextPrimary,
                         unfocusedTextColor = SigurColors.TextPrimary,
-                        cursorColor = SigurColors.Brand
+                        cursorColor = SigurColors.BrandDeep
                     ),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(16.dp)
                 )
                         
                 if (sharedText != null) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = SigurColors.BrandTint),
-                        border = BorderStroke(1.dp, SigurColors.Brand),
+                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.16f)),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(
                                 "Ai primit conținut partajat (${viewModel.pendingSharedSourceLabel})",
-                                color = SigurColors.Brand,
+                                color = Color.White,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 "Verifică mai întâi textul, apoi apasă scanare.",
-                                color = SigurColors.TextSecondary,
+                                color = Color.White.copy(alpha = 0.85f),
                                 fontSize = 11.sp
                             )
                             Spacer(modifier = Modifier.height(10.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(
                                     onClick = { viewModel.scanPendingSharedText() },
-                                    colors = ButtonDefaults.buttonColors(containerColor = SigurColors.Brand),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color.White),
                                     shape = RoundedCornerShape(8.dp),
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Text("Scanează", color = SigurColors.TextPrimary)
+                                    Text("Scanează", color = SigurColors.BrandDeep)
                                 }
                                 OutlinedButton(
                                     onClick = { viewModel.clearAllPendingShared() },
+                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.6f)),
                                     shape = RoundedCornerShape(8.dp),
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Text("Anulează", color = SigurColors.Dangerous)
+                                    Text("Anulează", color = Color.White)
                                 }
                             }
                         }
@@ -2024,14 +1951,14 @@ fun ScanInputCard(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFi
                 if (pendingFiles.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundSurface),
-                        border = BorderStroke(1.dp, SigurColors.GlassBorder),
+                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.16f)),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(
                                 "Ai primit ${pendingFiles.size} fișier(e) partajat(e)",
-                                color = SigurColors.TextPrimary,
+                                color = Color.White,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp
                             )
@@ -2047,28 +1974,30 @@ fun ScanInputCard(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFi
                                         Text(
                                             fileItem.fileName,
                                             fontWeight = FontWeight.Medium,
-                                            color = SigurColors.TextPrimary,
+                                            color = Color.White,
                                             maxLines = 1
                                         )
                                         val mime = fileItem.mimeType.ifBlank { fileItem.sourceLabel }
                                         Text(
                                             mime,
                                             fontSize = 11.sp,
-                                            color = SigurColors.TextMuted
+                                            color = Color.White.copy(alpha = 0.75f)
                                         )
                                     }
                                     OutlinedButton(
                                         onClick = { viewModel.removePendingSharedFile(fileItem.id) },
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.6f)),
                                         shape = RoundedCornerShape(8.dp)
                                     ) {
-                                        Text("Anulează", fontSize = 10.sp)
+                                        Text("Anulează", fontSize = 10.sp, color = Color.White)
                                     }
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Button(
                                         onClick = { viewModel.scanPendingSharedFile(fileItem.id, context) },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
                                         shape = RoundedCornerShape(8.dp)
                                     ) {
-                                        Text("Scanează", fontSize = 10.sp)
+                                        Text("Scanează", fontSize = 10.sp, color = SigurColors.BrandDeep)
                                     }
                                 }
                             }
@@ -2084,7 +2013,7 @@ fun ScanInputCard(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFi
                 ) {
                     Text(
                         "${viewModel.text.length} caractere",
-                        color = SigurColors.TextMuted,
+                        color = Color.White.copy(alpha = 0.75f),
                         fontSize = 11.sp,
                         modifier = Modifier.weight(1f)
                     )
@@ -2096,24 +2025,24 @@ fun ScanInputCard(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFi
                             }
                         }
                     }) {
-                        Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.ContentPaste, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Lipește", fontSize = 12.sp)
+                        Text("Lipește", fontSize = 12.sp, color = Color.White)
                     }
                     if (viewModel.text.isNotBlank()) {
                         TextButton(onClick = {
                             viewModel.clearAllPendingShared()
                             viewModel.text = ""
                         }) {
-                            Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Clear, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Șterge", fontSize = 12.sp)
+                            Text("Șterge", fontSize = 12.sp, color = Color.White)
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Button(
                 onClick = {
@@ -2126,19 +2055,30 @@ fun ScanInputCard(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFi
                         else -> viewModel.onScanClick()
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = SigurColors.Brand),
-                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                shape = RoundedCornerShape(100),
                 contentPadding = PaddingValues(14.dp),
                 enabled = !viewModel.loading
             ) {
-                Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Bolt, contentDescription = null, tint = SigurColors.BrandDeep, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Scanează acum", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("Scanează acum", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = SigurColors.BrandDeep)
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+        }
+    }
 
+    Spacer(modifier = Modifier.height(16.dp))
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, SigurColors.GlassBorder, RoundedCornerShape(16.dp))
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 GridButton(
                     title = "Încarcă Screenshot",
@@ -2157,7 +2097,7 @@ fun ScanInputCard(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFi
                     modifier = Modifier.weight(1f)
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(12.dp))
 
             GridButton(
@@ -2279,45 +2219,97 @@ fun ResultCard(
     var feedbackSent by remember { mutableStateOf(false) }
     var showTechnicalDetails by remember { mutableStateOf(false) }
 
+    val verdictLightBg = when (riskUi.level) {
+        "Sigur" -> SigurColors.SafeLight
+        "Periculos" -> SigurColors.DangerousLight
+        else -> SigurColors.SuspectLight
+    }
+    val verdictBorder = when (riskUi.level) {
+        "Sigur" -> SigurColors.SafeBorder
+        "Periculos" -> SigurColors.DangerousBorder
+        else -> SigurColors.SuspectBorder
+    }
+    val isCheckingFurther = assessment.gateResult?.asyncExpected == true ||
+        assessment.gateResult?.finality == GateFinality.PROVISIONAL
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // VerdictCard — DS hero block (icon circle + title + subtitle + message)
+        Card(
+            colors = CardDefaults.cardColors(containerColor = verdictLightBg),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.5.dp, verdictBorder, RoundedCornerShape(16.dp))
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth().padding(20.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(riskUi.color, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = resultIconFor(assessment.gateResult?.action, riskUi.level),
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(14.dp))
+                Text(
+                    text = decision.headline.uppercase(Locale.getDefault()),
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.04.em,
+                    color = riskUi.color,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = decision.supportText,
+                    color = SigurColors.TextSecondary,
+                    fontSize = 16.sp,
+                    lineHeight = 24.sp,
+                    textAlign = TextAlign.Center
+                )
+                if (isCheckingFurther) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .background(SigurColors.BackgroundCard, RoundedCornerShape(12.dp))
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            color = SigurColors.Pending,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "Verificare suplimentară în curs",
+                            color = SigurColors.Pending,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
     Card(
         colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, riskUi.color.copy(alpha = 0.30f), RoundedCornerShape(16.dp))
+            .border(1.dp, SigurColors.GlassBorder, RoundedCornerShape(16.dp))
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = resultIconFor(assessment.gateResult?.action, riskUi.level),
-                    contentDescription = null,
-                    tint = riskUi.color,
-                    modifier = Modifier.size(32.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = decision.headline,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = SigurColors.TextPrimary
-                    )
-                    Text(
-                        text = decision.supportText,
-                        color = SigurColors.TextSecondary,
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp
-                    )
-                    Text(
-                        text = gateStatusText(assessment.gateResult),
-                        color = riskUi.color,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
 
             GateEvidenceSummary(assessment, riskUi)
 
@@ -2480,6 +2472,7 @@ fun ResultCard(
                 Text("Înapoi la scanare", color = SigurColors.TextPrimary)
             }
         }
+    }
     }
 }
 
@@ -3194,18 +3187,25 @@ fun HistoryTab(viewModel: ScannerViewModel) {
         }
 
         if (viewModel.historyItems.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(64.dp), tint = SigurColors.TextSubtle)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Nicio scanare efectuată", color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold)
-                    Text(
-                        "Istoricul scanărilor tale va fi salvat local, în siguranță pe dispozitiv.",
-                        color = SigurColors.TextSecondary,
-                        fontSize = 13.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 40.dp)
-                    )
+            Card(
+                modifier = Modifier.fillMaxSize(),
+                colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
+                shape = DSCardShape,
+                border = DSCardBorder
+            ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(64.dp), tint = SigurColors.TextSubtle)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Nicio scanare efectuată", color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold)
+                        Text(
+                            "Istoricul scanărilor tale va fi salvat local, în siguranță pe dispozitiv.",
+                            color = SigurColors.TextSecondary,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 40.dp)
+                        )
+                    }
                 }
             }
         } else {
@@ -3221,27 +3221,23 @@ fun HistoryTab(viewModel: ScannerViewModel) {
 @Composable
 fun HistoryItemCard(item: OfflineAssessment, onClick: () -> Unit, onDelete: () -> Unit) {
     val risk = mapRiskDisplayState(item)
+    val chipTone = when (risk.color) {
+        SigurColors.Dangerous -> DSChipTone.Danger
+        SigurColors.Safe -> DSChipTone.Safe
+        SigurColors.Brand -> DSChipTone.Pending
+        else -> DSChipTone.Suspect
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
-        border = BorderStroke(1.dp, SigurColors.GlassBorder)
+        shape = DSCardShape,
+        border = DSCardBorder
     ) {
         Row(modifier = Modifier.padding(16.dp)) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        color = risk.color.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
-                        Text(
-                            text = risk.label,
-                            color = risk.color,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
+                    DSChip(text = risk.label.uppercase(Locale.getDefault()), tone = chipTone)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(Date(item.timestamp)),
@@ -3290,7 +3286,9 @@ fun TriageTab(viewModel: ScannerViewModel) {
         
         Card(
             colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
-            modifier = Modifier.fillMaxWidth().border(1.dp, SigurColors.GlassBorder, RoundedCornerShape(16.dp))
+            shape = DSCardShape,
+            border = DSCardBorder,
+            modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Icon(Icons.Default.Warning, contentDescription = null, tint = SigurColors.Dangerous, modifier = Modifier.size(28.dp))
@@ -3307,6 +3305,7 @@ fun TriageTab(viewModel: ScannerViewModel) {
                 Card(
                     modifier = Modifier.weight(1f).clickable { selectedCategory = key },
                     colors = CardDefaults.cardColors(containerColor = if (isSelected) value.third.copy(alpha = 0.15f) else SigurColors.BackgroundCard),
+                    shape = DSCardShape,
                     border = BorderStroke(1.dp, if (isSelected) value.third else SigurColors.GlassBorder)
                 ) {
                     Column(modifier = Modifier.padding(8.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -3328,6 +3327,7 @@ fun TriageTab(viewModel: ScannerViewModel) {
         
         Card(
             colors = CardDefaults.cardColors(containerColor = SigurColors.BrandTint),
+            shape = DSCardShape,
             border = BorderStroke(1.dp, SigurColors.Brand.copy(alpha = 0.15f))
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
@@ -3342,6 +3342,7 @@ fun TriageTab(viewModel: ScannerViewModel) {
                         context.startActivity(intent)
                     },
                     modifier = Modifier.fillMaxWidth(),
+                    shape = DSPillShape,
                     colors = ButtonDefaults.buttonColors(containerColor = SigurColors.Brand)
                 ) {
                     Text("Sunați la 1911")
@@ -3378,7 +3379,8 @@ fun TriageDetail(category: String, viewModel: ScannerViewModel) {
 
     Card(
         colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
-        border = BorderStroke(1.dp, SigurColors.GlassBorder)
+        shape = DSCardShape,
+        border = DSCardBorder
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             steps.forEachIndexed { index, (title, detail) ->
@@ -3425,7 +3427,7 @@ fun ReportsTab(viewModel: ScannerViewModel) {
         return if (normalized > 1f) normalized / 100f else normalized
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(20.dp).verticalScroll(rememberScrollState())) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -3440,36 +3442,24 @@ fun ReportsTab(viewModel: ScannerViewModel) {
         
         Card(
             colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
-            border = BorderStroke(1.dp, SigurColors.GlassBorder)
+            shape = DSCardShape,
+            border = DSCardBorder
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
-                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("Maturitate Detectiv", color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold)
-                    Surface(
-                        color = when(readiness?.status) {
-                            "healthy" -> SigurColors.Safe
-                            "watch" -> SigurColors.Suspect
-                            else -> SigurColors.Dangerous
-                        }.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(99.dp)
-                    ) {
-                        Text(
-                            text = when(readiness?.status) {
-                                "healthy" -> "Sănătos"
-                                "watch" -> "Atenție"
-                                "degraded" -> "Degradat"
-                                else -> "Încărcare..."
-                            },
-                            color = when(readiness?.status) {
-                                "healthy" -> SigurColors.Safe
-                                "watch" -> SigurColors.Suspect
-                                else -> SigurColors.Dangerous
-                            },
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
+                    val readinessTone = when (readiness?.status) {
+                        "healthy" -> DSChipTone.Safe
+                        "watch" -> DSChipTone.Suspect
+                        else -> DSChipTone.Danger
                     }
+                    val readinessLabel = when (readiness?.status) {
+                        "healthy" -> "Sănătos"
+                        "watch" -> "Atenție"
+                        "degraded" -> "Degradat"
+                        else -> "Încărcare..."
+                    }
+                    DSChip(text = readinessLabel.uppercase(Locale.getDefault()), tone = readinessTone)
                 }
                 Text(
                     text = String.format("%.2f", readiness?.readinessScore ?: 0f),
@@ -3503,7 +3493,8 @@ fun ReportsTab(viewModel: ScannerViewModel) {
                 Card(
                     modifier = Modifier.weight(1f),
                     colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
-                    border = BorderStroke(1.dp, SigurColors.GlassBorder)
+                    shape = DSCardShape,
+                    border = DSCardBorder
                 ) {
                     Column(modifier = Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(label, color = SigurColors.TextSecondary, fontSize = 11.sp)
@@ -3517,7 +3508,8 @@ fun ReportsTab(viewModel: ScannerViewModel) {
         
         Card(
             colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
-            border = BorderStroke(1.dp, SigurColors.GlassBorder)
+            shape = DSCardShape,
+            border = DSCardBorder
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text("Bucăți evaluate: ${quality?.itemsEvaluated ?: 0}", color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold)
@@ -3532,7 +3524,8 @@ fun ReportsTab(viewModel: ScannerViewModel) {
             Spacer(modifier = Modifier.height(16.dp))
             Card(
                 colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
-                border = BorderStroke(1.dp, SigurColors.GlassBorder)
+                shape = DSCardShape,
+                border = DSCardBorder
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text("Monitorizare feedback comunitate", color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold)
@@ -3556,7 +3549,8 @@ fun ReportsTab(viewModel: ScannerViewModel) {
             Spacer(modifier = Modifier.height(16.dp))
             Card(
                 colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
-                border = BorderStroke(1.dp, SigurColors.GlassBorder)
+                shape = DSCardShape,
+                border = DSCardBorder
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text("Statistici cache reputație", color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold)
@@ -3583,7 +3577,7 @@ fun MetricRow(label: String, value: String) {
 fun AboutTab() {
     val uriHandler = LocalUriHandler.current
 
-    Column(modifier = Modifier.fillMaxSize().padding(20.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(modifier = Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Header()
         Spacer(modifier = Modifier.height(20.dp))
         
@@ -3599,7 +3593,8 @@ fun AboutTab() {
         
         Card(
             colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
-            border = BorderStroke(1.dp, SigurColors.GlassBorder)
+            shape = DSCardShape,
+            border = DSCardBorder
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text("De ce SigurScan?", color = SigurColors.Brand, fontWeight = FontWeight.Bold)
@@ -3614,7 +3609,7 @@ fun AboutTab() {
             OutlinedButton(
                 onClick = { uriHandler.openUri(privacyUrl) },
                 border = BorderStroke(1.dp, SigurColors.Brand),
-                shape = RoundedCornerShape(10.dp)
+                shape = DSPillShape
             ) {
                 Icon(Icons.Default.PrivacyTip, contentDescription = null, tint = SigurColors.Brand)
                 Spacer(modifier = Modifier.width(8.dp))
@@ -3667,38 +3662,150 @@ private fun contrastRatio(foreground: Color, background: Color): Float {
 }
 
 @Composable
-fun BottomNavigationBar(activeTab: String, onTabClick: (String) -> Unit) {
-    NavigationBar(
-        containerColor = SigurColors.BackgroundCard,
-        tonalElevation = 0.dp,
-        modifier = Modifier.border(1.dp, SigurColors.GlassBorder, RoundedCornerShape(0.dp))
+private fun BottomNavItem(
+    icon: ImageVector,
+    label: String,
+    isActive: Boolean,
+    activeColor: Color = SigurColors.Brand,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = modifier
+            .fillMaxHeight()
+            .clickable(onClick = onClick)
+            .padding(top = 12.dp),
     ) {
-        val tabs = listOf(
-            Triple("scan", "Scanează", Icons.Default.Search),
-            Triple("radar", "Radar", Icons.Default.Radar),
-            Triple("triage", "Urgență", Icons.Default.Warning),
-            Triple("education", "Educație", Icons.Default.School),
-            Triple("more", "Mai Mult", Icons.Default.MoreHoriz)
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = if (isActive) activeColor else SigurColors.TextMuted,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
+            color = if (isActive) activeColor else SigurColors.TextMuted
+        )
+    }
+}
+
+@Composable
+fun BottomNavigationBar(activeTab: String, onTabClick: (String) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(80.dp)
+            .background(SigurColors.BackgroundCard)
+            .border(BorderStroke(1.dp, SigurColors.BorderSubtle)),
+        verticalAlignment = Alignment.Top
+    ) {
+        BottomNavItem(
+            icon = Icons.Default.Radar,
+            label = "Radar",
+            isActive = activeTab == "radar",
+            onClick = { onTabClick("radar") },
+            modifier = Modifier.weight(1f)
+        )
+        BottomNavItem(
+            icon = Icons.Default.Warning,
+            label = "Urgență",
+            isActive = activeTab == "triage",
+            activeColor = SigurColors.Dangerous,
+            onClick = { onTabClick("triage") },
+            modifier = Modifier.weight(1f)
         )
 
-        for (tab in tabs) {
-            val key = tab.first
-            val label = tab.second
-            val icon = tab.third
-            val isActive = activeTab == key
-            NavigationBarItem(
-                selected = isActive,
-                onClick = { onTabClick(key) },
-                icon = { Icon(icon, contentDescription = null) },
-                label = { Text(label, fontSize = 10.sp) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = if (key == "triage") SigurColors.Dangerous else SigurColors.Brand,
-                    selectedTextColor = if (key == "triage") SigurColors.Dangerous else SigurColors.Brand,
-                    unselectedIconColor = SigurColors.TextMuted,
-                    unselectedTextColor = SigurColors.TextMuted,
-                    indicatorColor = SigurColors.BrandTint
+        // Central FAB — scan action, raised above the bar (DS BottomNav)
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            Box(
+                modifier = Modifier
+                    .offset(y = (-28).dp)
+                    .size(56.dp)
+                    .border(4.dp, SigurColors.Canvas, CircleShape)
+                    .clip(CircleShape)
+                    .background(
+                        brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                            colors = listOf(Color(0xFF5B86FF), SigurColors.Brand, Color(0xFF3552D6))
+                        )
+                    )
+                    .clickable { onTabClick("scan") },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.QrCodeScanner,
+                    contentDescription = "Scanează",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
                 )
+            }
+            Text(
+                text = "Scanează",
+                fontSize = 12.sp,
+                fontWeight = if (activeTab == "scan") FontWeight.Bold else FontWeight.Medium,
+                color = if (activeTab == "scan") SigurColors.Brand else SigurColors.TextMuted,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 12.dp)
             )
         }
+
+        BottomNavItem(
+            icon = Icons.Default.School,
+            label = "Educație",
+            isActive = activeTab == "education",
+            onClick = { onTabClick("education") },
+            modifier = Modifier.weight(1f)
+        )
+        BottomNavItem(
+            icon = Icons.Default.MoreHoriz,
+            label = "Mai mult",
+            isActive = activeTab == "more",
+            onClick = { onTabClick("more") },
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// DS shared primitives (design-system/ds-full: .ss-card, .ss-chip)
+// ─────────────────────────────────────────────────────────────
+val DSCardShape = RoundedCornerShape(SigurColors.RadiusCard.dp)
+val DSPillShape = RoundedCornerShape(SigurColors.RadiusPill.dp)
+val DSCardBorder = BorderStroke(1.dp, SigurColors.GlassBorder)
+
+enum class DSChipTone { Safe, Suspect, Danger, Pending, Brand, Neutral }
+
+@Composable
+fun DSChip(text: String, tone: DSChipTone = DSChipTone.Neutral, modifier: Modifier = Modifier) {
+    val (bg, fg) = when (tone) {
+        DSChipTone.Safe -> SigurColors.SafeLight to SigurColors.Safe
+        DSChipTone.Suspect -> SigurColors.SuspectLight to SigurColors.Suspect
+        DSChipTone.Danger -> SigurColors.DangerousLight to SigurColors.Dangerous
+        DSChipTone.Pending -> SigurColors.PendingLight to SigurColors.Pending
+        DSChipTone.Brand -> SigurColors.BrandTint to SigurColors.Brand
+        DSChipTone.Neutral -> SigurColors.BackgroundSurface to SigurColors.TextSecondary
+    }
+    Box(
+        modifier = modifier
+            .background(bg, DSPillShape)
+            .then(
+                if (tone == DSChipTone.Neutral)
+                    Modifier.border(1.dp, SigurColors.BorderSubtle, DSPillShape)
+                else Modifier
+            )
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = fg, maxLines = 1)
     }
 }
