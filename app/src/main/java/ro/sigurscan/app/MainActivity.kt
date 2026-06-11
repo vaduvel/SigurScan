@@ -72,7 +72,6 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import java.text.SimpleDateFormat
 import java.util.*
-import java.net.URLDecoder
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.max
@@ -117,9 +116,9 @@ private fun handleIncomingIntent(context: Context, intent: Intent?, viewModel: S
     val sharedStreams = collectSharedStreamUris(intent)
 
     if (intent.action == android.content.Intent.ACTION_VIEW && isDeepLinkScanIntent(intent)) {
-        val scanData = intent.data?.getQueryParameter("text")
+        val scanData = resolveDeepLinkScanText(intent)
         if (!scanData.isNullOrBlank()) {
-            viewModel.text = URLDecoder.decode(scanData, "UTF-8")
+            viewModel.text = scanData
         }
         viewModel.currentTab = "scan"
         return
@@ -209,6 +208,11 @@ private fun handleIncomingIntent(context: Context, intent: Intent?, viewModel: S
 
 internal fun resolveSharedTextPayload(intent: Intent): ResolvedSharedTextPayload? {
     return SharedTextPayloadResolver.resolve(collectSharedTextCandidates(intent))
+}
+
+internal fun resolveDeepLinkScanText(intent: Intent?): String? {
+    if (!isDeepLinkScanIntent(intent)) return null
+    return intent?.data?.getQueryParameter("text")?.takeIf { it.isNotBlank() }
 }
 
 internal fun collectSharedTextCandidates(intent: Intent): List<SharedTextCandidate> {

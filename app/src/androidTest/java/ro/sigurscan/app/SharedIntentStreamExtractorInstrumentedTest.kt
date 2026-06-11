@@ -43,6 +43,17 @@ class SharedIntentStreamExtractorInstrumentedTest {
     }
 
     @Test
+    fun deepLinkScanTextPreservesEncodedNestedUrlQuery() {
+        val nestedUrl = "https://example.com/search?q=a%2Bb&ref=sigurscan"
+        val intent = Intent(
+            Intent.ACTION_VIEW,
+            Uri.parse("sigurscan://scan?text=${Uri.encode(nestedUrl)}")
+        )
+
+        assertEquals(nestedUrl, resolveDeepLinkScanText(intent))
+    }
+
+    @Test
     fun actionSendPrefersExtraHtmlTextOverVisibleText() {
         val html = """<a href="https://rides.sng.link/Aw5zn/hw3r?_fallback_redirect=https%3A%2F%2Fwww.uber.com">Comandă o cursă</a>"""
         val intent = Intent(Intent.ACTION_SEND)
