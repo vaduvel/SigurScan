@@ -428,6 +428,7 @@ fun ScanTab(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFile: ()
                 ResultCard(
                     assessment = viewModel.assessment!!,
                     onBack = { viewModel.reset() },
+                    onRescan = { viewModel.onScanClick(forceRefresh = true) },
                     onReport = { viewModel.onCommunityReport() },
                     onFeedback = { viewModel.submitFeedback(it) },
                     onFamilyAlert = { viewModel.notifyFamilyForCurrentScan() }
@@ -2229,6 +2230,7 @@ fun GridButton(title: String, desc: String, icon: ImageVector, color: Color, onC
 fun ResultCard(
     assessment: OfflineAssessment,
     onBack: () -> Unit,
+    onRescan: () -> Unit,
     onReport: () -> Unit,
     onFeedback: (String) -> Unit,
     onFamilyAlert: () -> Unit = {}
@@ -2492,6 +2494,21 @@ fun ResultCard(
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
+            if (assessment.cacheStatus != null) {
+                Button(
+                    onClick = onRescan,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = SigurColors.BrandTint),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, SigurColors.Brand)
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = null, tint = SigurColors.Brand, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Rescanează acum", color = SigurColors.Brand, fontSize = 12.sp)
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             Button(
                 onClick = onBack,
                 modifier = Modifier.fillMaxWidth(),
@@ -2512,6 +2529,7 @@ private fun GateEvidenceSummary(assessment: OfflineAssessment, riskUi: RiskDispl
     val inProgress = GateResultPresentation.isScanInProgress(gateResult)
     val chips = listOfNotNull(
         if (inProgress) "Scanare în curs" else "Verdict final",
+        if (assessment.cacheStatus != null) "Verificat anterior" else null,
         snapshot?.completeness?.let {
             when (it) {
                 EvidenceCompleteness.FULL -> "Verificări complete"

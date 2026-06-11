@@ -76,6 +76,13 @@ data class ThreatIntelSourceResult(
     val details: String? = null
 )
 
+data class ScanCacheStatus(
+    val cacheKey: String,
+    val cachedAtMillis: Long,
+    val expiresAtMillis: Long,
+    val source: String = "local"
+)
+
 data class OfflineAssessment(
     val scanId: String = UUID.randomUUID().toString(),
     val family: String,
@@ -102,7 +109,8 @@ data class OfflineAssessment(
     val sandboxReportUrl: String? = null,
     val evidenceSnapshot: EvidenceSnapshot? = null,
     val gateResult: GateResult? = null,
-    val inputFidelity: SharedContentFidelity? = null
+    val inputFidelity: SharedContentFidelity? = null,
+    val cacheStatus: ScanCacheStatus? = null
 )
 
 internal fun urlscanScreenshotUrl(uuid: String): String = "https://urlscan.io/screenshots/$uuid.png"
@@ -121,6 +129,55 @@ internal fun orchestratedPollDelayMillis(response: OrchestratedScanResponse): Lo
     } else {
         1_000L
     }
+}
+
+internal const val RESULT_CACHE_TTL_MILLIS = 12L * 60L * 60L * 1000L
+
+internal fun normalizedScanResultCacheMaterial(
+    rawInput: String,
+    htmlPayload: String?,
+    urls: List<String>
+): String {
+    val normalizedText = rawInput.trim().replace(Regex("\\s+"), " ")
+    val normalizedUrls = urls
+        .mapNotNull { HtmlLinkExtractor.normalizeCandidateUrl(it) ?: UrlTextExtractor.normalizeCandidate(it) }
+        .map { it.trim().trimEnd('.', ',', ';').lowercase(Locale.US) }
+        .distinct()
+        .sorted()
+    val urlOnlyInput = normalizedUrls.size == 1 &&
+        !normalizedText.any { it.isWhitespace() } &&
+        (HtmlLinkExtractor.normalizeCandidateUrl(normalizedText) ?: UrlTextExtractor.normalizeCandidate(normalizedText))
+            ?.trim()
+            ?.trimEnd('.', ',', ';')
+            ?.lowercase(Locale.US) == normalizedUrls.first()
+    val cacheText = if (urlOnlyInput) {
+        "url:${normalizedUrls.first()}"
+    } else {
+        normalizedText
+    }
+    val normalizedHtmlHash = htmlPayload
+        ?.trim()
+        ?.takeIf { it.isNotBlank() }
+        ?.replace(Regex("\\s+"), " ")
+        ?.let(::sha256Hex)
+        .orEmpty()
+
+    return buildString {
+        appendLine("sigurscan-result-cache-v1")
+        appendLine("text=$cacheText")
+        appendLine("urls=${normalizedUrls.joinToString("|")}")
+        append("html_sha=$normalizedHtmlHash")
+    }
+}
+
+internal fun scanResultCacheKey(rawInput: String, htmlPayload: String?, urls: List<String>): String {
+    return sha256Hex(normalizedScanResultCacheMaterial(rawInput, htmlPayload, urls))
+}
+
+private fun sha256Hex(value: String): String {
+    return MessageDigest.getInstance("SHA-256")
+        .digest(value.toByteArray(StandardCharsets.UTF_8))
+        .joinToString("") { "%02x".format(it) }
 }
 
 data class PendingSharedFile(
@@ -159,8 +216,15 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         val result: ThreatIntelSourceResult,
         val expiresAtMillis: Long
     )
+    private data class CachedAssessmentRecord(
+        val cacheKey: String,
+        val assessment: OfflineAssessment,
+        val cachedAtMillis: Long,
+        val expiresAtMillis: Long
+    )
     private data class PersistedStartupState(
         val history: List<OfflineAssessment> = emptyList(),
+        val resultCache: List<CachedAssessmentRecord> = emptyList(),
         val triageProgress: Map<String, Set<Int>> = emptyMap(),
         val completedLessons: Set<String> = emptySet(),
         val familyMembers: List<FamilyMember> = emptyList(),
@@ -172,6 +236,8 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         private const val TMP_UPLOAD_PREFIX = "temp_upload_"
         private const val WEB_RISK_NO_THREAT_CACHE_MS = 10L * 60L * 1000L
         private const val WEB_RISK_THREAT_FALLBACK_CACHE_MS = 5L * 60L * 1000L
+        private const val RESULT_CACHE_PREF_KEY = "scan_result_cache_v1"
+        private const val MAX_RESULT_CACHE_ITEMS = 50
         private const val URLSCAN_PERSONA_COUNTRY = "ro"
         private const val URLSCAN_MOBILE_ANDROID_AGENT =
             "Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
@@ -264,6 +330,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     private var stagedEvidenceText: String? = null
     private var stagedEvidenceInputKind: String? = null
     private var stagedEvidenceChannel: String? = null
+    private val resultCache = Collections.synchronizedMap(LinkedHashMap<String, CachedAssessmentRecord>())
 
     private val api: SigurScanApi by lazy {
         val logging = HttpLoggingInterceptor().apply {
@@ -317,6 +384,14 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 val type = object : TypeToken<List<OfflineAssessment>>() {}.type
                 gson.fromJson<List<OfflineAssessment>>(raw, type).take(50)
             }.getOrDefault(emptyList()),
+            resultCache = runCatching {
+                val raw = prefs.getString(RESULT_CACHE_PREF_KEY, null) ?: return@runCatching emptyList()
+                val type = object : TypeToken<List<CachedAssessmentRecord>>() {}.type
+                val now = System.currentTimeMillis()
+                gson.fromJson<List<CachedAssessmentRecord>>(raw, type)
+                    .filter { it.expiresAtMillis > now }
+                    .take(MAX_RESULT_CACHE_ITEMS)
+            }.getOrDefault(emptyList()),
             triageProgress = runCatching {
                 val raw = prefs.getString("triage_steps_state", null) ?: return@runCatching emptyMap()
                 val type = object : TypeToken<Map<String, List<Int>>>() {}.type
@@ -344,6 +419,8 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     private fun applyPersistedStartupState(state: PersistedStartupState) {
         historyItems.clear()
         historyItems.addAll(state.history)
+        resultCache.clear()
+        state.resultCache.forEach { resultCache[it.cacheKey] = it }
         triageStepProgress = state.triageProgress
         completedLessons = state.completedLessons
         familyMembers.clear()
@@ -826,6 +903,59 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    private fun cachedAssessmentFor(cacheKey: String): OfflineAssessment? {
+        val now = System.currentTimeMillis()
+        val cached = resultCache[cacheKey] ?: return null
+        return if (cached.expiresAtMillis > now) {
+            cached.assessment.copy(
+                cacheStatus = ScanCacheStatus(
+                    cacheKey = cached.cacheKey,
+                    cachedAtMillis = cached.cachedAtMillis,
+                    expiresAtMillis = cached.expiresAtMillis,
+                    source = "local"
+                ),
+                serverInfo = "Verificat anterior. Poți rescana dacă vrei o verificare proaspătă."
+            )
+        } else {
+            resultCache.remove(cacheKey)
+            persistResultCache()
+            null
+        }
+    }
+
+    private fun saveFinalAssessmentToResultCache(cacheKey: String, assessment: OfflineAssessment) {
+        if (assessment.gateResult?.finality != GateFinality.FINAL) return
+        val now = System.currentTimeMillis()
+        resultCache[cacheKey] = CachedAssessmentRecord(
+            cacheKey = cacheKey,
+            assessment = assessment.copy(cacheStatus = null),
+            cachedAtMillis = now,
+            expiresAtMillis = now + RESULT_CACHE_TTL_MILLIS
+        )
+        trimResultCache()
+        persistResultCache()
+    }
+
+    private fun trimResultCache() {
+        if (resultCache.size <= MAX_RESULT_CACHE_ITEMS) return
+        val keep = resultCache.values
+            .sortedByDescending { it.cachedAtMillis }
+            .take(MAX_RESULT_CACHE_ITEMS)
+        resultCache.clear()
+        keep.forEach { resultCache[it.cacheKey] = it }
+    }
+
+    private fun persistResultCache() {
+        val now = System.currentTimeMillis()
+        val snapshot = resultCache.values
+            .filter { it.expiresAtMillis > now }
+            .sortedByDescending { it.cachedAtMillis }
+            .take(MAX_RESULT_CACHE_ITEMS)
+        viewModelScope.launch(Dispatchers.IO) {
+            prefs.edit().putString(RESULT_CACHE_PREF_KEY, gson.toJson(snapshot)).apply()
+        }
+    }
+
     private fun isSameNormalizedUrl(left: String?, right: String?): Boolean {
         val normalizedLeft = normalizeCandidateUrl(left) ?: left?.let(::normalizeUrl)
         val normalizedRight = normalizeCandidateUrl(right) ?: right?.let(::normalizeUrl)
@@ -1094,7 +1224,8 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         response: OrchestratedScanResponse,
         rawInput: String,
         urls: List<String>,
-        existingScanId: String?
+        existingScanId: String?,
+        resultCacheKey: String? = null
     ) {
         val providerStates = providerStatesFromOrchestratedPillars(response.pillars)
         val remoteScreenshotUrl = response.preview?.screenshotUrl
@@ -1117,6 +1248,9 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             )
         } ?: buildPendingAssessmentFromOrchestratedResponse(response, rawInput, urls)
         publishAssessmentResult(existingScanId ?: response.scanId, updated)
+        if (response.result != null && updated.gateResult?.finality == GateFinality.FINAL && !resultCacheKey.isNullOrBlank()) {
+            saveFinalAssessmentToResultCache(resultCacheKey, updated)
+        }
         if (response.result != null && stableScreenshot == null && !remoteScreenshotUrl.isNullOrBlank()) {
             scheduleSandboxScreenshotRefresh(response.scanId, remoteScreenshotUrl)
         }
@@ -1132,19 +1266,20 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private suspend fun runBackendOrchestratedScan(rawInput: String, htmlPayload: String?, urls: List<String>) {
+        val resultCacheKey = scanResultCacheKey(rawInput, htmlPayload, urls)
         val preliminary = startBackendOrchestratedPendingAssessment(rawInput, urls)
         var response = api.startOrchestratedScan(orchestratedRequest(rawInput, htmlPayload, urls))
-        publishOrchestratedResponse(response, rawInput, urls, preliminary?.scanId)
+        publishOrchestratedResponse(response, rawInput, urls, preliminary?.scanId, resultCacheKey)
 
         val pollingDeadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(ORCHESTRATED_POLLING_BUDGET_MILLIS)
         while (shouldContinueOrchestratedPolling(response) && System.nanoTime() < pollingDeadlineNanos) {
             kotlinx.coroutines.delay(orchestratedPollDelayMillis(response))
             response = api.getOrchestratedScan(response.scanId)
-            publishOrchestratedResponse(response, rawInput, urls, response.scanId)
+            publishOrchestratedResponse(response, rawInput, urls, response.scanId, resultCacheKey)
         }
     }
 
-    fun onScanClick() {
+    fun onScanClick(forceRefresh: Boolean = false) {
         if (text.isBlank()) return
         loading = true
         loadingMsg = "Analizăm textul și link-urile..."
@@ -1154,6 +1289,14 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             val htmlPayload = activeEvidenceHtml(rawInput)
             val urls = activeEvidenceLinks(rawInput).ifEmpty { extractUrls(rawInput) }
             try {
+                val cacheKey = scanResultCacheKey(rawInput, htmlPayload, urls)
+                if (!forceRefresh) {
+                    cachedAssessmentFor(cacheKey)?.let { cached ->
+                        assessment = cached
+                        loading = false
+                        return@launch
+                    }
+                }
                 runBackendOrchestratedScan(rawInput, htmlPayload, urls)
                 return@launch
             } catch (orchestratedError: Exception) {

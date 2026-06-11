@@ -51,6 +51,59 @@ class ScannerViewModelTest {
     }
 
     @Test
+    fun resultCacheKeyNormalizesWhitespaceAndUrls() {
+        val first = scanResultCacheKey(
+            rawInput = "  Verifică   oferta aici: example.com/path  ",
+            htmlPayload = null,
+            urls = listOf("example.com/path")
+        )
+        val second = scanResultCacheKey(
+            rawInput = "Verifică oferta aici: example.com/path",
+            htmlPayload = null,
+            urls = listOf("https://example.com/path")
+        )
+
+        assertEquals(first, second)
+    }
+
+    @Test
+    fun resultCacheKeyNormalizesUrlOnlyInput() {
+        val first = scanResultCacheKey(
+            rawInput = "example.com/path",
+            htmlPayload = null,
+            urls = listOf("example.com/path")
+        )
+        val second = scanResultCacheKey(
+            rawInput = "https://example.com/path",
+            htmlPayload = null,
+            urls = listOf("https://example.com/path")
+        )
+
+        assertEquals(first, second)
+    }
+
+    @Test
+    fun resultCacheKeyChangesWhenDestinationChanges() {
+        val first = scanResultCacheKey(
+            rawInput = "Urmărește coletul aici",
+            htmlPayload = null,
+            urls = listOf("https://fan.example/track")
+        )
+        val second = scanResultCacheKey(
+            rawInput = "Urmărește coletul aici",
+            htmlPayload = null,
+            urls = listOf("https://fan.example/pay")
+        )
+
+        assertNotEquals(first, second)
+    }
+
+    @Test
+    fun resultCacheTtlMatchesThreatIntelFreshnessWindow() {
+        assertEquals(12L * 60L * 60L * 1000L, RESULT_CACHE_TTL_MILLIS)
+    }
+
+    @Test
     fun uploadedMediaAndMailUseOrchestratedPipelineAfterExtraction() {
         val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
         val apiSource = File("src/main/java/ro/sigurscan/app/SigurScanApi.kt").readText()
