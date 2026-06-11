@@ -312,6 +312,11 @@ fun MainScreen(viewModel: ScannerViewModel) {
     ) { uri ->
         uri?.let { viewModel.onQrPicked(it, context) }
     }
+    val invoicePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { viewModel.scanInvoiceFromImage(it, context) }
+    }
     var showQrScanner by remember { mutableStateOf(false) }
     val closeQrScanner = { showQrScanner = false }
 
@@ -328,7 +333,8 @@ fun MainScreen(viewModel: ScannerViewModel) {
                     viewModel, 
                     onPickImage = { imagePickerLauncher.launch("image/*") },
                     onPickFile = { filePickerLauncher.launch("*/*") },
-                    onScanQr = { showQrScanner = true }
+                    onScanQr = { showQrScanner = true },
+                    onScanInvoice = { invoicePickerLauncher.launch("image/*") }
                 )
                 "radar" -> RadarTab(viewModel)
                 "triage" -> TriageTab(viewModel)
@@ -343,7 +349,8 @@ fun MainScreen(viewModel: ScannerViewModel) {
                     viewModel,
                     onPickImage = { imagePickerLauncher.launch("image/*") },
                     onPickFile = { filePickerLauncher.launch("*/*") },
-                    onScanQr = { showQrScanner = true }
+                    onScanQr = { showQrScanner = true },
+                    onScanInvoice = { invoicePickerLauncher.launch("image/*") }
                 )
             }
 
@@ -366,9 +373,10 @@ fun MainScreen(viewModel: ScannerViewModel) {
 }
 
 @Composable
-fun ScanTab(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFile: () -> Unit, onScanQr: () -> Unit) {
+fun ScanTab(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFile: () -> Unit, onScanQr: () -> Unit, onScanInvoice: () -> Unit = {}) {
     val hasActiveScanContext = viewModel.loading ||
         viewModel.assessment != null ||
+        viewModel.invoiceResult != null ||
         viewModel.pendingSharedInput != null ||
         viewModel.pendingSharedFiles.isNotEmpty() ||
         viewModel.sharedContentFidelity != null
@@ -393,23 +401,26 @@ fun ScanTab(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFile: ()
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            if (viewModel.assessment == null) {
-                ScanInputCard(viewModel, onPickImage, onPickFile, onScanQr)
-            } else {
-                ResultCard(
+            when {
+                viewModel.invoiceResult != null -> InvoiceResultCard(
+                    result = viewModel.invoiceResult!!,
+                    onBack = { viewModel.reset() }
+                )
+                viewModel.assessment != null -> ResultCard(
                     assessment = viewModel.assessment!!,
                     onBack = { viewModel.reset() },
                     onReport = { viewModel.onCommunityReport() },
                     onFeedback = { viewModel.submitFeedback(it) },
                     onFamilyAlert = { viewModel.notifyFamilyForCurrentScan() }
                 )
+                else -> ScanInputCard(viewModel, onPickImage, onPickFile, onScanQr, onScanInvoice)
             }
 
             Spacer(modifier = Modifier.height(20.dp))
         }
 
         if (!hasActiveScanContext) {
-            ScanInputCard(viewModel, onPickImage, onPickFile, onScanQr)
+            ScanInputCard(viewModel, onPickImage, onPickFile, onScanQr, onScanInvoice)
         }
         
         Spacer(modifier = Modifier.height(20.dp))
@@ -1834,7 +1845,7 @@ fun Header() {
 }
 
 @Composable
-fun ScanInputCard(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFile: () -> Unit, onScanQr: () -> Unit) {
+fun ScanInputCard(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFile: () -> Unit, onScanQr: () -> Unit, onScanInvoice: () -> Unit = {}) {
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
 
@@ -2100,14 +2111,24 @@ fun ScanInputCard(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFi
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            GridButton(
-                title = "Scanează Cod QR",
-                desc = "Scanare live direct din cameră",
-                icon = Icons.Default.QrCodeScanner,
-                color = SigurColors.Safe,
-                onClick = onScanQr,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                GridButton(
+                    title = "Scanează Cod QR",
+                    desc = "Scanare live direct din cameră",
+                    icon = Icons.Default.QrCodeScanner,
+                    color = SigurColors.Safe,
+                    onClick = onScanQr,
+                    modifier = Modifier.weight(1f)
+                )
+                GridButton(
+                    title = "Scanează Factură",
+                    desc = "CUI, IBAN, brand, ANAF",
+                    icon = Icons.Default.Receipt,
+                    color = Color(0xFF7C4DFF),
+                    onClick = onScanInvoice,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
     }
 }
@@ -3808,4 +3829,112 @@ fun DSChip(text: String, tone: DSChipTone = DSChipTone.Neutral, modifier: Modifi
     ) {
         Text(text, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = fg, maxLines = 1)
     }
+}
+
+@Composable
+fun InvoiceResultCard(result: InvoiceScanResponse, onBack: () -> Unit) {
+    val readinessState = result.readiness?.state ?: "unknown"
+    val isReady = readinessState == "ready_for_analysis"
+    val isError = result.error != null
+    val hasWarnings = result.warnings?.isNotEmpty() == true
+    val impersonation = result.brandMatch?.impersonationRisk == true
+
+    val tone = when {
+        isError -> DSChipTone.Danger
+        impersonation -> DSChipTone.Danger
+        hasWarnings -> DSChipTone.Suspect
+        isReady -> DSChipTone.Safe
+        else -> DSChipTone.Pending
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth().border(1.dp, SigurColors.GlassBorder, RoundedCornerShape(16.dp))
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Receipt, contentDescription = null, tint = SigurColors.Brand, modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Scanare Factură", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = SigurColors.TextPrimary)
+                Spacer(modifier = Modifier.weight(1f))
+                DSChip(
+                    when {
+                        isError -> "Eroare"
+                        impersonation -> "Pericol"
+                        hasWarnings -> "Atenție"
+                        isReady -> "Verificat"
+                        else -> "Incert"
+                    },
+                    tone = tone
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            result.error?.let { err ->
+                Text(err, color = SigurColors.Dangerous, fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            result.fields?.let { f ->
+                InvoiceFieldRow("Emitent", f.emitent ?: "—")
+                InvoiceFieldRow("CUI", f.cui ?: "—")
+                InvoiceFieldRow("IBAN", f.iban ?: "—")
+                InvoiceFieldRow("Nr. Factură", f.nrFactura ?: "—")
+                InvoiceFieldRow("Data", f.dataEmitere ?: "—")
+                InvoiceFieldRow("Scadența", f.scadenta ?: "—")
+                InvoiceFieldRow("Total", f.total?.let { "%.2f RON".format(it) } ?: "—")
+                InvoiceFieldRow("Subtotal", f.subtotal?.let { "%.2f RON".format(it) } ?: "—")
+                InvoiceFieldRow("TVA", f.tva?.let { "%.2f RON".format(it) } ?: "—")
+            }
+
+            result.brand?.let { brand ->
+                Spacer(modifier = Modifier.height(8.dp))
+                InvoiceFieldRow("Brand detectat", brand, DSChipTone.Brand)
+            }
+
+            result.iban?.let { iban ->
+                if (iban.valid != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    InvoiceFieldRow("IBAN valid", if (iban.valid) "Da" else "Nu")
+                    iban.bank?.let { InvoiceFieldRow("Bancă", it) }
+                }
+            }
+
+            result.warnings?.takeIf { it.isNotEmpty() }?.let { warnings ->
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("Avertismente:", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = SigurColors.Suspect)
+                warnings.forEach { w ->
+                    Text("• $w", fontSize = 12.sp, color = SigurColors.TextSecondary, modifier = Modifier.padding(start = 8.dp, top = 4.dp))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = onBack,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = SigurColors.Brand),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Scanează altă factură", color = Color.White)
+            }
+        }
+    }
+}
+
+@Composable
+private fun InvoiceFieldRow(label: String, value: String, valueTone: DSChipTone = DSChipTone.Neutral) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, fontSize = 13.sp, color = SigurColors.TextSecondary)
+        if (valueTone == DSChipTone.Brand) {
+            DSChip(value, tone = valueTone)
+        } else {
+            Text(value, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = SigurColors.TextPrimary)
+        }
+    }
+    HorizontalDivider(color = SigurColors.BorderSubtle, thickness = 0.5.dp)
 }

@@ -181,6 +181,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     var loading by mutableStateOf(false)
     var loadingMsg by mutableStateOf("")
     var assessment by mutableStateOf<OfflineAssessment?>(null)
+    var invoiceResult by mutableStateOf<InvoiceScanResponse?>(null)
     var pendingSharedInput by mutableStateOf<String?>(null)
     var pendingSharedSourceLabel by mutableStateOf("Conținut partajat")
     var pendingSharedFiles by mutableStateOf<List<PendingSharedFile>>(emptyList())
@@ -1781,6 +1782,32 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun scanInvoiceFromImage(uri: Uri, context: Context) {
+        loading = true
+        loadingMsg = "Scanăm factura prin OCR..."
+        invoiceResult = null
+
+        viewModelScope.launch {
+            var file: File? = null
+            try {
+                file = uriToFile(uri, context, MAX_UPLOAD_BYTES)
+                val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
+                val body = MultipartBody.Part.createFormData("image_file", file.name, requestFile)
+                val source = "android_native".toRequestBody("text/plain".toMediaTypeOrNull())
+
+                invoiceResult = api.scanInvoice(body, source)
+            } catch (e: Exception) {
+                invoiceResult = InvoiceScanResponse(
+                    error = "Eroare la scanarea facturii: ${e.localizedMessage ?: "conexiune eșuată"}"
+                )
+            } finally {
+                file?.delete()
+                loading = false
+                loadingMsg = ""
+            }
+        }
+    }
+
     private suspend fun extractTextFromBitmap(bitmap: Bitmap): String = extractTextFromImage(InputImage.fromBitmap(bitmap, 0))
 
     private suspend fun extractTextFromImage(image: InputImage): String = suspendCoroutine { continuation ->
@@ -2886,6 +2913,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
 
     fun reset() {
         assessment = null
+        invoiceResult = null
         text = ""
         clearAllPendingShared()
     }

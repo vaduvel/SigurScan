@@ -188,6 +188,64 @@ data class CommunityReport(
     @SerialName("source") @SerializedName("source") val source: String = "android"
 )
 
+data class InvoiceFieldsResponse(
+    val emitent: String? = null,
+    val cui: String? = null,
+    val iban: String? = null,
+    @SerializedName("nr_factura") val nrFactura: String? = null,
+    @SerializedName("data_emitere") val dataEmitere: String? = null,
+    val scadenta: String? = null,
+    val subtotal: Double? = null,
+    val tva: Double? = null,
+    val total: Double? = null,
+)
+
+data class InvoiceReadinessItem(
+    val id: String,
+    val label: String,
+    val detail: String,
+    @SerializedName("next_action") val nextAction: String,
+)
+
+data class InvoiceReadinessResponse(
+    val state: String,
+    @SerializedName("blocks_safe_verdict") val blocksSafeVerdict: Boolean,
+    val items: List<InvoiceReadinessItem> = emptyList(),
+)
+
+data class InvoiceCoherenceResponse(
+    @SerializedName("totals_match") val totalsMatch: Boolean,
+    @SerializedName("tva_rate_plausible") val tvaRatePlausible: Boolean,
+    @SerializedName("dates_plausible") val datesPlausible: Boolean,
+    @SerializedName("all_ok") val allOk: Boolean,
+)
+
+data class InvoiceIbanResponse(
+    val valid: Boolean? = null,
+    val bank: String? = null,
+    @SerializedName("is_trezorerie") val isTrezorerie: Boolean? = null,
+)
+
+data class InvoiceBrandMatchResponse(
+    @SerializedName("domain_matches") val domainMatches: Boolean,
+    @SerializedName("cui_matches") val cuiMatches: Boolean,
+    @SerializedName("iban_matches") val ibanMatches: Boolean,
+    @SerializedName("impersonation_risk") val impersonationRisk: Boolean,
+)
+
+data class InvoiceScanResponse(
+    val fields: InvoiceFieldsResponse? = null,
+    val readiness: InvoiceReadinessResponse? = null,
+    val coherence: InvoiceCoherenceResponse? = null,
+    val iban: InvoiceIbanResponse? = null,
+    val brand: String? = null,
+    @SerializedName("brand_match") val brandMatch: InvoiceBrandMatchResponse? = null,
+    val anaf: Map<String, Any>? = null,
+    val warnings: List<String>? = null,
+    val error: String? = null,
+    @SerializedName("ocr_warning") val ocrWarning: String? = null,
+)
+
 interface SigurScanApi {
     @POST("v1/scan/orchestrated")
     suspend fun startOrchestratedScan(@Body request: OrchestratedScanRequest): OrchestratedScanResponse
@@ -224,6 +282,13 @@ interface SigurScanApi {
 
     @POST("v1/feedback")
     suspend fun sendFeedback(@Body request: FeedbackRequest): Map<String, Any>
+
+    @retrofit2.http.Multipart
+    @POST("v1/scan/invoice")
+    suspend fun scanInvoice(
+        @retrofit2.http.Part image: okhttp3.MultipartBody.Part,
+        @retrofit2.http.Part("source_channel") sourceChannel: okhttp3.RequestBody
+    ): InvoiceScanResponse
 
     @POST("v1/community/report")
     suspend fun sendCommunityReport(@Body request: CommunityReport): Map<String, Any>
