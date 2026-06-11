@@ -168,6 +168,10 @@ def _parse_amounts(text: str) -> dict:
             if " on " in lower and next_values:
                 amounts["tva"].append(next_values[-1])
                 continue
+            if " on " in lower:
+                # "Tax (21% on €18.00)" contains the taxable base, not the tax value.
+                # OCR often moves the actual summary values to a later block.
+                continue
             if values:
                 amounts["tva"].append(values[-1])
                 continue
@@ -193,6 +197,7 @@ def _parse_amounts(text: str) -> dict:
             if next_values:
                 amounts["total"].append(next_values[-1])
                 continue
+    _merge_grouped_summary_amounts(amounts, lines)
     return amounts
 
 
@@ -202,6 +207,66 @@ def _next_amount_values(lines: list[str], index: int, lookahead: int = 3) -> lis
         if values:
             return values
     return []
+
+
+def _summary_label_key(line: str) -> str | None:
+    lower = line.strip().lower()
+    if not lower:
+        return None
+    if lower.startswith("subtotal"):
+        return "subtotal"
+    if lower.startswith("total excluding tax"):
+        return "subtotal"
+    if lower.startswith(("amount due", "balance due", "total due")):
+        return "total"
+    if lower == "total":
+        return "total"
+    if lower.startswith("tax ") or lower.startswith("tax("):
+        return "tva"
+    if lower.startswith("tva ") or lower.startswith("tva("):
+        return "tva"
+    return None
+
+
+def _merge_grouped_summary_amounts(amounts: dict, lines: list[str]) -> None:
+    """Handle OCR layouts where summary labels are grouped before their values.
+
+    Some invoice images produce text like:
+    Subtotal / Total excluding tax / Tax (...) / Total / Amount due
+    ...table headers...
+    €18.00 / €18.00 / €3.78 / €21.78 / €21.78
+
+    The final N monetary values after the label cluster correspond to those labels.
+    """
+    stripped = [line.strip() for line in lines]
+    for start, line in enumerate(stripped):
+        if _summary_label_key(line) != "subtotal":
+            continue
+        labels: list[str] = []
+        cursor = start
+        while cursor < len(stripped):
+            key = _summary_label_key(stripped[cursor])
+            if key is None:
+                break
+            labels.append(key)
+            cursor += 1
+        if len(labels) < 3 or "total" not in labels:
+            continue
+
+        trailing_values: list[float] = []
+        for next_line in stripped[cursor : cursor + 35]:
+            if re.match(r"^page\s+\d+\s+of\s+\d+", next_line, re.IGNORECASE):
+                break
+            values = _extract_amount_values(next_line)
+            if values:
+                trailing_values.append(values[-1])
+        if len(trailing_values) < len(labels):
+            continue
+
+        summary_values = trailing_values[-len(labels) :]
+        for key, value in zip(labels, summary_values):
+            amounts[key].append(value)
+        return
 
 
 def _dates_from_line(line: str) -> list[str]:

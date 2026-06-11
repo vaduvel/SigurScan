@@ -219,6 +219,59 @@ class TestParseInvoice:
         assert result.currency == "EUR"
         assert result.invoice_profile == "international"
 
+    def test_anthropic_ocr_layout_with_summary_labels_separated_from_values(self):
+        text = """
+        Invoice
+        Invoice number Q4HWLGHJ-0001
+        Date of issue
+        March 1, 2026
+        Date due
+        March 1, 2026
+        Anthropic, PBC
+        548 Market Street
+        PMB 90375
+        San Francisco, California 94104
+        United States
+        support@anthropic.com
+        €21.78 due March 1, 2026
+        Pay online
+        Bill to
+        Customer Organization
+        Description
+        Claude Pro
+        Mar 1-Apr 1, 2026
+        Subtotal
+        Total excluding tax
+        Tax (21% on €18.00)
+        Total
+        Amount due
+        Al
+        Qty
+        Unit price
+        Tax
+        Amount
+        1
+        €18.00
+        21%
+        €18.00
+        €18.00
+        €18.00
+        €3.78
+        €21.78
+        €21.78
+        Page 1 of 1
+        """
+        result = parse_invoice(text)
+        assert result.emitent == "Anthropic, PBC"
+        assert result.nr_factura == "Q4HWLGHJ-0001"
+        assert result.data_emitere == "2026-03-01"
+        assert result.scadenta == "2026-03-01"
+        assert result.subtotal == 18.0
+        assert result.tva == 3.78
+        assert result.total == 21.78
+        assert result.currency == "EUR"
+        assert result.invoice_profile == "international"
+
     def test_openai_saas_invoice_with_usd_dates_and_payment_link(self):
         text = """
         Invoice
