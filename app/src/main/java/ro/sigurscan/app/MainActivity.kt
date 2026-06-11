@@ -350,6 +350,11 @@ fun MainScreen(viewModel: ScannerViewModel) {
     ) { uri ->
         uri?.let { viewModel.scanInvoiceFromDocument(it, context) }
     }
+    val offerPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { viewModel.scanOfferFromDocument(it, context) }
+    }
     var showQrScanner by remember { mutableStateOf(false) }
     val closeQrScanner = { showQrScanner = false }
 
@@ -367,7 +372,8 @@ fun MainScreen(viewModel: ScannerViewModel) {
                     onPickImage = { imagePickerLauncher.launch("image/*") },
                     onPickFile = { filePickerLauncher.launch("*/*") },
                     onScanQr = { showQrScanner = true },
-                    onScanInvoice = { invoicePickerLauncher.launch(arrayOf("image/*", "application/pdf")) }
+                    onScanInvoice = { invoicePickerLauncher.launch(arrayOf("image/*", "application/pdf")) },
+                    onScanOffer = { offerPickerLauncher.launch(arrayOf("image/*", "application/pdf", "text/*", "text/html", "message/rfc822")) }
                 )
                 "radar" -> RadarTab(viewModel)
                 "triage" -> TriageTab(viewModel)
@@ -383,7 +389,8 @@ fun MainScreen(viewModel: ScannerViewModel) {
                     onPickImage = { imagePickerLauncher.launch("image/*") },
                     onPickFile = { filePickerLauncher.launch("*/*") },
                     onScanQr = { showQrScanner = true },
-                    onScanInvoice = { invoicePickerLauncher.launch(arrayOf("image/*", "application/pdf")) }
+                    onScanInvoice = { invoicePickerLauncher.launch(arrayOf("image/*", "application/pdf")) },
+                    onScanOffer = { offerPickerLauncher.launch(arrayOf("image/*", "application/pdf", "text/*", "text/html", "message/rfc822")) }
                 )
             }
 
@@ -406,10 +413,18 @@ fun MainScreen(viewModel: ScannerViewModel) {
 }
 
 @Composable
-fun ScanTab(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFile: () -> Unit, onScanQr: () -> Unit, onScanInvoice: () -> Unit = {}) {
+fun ScanTab(
+    viewModel: ScannerViewModel,
+    onPickImage: () -> Unit,
+    onPickFile: () -> Unit,
+    onScanQr: () -> Unit,
+    onScanInvoice: () -> Unit = {},
+    onScanOffer: () -> Unit = {}
+) {
     val hasActiveScanContext = viewModel.loading ||
         viewModel.assessment != null ||
         viewModel.invoiceResult != null ||
+        viewModel.pendingOfferConfirmation != null ||
         viewModel.pendingSharedInput != null ||
         viewModel.pendingSharedFiles.isNotEmpty() ||
         viewModel.sharedContentFidelity != null
@@ -435,6 +450,11 @@ fun ScanTab(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFile: ()
             }
 
             when {
+                viewModel.pendingOfferConfirmation != null -> OfferConfirmationCard(
+                    draft = viewModel.pendingOfferConfirmation!!,
+                    onConfirm = { viewModel.confirmOfferAndScan(it) },
+                    onCancel = { viewModel.cancelOfferConfirmation() }
+                )
                 viewModel.invoiceResult != null -> InvoiceResultCard(
                     result = viewModel.invoiceResult!!,
                     onBack = { viewModel.reset() }
@@ -447,14 +467,14 @@ fun ScanTab(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFile: ()
                     onFeedback = { viewModel.submitFeedback(it) },
                     onFamilyAlert = { viewModel.notifyFamilyForCurrentScan() }
                 )
-                else -> ScanInputCard(viewModel, onPickImage, onPickFile, onScanQr, onScanInvoice)
+                else -> ScanInputCard(viewModel, onPickImage, onPickFile, onScanQr, onScanInvoice, onScanOffer)
             }
 
             Spacer(modifier = Modifier.height(20.dp))
         }
 
         if (!hasActiveScanContext) {
-            ScanInputCard(viewModel, onPickImage, onPickFile, onScanQr, onScanInvoice)
+            ScanInputCard(viewModel, onPickImage, onPickFile, onScanQr, onScanInvoice, onScanOffer)
         }
         
         Spacer(modifier = Modifier.height(20.dp))
@@ -1879,7 +1899,14 @@ fun Header() {
 }
 
 @Composable
-fun ScanInputCard(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFile: () -> Unit, onScanQr: () -> Unit, onScanInvoice: () -> Unit = {}) {
+fun ScanInputCard(
+    viewModel: ScannerViewModel,
+    onPickImage: () -> Unit,
+    onPickFile: () -> Unit,
+    onScanQr: () -> Unit,
+    onScanInvoice: () -> Unit = {},
+    onScanOffer: () -> Unit = {}
+) {
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
 
@@ -2163,6 +2190,17 @@ fun ScanInputCard(viewModel: ScannerViewModel, onPickImage: () -> Unit, onPickFi
                     modifier = Modifier.weight(1f)
                 )
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            GridButton(
+                title = "Verifică o Ofertă",
+                desc = "Avansuri, bilete, chirii, contracte sau plăți cerute rapid",
+                icon = Icons.Default.LocalOffer,
+                color = SigurColors.BrandDeep,
+                onClick = onScanOffer,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -2399,6 +2437,11 @@ fun ResultCard(
                 modifier = Modifier.padding(bottom = 4.dp)
             )
 
+            assessment.offerEvidence?.let { offer ->
+                OfferEvidenceSection(offer)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             ResultSection(title = "De ce spunem asta", items = topReasons, icon = Icons.AutoMirrored.Filled.List)
             
             if (assessment.offerAnalysis != null) {
@@ -2616,6 +2659,88 @@ fun ResultSection(title: String, items: List<String>, icon: ImageVector) {
                 color = SigurColors.TextSecondary,
                 fontSize = 13.sp,
                 modifier = Modifier.padding(start = 22.dp, top = 2.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun OfferEvidenceSection(offer: OfferEvidenceSummary) {
+    val entity = offer.entity
+    val entityTone = when {
+        entity?.brandImpersonation == true -> DSChipTone.Danger
+        entity?.cuiChecked == false || entity?.cuiChecked == null -> DSChipTone.Pending
+        entity.cuiExists == true && entity.cuiActive == true -> DSChipTone.Safe
+        entity.cuiExists == false -> DSChipTone.Suspect
+        else -> DSChipTone.Pending
+    }
+    val entityLabel = when {
+        entity?.brandImpersonation == true -> "posibilă impersonare"
+        entity?.cuiChecked == false || entity?.cuiChecked == null -> "ANAF neverificat"
+        entity.cuiExists == true && entity.cuiActive == true -> "CUI activ"
+        entity.cuiExists == false -> "CUI negăsit"
+        else -> "ANAF incert"
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundSurface),
+        border = BorderStroke(1.dp, SigurColors.GlassBorder),
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.LocalOffer, contentDescription = null, tint = SigurColors.Brand, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Date citite din ofertă", fontWeight = FontWeight.Bold, color = SigurColors.TextPrimary, fontSize = 14.sp)
+                Spacer(modifier = Modifier.weight(1f))
+                DSChip(entityLabel, tone = entityTone)
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            val fields = offer.fields
+            InvoiceFieldRow("Emitent", fields.issuerName ?: entity?.denumire ?: "—")
+            InvoiceFieldRow("CUI", fields.issuerCui ?: "—")
+            InvoiceFieldRow("IBAN", fields.iban ?: "—")
+            InvoiceFieldRow("Beneficiar plată", fields.paymentBeneficiary ?: "—")
+            InvoiceFieldRow("Suma", formatOfferAmount(fields.totalAmount, fields.currency ?: "RON"))
+            InvoiceFieldRow("Metodă plată", fields.paymentMethod ?: "—")
+            InvoiceFieldRow("Tip document", fields.documentType ?: "ofertă")
+            fields.familyCode?.takeIf { it.isNotBlank() }?.let {
+                InvoiceFieldRow("Familie ofertă", it, DSChipTone.Brand)
+            }
+
+            if (offer.coherenceOk != null) {
+                InvoiceFieldRow("Coerență sumă/date", if (offer.coherenceOk) "ok" else "neclar")
+            }
+
+            val readableSignals = offer.signals
+                .map(::offerSignalLabel)
+                .distinct()
+                .take(5)
+            if (readableSignals.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text("Semnale observate", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = SigurColors.TextPrimary)
+                readableSignals.forEach { signal ->
+                    Text("• $signal", fontSize = 12.sp, color = SigurColors.TextSecondary, modifier = Modifier.padding(start = 8.dp, top = 3.dp))
+                }
+            }
+
+            if (offer.warnings.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text("Atenționări", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = SigurColors.Suspect)
+                offer.warnings.take(4).forEach { warning ->
+                    Text("• $warning", fontSize = 12.sp, color = SigurColors.TextSecondary, modifier = Modifier.padding(start = 8.dp, top = 3.dp))
+                }
+            }
+
+            Text(
+                text = "Notă: lipsa verificării ANAF sau un CUI neclar nu înseamnă automat fraudă; verdictul final folosește combinația de dovezi.",
+                fontSize = 10.sp,
+                lineHeight = 14.sp,
+                color = SigurColors.TextMuted,
+                modifier = Modifier.padding(top = 10.dp)
             )
         }
     }
@@ -3981,8 +4106,201 @@ fun InvoiceResultCard(result: InvoiceScanResponse, onBack: () -> Unit) {
     }
 }
 
+@Composable
+fun OfferConfirmationCard(
+    draft: PendingOfferConfirmation,
+    onConfirm: (OfferConfirmationFields) -> Unit,
+    onCancel: () -> Unit
+) {
+    var issuerName by remember(draft) { mutableStateOf(draft.fields.issuerName) }
+    var issuerCui by remember(draft) { mutableStateOf(draft.fields.issuerCui) }
+    var iban by remember(draft) { mutableStateOf(draft.fields.iban) }
+    var paymentBeneficiary by remember(draft) { mutableStateOf(draft.fields.paymentBeneficiary) }
+    var totalAmount by remember(draft) { mutableStateOf(draft.fields.totalAmount) }
+    var currency by remember(draft) { mutableStateOf(draft.fields.currency.ifBlank { "RON" }) }
+    var documentNumber by remember(draft) { mutableStateOf(draft.fields.documentNumber) }
+    var documentDate by remember(draft) { mutableStateOf(draft.fields.documentDate) }
+
+    val missingHints = listOfNotNull(
+        if (issuerName.isBlank()) "emitent" else null,
+        if (issuerCui.isBlank()) "CUI" else null,
+        if (iban.isBlank()) "IBAN" else null,
+        if (totalAmount.isBlank()) "sumă" else null
+    )
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, SigurColors.GlassBorder, RoundedCornerShape(16.dp))
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.LocalOffer, contentDescription = null, tint = SigurColors.Brand, modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Confirmă oferta", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = SigurColors.TextPrimary)
+                    Text(
+                        "Am citit documentul. Corectează câmpurile dacă OCR-ul a greșit, apoi pornim verificarea.",
+                        color = SigurColors.TextSecondary,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
+                }
+                DSChip(
+                    text = if (missingHints.isEmpty()) "gata de verificat" else "verifică datele",
+                    tone = if (missingHints.isEmpty()) DSChipTone.Safe else DSChipTone.Pending
+                )
+            }
+
+            if (missingHints.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = SigurColors.PendingLight),
+                    border = BorderStroke(1.dp, SigurColors.Pending.copy(alpha = 0.25f)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "Lipsesc sau sunt neclare: ${missingHints.joinToString(", ")}. Dacă documentul nu le conține, le poți lăsa goale.",
+                        color = SigurColors.TextSecondary,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+            OfferFieldEditor("Emitent / firmă", issuerName) { issuerName = it }
+            OfferFieldEditor("CUI / CIF", issuerCui) { issuerCui = it.filter { ch -> ch.isDigit() || ch.uppercaseChar() in 'A'..'Z' }.take(14) }
+            OfferFieldEditor("IBAN", iban) { iban = it.replace(" ", "").uppercase(Locale.getDefault()).take(34) }
+            OfferFieldEditor("Beneficiar plată", paymentBeneficiary) { paymentBeneficiary = it }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                OfferFieldEditor(
+                    label = "Sumă",
+                    value = totalAmount,
+                    modifier = Modifier.weight(1.35f)
+                ) { totalAmount = it.take(24) }
+                OfferFieldEditor(
+                    label = "Monedă",
+                    value = currency,
+                    modifier = Modifier.weight(0.85f)
+                ) { currency = it.uppercase(Locale.getDefault()).take(6) }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                OfferFieldEditor(
+                    label = "Nr. document",
+                    value = documentNumber,
+                    modifier = Modifier.weight(1f)
+                ) { documentNumber = it.take(40) }
+                OfferFieldEditor(
+                    label = "Dată",
+                    value = documentDate,
+                    modifier = Modifier.weight(1f)
+                ) { documentDate = it.take(20) }
+            }
+
+            if (draft.links.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Linkuri găsite: ${draft.links.size}", color = SigurColors.TextMuted, fontSize = 11.sp)
+                Text(
+                    draft.links.take(2).joinToString("\n"),
+                    color = SigurColors.TextSecondary,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = {
+                    onConfirm(
+                        OfferConfirmationFields(
+                            issuerName = issuerName.trim(),
+                            issuerCui = issuerCui.trim(),
+                            iban = iban.trim(),
+                            paymentBeneficiary = paymentBeneficiary.trim(),
+                            totalAmount = totalAmount.trim(),
+                            currency = currency.trim().ifBlank { "RON" },
+                            documentNumber = documentNumber.trim(),
+                            documentDate = documentDate.trim()
+                        )
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = SigurColors.Brand),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.Verified, contentDescription = null, tint = Color.White, modifier = Modifier.size(17.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Verifică oferta", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+
+            TextButton(
+                onClick = onCancel,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Renunță", color = SigurColors.TextSecondary)
+            }
+        }
+    }
+}
+
+@Composable
+private fun OfferFieldEditor(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    onValueChange: (String) -> Unit
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label, color = SigurColors.TextMuted) },
+        singleLine = true,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = SigurColors.Brand,
+            unfocusedBorderColor = SigurColors.BorderSubtle,
+            focusedTextColor = SigurColors.TextPrimary,
+            unfocusedTextColor = SigurColors.TextPrimary,
+            focusedContainerColor = SigurColors.BackgroundSurface,
+            unfocusedContainerColor = SigurColors.BackgroundSurface,
+            cursorColor = SigurColors.Brand
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(bottom = 10.dp)
+    )
+}
+
 private fun formatInvoiceAmount(value: Double?, currency: String): String {
     return value?.let { "%.2f %s".format(it, currency) } ?: "—"
+}
+
+private fun formatOfferAmount(value: Double?, currency: String): String {
+    return value?.let { "%.2f %s".format(it, currency) } ?: "—"
+}
+
+private fun offerSignalLabel(signal: String): String {
+    val normalized = signal.lowercase(Locale.getDefault())
+    return when {
+        "crypto" in normalized || "wallet" in normalized -> "Plată crypto/wallet: verifică foarte atent înainte să trimiți bani."
+        "off_platform" in normalized || "platform" in normalized -> "Discuția sau plata pare mutată în afara platformei oficiale."
+        "card" in normalized || "cvv" in normalized || "otp" in normalized -> "Cerere de card/CVV/OTP: nu trimite coduri sau date bancare."
+        "id_document" in normalized || "document" in normalized || "buletin" in normalized -> "Se cer acte personale; trimite-le doar prin canal oficial verificat."
+        "price_urgency" in normalized || "urgency" in normalized -> "Presiune de timp/preț; este doar semnal contextual, nu verdict singur."
+        "iban" in normalized -> "IBAN detectat; verificăm dacă se aliniază cu beneficiarul."
+        "cui" in normalized || "entity" in normalized -> "Date firmă/CUI detectate și comparate unde se poate."
+        "qr_payment" in normalized || "qr" in normalized -> "Cod QR de plată detectat."
+        "family" in normalized -> "Seamănă cu o familie cunoscută de fraudă din atlas."
+        "readiness" in normalized || "missing" in normalized -> "Unele câmpuri lipsesc sau sunt greu de citit."
+        else -> signal.replace('_', ' ').replace('-', ' ')
+    }
 }
 
 @Composable
