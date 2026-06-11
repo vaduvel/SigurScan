@@ -30,6 +30,10 @@ internal fun backendGateResult(response: ScanResponse): GateResult {
     )
 }
 
+internal fun backendGateResult(response: OrchestratedScanResponse): GateResult {
+    return response.result?.let(::backendGateResult) ?: backendScanInProgressGateResult()
+}
+
 internal fun backendScanInProgressGateResult(): GateResult = GateResult(
     action = GateAction.INSUFFICIENT_EVIDENCE,
     finality = GateFinality.PROVISIONAL,

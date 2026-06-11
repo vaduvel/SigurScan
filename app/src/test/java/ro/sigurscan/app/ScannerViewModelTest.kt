@@ -158,6 +158,28 @@ class ScannerViewModelTest {
     }
 
     @Test
+    fun qrImageFailurePublishesIncompleteEvidenceInsteadOfSilentStop() {
+        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val qrStart = viewModelSource.indexOf("fun onQrPicked(uri: Uri, context: Context)")
+        val qrEnd = viewModelSource.indexOf("fun onImagePicked(uri: Uri, context: Context)", qrStart)
+        assertTrue("onQrPicked must exist.", qrStart >= 0 && qrEnd > qrStart)
+
+        val qrFlow = viewModelSource.substring(qrStart, qrEnd)
+        assertTrue(
+            "QR image import must show an incomplete-evidence result when no QR is readable.",
+            qrFlow.contains("publishQrExtractionIncomplete(\"Nu am găsit un cod QR lizibil în imagine.\")")
+        )
+        assertTrue(
+            "QR image import must show an incomplete-evidence result when MLKit fails.",
+            qrFlow.contains("publishQrExtractionIncomplete(\"Nu am putut citi codul QR din imagine. Reîncearcă cu o poză mai clară.\")")
+        )
+        assertTrue(
+            "QR incomplete result must stay unknown, not local-risk.",
+            qrFlow.contains("""riskLevel = "unknown"""")
+        )
+    }
+
+    @Test
     fun localOfflineEvaluatorStaysNeutralAndCannotEmitRiskVerdict() {
         val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
         val start = viewModelSource.indexOf("private fun evaluateOfflineText(scannedText: String): OfflineAssessment")

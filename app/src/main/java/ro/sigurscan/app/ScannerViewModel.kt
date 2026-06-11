@@ -1875,8 +1875,8 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             val image = InputImage.fromFilePath(context, uri)
             barcodeScanner.process(image)
                 .addOnSuccessListener { barcodes ->
-                    val qrText = barcodes.firstOrNull()?.rawValue
-                    if (qrText != null) {
+                    val qrText = barcodes.firstOrNull()?.rawValue?.trim()
+                    if (!qrText.isNullOrBlank()) {
                         text = qrText
                         stagedEvidenceHtml = null
                         stagedEvidenceLinks = extractUrls(qrText)
@@ -1885,15 +1885,36 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                         stagedEvidenceChannel = "qr_scan"
                         onScanClick()
                     } else {
-                        loading = false
+                        publishQrExtractionIncomplete("Nu am găsit un cod QR lizibil în imagine.")
                     }
                 }
                 .addOnFailureListener {
-                    loading = false
+                    publishQrExtractionIncomplete("Nu am putut citi codul QR din imagine. Reîncearcă cu o poză mai clară.")
                 }
         } catch (e: Exception) {
-            loading = false
+            publishQrExtractionIncomplete("Nu am putut deschide imaginea pentru citirea codului QR.")
         }
+    }
+
+    private fun publishQrExtractionIncomplete(reason: String) {
+        val result = applyEvidenceGate(
+            current = OfflineAssessment(
+                family = "Scanare QR incompletă",
+                riskScore = 0,
+                riskLevel = "unknown",
+                reasons = listOf(reason),
+                safeActions = listOf("Reîncearcă scanarea QR sau copiază manual linkul/textul afișat lângă cod."),
+                keyDangers = listOf("Nu avem suficiente dovezi tehnice pentru verdict."),
+                originalText = "Nu s-a extras conținut verificabil din codul QR."
+            ),
+            rawInput = "QR fără conținut verificabil",
+            inputKind = "qr",
+            channel = "qr_scan",
+            providerStates = unavailableProviderStates(),
+            completeness = EvidenceCompleteness.LOCAL_ONLY
+        )
+        publishAssessmentResult(null, result)
+        loading = false
     }
 
     fun onImagePicked(uri: Uri, context: Context) {

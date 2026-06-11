@@ -35,12 +35,32 @@ class BackendVerdictMapperTest {
 
     @Test
     fun orchestratedResponseWithoutBackendResultStaysProvisional() {
-        val result = backendScanInProgressGateResult()
+        val result = backendGateResult(
+            OrchestratedScanResponse(
+                scanId = "orch-pending",
+                status = "scanning",
+                result = null
+            )
+        )
 
         assertEquals(GateAction.INSUFFICIENT_EVIDENCE, result.action)
         assertEquals(GateFinality.PROVISIONAL, result.finality)
         assertTrue(result.asyncExpected)
         assertEquals("BACKEND_SCAN_IN_PROGRESS", result.unknownReason)
+    }
+
+    @Test
+    fun orchestratedResponseWithFinalBackendResultUsesBackendLabel() {
+        val result = backendGateResult(
+            OrchestratedScanResponse(
+                scanId = "orch-final",
+                status = "complete",
+                result = scanResponse(label = "PERICULOS", riskLevel = "high", isFinal = true)
+            )
+        )
+
+        assertEquals(GateAction.DO_NOT_CONTINUE, result.action)
+        assertEquals(GateFinality.FINAL, result.finality)
     }
 
     @Test
