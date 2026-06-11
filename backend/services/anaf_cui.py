@@ -85,7 +85,12 @@ async def _call_anaf_api(cui_int: int, ref_date: str) -> CuiResult | None:
 
 
 def _parse_anaf_entry(entry: Dict[str, Any]) -> CuiResult:
-    dg = entry.get("date_generale") or {}
+    dg = entry.get("date_generale")
+    if not isinstance(dg, dict):
+        return CuiResult(
+            exists=False, denumire=None, activ=False, data_inactivare=None,
+            platitor_tva=False, enrolled_efactura=False, raw=entry,
+        )
     denumire = (dg.get("denumire") or "").strip() or None
     status_inactiv = (dg.get("statusInactivi") or "").strip().lower()
     data_inactivare = (dg.get("dataInactivare") or "").strip() or None
