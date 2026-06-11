@@ -253,10 +253,28 @@ class SigurScanFixturePackDeviceE2ETest {
                 EvidenceCode.SENSITIVE_FORM_UNOFFICIAL
             )
         }
+        val hasDirectReplySecretRequest = codes.contains(EvidenceCode.REPLY_WITH_CODE_REQUEST) &&
+            codes.any {
+                it in setOf(
+                    EvidenceCode.OTP_REQUEST,
+                    EvidenceCode.PASSWORD_REQUEST,
+                    EvidenceCode.CARD_REQUEST,
+                    EvidenceCode.CNP_IBAN_REQUEST
+                )
+            }
+        if (hasDirectReplySecretRequest) return GateAction.NO_REPLY
+
         val hasOfficialDestination = codes.any {
             it in setOf(EvidenceCode.OFFICIAL_DOMAIN_EXACT, EvidenceCode.DELEGATED_DOMAIN_EXACT)
         }
         if (hasSensitiveAsk && !hasOfficialDestination) return GateAction.NO_ENTER_DATA
+
+        if (legacy == GateAction.CONTINUE_WITH_CAUTION &&
+            requiresOfferConfirmation(snapshot) &&
+            !codes.contains(EvidenceCode.OFFER_CLAIM_CONFIRMED)
+        ) {
+            return GateAction.VERIFY_OFFICIAL
+        }
 
         val hasReviewedUnknownDestination = legacy == GateAction.INSUFFICIENT_EVIDENCE &&
             !snapshot.finalUrl.isNullOrBlank() &&
@@ -265,6 +283,20 @@ class SigurScanFixturePackDeviceE2ETest {
         if (hasReviewedUnknownDestination) return GateAction.VERIFY_OFFICIAL
 
         return legacy
+    }
+
+    private fun requiresOfferConfirmation(snapshot: EvidenceSnapshot): Boolean {
+        return snapshot.signals.any { signal ->
+            signal.code in setOf(
+                EvidenceCode.MARKETING_URGENCY,
+                EvidenceCode.PROMO_TEXT,
+                EvidenceCode.VOUCHER_TEXT,
+                EvidenceCode.CTA_TEXT,
+                EvidenceCode.OFFER_CLAIM_CONFIRMED,
+                EvidenceCode.OFFER_CLAIM_NOT_FOUND,
+                EvidenceCode.OFFER_CLAIM_INCONCLUSIVE
+            )
+        }
     }
 
     private fun requiresFixtureClaimVerification(snapshot: EvidenceSnapshot): Boolean {

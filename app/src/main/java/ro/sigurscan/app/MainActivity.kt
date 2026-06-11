@@ -207,11 +207,11 @@ private fun handleIncomingIntent(context: Context, intent: Intent?, viewModel: S
     }
 }
 
-private fun resolveSharedTextPayload(intent: Intent): ResolvedSharedTextPayload? {
+internal fun resolveSharedTextPayload(intent: Intent): ResolvedSharedTextPayload? {
     return SharedTextPayloadResolver.resolve(collectSharedTextCandidates(intent))
 }
 
-private fun collectSharedTextCandidates(intent: Intent): List<SharedTextCandidate> {
+internal fun collectSharedTextCandidates(intent: Intent): List<SharedTextCandidate> {
     val candidates = mutableListOf<SharedTextCandidate>()
 
     intent.getStringExtra(Intent.EXTRA_HTML_TEXT)
