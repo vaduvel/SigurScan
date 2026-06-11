@@ -11,6 +11,9 @@ AMOUNT_PATTERN = re.compile(
     r"(\d[\d\s]*(?:[.,]\d{1,2})?)",
     re.IGNORECASE,
 )
+AMOUNT_WITH_TVA_RATE = re.compile(
+    r"TVA.*?(\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:RON|LEI|lei|Eur|EUR)", re.IGNORECASE
+)
 AMOUNT_FALLBACK = re.compile(r"(\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:RON|LEI|lei|Eur|EUR)")
 DATE_PATTERN = re.compile(
     r"\b(0[1-9]|[12]\d|3[01])[./](0[1-9]|1[0-2])[./](20\d{2})\b"
@@ -76,12 +79,21 @@ def _parse_amounts(text: str) -> dict:
         if not lower:
             continue
         if TVA_LABEL.search(lower) and "total" not in lower:
-            for match in AMOUNT_PATTERN.finditer(line):
+            matched = False
+            for match in AMOUNT_WITH_TVA_RATE.finditer(line):
                 val = _parse_ro_amount(match.group(1))
                 if val is not None:
                     amounts["tva"].append(val)
+                    matched = True
                     break
-            if not amounts["tva"]:
+            if not matched:
+                for match in AMOUNT_PATTERN.finditer(line):
+                    val = _parse_ro_amount(match.group(1))
+                    if val is not None:
+                        amounts["tva"].append(val)
+                        matched = True
+                        break
+            if not matched:
                 for match in AMOUNT_FALLBACK.finditer(line):
                     val = _parse_ro_amount(match.group(1))
                     if val is not None:
