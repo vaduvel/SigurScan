@@ -11,7 +11,7 @@ from services.iban_validator import IbanResult
 class BrandEntry:
     aliases: List[str]
     domains: List[str]
-    cui: str | None
+    cuis: List[str]
     trezorerie_only: bool
     official_ibans: List[str]
 
@@ -20,91 +20,98 @@ BRAND_REGISTRY: Dict[str, BrandEntry] = {
     "enel": BrandEntry(
         aliases=["enel", "e-distributie", "enel energie"],
         domains=["enel.ro", "e-distributie.com"],
-        cui="14345906",
+        cuis=["14345906"],
         trezorerie_only=False,
         official_ibans=[],
     ),
     "ppc": BrandEntry(
         aliases=["ppc", "ppc energie"],
         domains=["ppc.ro"],
-        cui=None,
+        cuis=[],
         trezorerie_only=False,
         official_ibans=[],
     ),
     "electrica": BrandEntry(
         aliases=["electrica", "electrica furnizare", "electrica distributie"],
         domains=["electrica.ro", "electrica-furnizare.ro"],
-        cui="13267293",
+        cuis=["13267293"],
         trezorerie_only=False,
         official_ibans=[],
     ),
     "eon": BrandEntry(
         aliases=["e.on", "eon", "eon energie"],
         domains=["eon.ro"],
-        cui="15877338",
+        cuis=["15877338"],
         trezorerie_only=False,
         official_ibans=[],
     ),
     "engie": BrandEntry(
         aliases=["engie", "gdf suez"],
         domains=["engie.ro"],
-        cui="35194668",
+        cuis=["35194668"],
         trezorerie_only=False,
         official_ibans=[],
     ),
     "hidroelectrica": BrandEntry(
         aliases=["hidroelectrica"],
         domains=["hidroelectrica.ro"],
-        cui="13267259",
+        cuis=["13267259"],
         trezorerie_only=False,
         official_ibans=[],
     ),
     "digi": BrandEntry(
         aliases=["digi", "digi.telekom", "rcs rds"],
         domains=["digi.ro", "rcs-rds.ro"],
-        cui="33141033",
+        cuis=["33141033", "5888716"],
         trezorerie_only=False,
         official_ibans=[],
     ),
     "orange": BrandEntry(
         aliases=["orange"],
         domains=["orange.ro"],
-        cui="16339980",
+        cuis=["16339980"],
         trezorerie_only=False,
         official_ibans=[],
     ),
     "vodafone": BrandEntry(
         aliases=["vodafone"],
         domains=["vodafone.ro"],
-        cui="15049623",
+        cuis=["15049623"],
         trezorerie_only=False,
         official_ibans=[],
     ),
     "telekom": BrandEntry(
         aliases=["telekom"],
         domains=["telekom.ro"],
-        cui="16339980",
+        cuis=["16339980"],
         trezorerie_only=False,
         official_ibans=[],
     ),
     "anaf": BrandEntry(
         aliases=["anaf", "agentia nationala de administrare fiscala", "fisc", "finante"],
         domains=["anaf.ro", "ghiseul.ro", "static.anaf.ro"],
-        cui="",
+        cuis=[],
         trezorerie_only=True,
         official_ibans=[],
+    ),
+    "energy_gas": BrandEntry(
+        aliases=["energy gas provider", "energy gas"],
+        domains=["energy-gas.ro"],
+        cuis=["26741040"],
+        trezorerie_only=False,
+        official_ibans=["RO25RNCB0300134768150001", "RO83BTRLRONCRT0299335701", "RO08RZBR0000060012601131"],
     ),
     "cnadnr": BrandEntry(
         aliases=["cnadnr", "compania nationala de drumuri", "rovignieta"],
         domains=["cnadnr.ro"],
-        cui="16054316",
+        cuis=["16054316"],
         trezorerie_only=False,
         official_ibans=[],
     ),
     "impozite": BrandEntry(
         aliases=["impozite", "taxe locale", "directia de venituri", "direcția de venituri"],
         domains=[],
-        cui="",
+        cuis=[],
         trezorerie_only=True,
         official_ibans=[],
     ),
@@ -121,17 +128,23 @@ class BrandMatchResult:
 
 
 def detect_claimed_brand(emitent: str | None, text: str, links: List[str]) -> str | None:
-    search_text = f"{emitent or ''} {text}"
-    for brand_key, entry in BRAND_REGISTRY.items():
-        for alias in entry.aliases:
-            if re.search(rf"\b{re.escape(alias)}\b", search_text, re.IGNORECASE):
-                return brand_key
-    for link in links:
-        link_lower = link.lower()
+    if emitent:
         for brand_key, entry in BRAND_REGISTRY.items():
+            for alias in entry.aliases:
+                if re.search(rf"\b{re.escape(alias)}\b", emitent, re.IGNORECASE):
+                    return brand_key
+    if links:
+        for brand_key, entry in BRAND_REGISTRY.items():
+            link_lower = " ".join(link.lower() for link in links)
             for domain in entry.domains:
                 if domain in link_lower:
                     return brand_key
+    header_lines = text.split("\n")[:3]
+    header = " ".join(header_lines)
+    for brand_key, entry in BRAND_REGISTRY.items():
+        for alias in entry.aliases:
+            if re.search(rf"\b{re.escape(alias)}\b", header, re.IGNORECASE):
+                return brand_key
     return None
 
 
@@ -181,10 +194,10 @@ def match_brand(
     domain_matches_raw = _any_link_matches(links, entry.domains)
     domain_matches = domain_matches_raw if domain_matches_raw is not None else True
     cui_matches: bool | None = True
-    if entry.cui:
+    if entry.cuis:
         cui_normalized = _normalize_cui(cui) if cui else ""
-        entry_cui_normalized = _normalize_cui(entry.cui)
-        cui_matches = bool(entry_cui_normalized) and cui_normalized == entry_cui_normalized
+        normalized_entry_cuis = [_normalize_cui(c) for c in entry.cuis]
+        cui_matches = bool(cui_normalized) and cui_normalized in normalized_entry_cuis
     iban_matches: bool | None = True
     if entry.trezorerie_only:
         iban_matches = validated_iban.is_trezorerie if validated_iban else False
