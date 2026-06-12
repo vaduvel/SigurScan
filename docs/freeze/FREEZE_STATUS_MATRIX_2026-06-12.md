@@ -7,8 +7,8 @@ Status: proof-led, not marketing-led. Nothing is green unless there is a rerunna
 - Repo: `/Users/vaduvageorge/AndroidStudioProjects/SigurScan`
 - Branch: `main`
 - GitHub: `origin/main`
-- Current repo head before this proof update: `e55bc7b`
-- Deployed Cloud Run code image: `e55bc7b`
+- Current repo head before this proof update: `d9d452c`
+- Deployed Cloud Run code image: `d9d452c`
 - API domain: `https://api.sigurscan.com`
 - Cloud project id: `project-20f225c0-d756-4cba-864`
 - Cloud Run service: `sigurscan-api`, region `europe-west1`
@@ -33,7 +33,7 @@ Evidence:
 
 | Zone | Area | Status | Proof / Gap |
 | --- | --- | --- | --- |
-| 1 | Cloud Run runtime | Partial Green | Live service is healthy behind `api.sigurscan.com`, min instances is `1`, request-based CPU is preserved, budget + latency alert exist. Deployed revision is `sigurscan-api-00022-wj8` on code image `e55bc7b`. Open: optional URL-provider concurrency, optional full rollback drill, prior 29s outlier remains watch item. |
+| 1 | Cloud Run runtime | Green for current release posture | Live service is healthy behind `api.sigurscan.com`, min instances is `1`, request-based CPU is preserved, budget + latency alert exist. Reproducible hash-locked container is deployed as revision `sigurscan-api-00023-58k` on code image `d9d452c`. Five concurrent text-only scans pass through both official and direct Run paths. Rollback to `00022-wj8` and restore to `00023-58k` were executed successfully. Optional: quota-bounded URL-provider concurrency; prior isolated client timeout remains a watch item. |
 | 2 | Cloudflare/domain | Partial Green | `https://api.sigurscan.com/health` is live through Cloudflare and Android UA is accepted. Open: TLS screenshot/proof, HTTP->HTTPS redirect proof, full Cloudflare `/v1/*` rule audit. |
 | 3 | Supabase | Green for current schema | Remote migration list matches local migrations. Required tables exist: `scan_jobs`, `urlscan_preview_cache`, `fast_preview_cache`, `fast_preview_alias_cache`, `fast_preview_capture_runs`. Preview bucket `previews` is private. Visual-only constraints exist. Open: one non-critical Supabase CLI temp-role query failed after parallel auth attempts; avoid repeated parallel DB auth probes. |
 | 4 | Cache/providers | Partial Green | Provider smoke, single live URL-provider smoke, and preview cache paths have proof. URLhaus/Web Risk/urlscan/Mistral/Upstash secrets are wired in deploy script. Open: full provider load/concurrency intentionally not run to avoid quota burn. |
@@ -47,7 +47,13 @@ Evidence:
 - Backend full suite:
   - Command: `python3 -m pytest backend -q`
   - Location: `/Users/vaduvageorge/AndroidStudioProjects/SigurScan`
-  - Result: `663 passed, 1 warning`
+  - Result after container hardening: `664 passed, 1 warning`
+- Reproducible container contract:
+  - Command: `python3 -m pytest backend/test_container_contract.py -q`
+  - Result: `1 passed`
+  - Zero-cache Docker build: success.
+  - Cloud Build: `8088b6e7-7662-43fb-936a-494baffbd5a2`, success, clean log.
+  - Deployed digest: `sha256:0424d26d5eb06f0a73566c0d55964cb0f36fc8ec6180b060cfadc7a0cd735406`.
 - Android unit + debug build:
   - Command: `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew :app:testDebugUnitTest :app:assembleDebug`
   - Location: `/Users/vaduvageorge/AndroidStudioProjects/SigurScan`

@@ -7,8 +7,8 @@ Status: in progress. This document is proof-led: an item is not green unless the
 - Repository: `vaduvel/SigurScan`
 - Local repo: `/Users/vaduvageorge/AndroidStudioProjects/SigurScan`
 - Current branch: `main`
-- Verified code commit: `e55bc7b`
-- Deployed code commit: `e55bc7b`
+- Verified code commit: `d9d452c`
+- Deployed code commit: `d9d452c`
 - Documentation may advance past the deployed code commit with proof-only updates.
 - Cloud Run project: `project-20f225c0-d756-4cba-864`
 - Cloud Run service: `sigurscan-api`
@@ -21,13 +21,22 @@ Status: in progress. This document is proof-led: an item is not green unless the
 
 - Cloud Run service exists in `europe-west1`.
   Evidence: `gcloud run services describe sigurscan-api --project project-20f225c0-d756-4cba-864 --region europe-west1`.
-- Latest ready revision is `sigurscan-api-00022-wj8`.
-- Traffic is `100%` to `sigurscan-api-00022-wj8`.
-- Deployed image is `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:e55bc7b`.
+- Latest ready revision is `sigurscan-api-00023-58k`.
+- Traffic is `100%` to `sigurscan-api-00023-58k`.
+- Deployed image is `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:d9d452c`.
+- Deployed image digest is `sha256:0424d26d5eb06f0a73566c0d55964cb0f36fc8ec6180b060cfadc7a0cd735406`.
 - Cloud Build deployment proof:
-  - build id: `0dce50cd-bacb-415b-944d-da30bff9c8b7`
+  - build id: `8088b6e7-7662-43fb-936a-494baffbd5a2`
   - status: `SUCCESS`
   - service URL: `https://sigurscan-api-357849228072.europe-west1.run.app`
+- Container build is reproducible:
+  - base image is pinned by digest to Python `3.12.13-slim-trixie`.
+  - Python dependencies are installed from `backend/requirements.lock` with `--require-hashes`.
+  - dynamic `pip install --upgrade pip` and unnecessary apt/curl installation were removed.
+  - zero-cache local Docker build completed successfully.
+  - local container `/health` returned `HTTP 200`, `pip check` found no broken requirements, and importing `main` exposed `39` routes.
+  - Cloud Build log for `8088b6e7-7662-43fb-936a-494baffbd5a2` contained no warning/error/failed tokens.
+  - contract test: `backend/test_container_contract.py` passes.
 - Request timeout is `300s`.
 - Container concurrency is `40`.
 - CPU/memory are `1 CPU` / `1Gi`.
@@ -45,6 +54,7 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - Post-deploy health after `21a6943`: `HTTP 200`, `0.361590s`.
   - Post-deploy health after `17dcfc7`: `HTTP 200`, `0.336330s`.
   - Post-deploy health after `e55bc7b`: `HTTP 200`, `0.288110s`.
+  - Post-deploy health after `d9d452c`: official domain `HTTP 200`, `0.369934s`; raw Run URL `HTTP 200`, `0.164767s`.
 - API protection is active:
   - unauthenticated `POST /v1/scan/orchestrated` returns `401`.
   - authenticated `POST /v1/scan/orchestrated` returns `200` and creates a scan.
@@ -110,6 +120,11 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - wall time: `9.872s`.
   - final labels: `SUSPECT`, `PERICULOS`, `SUSPECT`.
   - final per-scan totals: `9.862s`, `9.629s`, `9.869s`.
+- Controlled five-scan concurrency probe after deploy `d9d452c`:
+  - 5 concurrent `input_type=offer` text-only scans, without URLs, so external URL-provider quota was not consumed.
+  - official domain: `5/5` finalized, `0` failures, wall time `12.276s`, max per-scan total `12.269s`, max poll `4.944s`.
+  - direct Cloud Run URL: `5/5` finalized, `0` failures, wall time `11.677s`, max per-scan total `11.673s`, max poll `5.158s`.
+  - an earlier probe had one client-side `15s` read timeout, but Cloud Run request logs showed every received request below `4.751s`; the immediate controlled rerun above did not reproduce it through either path.
 - Android emulator E2E through the installed debug app:
   - Device: `emulator-5554`.
   - App package: `ro.sigurscan.app`.
@@ -156,14 +171,12 @@ Status: in progress. This document is proof-led: an item is not green unless the
     - Result: `Scanare Factură` screen shows status `Verificat`, issuer `DIGI ROMANIA S.A.`, CUI `5888716`, IBAN valid `Da`, invoice number `TEST-2026-0612`, dates and totals.
     - App-only logcat check: no SigurScan `AndroidRuntime` crash, fatal exception, or ANR found.
     - Screenshot evidence: `docs/freeze/evidence/android_e2e_invoice_digi_verified_after_invoice_finalize_fix_2026-06-12.png`.
-- Rollback readiness is proven non-destructively:
-  - current revision `sigurscan-api-00022-wj8` is `Ready=True`.
-  - immediate previous revision `sigurscan-api-00021-rmt` is `Ready=True`.
-  - current traffic remains `100%` on `sigurscan-api-00022-wj8`.
-  - rollback command, if needed:
-    `gcloud run services update-traffic sigurscan-api --project project-20f225c0-d756-4cba-864 --region europe-west1 --to-revisions sigurscan-api-00021-rmt=100`
-  - restore command:
-    `gcloud run services update-traffic sigurscan-api --project project-20f225c0-d756-4cba-864 --region europe-west1 --to-revisions sigurscan-api-00022-wj8=100`
+- Rollback is proven end-to-end:
+  - traffic was moved temporarily from current revision `sigurscan-api-00023-58k` to previous revision `sigurscan-api-00022-wj8`.
+  - while rolled back, `https://api.sigurscan.com/health` returned `HTTP 200` in `0.252051s`.
+  - traffic was restored immediately to `sigurscan-api-00023-58k`.
+  - after restore, `https://api.sigurscan.com/health` returned `HTTP 200` in `0.264415s`.
+  - final state: `100%` traffic on `sigurscan-api-00023-58k`.
 - Post-deploy latency re-check after `21a6943`:
   - Existing scan `orch_1781268789_c6e92ca2` returned `HTTP 200` in `4.008s` and was already `complete`, `SUSPECT`, `is_final=true`.
   - New offer scan `orch_1781269113_5074e703`:
@@ -179,13 +192,12 @@ Status: in progress. This document is proof-led: an item is not green unless the
 - Cold-start test after 15 minutes idle has not been run.
 - Full URL-provider scan concurrency/load test has not been run; only single URL-provider smoke and text-only scan concurrency are proven.
 - Latency outlier root-cause is not fully closed: a prior live run had one `29s` poll. The latest 4-run probe and the post-`21a6943` probe did not reproduce it, and Cloud Run logs show sub-4s server-side poll latency for the latest scan, so this remains a watch item rather than a confirmed code defect.
-- Rollback has not been executed end-to-end; readiness is proven non-destructively.
 
 ### Immediate Fixes
 
 1. Run cold-start proof after an idle window if we ever reduce `min-instances` back to `0`.
 2. Run a tiny URL-provider scan concurrency probe only when rate-limit budget allows.
-3. Execute rollback end-to-end only during a maintenance window or incident drill.
+3. Keep the latency alert active and investigate any future poll over `8s` with its Cloud Run request log and edge path.
 
 ## Zone 2 - Cloudflare Official Domain
 
@@ -232,8 +244,9 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - `21a6943 fix: close freeze secret and edge UA gaps`
 - `fa6a22c fix: map live CUI fallback company data`
 - `e55bc7b fix: preserve invoice fast-lane verdict`
-- `origin/main` includes deployed code commit `e55bc7b`.
-- Cloud Run intentionally runs code image `e55bc7b`.
+- `d9d452c build: make Cloud Run container reproducible`
+- `origin/main` includes deployed code commit `d9d452c`.
+- Cloud Run intentionally runs code image `d9d452c`.
 
 ### Not Yet Green
 
@@ -244,4 +257,4 @@ Status: in progress. This document is proof-led: an item is not green unless the
 
 Freeze is not complete yet.
 
-The backend is live and healthy on Cloud Run behind `api.sigurscan.com`, with provider smoke green, API auth active, invoice HMAC secret fallback removed, Android UA hardening deployed, reproducible min instances enabled, request-based CPU billing preserved, a Cloud Billing budget guard created, build log audited, latency alerting configured, structured-error proof captured, rollback readiness proven, lightweight concurrency proven, controlled text-only scan concurrency proven, Android emulator URL E2E proven, and Android emulator invoice E2E now verified after the CUI/finalization fixes. The remaining Cloud Run freeze items are optional cold-start proof if scale-to-zero returns, optional URL-provider concurrency, and an end-to-end rollback drill when we intentionally choose a maintenance window.
+The backend is live and healthy on Cloud Run behind `api.sigurscan.com`, with provider smoke green, API auth active, invoice HMAC secret fallback removed, Android UA hardening deployed, a reproducible hash-locked container, min instances enabled, request-based CPU billing preserved, a Cloud Billing budget guard created, build log audited, latency alerting configured, structured-error proof captured, rollback executed and restored successfully, lightweight concurrency proven, controlled five-scan text-only concurrency proven, Android emulator URL E2E proven, and Android emulator invoice E2E verified after the CUI/finalization fixes. The remaining Cloud Run freeze items are optional cold-start proof if scale-to-zero returns and a deliberately quota-bounded URL-provider concurrency probe.
