@@ -6150,20 +6150,20 @@ async def _finalize_orchestrated_job_if_ready(job: Dict[str, Any], request: Requ
 
     analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
     resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
-    # Ruta OFERTĂ are deja bundle v2 + verdict din reduce_verdict (gate-ul unic,
-    # construit de offer_evidence_gate_mapper). Re-derivarea pe logica rutei text
-    # ar suprascrie verdictul ofertei (inclusiv escaladarea web-claim PR6).
+    # Rutele specializate (ofertă/factură) au deja bundle v2 + verdict din
+    # reduce_verdict. Re-derivarea pe logica rutei text ar suprascrie verdictul
+    # specializat (ex. factură coerentă -> "transfer" generic -> SUSPECT).
     _existing_bundle = (
         (analysis.get("evidence") or {}).get("decision_bundle")
         if isinstance(analysis.get("evidence"), dict)
         else None
     )
-    _is_offer_bundle = (
+    _is_specialized_bundle = (
         isinstance(_existing_bundle, dict)
         and isinstance(_existing_bundle.get("input"), dict)
-        and _existing_bundle["input"].get("type") == "offer"
+        and _existing_bundle["input"].get("type") in {"offer", "invoice"}
     )
-    if not _is_offer_bundle:
+    if not _is_specialized_bundle:
         _apply_provider_gate_verdict(
             analysis,
             resolved_urls,

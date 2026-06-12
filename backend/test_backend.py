@@ -3347,6 +3347,72 @@ def test_orchestrated_text_only_required_timeout_returns_final_suspect(monkeypat
     assert gate["reason_codes"] == ["residual"]
 
 
+def test_orchestrated_invoice_finalize_preserves_specialized_invoice_verdict(monkeypatch):
+    invoice_bundle = {
+        "schema": "sigurscan_evidence_bundle_v2",
+        "input": {"type": "invoice", "redacted_text": "Factura DIGI CUI RO5888716"},
+        "resolution": {"status": "not_required", "completeness": True},
+        "providers": {"verdict": "clean", "completeness": True},
+        "identity": {"status": "official", "claimed_brand": "digi", "completeness": True},
+        "request": {"sensitive": "transfer", "channel": "invoice", "completeness": True},
+        "semantic_review": {"status": "done", "risk_class": "low", "completeness": True},
+        "evidence_hash": "sha256:test-invoice",
+    }
+    gate = {
+        "label": "SIGUR",
+        "risk_level": "low",
+        "risk_score": 10,
+        "reason_codes": ["official_clean"],
+        "confidence": 92,
+        "is_final": True,
+    }
+    job = {
+        "scan_id": "orch_invoice_preserve",
+        "pipeline_stage": "analysis_ready",
+        "input_type": "invoice",
+        "source_channel": "android_native",
+        "redacted_text": "Factura DIGI CUI RO5888716 total 100 RON",
+        "urls": [],
+        "resolved_urls": [],
+        "urlscan": {"status": "skipped", "details": "nu exista URL pentru preview"},
+        "preview": {"status": "unavailable", "reason": "no_url"},
+        "extra_fields": {},
+        "claim_verifier_required": False,
+        "skip_cloud_ai_explanation": True,
+        "orchestration_metrics": {"poll_count": 0, "stage_sequence": [], "stage_durations_ms": {}},
+        "analysis": {
+            "risk_score": 10,
+            "risk_level": "low",
+            "detected_family": "Factura",
+            "detected_family_id": "invoice",
+            "claimed_brand": "digi",
+            "reasons": ["Datele facturii sunt coerente."],
+            "safe_actions": ["Poți efectua plata dacă recunoști emitentul și suma."],
+            "evidence": {
+                "source_channel": "android_native",
+                "decision_bundle": invoice_bundle,
+                "verdict_gate": gate,
+                "provider_gate": {"label": "SIGUR", "detected_family_id": "invoice"},
+                "semantic_review": invoice_bundle["semantic_review"],
+            },
+        },
+    }
+
+    def fail_generic_gate(*args, **kwargs):
+        raise AssertionError("Invoice fast-lane verdict must not be recomputed through text route")
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "_apply_provider_gate_verdict", fail_generic_gate)
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main._finalize_orchestrated_job_if_ready(job, None))
+
+    assert refreshed["analysis"]["evidence"]["verdict_gate"]["label"] == "SIGUR"
+    assert refreshed["result"]["user_risk_label"] == "SIGUR"
+    assert refreshed["result"]["risk_level"] == "low"
+    assert refreshed["result"]["is_final"] is True
+
+
 def test_orchestrated_scan_finalizes_when_urlscan_report_exists_but_screenshot_is_not_ready(monkeypatch):
     client = TestClient(app_main.app)
     message = (
