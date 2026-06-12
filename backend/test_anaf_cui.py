@@ -115,6 +115,88 @@ async def test_anaf_timeout_uses_fallback():
 
 
 @pytest.mark.asyncio
+async def test_lista_firme_fallback_maps_live_shape_as_existing_company():
+    def failing_post(*args, **kwargs):
+        import requests
+        raise requests.ConnectionError("timeout")
+
+    mock_fallback = MagicMock()
+    mock_fallback.status_code = 200
+    mock_fallback.json.return_value = {
+        "name": "DIGI ROMANIA S.A.",
+        "cui": "5888716",
+        "status": {
+            "details": {
+                "code": 1048,
+                "description": "funcțiune",
+            }
+        },
+    }
+
+    with patch("services.anaf_cui.requests.post", side_effect=failing_post):
+        with patch("services.anaf_cui.requests.get", return_value=mock_fallback):
+            result = await check_cui("RO5888716")
+
+    assert result.exists is True
+    assert result.checked is True
+    assert result.denumire == "DIGI ROMANIA S.A."
+    assert result.activ is True
+    assert result.platitor_tva is False
+
+
+@pytest.mark.asyncio
+async def test_lista_firme_fallback_marks_live_shape_radiated_company_inactive():
+    def failing_post(*args, **kwargs):
+        import requests
+        raise requests.ConnectionError("timeout")
+
+    mock_fallback = MagicMock()
+    mock_fallback.status_code = 200
+    mock_fallback.json.return_value = {
+        "name": "PPC ENERGIE MUNTENIA S.A.",
+        "cui": "24387371",
+        "status": {
+            "details": {
+                "code": 1060,
+                "description": "radiată",
+            }
+        },
+    }
+
+    with patch("services.anaf_cui.requests.post", side_effect=failing_post):
+        with patch("services.anaf_cui.requests.get", return_value=mock_fallback):
+            result = await check_cui("24387371")
+
+    assert result.exists is True
+    assert result.checked is True
+    assert result.denumire == "PPC ENERGIE MUNTENIA S.A."
+    assert result.activ is False
+
+
+@pytest.mark.asyncio
+async def test_lista_firme_fallback_rejects_mismatched_cui_payload():
+    def failing_post(*args, **kwargs):
+        import requests
+        raise requests.ConnectionError("timeout")
+
+    mock_fallback = MagicMock()
+    mock_fallback.status_code = 200
+    mock_fallback.json.return_value = {
+        "name": "ALTĂ FIRMĂ S.R.L.",
+        "cui": "99999999",
+        "status": {"details": {"description": "funcțiune"}},
+    }
+
+    with patch("services.anaf_cui.requests.post", side_effect=failing_post):
+        with patch("services.anaf_cui.requests.get", return_value=mock_fallback):
+            result = await check_cui("5888716")
+
+    assert result.exists is False
+    assert result.checked is True
+    assert result.denumire is None
+
+
+@pytest.mark.asyncio
 async def test_total_timeout_returns_low_confidence():
     def failing_request(*args, **kwargs):
         import requests

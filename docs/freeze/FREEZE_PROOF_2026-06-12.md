@@ -118,6 +118,25 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - Preview card rendered inside the app with final destination `https://dnsc.ro/`.
   - App crash log check: no SigurScan `AndroidRuntime` crash or fatal app exception found in the filtered logcat window; the only earlier crash was Android `uiautomator` itself while dumping UI hierarchy.
   - Screenshot evidence: `docs/freeze/evidence/android_e2e_dnsc_sigur_preview_2026-06-12.png`.
+- Android emulator offer/text-only E2E through the installed debug app:
+  - Device: `emulator-5554`.
+  - App package: `ro.sigurscan.app`.
+  - Input entered in the UI: `job pe telegram profit garantat 500 USD pe zi contact Frank`.
+  - Result after polling: `SUSPECT`, `Verdict final`, `Verificari complete`.
+  - This is acceptable as a non-safe verdict for a text-only OP-08 style job/profit claim; it is not marked as a `PERICULOS` recall proof because the shortened test input intentionally avoided long paste/share text and did not include a complete URL.
+  - App crash log check: no SigurScan `AndroidRuntime` crash or fatal app exception found in the filtered logcat window.
+  - UX/copy gap found: for this no-link text-only case the result explanation still says it checked a final link and secure preview. That text must be split by input type before release.
+  - Screenshot evidence: `docs/freeze/evidence/android_e2e_offer_text_only_suspect_2026-06-12.png`.
+- Android emulator invoice image E2E through the installed debug app:
+  - Device: `emulator-5554`.
+  - App package: `ro.sigurscan.app`.
+  - Input: generated Romanian invoice PNG pushed to emulator Downloads and selected from Android DocumentsUI.
+  - Result screen rendered `Scanare Factură` with extracted issuer `DIGI ROMANIA S.A.`, CUI `5888716`, IBAN `RO49AAAA1B31007593840000`, invoice number `TEST-2026-0612`, issue date `2026-06-12`, due date `2026-06-27`, subtotal `84.03 RON`, VAT `15.97 RON`, and total `100.00 RON`.
+  - App crash log check: no SigurScan `AndroidRuntime` crash, fatal exception, or ANR found in the filtered logcat window.
+  - Defect found before backend fix: live CUI fallback found `DIGI ROMANIA S.A.` in provider raw data but mapped it as `exists=false`, so the UI showed `CUI 5888716 not found in ANAF registry`.
+  - Backend fix proof: `check_cui("5888716")` and `check_cui("RO5888716")` now return `exists=true`, `checked=true`, `denumire="DIGI ROMANIA S.A."`, `activ=true`.
+  - Test proof: backend full suite after the fix: `662 passed, 1 warning`.
+  - Before-fix screenshot evidence: `docs/freeze/evidence/android_e2e_invoice_digi_attention_before_cui_fallback_fix_2026-06-12.png`.
 - Rollback readiness is proven non-destructively:
   - previous revision `sigurscan-api-00019-lxl` is `Ready=True`.
   - current traffic remains `100%` on `sigurscan-api-00020-xvd`.

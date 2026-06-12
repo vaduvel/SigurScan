@@ -7,7 +7,7 @@ Status: proof-led, not marketing-led. Nothing is green unless there is a rerunna
 - Repo: `/Users/vaduvageorge/AndroidStudioProjects/SigurScan`
 - Branch: `main`
 - GitHub: `origin/main`
-- Current repo head at audit time: `bebd86b`
+- Current repo head before this proof update: `a5d8e75`
 - Deployed Cloud Run code image: `17dcfc7`
 - API domain: `https://api.sigurscan.com`
 - Cloud project id: `project-20f225c0-d756-4cba-864`
@@ -38,7 +38,7 @@ Evidence:
 | 3 | Supabase | Green for current schema | Remote migration list matches local migrations. Required tables exist: `scan_jobs`, `urlscan_preview_cache`, `fast_preview_cache`, `fast_preview_alias_cache`, `fast_preview_capture_runs`. Preview bucket `previews` is private. Visual-only constraints exist. Open: one non-critical Supabase CLI temp-role query failed after parallel auth attempts; avoid repeated parallel DB auth probes. |
 | 4 | Cache/providers | Partial Green | Provider smoke, single live URL-provider smoke, and preview cache paths have proof. URLhaus/Web Risk/urlscan/Mistral/Upstash secrets are wired in deploy script. Open: full provider load/concurrency intentionally not run to avoid quota burn. |
 | 5 | Android direct infra | Partial Green | Android unit tests + debug build pass with Android Studio JBR. Local config points to `https://api.sigurscan.com/`. API key interceptor sends `X-API-KEY` and stable Android UA. Emulator URL E2E is proven. Open: physical-device proof and post-UI-merge regression. |
-| 6 | Live feature flows | Partial Green | Backend tests cover text/url/email/offer/invoice/security/registry/legal paths. Live URL/domain smoke exists. Android emulator URL scan reaches final `SIGUR` with preview. Open: live cap-to-cap on Android for offer scan, invoice scan, email HTML hidden-link scan, PDF/image/QR import. |
+| 6 | Live feature flows | Partial Green | Backend tests cover text/url/email/offer/invoice/security/registry/legal paths. Live URL/domain smoke exists. Android emulator URL scan reaches final `SIGUR` with preview. Android emulator text-only offer/job scan reaches final non-safe `SUSPECT`. Android invoice image scan parses issuer/CUI/IBAN/dates/totals and returns a stable invoice screen; local backend fix now maps live Digi CUI fallback to `exists=true`. Open: redeploy + rerun invoice proof after CUI fix, email HTML hidden-link scan, PDF/image/QR import, and a fuller offer-with-URL/payment proof if required. |
 | 7 | Code consolidation | Partial Green | `main` is clean and has current invoice + offer + Cloud Run fixes. Backend full suite passes. Android build/tests pass. Open: do not delete old branches until Sonet UI and any wanted handoff deltas are explicitly resolved. |
 | 8 | Hardening/regression | Partial Green | Latency alert, budget, structured error proof, API key requirement, Android UA hardening, and freeze docs exist. Open: full live regression pack, Play-ready privacy/legal store checklist, and physical-device proof. |
 
@@ -70,11 +70,26 @@ Evidence:
   - Input: `https://dnsc.ro/` typed into the app UI.
   - Result: final `SIGUR`, `Verdict final`, `Verificari complete`, preview rendered.
   - Screenshot: `docs/freeze/evidence/android_e2e_dnsc_sigur_preview_2026-06-12.png`
+- Android emulator offer/text-only E2E:
+  - Device: `emulator-5554`.
+  - App package: `ro.sigurscan.app`.
+  - Input: `job pe telegram profit garantat 500 USD pe zi contact Frank` typed into the app UI.
+  - Result: final `SUSPECT`, `Verdict final`, `Verificari complete`.
+  - Screenshot: `docs/freeze/evidence/android_e2e_offer_text_only_suspect_2026-06-12.png`
+  - Follow-up: text-only result copy must not claim that a final URL/preview was checked when no complete URL exists.
+- Android emulator invoice image E2E:
+  - Device: `emulator-5554`.
+  - App package: `ro.sigurscan.app`.
+  - Input: generated Romanian invoice PNG selected through Android DocumentsUI.
+  - Result: stable `Scanare Factură` screen with issuer `DIGI ROMANIA S.A.`, CUI `5888716`, IBAN, invoice number, issue/due dates, subtotal, VAT, and total extracted.
+  - Defect found: live CUI fallback returned provider raw data for Digi but mapped it as `exists=false`.
+  - Local fix proof: `backend/test_anaf_cui.py` now covers the live fallback shape; full backend suite after the fix: `662 passed, 1 warning`.
+  - Before-fix screenshot: `docs/freeze/evidence/android_e2e_invoice_digi_attention_before_cui_fallback_fix_2026-06-12.png`
 
 ## Next Actions
 
 1. Do not merge Fable handoff branches raw. If a specific missing feature is found later, cherry-pick or reimplement the minimal diff onto `main`.
 2. Keep `main` as the freeze base.
-3. Run the remaining Android E2E flows: offer, invoice, email HTML hidden-link, PDF/image, and QR.
+3. Run the remaining Android E2E flows: invoice, email HTML hidden-link, PDF/image, QR, and fuller offer-with-URL/payment if needed.
 4. Run full URL-provider concurrency only during a deliberate quota window, not during normal freeze checks.
 5. Keep old feature branches until the UI branch and invoice/offer freeze deltas are fully accounted for; delete only after a named cleanup pass.

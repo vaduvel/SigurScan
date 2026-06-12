@@ -15,6 +15,21 @@ ANAF_TIMEOUT_SECONDS = 4.0
 LISTA_FIRME_URL = "https://lista-firme.info/api/v1/info"
 LISTA_FIRME_TIMEOUT_SECONDS = 3.0
 
+_INACTIVE_COMPANY_MARKERS = (
+    "inactiv",
+    "radiat",
+    "radiata",
+    "radiată",
+    "dizolvat",
+    "lichidare",
+    "faliment",
+    "insolven",
+    "suspend",
+    "desfiint",
+    "desființ",
+)
+_ACTIVE_COMPANY_MARKERS = ("activ", "functiune", "funcțiune")
+
 
 @dataclass
 class CuiResult:
@@ -142,9 +157,20 @@ async def _call_lista_firme_fallback(cui_digits: str) -> CuiResult | None:
                 exists=False, checked=True, denumire=None, activ=False,
                 data_inactivare=None, platitor_tva=False, enrolled_efactura=False, raw=data,
             )
-        denumire = (data.get("denumire") or "").strip() or None
-        activ = str(data.get("stare") or "").strip().lower() != "inactiv"
-        scp_tva = str(data.get("platitor_tva") or "").strip().lower() in {"da", "true", "1"}
+        denumire = _first_non_empty_text(data, "denumire", "name", "company_name")
+        returned_cui = _normalize_cui(str(data.get("cui") or data.get("fiscal_code") or ""))
+        if returned_cui and returned_cui != cui_digits:
+            return CuiResult(
+                exists=False, checked=True, denumire=None, activ=False,
+                data_inactivare=None, platitor_tva=False, enrolled_efactura=False, raw=data,
+            )
+        activ = _lista_firme_active_status(data, default=bool(denumire))
+        scp_tva = _truthy_text(
+            data.get("platitor_tva")
+            or data.get("scp_tva")
+            or data.get("vat_payer")
+            or data.get("vatPayer")
+        )
         return CuiResult(
             exists=bool(denumire),
             checked=True,
@@ -157,3 +183,40 @@ async def _call_lista_firme_fallback(cui_digits: str) -> CuiResult | None:
         )
     except requests.RequestException:
         return None
+
+
+def _first_non_empty_text(data: Dict[str, Any], *keys: str) -> str | None:
+    for key in keys:
+        value = data.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _truthy_text(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value or "").strip().lower() in {"da", "true", "1", "yes"}
+
+
+def _collect_status_text(value: Any) -> str:
+    if isinstance(value, dict):
+        return " ".join(_collect_status_text(v) for v in value.values())
+    if isinstance(value, list):
+        return " ".join(_collect_status_text(v) for v in value)
+    return str(value or "")
+
+
+def _lista_firme_active_status(data: Dict[str, Any], *, default: bool) -> bool:
+    status_text = " ".join(
+        [
+            _collect_status_text(data.get("stare")),
+            _collect_status_text(data.get("status")),
+            _collect_status_text(data.get("state")),
+        ]
+    ).strip().lower()
+    if any(marker in status_text for marker in _INACTIVE_COMPANY_MARKERS):
+        return False
+    if any(marker in status_text for marker in _ACTIVE_COMPANY_MARKERS):
+        return True
+    return default
