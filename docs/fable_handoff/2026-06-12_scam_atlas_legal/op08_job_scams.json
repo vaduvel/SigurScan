@@ -1,0 +1,727 @@
+{
+"family": {
+"code": "OP-08",
+"name": "Joburi false / oferte de muncă cu plată în avans",
+"status": "sustinut",
+"signals": [
+{
+"signal_slug": "unexpected_recruiter_on_messenger",
+"text": "Oferta de muncă vine nesolicitat prin WhatsApp, Telegram, Signal, SMS sau mesaj privat, de la un recrutor necunoscut.",
+"where": "mesaj",
+"verify": "Verifică dacă recrutorul poate fi contactat prin canalul oficial al companiei sau agenției, nu doar prin numărul/profilul care a trimis mesajul. Pentru oferte în România verifică angajatorul în ANOFM/ONRC/ANAF; pentru munca în străinătate verifică agentul/furnizorul de plasare la Inspecția Muncii/ITM și ANOFM/EURES.",
+"power": "mediu",
+"verdict": "suspect",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+"publisher": "Scamwatch / ACCC",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://www.anofm.ro/locuri-de-munca-vacante/",
+"publisher": "ANOFM",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "pay_to_get_paid_or_topup_required",
+"text": "Candidatul trebuie să plătească, să alimenteze un cont, să cumpere crypto/USDT sau să facă un top-up ca să poată continua sarcinile ori să retragă câștigurile.",
+"where": "mesaj|instructiuni plata|link",
+"verify": "Caută în document/mesaj expresii precum top-up, recharge, activare cont, pachet VIP, deblocare câștig, taxă retragere, comision eliberare, depunere minimă. Un job real nu cere bani ca să primești salariu sau comision.",
+"power": "decisiv",
+"verdict": "periculos",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+"publisher": "Scamwatch / ACCC",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://apnews.com/article/bfbbf95e12513c595fe3da998dcffad3",
+"publisher": "Associated Press",
+"published_at": "2025-07-09",
+"accessed_at": "2026-06-12",
+"source_type": "press",
+"confidence": "high"
+},
+{
+"url": "https://www.theverge.com/2024/12/13/24320391/ftc-task-scams-spotlight-warning",
+"publisher": "The Verge",
+"published_at": "2024-12-13",
+"accessed_at": "2026-06-12",
+"source_type": "press",
+"confidence": "medium"
+}
+]
+},
+{
+"signal_slug": "high_income_low_effort_no_experience",
+"text": "Oferta promite venit mare pentru muncă foarte simplă, de acasă, fără experiență, fără calificări și cu timp foarte redus.",
+"where": "oferta|mesaj|anunt",
+"verify": "Compară promisiunea cu cerințele reale ale rolului: joburile legitime au descriere clară, proces de selecție, criterii de calificare și contract. Semnalul este slab singur, dar devine puternic împreună cu plată în avans, crypto, lipsă interviu sau canal neoficial.",
+"power": "slab",
+"verdict": "suspect",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+"publisher": "Scamwatch / ACCC",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://consumer.ftc.gov/articles/job-scams",
+"publisher": "Federal Trade Commission",
+"published_at": "2023-03-01",
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "paid_likes_reviews_product_boosting",
+"text": "Jobul constă în like-uri, review-uri, rating-uri, optimizare aplicații, product boosting, cumpărări simulate sau sarcini repetitive într-un dashboard.",
+"where": "oferta|mesaj|link",
+"verify": "Identifică termeni ca rating, like, review, boost, optimize, task, set de sarcini, comision per click. Verifică dacă există cerere ulterioară de top-up/crypto pentru a continua sau retrage câștigul.",
+"power": "mediu",
+"verdict": "suspect_to_periculos",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+"publisher": "Scamwatch / ACCC",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://apnews.com/article/bfbbf95e12513c595fe3da998dcffad3",
+"publisher": "Associated Press",
+"published_at": "2025-07-09",
+"accessed_at": "2026-06-12",
+"source_type": "press",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "small_initial_payment_trust_hook",
+"text": "Victima primește o plată mică inițială pentru a crede că jobul este real, apoi i se cere să depună bani proprii pentru sarcini mai mari sau retragerea câștigurilor.",
+"where": "mesaj|instructiuni plata|link",
+"verify": "Caută mențiuni despre plată de probă, bonus de start, comision inițial, prima retragere mică, apoi top-up/depunere/recharge pentru nivel superior sau task special.",
+"power": "mediu",
+"verdict": "suspect_to_periculos",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+"publisher": "Scamwatch / ACCC",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://www.theverge.com/2024/12/13/24320391/ftc-task-scams-spotlight-warning",
+"publisher": "The Verge",
+"published_at": "2024-12-13",
+"accessed_at": "2026-06-12",
+"source_type": "press",
+"confidence": "medium"
+}
+]
+},
+{
+"signal_slug": "advance_fee_training_equipment_certification",
+"text": "Recrutorul cere bani înainte de angajare pentru training, echipament, certificat, dosar, uniformă, material de lucru sau garanție.",
+"where": "oferta|contract|mesaj|instructiuni plata",
+"verify": "În document caută taxă de înscriere, taxă training, kit starter, garanție echipament, certificare obligatorie, plată înainte de prima zi. Pentru munca în străinătate, Inspecția Muncii indică faptul că agentul de plasare nu trebuie să perceapă tarife, taxe sau comisioane lucrătorului român.",
+"power": "decisiv",
+"verdict": "periculos_in_combo",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://www.inspectiamuncii.ro/documents/66402/201782/info_agenti_plasare.pdf/108ec86f-7377-482e-9dbf-e114f831d0b8",
+"publisher": "Inspecția Muncii",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://consumer.ftc.gov/articles/job-scams",
+"publisher": "Federal Trade Commission",
+"published_at": "2023-03-01",
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "foreign_job_agent_fee_or_transport_fee_before_contract",
+"text": "Pentru job în străinătate se cere comision, garanție, taxă de mediere, transport neefectuat sau costuri de procesare înainte să existe contract de mediere și contract de muncă în limba română.",
+"where": "oferta|contract|mesaj|instructiuni plata",
+"verify": "Verifică dacă documentul conține contract de mediere cu datele angajatorului străin, țara, meseria, durata muncii, salariul, cazarea și transportul. Inspecția Muncii precizează că agentul de plasare face medierea gratuit, fără tarif/comision/taxe, iar lucrătorul trebuie să primească contractul înainte de plecarea din România.",
+"power": "decisiv",
+"verdict": "periculos_in_combo",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://www.inspectiamuncii.ro/documents/66402/200730/INFO_mai_2021_SITE%2B156_ian_2026.pdf/9f1c8d81-2695-4b48-977f-dd8420308a10",
+"publisher": "Inspecția Muncii",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://www.inspectiamuncii.ro/documents/66402/201782/info_agenti_plasare.pdf/108ec86f-7377-482e-9dbf-e114f831d0b8",
+"publisher": "Inspecția Muncii",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "contract_promised_after_arrival_abroad",
+"text": "Pentru muncă în străinătate, recrutorul spune că semnarea contractului se face abia la sosirea în țara de destinație sau după plata transportului.",
+"where": "oferta|contract|mesaj",
+"verify": "Verifică dacă oferta include contract de mediere și contract/document echivalent al angajatorului străin, inclusiv în limba română, înainte de plecarea din România. Lipsa contractului înainte de plecare este semnal puternic de risc.",
+"power": "mediu",
+"verdict": "suspect_to_periculos",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://www.inspectiamuncii.ro/documents/66402/200730/INFO_mai_2021_SITE%2B156_ian_2026.pdf/9f1c8d81-2695-4b48-977f-dd8420308a10",
+"publisher": "Inspecția Muncii",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "agency_not_registered_or_unverifiable",
+"text": "Agenția/recrutorul pretinde că intermediază locuri de muncă, dar nu oferă CUI/date firmă sau nu apare într-o sursă oficială relevantă.",
+"where": "oferta|contract|profil|mesaj",
+"verify": "Verifică firma în ONRC/ANAF după CUI/nume. Pentru furnizori de servicii de ocupare verificați în Registrul național al furnizorilor de servicii de ocupare acreditați ANOFM. Pentru plasare forță de muncă în străinătate, verificați informațiile și listele indicate de Inspecția Muncii/ITM.",
+"power": "mediu",
+"verdict": "suspect_to_periculos",
+"confidence": "medium",
+"source_refs": [
+{
+"url": "https://www.anofm.ro/registrul-national-al-furnizorilor-de-servicii-de-ocupare-acreditati/",
+"publisher": "ANOFM",
+"published_at": "2026-04-30",
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://www.onrc.ro/index.php/ro/infocert",
+"publisher": "ONRC",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://www.inspectiamuncii.ro/documents/66402/200730/INFO_mai_2021_SITE%2B156_ian_2026.pdf/9f1c8d81-2695-4b48-977f-dd8420308a10",
+"publisher": "Inspecția Muncii",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "reshipping_or_package_forwarding_job",
+"text": "Jobul cere să primești colete acasă, să arunci ambalajul/bonul, să reambalezi și să retrimiți produsele către o altă adresă.",
+"where": "oferta|contract|mesaj|instructiuni plata",
+"verify": "Caută roluri de tip quality control manager, logistic assistant, virtual assistant, package inspector, operator coletărie, reshipping, reambalare și expediere. Astfel de roluri sunt frecvent asociate cu bunuri cumpărate cu carduri furate sau fraudă de reshipping.",
+"power": "decisiv",
+"verdict": "periculos",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://consumer.ftc.gov/articles/job-scams",
+"publisher": "Federal Trade Commission",
+"published_at": "2023-03-01",
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+"publisher": "Scamwatch / ACCC",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "money_mule_transfer_job",
+"text": "Jobul cere să primești bani în contul personal și să îi transferi mai departe către alte conturi, crypto wallet-uri, carduri cadou sau servicii de transfer.",
+"where": "oferta|contract|mesaj|instructiuni plata",
+"verify": "Caută denumiri de rol precum finance agent, remote cashier, bookkeeper, payment processor, administrator conturi, operator tranzacții. Dacă instrucțiunile spun să păstrezi un comision și să muți restul banilor, semnalul este decisiv.",
+"power": "decisiv",
+"verdict": "periculos",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+"publisher": "Scamwatch / ACCC",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "identity_documents_before_verified_employer",
+"text": "Se cer CI, pașaport, selfie, permis, adresă completă, date bancare sau cont crypto înainte ca angajatorul/recrutorul să fie verificat.",
+"where": "oferta|contract|link|profil|mesaj",
+"verify": "Verifică dacă documentul/oferta cere acte înainte de contract, înainte de interviu real sau înainte de verificarea firmei. Caută upload CI, pașaport, selfie, document identitate, scan permis, date cont bancar, wallet, seed phrase. Semnalul devine sever când este combinat cu canal neoficial, lipsă firmă verificabilă sau plată în avans.",
+"power": "mediu",
+"verdict": "suspect_to_periculos",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+"publisher": "Scamwatch / ACCC",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://consumer.ftc.gov/articles/job-scams",
+"publisher": "Federal Trade Commission",
+"published_at": "2023-03-01",
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "fake_check_overpayment_forward_money",
+"text": "Așa-zisul angajator trimite un cec/ordin de plată/screenshot de plată mai mare decât suma datorată și cere să trimiți diferența mai departe.",
+"where": "mesaj|instructiuni plata|contract",
+"verify": "Caută cuvinte ca overpayment, eroare de plată, păstrează comisionul, trimite diferența, cumpără materiale/gift card, transferă către furnizor. Este un pattern clasic de fake check/overpayment, chiar dacă în România poate apărea ca screenshot de ordin de plată sau transfer bancar fals.",
+"power": "decisiv",
+"verdict": "periculos",
+"confidence": "medium",
+"source_refs": [
+{
+"url": "https://consumer.ftc.gov/articles/job-scams",
+"publisher": "Federal Trade Commission",
+"published_at": "2023-03-01",
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "interview_absent_or_hiring_instant",
+"text": "Procesul de angajare este extrem de rapid: fără interviu real, fără verificarea experienței, fără referințe, fără discuție despre contract și condiții.",
+"where": "oferta|mesaj|contract",
+"verify": "Caută expresii ca ești acceptat instant, fără experiență, fără interviu, start azi, selectare rapidă. Semnal slab singur, dar puternic împreună cu plată în avans, messenger-only și promisiune de venit mare.",
+"power": "slab",
+"verdict": "suspect",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+"publisher": "Scamwatch / ACCC",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://www.inspectiamuncii.ro/documents/66402/200730/INFO_mai_2021_SITE%2B156_ian_2026.pdf/9f1c8d81-2695-4b48-977f-dd8420308a10",
+"publisher": "Inspecția Muncii",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "off_platform_group_chat_social_proof",
+"text": "Recrutorul mută candidatul într-un grup WhatsApp/Telegram cu persoane care postează câștiguri, screenshoturi și testimoniale pentru a crea presiune socială.",
+"where": "mesaj|profil|link",
+"verify": "Caută invitații în grupuri, capturi cu câștiguri, mesaje de la alți «angajați», presiune că alții câștigă deja, leaderboard sau nivel VIP. Este semnal de context; devine sever dacă apare împreună cu top-up, crypto sau plată în avans.",
+"power": "mediu",
+"verdict": "suspect_to_periculos",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+"publisher": "Scamwatch / ACCC",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://arxiv.org/abs/2602.24223",
+"publisher": "arXiv / Anansi research paper",
+"published_at": "2026-02-27",
+"accessed_at": "2026-06-12",
+"source_type": "report",
+"confidence": "medium"
+}
+]
+},
+{
+"signal_slug": "employer_domain_or_email_mismatch",
+"text": "Documentul pretinde că vine de la o companie/agenție cunoscută, dar emailul, domeniul sau linkul nu aparțin companiei oficiale.",
+"where": "oferta|mesaj|contract|link|profil",
+"verify": "Compară domeniul emailului și linkului cu site-ul oficial al companiei, cu pagina de cariere oficială, cu ONRC/ANAF pentru firmă și cu datele de contact publice. Un mismatch nu e periculos singur, dar în combinație cu plată în avans, acte sau crypto devine sever.",
+"power": "mediu",
+"verdict": "suspect_to_periculos",
+"confidence": "medium",
+"source_refs": [
+{
+"url": "https://consumer.ftc.gov/articles/job-scams",
+"publisher": "Federal Trade Commission",
+"published_at": "2023-03-01",
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://www.onrc.ro/index.php/ro/infocert",
+"publisher": "ONRC",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+}
+],
+"verification_sources": [
+{
+"name": "ANOFM - Locuri de muncă vacante",
+"url": "https://www.anofm.ro/locuri-de-munca-vacante/",
+"what_can_verify": "Dacă oferta apare ca loc de muncă vacant comunicat oficial de angajatori către ANOFM; include detalii precum ocupație, salariu, beneficii, locație și valabilitatea ofertei.",
+"access_type": "public_search",
+"confidence": "high"
+},
+{
+"name": "ANOFM - Registrul național al furnizorilor de servicii de ocupare acreditați",
+"url": "https://www.anofm.ro/registrul-national-al-furnizorilor-de-servicii-de-ocupare-acreditati/",
+"what_can_verify": "Dacă un furnizor de servicii de ocupare este listat în registrul național public; pagina oferă documente PDF/XLSX descărcabile actualizate.",
+"access_type": "pdf_xls",
+"confidence": "high"
+},
+{
+"name": "Inspecția Muncii - Obligațiile agenților/furnizorilor de plasare forță de muncă în străinătate",
+"url": "https://www.inspectiamuncii.ro/documents/66402/201782/info_agenti_plasare.pdf/108ec86f-7377-482e-9dbf-e114f831d0b8",
+"what_can_verify": "Regula că activitatea de mediere și plasare în străinătate pentru cetățenii români se face gratuit, fără tarife, taxe sau comisioane; condiții de funcționare ale agenților.",
+"access_type": "pdf_xls",
+"confidence": "high"
+},
+{
+"name": "Inspecția Muncii - Informații despre intermedierea și plasarea forței de muncă în străinătate",
+"url": "https://www.inspectiamuncii.ro/documents/66402/200730/INFO_mai_2021_SITE%2B156_ian_2026.pdf/9f1c8d81-2695-4b48-977f-dd8420308a10",
+"what_can_verify": "Ce trebuie să conțină contractul de mediere și contractul de muncă pentru străinătate; avertizări privind comisioane, garanții, transport neefectuat, contract după sosire și selecție rapidă.",
+"access_type": "pdf_xls",
+"confidence": "high"
+},
+{
+"name": "ONRC InfoCert / portal ONRC",
+"url": "https://www.onrc.ro/index.php/ro/infocert",
+"what_can_verify": "Existența și starea unei firme prin certificat constatator/furnizare informații; util pentru verificarea CUI, denumirii, stării și activității declarate a angajatorului sau agenției.",
+"access_type": "manual",
+"confidence": "high"
+},
+{
+"name": "ANAF Platitor TVA Rest v9",
+"url": "https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva",
+"what_can_verify": "Denumire firmă după CUI, stare fiscală/inactivitate, TVA și informații de bază pentru entitatea pretinsă. Endpointul este util programatic, dar poate respinge accesări browser directe.",
+"access_type": "api",
+"confidence": "high"
+},
+{
+"name": "EURES prin ANOFM",
+"url": "https://www.anofm.ro/legaturi-eures/",
+"what_can_verify": "Canal oficial pentru locuri de muncă europene și legături EURES. Util pentru verificarea ofertelor de muncă în străinătate care pretind proveniență EURES/ANOFM.",
+"access_type": "public_search",
+"confidence": "medium"
+},
+{
+"name": "Scamwatch / ACCC - Jobs and employment scams",
+"url": "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+"what_can_verify": "Tipare internaționale curente pentru job scams: task scams, money mule, upfront payment, messenger recruitment, crypto top-up, cereri de documente de identitate.",
+"access_type": "public_search",
+"confidence": "high"
+},
+{
+"name": "FTC - Job Scams",
+"url": "https://consumer.ftc.gov/articles/job-scams",
+"what_can_verify": "Tipare generale: work-from-home, reshipping, fake check, mystery shopper, job placement fees, training/certification fees, personal information theft.",
+"access_type": "public_search",
+"confidence": "high"
+}
+],
+"payment_risk": {
+"bank_transfer_to_company": "scazut",
+"bank_transfer_to_person": "mare",
+"revolut_personal": "mare",
+"crypto": "periculos",
+"gift_card": "periculos",
+"western_union_moneygram": "periculos"
+}
+},
+"examples": [
+{
+"text": "Bună, avem un job part-time remote pentru optimizare produse. Lucrezi 1-2 ore pe zi, câștig 300-500 lei/zi. După primele 20 de taskuri primești comisionul. Pentru activare trebuie să faci top-up minim 150 lei în contul de lucru: https://task-ro-hub.example/start",
+"family": "OP-08",
+"expected_signals": [
+"unexpected_recruiter_on_messenger",
+"high_income_low_effort_no_experience",
+"paid_likes_reviews_product_boosting",
+"pay_to_get_paid_or_topup_required"
+],
+"payment_method": "crypto_or_topup",
+"source_refs": [
+{
+"url": "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+"publisher": "Scamwatch / ACCC",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://apnews.com/article/bfbbf95e12513c595fe3da998dcffad3",
+"publisher": "Associated Press",
+"published_at": "2025-07-09",
+"accessed_at": "2026-06-12",
+"source_type": "press",
+"confidence": "high"
+}
+],
+"fixture_type": "real_paraphrased",
+"confidence": "high"
+},
+{
+"text": "Felicitări, ai fost acceptat ca evaluator de magazine online. Primești 25 lei pentru fiecare review și poți retrage după 30 de comenzi. Ca să deblochezi pachetul VIP cu comision mai mare, alimentează contul cu USDT la adresa indicată de mentor.",
+"family": "OP-08",
+"expected_signals": [
+"paid_likes_reviews_product_boosting",
+"small_initial_payment_trust_hook",
+"pay_to_get_paid_or_topup_required",
+"off_platform_group_chat_social_proof"
+],
+"payment_method": "crypto",
+"source_refs": [
+{
+"url": "https://www.theverge.com/2024/12/13/24320391/ftc-task-scams-spotlight-warning",
+"publisher": "The Verge",
+"published_at": "2024-12-13",
+"accessed_at": "2026-06-12",
+"source_type": "press",
+"confidence": "medium"
+},
+{
+"url": "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+"publisher": "Scamwatch / ACCC",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+],
+"fixture_type": "real_paraphrased",
+"confidence": "high"
+},
+{
+"text": "Agenția noastră recrutează muncitori pentru Olanda. Plecare rapidă, cazare inclusă, salariu 2.800 EUR. Pentru dosar, traduceri și rezervarea transportului plătiți azi 650 lei în contul RO00TEST0000000000000000. Contractul de muncă se semnează la sosire.",
+"family": "OP-08",
+"expected_signals": [
+"foreign_job_agent_fee_or_transport_fee_before_contract",
+"contract_promised_after_arrival_abroad",
+"agency_not_registered_or_unverifiable"
+],
+"payment_method": "bank_transfer_to_person",
+"source_refs": [
+{
+"url": "https://www.inspectiamuncii.ro/documents/66402/200730/INFO_mai_2021_SITE%2B156_ian_2026.pdf/9f1c8d81-2695-4b48-977f-dd8420308a10",
+"publisher": "Inspecția Muncii",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://www.inspectiamuncii.ro/documents/66402/201782/info_agenti_plasare.pdf/108ec86f-7377-482e-9dbf-e114f831d0b8",
+"publisher": "Inspecția Muncii",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+],
+"fixture_type": "synthetic_illustrative",
+"confidence": "high"
+},
+{
+"text": "Post disponibil: manager control calitate colete, lucru de acasă. Primești pachete, verifici produsele, arunci ambalajul vechi și retrimiți coletul la adresa furnizată. Salariul se plătește după prima lună. Trimite CNP, copie CI și adresa completă pentru contract.",
+"family": "OP-08",
+"expected_signals": [
+"reshipping_or_package_forwarding_job",
+"identity_documents_before_verified_employer",
+"high_income_low_effort_no_experience"
+],
+"payment_method": "none_initial_identity_theft_risk",
+"source_refs": [
+{
+"url": "https://consumer.ftc.gov/articles/job-scams",
+"publisher": "Federal Trade Commission",
+"published_at": "2023-03-01",
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+],
+"fixture_type": "real_paraphrased",
+"confidence": "high"
+},
+{
+"text": "Te angajăm remote ca agent financiar. Vei primi sume de la clienți în contul tău personal, păstrezi 8% comision și transferi restul către partenerii noștri prin Revolut, carduri cadou sau wallet crypto. Nu este nevoie de experiență.",
+"family": "OP-08",
+"expected_signals": [
+"money_mule_transfer_job",
+"high_income_low_effort_no_experience",
+"identity_documents_before_verified_employer"
+],
+"payment_method": "bank_transfer_to_person",
+"source_refs": [
+{
+"url": "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+"publisher": "Scamwatch / ACCC",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+],
+"fixture_type": "real_paraphrased",
+"confidence": "high"
+},
+{
+"text": "Ai fost selectat pentru poziția de asistent virtual. Îți trimitem un ordin de plată pentru 4.800 lei; păstrezi 700 lei avans salariu și trimiți restul furnizorului pentru laptop și software. Plata apare imediat, trebuie rezolvat azi.",
+"family": "OP-08",
+"expected_signals": [
+"fake_check_overpayment_forward_money",
+"advance_fee_training_equipment_certification",
+"interview_absent_or_hiring_instant"
+],
+"payment_method": "bank_transfer_to_person",
+"source_refs": [
+{
+"url": "https://consumer.ftc.gov/articles/job-scams",
+"publisher": "Federal Trade Commission",
+"published_at": "2023-03-01",
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+],
+"fixture_type": "real_paraphrased",
+"confidence": "medium"
+},
+{
+"text": "HR Global Jobs te-a aprobat fără interviu pentru depozit Germania. Pentru contract trimite poză CI față-verso, selfie cu actul și plătește 220 lei taxă de procesare viză/mediere până la ora 18:00. După plată primești detaliile angajatorului.",
+"family": "OP-08",
+"expected_signals": [
+"foreign_job_agent_fee_or_transport_fee_before_contract",
+"identity_documents_before_verified_employer",
+"interview_absent_or_hiring_instant",
+"agency_not_registered_or_unverifiable"
+],
+"payment_method": "bank_transfer_to_person",
+"source_refs": [
+{
+"url": "https://www.inspectiamuncii.ro/documents/66402/200730/INFO_mai_2021_SITE%2B156_ian_2026.pdf/9f1c8d81-2695-4b48-977f-dd8420308a10",
+"publisher": "Inspecția Muncii",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://www.anofm.ro/registrul-national-al-furnizorilor-de-servicii-de-ocupare-acreditati/",
+"publisher": "ANOFM",
+"published_at": "2026-04-30",
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+],
+"fixture_type": "synthetic_illustrative",
+"confidence": "high"
+},
+{
+"text": "Recrutăm operator chat pentru companie internațională. Nu ai nevoie de experiență, câștig 6.000 lei/lună. Pentru activarea contului trebuie cumpărat kitul de training de 99 EUR de pe https://job-kit-training.test/pay. După finalizare ai garantat contractul.",
+"family": "OP-08",
+"expected_signals": [
+"advance_fee_training_equipment_certification",
+"high_income_low_effort_no_experience",
+"employer_domain_or_email_mismatch"
+],
+"payment_method": "card_form",
+"source_refs": [
+{
+"url": "https://consumer.ftc.gov/articles/job-scams",
+"publisher": "Federal Trade Commission",
+"published_at": "2023-03-01",
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+"publisher": "Scamwatch / ACCC",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+],
+"fixture_type": "synthetic_illustrative",
+"confidence": "high"
+}
+]
+}

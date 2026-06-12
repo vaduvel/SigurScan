@@ -1,0 +1,139 @@
+{
+  "family": {
+    "code": "OP-08",
+    "name": "Oferte de muncă / joburi false",
+    "status": "complet",
+    "signals": [
+      {
+        "text": "Mesaj nesolicitat pe WhatsApp sau Telegram care oferă un „job part‑time” bine plătit (de ex. 1.000 lei/zi pentru a da like‑uri sau a viziona clipuri) şi invită victima să adauge un contact necunoscut.",
+        "where": "mesaj",
+        "verify": "Caută pe site‑ul DNSC sau Poliţia Română avertizări despre mesaje cu oferte de muncă pe WhatsApp; compară numărul expeditorului cu contactele oficiale. Digi24 arată că Poliţia a descoperit astfel de înşelăciuni şi că în mesajele reale nu se cer date personale【778250745084319†L32-L69】.",
+        "power": "decisiv",
+        "verdict": "periculos"
+      },
+      {
+        "text": "Ofertă care promite bani uşor pentru „taskuri” cu investiţie minimă: după câteva sarcini gratuite, victima trebuie să depună o sumă (ex. 100 USDT) pentru a continua sau a retrage câştigurile.",
+        "where": "instructiuni plata",
+        "verify": "Consultă articole de investigare (Start‑up.ro) sau alerte ESET. Acestea descriu cum escrocherii cu taskuri cer depozite în USDT după 40 de sarcini şi că victimele nu mai retrag banii【939701523474008†L123-L143】【287579118733268†L58-L100】.",
+        "power": "decisiv",
+        "verdict": "periculos"
+      },
+      {
+        "text": "Recrutorul cere o „taxă de procesare”, „echipament” sau „training” înainte de angajare. Plata este solicitată în cont personal, criptomonedă sau alte metode nereversibile.",
+        "where": "factura",
+        "verify": "ESET explică faptul că anunţurile false de angajare solicită avans pentru instruire sau echipament şi că plata în avans este un semnal clar de fraudă【287579118733268†L106-L138】.",
+        "power": "decisiv",
+        "verdict": "periculos"
+      },
+      {
+        "text": "Interviu desfăşurat exclusiv pe WhatsApp/Telegram, fără adresă de e‑mail de companie şi cu adrese de Gmail sau Yahoo. Cer date personale (CNP, copii acte) înainte de ofertă.",
+        "where": "profil",
+        "verify": "Hays România avertizează că un e‑mail generic şi lipsa unui interviu real sunt semnale că oferta nu este autentică. Ei nu cer niciodată plăţi şi folosesc doar adrese corporative【571405956626352†L64-L101】.",
+        "power": "mediu",
+        "verdict": "suspect"
+      },
+      {
+        "text": "„Job” care implică primirea de bani în contul personal şi transferul lor mai departe (reshipping/mula de bani).",
+        "where": "mesaj",
+        "verify": "Hays România menţionează că cererile de a transfera bani pentru altcineva sau de a trimite bunuri sunt un semnal de activitate ilegală【571405956626352†L64-L101】.",
+        "power": "mediu",
+        "verdict": "periculos_in_combo"
+      },
+      {
+        "text": "Salariu neobişnuit de mare pentru o muncă simplă, „garantat” fără experienţă şi cu program flexibil. Nu există descriere clară a companiei sau a responsabilităţilor.",
+        "where": "oferta",
+        "verify": "Atât Hays România, cât şi Digi24 avertizează că promisiunea de câştig rapid şi salarii mari pentru efort minim este o tactică folosită de escroci【571405956626352†L64-L101】【778250745084319†L32-L69】.",
+        "power": "mediu",
+        "verdict": "suspect"
+      },
+      {
+        "text": "Link din mesaj care redirecţionează către un site necunoscut unde ţi se cere să introduci date personale, să încarci buletinul sau să plăteşti cu cardul/crypto.",
+        "where": "link",
+        "verify": "Digi24 şi DNSC avertizează să nu accesaţi linkuri primite de la numere necunoscute şi să nu furnizaţi date personale; verifică URL‑ul şi căută compania pe site‑uri oficiale【778250745084319†L32-L69】.",
+        "power": "mediu",
+        "verdict": "suspect"
+      },
+      {
+        "text": "Anunţuri de angajare generate cu AI care imită perfect CV‑ul candidatului; după interesare, ţi se oferă să‑ţi „îmbunătăţeşti” CV‑ul sau să plăteşti pentru un serviciu de procesare.",
+        "where": "mesaj",
+        "verify": "ProTV a relatat un caz în care infractorii au folosit AI pentru a crea oferte personalizate şi au cerut bani pentru a îmbunătăţi CV‑ul【897280374181775†L104-L133】.",
+        "power": "slab",
+        "verdict": "suspect_to_periculos"
+      }
+    ],
+    "verification_sources": [
+      "Alerte DNSC / Poliţia Română pentru job scams (verificare numere şi mesaje)",
+      "Registrul ONRC / ANAF pentru a verifica dacă firma este înregistrată şi activă",
+      "Căutare pe site‑ul companiei sau profilul LinkedIn al recrutorului",
+      "ESET şi publicaţii de securitate (ESET România) pentru scenarii de task scams"
+    ],
+    "payment_risk": {
+      "transfer bancar în cont personal": "mare",
+      "crypto (USDT/bitcoin)": "extrem",
+      "card (plată cu link)": "mare",
+      "plată în numerar sau mandat poştal": "extrem"
+    }
+  },
+  "examples": [
+    {
+      "text": "Bună! Suntem de la \"CERT‑RO HR department\". Îţi oferim un job part‑time: apreciezi postări pe social media şi câştigi 1.000 lei/zi! Adaugă acest număr pe WhatsApp ca să primeşti detaliile. Vom avea nevoie de numele tău complet şi un clip scurt pentru verificare.",
+      "family": "OP-08",
+      "expected_signals": [
+        "Mesaj nesolicitat cu ofertă de job pe WhatsApp",
+        "Salariu foarte mare pentru sarcini simple",
+        "Solicitarea de date personale fără interviu"
+      ],
+      "source": "Digi24 – Poliţia Română avertizează asupra mesajelor care promit bani pentru like‑uri şi cer date personale【778250745084319†L32-L69】"
+    },
+    {
+      "text": "După ce ai completat 40 de sarcini simple pe platforma noastră, ai acumulat 50 USDT. Pentru a trece la nivelul următor şi a retrage câştigurile, trebuie să depui 100 USDT în contul tău. Îţi vom dubla suma imediat!",
+      "family": "OP-08",
+      "expected_signals": [
+        "Cerere de depozit pentru a continua jobul",
+        "Promisiunea de dublare a sumei",
+        "Utilizarea criptomonedei USDT"
+      ],
+      "source": "Investigaţie Start‑up.ro despre task scams – utilizatorii sunt obligaţi să depună 100 USDT după 40 de sarcini【939701523474008†L123-L143】"
+    },
+    {
+      "text": "Felicitări! Te‑am selectat pentru un post remote cu salariu de 4.000 EUR/lună. Trebuie doar să participi la un training plătit (150 EUR) şi să îţi achiziţionezi laptopul de lucru. Trimite taxa în contul ROxx BTRL **** pe numele Popescu A.",
+      "family": "OP-08",
+      "expected_signals": [
+        "Salariu nerealist de mare",
+        "Taxă de training înainte de angajare",
+        "Plată în cont personal"
+      ],
+      "source": "ESET România arată că anunţurile false cer taxe pentru echipamente sau training înainte de a începe munca【287579118733268†L106-L138】"
+    },
+    {
+      "text": "Bună ziua, sunt recrutorul Ana de la Hays Global. Am găsit profilul tău pe LinkedIn. Trimite-mi copia CNP‑ului şi datele bancare pentru a începe contractul. Vom semna online prin Gmail.",
+      "family": "OP-08",
+      "expected_signals": [
+        "Recrutor foloseşte adresă Gmail",
+        "Solicită CNP şi date bancare prin e‑mail",
+        "Nu există interviu"
+      ],
+      "source": "Hays România avertizează că folosirea adreselor generice şi cererea de informaţii personale sunt semne de escrocherie【571405956626352†L64-L101】"
+    },
+    {
+      "text": "Salut! Avem un post de operator logistic. Vei primi colete acasă şi le vei reexpedia. Primeşti 200 lei/comandă. Eşti de acord? Trimite numărul de cont pentru plăţi şi CNP pentru contract.",
+      "family": "OP-08",
+      "expected_signals": [
+        "Job ce implică primirea şi transferul de bani sau bunuri",
+        "Solicitarea datelor personale",
+        "Plată per pachet fără clarificarea companiei"
+      ],
+      "source": "Hays România semnalează că cerinţele de a transfera bani pentru altcineva sunt semne de activitate ilegală【571405956626352†L64-L101】"
+    },
+    {
+      "text": "E‑mail personalizat: ‘Ne extindem discret echipa editorială de tehnologie şi pieţe. CV‑ul tău corespunde perfect! Salariul propus: 7.000 £ pe lună. Trimite 50 £ pentru îmbunătăţirea CV‑ului ca să evidenţiem abilităţile de leadership’.",
+      "family": "OP-08",
+      "expected_signals": [
+        "Ofertă prea perfectă generată din CV",
+        "Solicitare de plată pentru îmbunătăţirea CV‑ului",
+        "Salariu foarte mare"
+      ],
+      "source": "Ştirile ProTV relatează despre escrocherii cu joburi generate cu AI care cer bani pentru ‘optimizarea CV‑ului’【897280374181775†L104-L133】"
+    }
+  ]
+}

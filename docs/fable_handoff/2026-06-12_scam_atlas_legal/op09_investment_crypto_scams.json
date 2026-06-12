@@ -1,0 +1,664 @@
+{
+"family": {
+"code": "OP-09",
+"name": "Investiții false / crypto / profit garantat",
+"status": "sustinut",
+"signals": [
+{
+"signal_slug": "guaranteed_profit_or_zero_risk",
+"text": "Oferta promite profit garantat, câștig rapid, risc zero, randament zilnic/săptămânal fix sau recuperarea investiției într-un termen foarte scurt.",
+"where": "oferta|mesaj|link|profil",
+"verify": "Caută expresii precum profit garantat, risc zero, venit pasiv sigur, câștig zilnic, randament fix, multiplicare bani. Semnalul este slab singur și devine sever doar împreună cu entitate nelicențiată, crypto, plată în avans, remote access sau domeniu neoficial.",
+"power": "slab",
+"verdict": "suspect",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+"publisher": "Siguranța Online",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://consumer.ftc.gov/articles/what-know-about-cryptocurrency-scams",
+"publisher": "Federal Trade Commission",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://www.hidroelectrica.ro/press-release/1d738954-4c1b-1ad9-c046-4d0d6001e187",
+"publisher": "Hidroelectrica",
+"published_at": "2026-03-09",
+"accessed_at": "2026-06-12",
+"source_type": "brand_official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "unlicensed_investment_entity_asf_alert",
+"text": "Entitatea, platforma sau domeniul prezent în ofertă apare în lista ASF de alerte investitori ca neautorizată sau nu poate fi găsită în registrele ASF ale entităților autorizate.",
+"where": "oferta|mesaj|contract|link|profil",
+"verify": "Verifică numele entității și domeniul în pagina ASF Alerte investitori și în Registre entități autorizate ASF. Dacă documentul pretinde servicii de investiții și entitatea este listată de ASF ca neautorizată, semnalul este decisiv. Dacă nu apare în registre, dar nu există încă alertă, nu marca singur PERICULOS; folosește în combinație cu profit garantat, plată crypto, remote access sau domeniu lookalike.",
+"power": "decisiv",
+"verdict": "periculos_in_combo",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://asfromania.ro/ro/a/19/alerte-investitori---informari",
+"publisher": "Autoritatea de Supraveghere Financiară",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://asfromania.ro/ro/a/1544/registre-entit%C4%83%C8%9Bi-autorizate",
+"publisher": "Autoritatea de Supraveghere Financiară",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "public_company_impersonation_investment",
+"text": "Oferta folosește numele sau imaginea unei companii cunoscute din România, de exemplu Hidroelectrica, pentru o oportunitate de investiții promovată prin reclame, mesaje sau platforme neoficiale.",
+"where": "oferta|mesaj|link|profil",
+"verify": "Compară domeniul, canalul și numele platformei cu website-ul oficial al companiei. Hidroelectrica a avertizat explicit că platformele care folosesc abuziv numele său pentru investiții online, inclusiv reclame și platforme promovate pe social media, nu aparțin companiei și pot cere bani/date personale sau bancare.",
+"power": "decisiv",
+"verdict": "periculos_in_combo",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://www.hidroelectrica.ro/press-release/1d738954-4c1b-1ad9-c046-4d0d6001e187",
+"publisher": "Hidroelectrica",
+"published_at": "2026-03-09",
+"accessed_at": "2026-06-12",
+"source_type": "brand_official",
+"confidence": "high"
+},
+{
+"url": "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+"publisher": "Siguranța Online",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "deepfake_or_fake_public_persona_endorsement",
+"text": "Oferta invocă video-uri, reclame sau declarații ale unor persoane publice, directori de companii, politicieni, jurnaliști sau experți care ar recomanda platforma de investiții.",
+"where": "oferta|mesaj|link|profil",
+"verify": "Verifică dacă endorsement-ul apare pe canalele oficiale ale persoanei/companiei și dacă domeniul aparține entității oficiale. Semnalul devine puternic dacă este combinat cu profit garantat, domeniu neoficial, solicitare de date bancare sau transfer crypto. Hidroelectrica avertizează că astfel de scheme pot folosi materiale video manipulate sau imaginea unor persoane publice din conducerea companiei.",
+"power": "mediu",
+"verdict": "suspect_to_periculos",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://www.hidroelectrica.ro/press-release/1d738954-4c1b-1ad9-c046-4d0d6001e187",
+"publisher": "Hidroelectrica",
+"published_at": "2026-03-09",
+"accessed_at": "2026-06-12",
+"source_type": "brand_official",
+"confidence": "high"
+},
+{
+"url": "https://www.arb.ro/cum-recunosti-phishing-ul-inainte-sa-ti-fure-datele-personale-si-bancare-explicatiile-expertilor-arb/",
+"publisher": "Asociația Română a Băncilor",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "remote_access_required_for_investment",
+"text": "Așa-zisul broker/consilier cere instalarea AnyDesk, TeamViewer, QuickSupport sau a unei aplicații de control la distanță pentru deschiderea contului, configurarea tranzacțiilor ori retragerea profitului.",
+"where": "mesaj|contract|link|instructiuni plata",
+"verify": "Caută termeni precum AnyDesk, TeamViewer, QuickSupport, remote support, control telefon, partajare ecran, instalare aplicație pentru tranzacționare. ARB avertizează că aplicația prezentată ca tranzacționare poate fi de fapt remote control care permite acces la telefon, mesaje de banking și coduri de autorizare.",
+"power": "decisiv",
+"verdict": "periculos",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://www.arb.ro/cum-recunosti-phishing-ul-inainte-sa-ti-fure-datele-personale-si-bancare-explicatiile-expertilor-arb/",
+"publisher": "Asociația Română a Băncilor",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+"publisher": "Siguranța Online",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "crypto_payment_wallet_or_qr",
+"text": "Instrucțiunile de plată cer transfer în crypto, wallet address, USDT/BTC/ETH, scanarea unui QR crypto sau depunere la ATM de criptomonede.",
+"where": "instructiuni plata|mesaj|factura|contract|link",
+"verify": "Detectează wallet addresses, QR crypto, termeni precum USDT, BTC, ETH, Binance, wallet, seed, exchange, crypto ATM, deposit address. FTC explică faptul că plățile crypto sunt în mod tipic ireversibile și fără protecțiile cardurilor; Siguranța Online include scenarii unde banii sunt mutați în aparate de criptomonede.",
+"power": "decisiv",
+"verdict": "periculos_in_combo",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://consumer.ftc.gov/articles/what-know-about-cryptocurrency-scams",
+"publisher": "Federal Trade Commission",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+"publisher": "Siguranța Online",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "withdrawal_fee_or_tax_to_release_profit",
+"text": "Platforma arată profit în dashboard, dar cere taxă, impozit, comision de deblocare, verificare cont sau depunere suplimentară înainte de retragere.",
+"where": "mesaj|link|instructiuni plata|contract",
+"verify": "Caută expresii precum taxă retragere, impozit profit, deblocare cont, comision AML, verificare lichiditate, taxă activare retragere, profit blocat. FTC descrie platforme fake de investiții unde utilizatorul nu poate retrage banii sau poate retrage doar dacă plătește taxe mari.",
+"power": "decisiv",
+"verdict": "periculos",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://consumer.ftc.gov/articles/what-know-about-cryptocurrency-scams",
+"publisher": "Federal Trade Commission",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "recovery_scam_advance_fee",
+"text": "După o pierdere anterioară, cineva promite recuperarea banilor investiți sau crypto pierdut, dar cere plată în avans, taxă de dosar, comision legal, taxă blockchain sau date personale.",
+"where": "mesaj|oferta|contract|instructiuni plata",
+"verify": "Caută promisiuni de recuperare garantată, recovery department, blockchain tracing, avocat internațional, chargeback crypto, taxă de activare recuperare. FTC avertizează că refund/recovery scams cer de obicei bani sau informații pentru a recupera presupuse pierderi.",
+"power": "decisiv",
+"verdict": "periculos_in_combo",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://consumer.ftc.gov/articles/refund-and-recovery-scams",
+"publisher": "Federal Trade Commission",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "unknown_advisor_manages_account",
+"text": "Un consilier/broker necunoscut cere să administreze contul, să tranzacționeze în numele victimei sau să primească acces la cont, seed phrase, exchange sau aplicația bancară.",
+"where": "mesaj|contract|profil|instructiuni plata",
+"verify": "Verifică dacă persoana/entitatea este autorizată ASF/BNR unde pretinde servicii de investiții sau plată. Nu introduce datele contului, parole, coduri sau seed phrase. Semnalul devine decisiv dacă este combinat cu remote access, profit garantat sau transfer crypto.",
+"power": "mediu",
+"verdict": "suspect_to_periculos",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://asfromania.ro/ro/a/1544/registre-entit%C4%83%C8%9Bi-autorizate",
+"publisher": "Autoritatea de Supraveghere Financiară",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://www.arb.ro/cum-recunosti-phishing-ul-inainte-sa-ti-fure-datele-personale-si-bancare-explicatiile-expertilor-arb/",
+"publisher": "Asociația Română a Băncilor",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "fake_platform_dashboard_initial_returns",
+"text": "Platforma arată sold, profit, tranzacții câștigătoare sau retrageri mici inițiale pentru a crea încredere, apoi cere depuneri mai mari sau taxe.",
+"where": "link|mesaj|oferta",
+"verify": "Caută mențiuni despre dashboard, cont trading, profit vizibil, retragere de probă, bonus, nivel VIP. Confirmă domeniul și entitatea în ASF/BNR/ESMA/registrul relevant. Dacă platforma apare în ASF Alerte investitori sau cere crypto/remote access, escaladează.",
+"power": "mediu",
+"verdict": "suspect_to_periculos",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://consumer.ftc.gov/articles/what-know-about-cryptocurrency-scams",
+"publisher": "Federal Trade Commission",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://asfromania.ro/ro/a/19/alerte-investitori---informari",
+"publisher": "Autoritatea de Supraveghere Financiară",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "move_to_whatsapp_telegram_for_investment",
+"text": "După o reclamă sau un formular, discuția este mutată rapid pe WhatsApp/Telegram cu un broker, mentor sau grup de investitori.",
+"where": "mesaj|profil|link",
+"verify": "Detectează invitații către WhatsApp/Telegram, grup VIP, canal de semnale, mentor, analist personal. Semnalul este mediu singur; devine sever împreună cu profit garantat, crypto, remote access, entitate nelicențiată sau presiune să plătești.",
+"power": "mediu",
+"verdict": "suspect_to_periculos",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+"publisher": "Siguranța Online",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://www.arb.ro/cum-recunosti-phishing-ul-inainte-sa-ti-fure-datele-personale-si-bancare-explicatiile-expertilor-arb/",
+"publisher": "Asociația Română a Băncilor",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "telegram_pump_dump_or_signal_group",
+"text": "Oferta promovează un grup de semnale/pump, achiziții coordonate, monede/tokenuri care urmează să explodeze sau recomandări de cumpărare rapidă pe Telegram/Discord.",
+"where": "mesaj|profil|link",
+"verify": "Caută termeni precum pump, signal group, entry price, target, moon, private group, memecoin, cumpără acum, listare secretă. Semnalul este mediu în România fără sursă directă oficială pe cazul concret; devine sever în combinație cu token necunoscut, presiune, wallet/DEX/crypto și lipsa entității autorizate.",
+"power": "mediu",
+"verdict": "suspect_to_periculos",
+"confidence": "medium",
+"source_refs": [
+{
+"url": "https://www.reuters.com/markets/australias-regulator-says-four-persons-criminally-charged-alleged-market-rigging-2024-07-23/",
+"publisher": "Reuters / ASIC case",
+"published_at": "2024-07-23",
+"accessed_at": "2026-06-12",
+"source_type": "press",
+"confidence": "medium"
+},
+{
+"url": "https://www.barrons.com/advisor/articles/facebook-instagram-investment-scams-0f82cdb3",
+"publisher": "Barron's",
+"published_at": "2026-04-08",
+"accessed_at": "2026-06-12",
+"source_type": "press",
+"confidence": "medium"
+}
+]
+},
+{
+"signal_slug": "crypto_job_or_investment_requires_buying_crypto",
+"text": "Oferta prezintă o activitate de investiții sau job asociat crypto, dar prima acțiune cerută este cumpărarea și trimiterea de crypto către o adresă indicată de recrutor/mentor.",
+"where": "mesaj|instructiuni plata|contract",
+"verify": "Caută instrucțiuni de cumpărare crypto la ATM/exchange, trimitere către wallet extern, scanare QR sau conversie bani în crypto pentru un client. FTC spune explicit că un job care începe prin cumpărarea de crypto sau plata unei taxe crypto este scam.",
+"power": "decisiv",
+"verdict": "periculos",
+"confidence": "high",
+"source_refs": [
+{
+"url": "https://consumer.ftc.gov/articles/what-know-about-cryptocurrency-scams",
+"publisher": "Federal Trade Commission",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "mica_or_regulated_status_misleading",
+"text": "Platforma pretinde că este reglementată în UE/MiCA/ASF/ESMA, dar nu precizează entitatea autorizată, autoritatea competentă, numărul autorizației sau combină produse reglementate cu servicii neclare/nereglementate.",
+"where": "oferta|contract|link|profil",
+"verify": "Caută numărul autorizației, denumirea legală exactă și registrul unde poate fi verificată. Pentru investiții tradiționale verifică ASF; pentru servicii bancare/plată verifică BNR; pentru crypto verifică dacă există CASP autorizat la autoritatea competentă relevantă. ESMA a avertizat că statutul reglementat poate fi folosit ca argument de marketing care confundă clienții între produse reglementate și nereglementate.",
+"power": "mediu",
+"verdict": "suspect_to_periculos",
+"confidence": "medium",
+"source_refs": [
+{
+"url": "https://www.reuters.com/sustainability/boards-policy-regulation/european-securities-regulator-warns-about-crypto-firms-misleading-customers-2025-07-11/",
+"publisher": "Reuters / ESMA",
+"published_at": "2025-07-11",
+"accessed_at": "2026-06-12",
+"source_type": "press",
+"confidence": "medium"
+},
+{
+"url": "https://asfromania.ro/ro/a/1544/registre-entit%C4%83%C8%9Bi-autorizate",
+"publisher": "Autoritatea de Supraveghere Financiară",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://www.bnr.ro/2349-registre-si-liste",
+"publisher": "Banca Națională a României",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+]
+},
+{
+"signal_slug": "tokenized_stock_or_company_share_without_rights",
+"text": "Oferta vinde expunere la acțiuni/tokenuri ale unor companii cunoscute, dar nu explică drepturile investitorului, custodia, intermediarul autorizat sau faptul că produsul nu conferă acțiuni reale.",
+"where": "oferta|contract|link",
+"verify": "Verifică dacă produsul este listat printr-un intermediar autorizat, dacă entitatea poate presta servicii de investiții și dacă documentul explică drepturile reale. ESMA a avertizat că tokenized stocks pot crea risc de neînțelegere pentru investitori, deoarece pot oferi expunere fără drepturile unui acționar real.",
+"power": "mediu",
+"verdict": "suspect_to_periculos",
+"confidence": "medium",
+"source_refs": [
+{
+"url": "https://www.reuters.com/sustainability/boards-policy-regulation/european-regulator-says-tokenised-stocks-risk-investor-misunderstanding-2025-09-01/",
+"publisher": "Reuters / ESMA",
+"published_at": "2025-09-01",
+"accessed_at": "2026-06-12",
+"source_type": "press",
+"confidence": "medium"
+}
+]
+}
+],
+"verification_sources": [
+{
+"name": "ASF - Alerte investitori / informări",
+"url": "https://asfromania.ro/ro/a/19/alerte-investitori---informari",
+"what_can_verify": "Dacă o entitate, platformă sau domeniu apare în lista ASF ca neautorizată pentru servicii și activități de investiții conform Legii nr. 126/2018. Util pentru domain/brand exact match și pentru evidence decisiv.",
+"access_type": "public_search",
+"confidence": "high"
+},
+{
+"name": "ASF - Registre entități autorizate",
+"url": "https://asfromania.ro/ro/a/1544/registre-entit%C4%83%C8%9Bi-autorizate",
+"what_can_verify": "Dacă o entitate care pretinde servicii de investiții, intermediere, asigurări sau alte servicii supravegheate ASF apare în registrele entităților autorizate.",
+"access_type": "public_search",
+"confidence": "high"
+},
+{
+"name": "BNR - Registre și liste",
+"url": "https://www.bnr.ro/2349-registre-si-liste",
+"what_can_verify": "Dacă o entitate pretinde că este bancă, IFN, instituție de plată sau emitent de monedă electronică autorizat/supravegheat de BNR.",
+"access_type": "public_search",
+"confidence": "high"
+},
+{
+"name": "Siguranța Online - Uniți împotriva escrocheriilor",
+"url": "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+"what_can_verify": "Taxonomie oficială/educațională pentru tehnica „Câștig peste noapte”: Hidroelectrica, Broker, Cripto, Aplicația bancară, Marketplace, Investiții cu AI și Loteria Română; utilă pentru corpus și semnale, nu pentru domenii concrete.",
+"access_type": "public_search",
+"confidence": "high"
+},
+{
+"name": "Hidroelectrica - avertizare utilizare frauduloasă nume companie în scheme de investiții online",
+"url": "https://www.hidroelectrica.ro/press-release/1d738954-4c1b-1ad9-c046-4d0d6001e187",
+"what_can_verify": "Dacă oferta folosește abuziv numele Hidroelectrica sau promite investiții prin platforme/reclame social media neoficiale. Confirmă domeniul oficial hidroelectrica.ro și faptul că Hidroelectrica nu solicită investiții prin astfel de platforme.",
+"access_type": "public_search",
+"confidence": "high"
+},
+{
+"name": "ARB - phishing, investment scheme, remote control apps",
+"url": "https://www.arb.ro/cum-recunosti-phishing-ul-inainte-sa-ti-fure-datele-personale-si-bancare-explicatiile-expertilor-arb/",
+"what_can_verify": "Tipare de fraudă bancară și investment scheme, inclusiv folosirea AI/deepfake, brokeri falși, aplicații prezentate ca trading dar care pot fi remote control și riscul instalării de aplicații cerute de persoane necunoscute.",
+"access_type": "public_search",
+"confidence": "high"
+},
+{
+"name": "FTC - What to know about cryptocurrency scams",
+"url": "https://consumer.ftc.gov/articles/what-know-about-cryptocurrency-scams",
+"what_can_verify": "Tipare internaționale: profit garantat, crypto ireversibil, investment manager fals, celebrity impersonation, wallet/QR, taxe de retragere, joburi crypto. Nu este sursă RO, dar este sursă oficială reputabilă pentru pattern-uri globale relevante.",
+"access_type": "public_search",
+"confidence": "high"
+},
+{
+"name": "FTC - Refund and recovery scams",
+"url": "https://consumer.ftc.gov/articles/refund-and-recovery-scams",
+"what_can_verify": "Tiparul recovery scam: promisiune de recuperare bani pierduți contra taxă/comision/date. Nu este sursă RO, dar este utilă pentru OP-09 recovery scam.",
+"access_type": "public_search",
+"confidence": "high"
+},
+{
+"name": "ESMA/MiCA context via Reuters",
+"url": "https://www.reuters.com/sustainability/boards-policy-regulation/european-securities-regulator-warns-about-crypto-firms-misleading-customers-2025-07-11/",
+"what_can_verify": "Context reputabil despre riscul ca furnizorii crypto să creeze confuzie între produse reglementate și nereglementate sub MiCA. Nu este registru direct; folosește ca sursă de context, nu ca verificare hard a unei entități.",
+"access_type": "manual",
+"confidence": "medium"
+}
+],
+"payment_risk": {
+"card_in_regulated_platform": "scazut",
+"bank_transfer_to_licensed_entity": "scazut",
+"bank_transfer_to_person": "mare",
+"crypto_wallet": "periculos",
+"crypto_atm_qr": "periculos",
+"remote_access_required": "periculos"
+}
+},
+"examples": [
+{
+"text": "Am găsit o oportunitate oficială Hidroelectrica pentru investitori mici. Randament estimat 4.200 lei/lună la o depunere inițială de 1.250 lei. Înscrierea se face doar azi pe https://hidro-edge-profit.test și un consultant vă contactează pe WhatsApp după completarea formularului.",
+"family": "OP-09",
+"expected_signals": [
+"public_company_impersonation_investment",
+"guaranteed_profit_or_zero_risk",
+"move_to_whatsapp_telegram_for_investment"
+],
+"payment_method": "card_form",
+"source_refs": [
+{
+"url": "https://www.hidroelectrica.ro/press-release/1d738954-4c1b-1ad9-c046-4d0d6001e187",
+"publisher": "Hidroelectrica",
+"published_at": "2026-03-09",
+"accessed_at": "2026-06-12",
+"source_type": "brand_official",
+"confidence": "high"
+}
+],
+"fixture_type": "real_paraphrased",
+"confidence": "high"
+},
+{
+"text": "Bună ziua, sunt Andrei, broker senior la platforma Alliance Global Markets. Aveți cont aprobat și puteți începe cu 250 EUR. Transferul se face către IBAN-ul consultantului pentru activare rapidă, apoi vedeți profitul în panou. Platforma este reglementată european.",
+"family": "OP-09",
+"expected_signals": [
+"unlicensed_investment_entity_asf_alert",
+"unknown_advisor_manages_account",
+"mica_or_regulated_status_misleading"
+],
+"payment_method": "bank_transfer_to_person",
+"source_refs": [
+{
+"url": "https://asfromania.ro/ro/a/19/alerte-investitori---informari",
+"publisher": "Autoritatea de Supraveghere Financiară",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+],
+"fixture_type": "real_paraphrased",
+"confidence": "high"
+},
+{
+"text": "Pentru a configura contul de tranzacționare și a nu pierde poziția pe piață, instalați AnyDesk de aici: https://trading-support.example/desk. Brokerul vă va ghida pas cu pas și va autoriza primele tranzacții din aplicația bancară.",
+"family": "OP-09",
+"expected_signals": [
+"remote_access_required_for_investment",
+"unknown_advisor_manages_account",
+"move_to_whatsapp_telegram_for_investment"
+],
+"payment_method": "remote_access_required",
+"source_refs": [
+{
+"url": "https://www.arb.ro/cum-recunosti-phishing-ul-inainte-sa-ti-fure-datele-personale-si-bancare-explicatiile-expertilor-arb/",
+"publisher": "Asociația Română a Băncilor",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+],
+"fixture_type": "real_paraphrased",
+"confidence": "high"
+},
+{
+"text": "Contul dvs. arată profit de 18.430 EUR. Pentru retragere trebuie achitată taxa AML de 7% în USDT la wallet-ul de mai jos. După confirmarea blockchain, suma va fi eliberată automat în contul bancar.",
+"family": "OP-09",
+"expected_signals": [
+"withdrawal_fee_or_tax_to_release_profit",
+"crypto_payment_wallet_or_qr",
+"fake_platform_dashboard_initial_returns"
+],
+"payment_method": "crypto_wallet",
+"source_refs": [
+{
+"url": "https://consumer.ftc.gov/articles/what-know-about-cryptocurrency-scams",
+"publisher": "Federal Trade Commission",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+],
+"fixture_type": "real_paraphrased",
+"confidence": "high"
+},
+{
+"text": "Departamentul nostru de recuperări crypto a identificat fondurile pierdute în platforma unde ați investit. Putem recupera 92% din sumă, dar trebuie plătită taxa de dosar blockchain de 310 EUR înainte de inițierea procedurii. Trimiteți și copie CI pentru contract.",
+"family": "OP-09",
+"expected_signals": [
+"recovery_scam_advance_fee",
+"crypto_payment_wallet_or_qr"
+],
+"payment_method": "crypto_wallet",
+"source_refs": [
+{
+"url": "https://consumer.ftc.gov/articles/refund-and-recovery-scams",
+"publisher": "Federal Trade Commission",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+],
+"fixture_type": "real_paraphrased",
+"confidence": "high"
+},
+{
+"text": "Videoclipul cu directorul cunoscutei companii energetice explică noua platformă de acțiuni tokenizate. Nu cumpărați acțiuni prin bursă, ci tokenuri private cu profit lunar garantat. Înregistrați-vă pe https://energy-token-share.test până diseară.",
+"family": "OP-09",
+"expected_signals": [
+"deepfake_or_fake_public_persona_endorsement",
+"tokenized_stock_or_company_share_without_rights",
+"guaranteed_profit_or_zero_risk",
+"public_company_impersonation_investment"
+],
+"payment_method": "card_form_or_crypto_wallet",
+"source_refs": [
+{
+"url": "https://www.hidroelectrica.ro/press-release/1d738954-4c1b-1ad9-c046-4d0d6001e187",
+"publisher": "Hidroelectrica",
+"published_at": "2026-03-09",
+"accessed_at": "2026-06-12",
+"source_type": "brand_official",
+"confidence": "high"
+},
+{
+"url": "https://www.reuters.com/sustainability/boards-policy-regulation/european-regulator-says-tokenised-stocks-risk-investor-misunderstanding-2025-09-01/",
+"publisher": "Reuters / ESMA",
+"published_at": "2025-09-01",
+"accessed_at": "2026-06-12",
+"source_type": "press",
+"confidence": "medium"
+}
+],
+"fixture_type": "synthetic_illustrative",
+"confidence": "medium"
+},
+{
+"text": "Grup privat Telegram: semnal premium pentru moneda NOVA. Intrare recomandată acum, target x6 în 48h. Administratorii cumpără primii și anunță momentul exact de vânzare. Accesul VIP se activează cu 200 USDT.",
+"family": "OP-09",
+"expected_signals": [
+"telegram_pump_dump_or_signal_group",
+"crypto_payment_wallet_or_qr",
+"guaranteed_profit_or_zero_risk"
+],
+"payment_method": "crypto_wallet",
+"source_refs": [
+{
+"url": "https://www.reuters.com/markets/australias-regulator-says-four-persons-criminally-charged-alleged-market-rigging-2024-07-23/",
+"publisher": "Reuters / ASIC case",
+"published_at": "2024-07-23",
+"accessed_at": "2026-06-12",
+"source_type": "press",
+"confidence": "medium"
+}
+],
+"fixture_type": "synthetic_illustrative",
+"confidence": "medium"
+},
+{
+"text": "A fost detectată o problemă pe contul dvs. bancar. Pentru protecția banilor, trebuie să îi convertiți temporar în crypto la ATM și să scanați QR-ul de securitate primit. Nu închideți apelul până finalizăm procesul.",
+"family": "OP-09",
+"expected_signals": [
+"crypto_payment_wallet_or_qr",
+"remote_access_required_for_investment"
+],
+"payment_method": "crypto_atm_qr",
+"source_refs": [
+{
+"url": "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+"publisher": "Siguranța Online",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+},
+{
+"url": "https://consumer.ftc.gov/articles/what-know-about-cryptocurrency-scams",
+"publisher": "Federal Trade Commission",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "high"
+}
+],
+"fixture_type": "real_paraphrased",
+"confidence": "high"
+}
+]
+}

@@ -1,0 +1,1603 @@
+{
+  "atlas": "OP-IMP",
+  "name": "Atlas scamuri de impersonare (România, 2024–2026)",
+  "accessed_at": "2026-06-12",
+  "status": "sustinut",
+  "families": [
+    {
+      "code": "IMP-01",
+      "name": "Impersonare instituții de stat (Poliția/IGPR/MAI, DNSC, ANAF, Interpol, instanțe)",
+      "status": "sustinut",
+      "signals": [
+        {
+          "signal_slug": "amenintare_arest_dosar_amenda",
+          "text": "Ți se spune că ai un dosar penal/mandat/amendă și că vei fi arestat dacă nu plătești imediat.",
+          "where": "mesaj",
+          "verify": "Nicio instituție nu anunță dosare/amenzi prin apel sau SMS cu plată imediată; verifică la 112 sau la secția de poliție.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.profit.ro/stiri/social/avertisment-atentie-la-ce-link-uri-primiti-infractorii-folosesc-imaginea-interpol-politia-romana-sau-anaf-22414456",
+              "publisher": "Profit.ro",
+              "published_at": "2026-04-18",
+              "accessed_at": "2026-06-12",
+              "source_type": "press",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "signal_slug": "email_fals_anaf_neregularitate",
+          "text": "Email „de la ANAF” despre o neregularitate fiscală / restanță, cu link sau pași de „remediere”.",
+          "where": "mesaj",
+          "verify": "ANAF NU comunică creanțe prin email; doar prin SPV sau Poșta Română cu confirmare. Call Center ANAF: 0314039160.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.dnsc.ro/citeste/alerta-phishing-e-mail-anaf",
+              "publisher": "DNSC",
+              "published_at": "2025-03-20",
+              "accessed_at": "2026-06-12",
+              "source_type": "official",
+              "confidence": "high"
+            },
+            {
+              "url": "https://www.digi24.ro/digieconomic/digital/avertisment-email-fals-in-numele-anaf-contribuabilii-sunt-anuntati-de-o-posibila-neregularitate-in-declaratiile-fiscale-depuse-70047",
+              "publisher": "Digi24",
+              "published_at": "2025-10-13",
+              "accessed_at": "2026-06-12",
+              "source_type": "press",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "signal_slug": "domeniu_si_logo_institutie_imitate",
+          "text": "Link către un „portal oficial” pe domeniu neoficial (ex. anaf-ro.web.app) cu logo copiat.",
+          "where": "link",
+          "verify": "Compară domeniul cu cel real (anaf.ro, politiaromana.ro, dnsc.ro); orice subdomeniu/TLD diferit = fals.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.dnsc.ro/citeste/alerta-phishing-e-mail-anaf",
+              "publisher": "DNSC",
+              "published_at": "2025-03-20",
+              "accessed_at": "2026-06-12",
+              "source_type": "official",
+              "confidence": "high"
+            }
+          ]
+        }
+      ],
+      "verification_sources": [
+        {
+          "name": "ANAF – Spațiul Privat Virtual (SPV)",
+          "url": "https://www.anaf.ro/",
+          "what_can_verify": "Situația fiscală reală, somații, creanțe oficiale",
+          "access_type": "manual",
+          "confidence": "high"
+        },
+        {
+          "name": "Poliția Română – petiții/sesizări online",
+          "url": "https://politiaromana.ro/ro/petitii-online",
+          "what_can_verify": "Existența unei proceduri/sesizări reale",
+          "access_type": "manual",
+          "confidence": "high"
+        },
+        {
+          "name": "DNSC – contact/alerte",
+          "url": "https://www.dnsc.ro/contact",
+          "what_can_verify": "Campanii de phishing semnalate oficial",
+          "access_type": "manual",
+          "confidence": "high"
+        }
+      ],
+      "payment_risk": {
+        "bank_transfer_to_company": "mare",
+        "bank_transfer_to_person": "extrem",
+        "revolut_personal": "extrem",
+        "crypto": "periculos",
+        "gift_card": "periculos",
+        "western_union_moneygram": "periculos"
+      }
+    },
+    {
+      "code": "IMP-02",
+      "name": "Impersonare bancă/fintech (metoda „Banca”, Revolut, spoofing)",
+      "status": "sustinut",
+      "signals": [
+        {
+          "signal_slug": "cerere_cod_otp",
+          "text": "„Agentul antifraudă” îți cere codul OTP/SMS sau parola pentru a „bloca” o tranzacție.",
+          "where": "mesaj",
+          "verify": "Banca/Revolut nu cer NICIODATĂ coduri sau parole la telefon; codul confirmă o acțiune a ta.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.revolut.com/en-RO/blog/post/how-to-know-its-really-revolut-calling/",
+              "publisher": "Revolut",
+              "published_at": null,
+              "accessed_at": "2026-06-12",
+              "source_type": "brand_official",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "signal_slug": "mutare_in_cont_sigur",
+          "text": "Ți se cere să muți banii într-un „cont sigur/securizat” ca să-i „protejezi”.",
+          "where": "instructiuni plata",
+          "verify": "Nicio bancă nu îți cere să transferi banii în alt cont; sună la numărul de pe spatele cardului.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.mai.gov.ro/politia-romana-directoratul-national-de-securitate-cibernetica-si-asociatia-romana-a-bancilor-avertizeaza-asupra-riscului-de-frauda-de-tip-spoofing/",
+              "publisher": "MAI / Poliția Română",
+              "published_at": "2024-05-14",
+              "accessed_at": "2026-06-12",
+              "source_type": "official",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "signal_slug": "numar_afisat_pare_oficial_spoofing",
+          "text": "Numărul afișat pare cel al băncii (spoofing), pentru a câștiga încredere.",
+          "where": "mesaj",
+          "verify": "Numărul poate fi falsificat; închide și sună tu pe canalul oficial sau folosește chatul din aplicație.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.reddit.com/r/Romania/comments/1mlmid5/teapa_revolut/",
+              "publisher": "Reddit r/Romania",
+              "published_at": null,
+              "accessed_at": "2026-06-12",
+              "source_type": "community_noisy",
+              "confidence": "medium"
+            }
+          ]
+        }
+      ],
+      "verification_sources": [
+        {
+          "name": "Numărul oficial de pe spatele cardului",
+          "url": "https://www.revolut.com/en-RO/about-fraud-and-scam/",
+          "what_can_verify": "Dacă apelul/tranzacția e reală",
+          "access_type": "manual",
+          "confidence": "high"
+        },
+        {
+          "name": "Revolut – raportare apel/SMS suspect",
+          "url": "https://help.revolut.com/en-RO/help/security-logging-in/how-do-i-report-a-suspicious-call-email-link-or-text/",
+          "what_can_verify": "Autenticitatea unui contact „Revolut”",
+          "access_type": "manual",
+          "confidence": "high"
+        }
+      ],
+      "payment_risk": {
+        "bank_transfer_to_company": "mare",
+        "bank_transfer_to_person": "extrem",
+        "revolut_personal": "extrem",
+        "crypto": "periculos",
+        "gift_card": "periculos",
+        "western_union_moneygram": "periculos"
+      }
+    },
+    {
+      "code": "IMP-03",
+      "name": "Impersonare curierat (FAN Courier, DHL, Poșta Română)",
+      "status": "sustinut",
+      "signals": [
+        {
+          "signal_slug": "taxa_mica_livrare_colet",
+          "text": "SMS „coletul nu a putut fi livrat, plătește o taxă mică pentru reprogramare”.",
+          "where": "mesaj",
+          "verify": "Verifică direct în contul/aplicația curierului; curierii nu cer plăți de reprogramare prin link SMS.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.radioromania.ro/Actualitate/dnsc-campanie-frauduloasa-care-imita-serviciile-de-curierat-ale-dhl-id180135.html",
+              "publisher": "Radio România / DNSC",
+              "published_at": "2026-05-14",
+              "accessed_at": "2026-06-12",
+              "source_type": "press",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "signal_slug": "furt_cod_whatsapp",
+          "text": "Site-ul fals îți cere codul de verificare WhatsApp → atacatorul îți preia contul și cere bani contactelor.",
+          "where": "link",
+          "verify": "Niciun serviciu online nu cere codul tău WhatsApp; nu-l introduce niciodată pe un site.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.bitdefender.com/en-us/blog/hotforsecurity/fan-courier-sms-scam-targets-1-million-romanians-in-massive-whatsapp-takeover-campaign",
+              "publisher": "Bitdefender",
+              "published_at": "2026-03-12",
+              "accessed_at": "2026-06-12",
+              "source_type": "report",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "signal_slug": "cerere_date_card_pe_link",
+          "text": "Linkul cere datele complete ale cardului pentru o sumă „de câțiva lei”.",
+          "where": "link",
+          "verify": "Compară domeniul cu cel oficial al curierului; o taxă reală nu se cere prin link SMS cu date card.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.profit.ro/povesti-cu-profit/retail/foto-cea-mai-mare-inselatorie-online-din-romania-din-2026-la-acest-moment-peste-un-milion-de-romani-au-primit-sms-uri-frauduloase-de-livrare-care-par-sa-vina-de-la-fan-courier-22375787",
+              "publisher": "Profit.ro",
+              "published_at": "2026-03-12",
+              "accessed_at": "2026-06-12",
+              "source_type": "press",
+              "confidence": "high"
+            }
+          ]
+        }
+      ],
+      "verification_sources": [
+        {
+          "name": "Aplicația/website oficial al curierului",
+          "url": "https://www.fancourier.ro/",
+          "what_can_verify": "Statusul real al coletului și eventualele taxe",
+          "access_type": "manual",
+          "confidence": "high"
+        },
+        {
+          "name": "DNSC – alerte campanii curierat",
+          "url": "https://www.dnsc.ro/",
+          "what_can_verify": "Campanii de smishing semnalate oficial",
+          "access_type": "manual",
+          "confidence": "high"
+        }
+      ],
+      "payment_risk": {
+        "bank_transfer_to_company": "mare",
+        "bank_transfer_to_person": "extrem",
+        "revolut_personal": "extrem",
+        "crypto": "periculos",
+        "gift_card": "periculos",
+        "western_union_moneygram": "periculos"
+      }
+    },
+    {
+      "code": "IMP-04",
+      "name": "Impersonare suport tehnic (Microsoft, Apple, ISP)",
+      "status": "sustinut",
+      "signals": [
+        {
+          "signal_slug": "popup_alarmant_cu_numar",
+          "text": "Pop-up care „blochează” browserul: „dispozitivul e infectat, sună la acest număr”.",
+          "where": "mesaj",
+          "verify": "Microsoft/Apple nu afișează numere de telefon în mesaje de eroare; închide browserul, nu suna.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://support.microsoft.com/en-us/windows/protect-yourself-from-tech-support-scams-2ebf91bd-f94c-2a8a-e541-f5c800d18435",
+              "publisher": "Microsoft",
+              "published_at": null,
+              "accessed_at": "2026-06-12",
+              "source_type": "brand_official",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "signal_slug": "cerere_acces_remote",
+          "text": "Ți se cere să instalezi AnyDesk/TeamViewer pentru a-ți „repara” computerul.",
+          "where": "instructiuni plata",
+          "verify": "Nu acorda niciodată acces remote cuiva care te-a contactat din senin.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.fbi.gov/how-we-can-help-you/scams-and-safety/common-frauds-and-scams/tech-support-scams",
+              "publisher": "FBI",
+              "published_at": null,
+              "accessed_at": "2026-06-12",
+              "source_type": "official",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "signal_slug": "plata_in_gift_card",
+          "text": "Plata „reparației” se cere în gift carduri (Google Play, Steam, iTunes).",
+          "where": "instructiuni plata",
+          "verify": "Nicio companie reală nu încasează servicii în gift carduri.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://en.wikipedia.org/wiki/Technical_support_scam",
+              "publisher": "Wikipedia",
+              "published_at": null,
+              "accessed_at": "2026-06-12",
+              "source_type": "report",
+              "confidence": "medium"
+            }
+          ]
+        }
+      ],
+      "verification_sources": [
+        {
+          "name": "Microsoft – ghid tech support scam",
+          "url": "https://support.microsoft.com/en-us/windows/protect-yourself-from-tech-support-scams-2ebf91bd-f94c-2a8a-e541-f5c800d18435",
+          "what_can_verify": "Cum arată un scam de suport tehnic",
+          "access_type": "manual",
+          "confidence": "high"
+        }
+      ],
+      "payment_risk": {
+        "bank_transfer_to_company": "mare",
+        "bank_transfer_to_person": "extrem",
+        "revolut_personal": "extrem",
+        "crypto": "periculos",
+        "gift_card": "periculos",
+        "western_union_moneygram": "periculos"
+      }
+    },
+    {
+      "code": "IMP-05",
+      "name": "Impersonare prieten/rudă (cont spart, „Hi Mom/Dad”, grandparent)",
+      "status": "sustinut",
+      "signals": [
+        {
+          "signal_slug": "numar_nou_pierdut_telefon",
+          "text": "Mesaj de pe un număr nou: „sunt copilul/prietenul tău, mi-am pierdut telefonul”.",
+          "where": "mesaj",
+          "verify": "Sună persoana pe numărul vechi cunoscut sau cere o dovadă pe care doar ea o știe.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.takefive-stopfraud.org.uk/protect-yourself/impersonation-fraud/",
+              "publisher": "Take Five To Stop Fraud",
+              "published_at": null,
+              "accessed_at": "2026-06-12",
+              "source_type": "report",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "signal_slug": "cerere_plata_urgenta_factura",
+          "text": "„Poți plăti tu urgent o factură / un transfer, îți dau eu banii înapoi?”",
+          "where": "mesaj",
+          "verify": "Confirmă vocal/video înainte de orice plată; refuză presiunea de urgență.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.instagram.com/p/DYOok8XtdQI/",
+              "publisher": "Instagram (community)",
+              "published_at": "2026-05-11",
+              "accessed_at": "2026-06-12",
+              "source_type": "community_noisy",
+              "confidence": "low"
+            }
+          ]
+        },
+        {
+          "signal_slug": "cont_whatsapp_compromis",
+          "text": "Contul real al cunoscutului a fost preluat și folosit pentru a cere bani contactelor.",
+          "where": "profil",
+          "verify": "Verifică pe alt canal; semnalează contul compromis prietenului.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos",
+          "confidence": "medium",
+          "source_refs": [
+            {
+              "url": "https://www.bitdefender.com/en-us/blog/hotforsecurity/fan-courier-sms-scam-targets-1-million-romanians-in-massive-whatsapp-takeover-campaign",
+              "publisher": "Bitdefender",
+              "published_at": "2026-03-12",
+              "accessed_at": "2026-06-12",
+              "source_type": "report",
+              "confidence": "high"
+            }
+          ]
+        }
+      ],
+      "verification_sources": [
+        {
+          "name": "Apel/video direct pe numărul cunoscut",
+          "url": "https://www.takefive-stopfraud.org.uk/protect-yourself/impersonation-fraud/",
+          "what_can_verify": "Identitatea reală a expeditorului",
+          "access_type": "manual",
+          "confidence": "high"
+        }
+      ],
+      "payment_risk": {
+        "bank_transfer_to_company": "mare",
+        "bank_transfer_to_person": "extrem",
+        "revolut_personal": "extrem",
+        "crypto": "periculos",
+        "gift_card": "periculos",
+        "western_union_moneygram": "periculos"
+      }
+    },
+    {
+      "code": "IMP-06",
+      "name": "CEO fraud / BEC / factură falsă de furnizor (firme)",
+      "status": "sustinut",
+      "signals": [
+        {
+          "signal_slug": "cerere_urgenta_de_la_director",
+          "text": "Email „de la CEO/CFO” care cere o plată urgentă și confidențială, în afara procedurii normale.",
+          "where": "mesaj",
+          "verify": "Confirmă pe alt canal (telefon cunoscut) și respectă procedura de aprobare duală.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.europol.europa.eu/cms/sites/default/files/documents/uk.pdf",
+              "publisher": "Europol",
+              "published_at": null,
+              "accessed_at": "2026-06-12",
+              "source_type": "official",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "signal_slug": "schimbare_iban_furnizor",
+          "text": "„Furnizorul” anunță că și-a schimbat banca și cere plata facturii pe un IBAN nou.",
+          "where": "factura",
+          "verify": "Confirmă schimbarea IBAN telefonic, la un contact cunoscut, înainte de plată.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.fbi.gov/how-we-can-help-you/scams-and-safety/common-frauds-and-scams/business-email-compromise",
+              "publisher": "FBI",
+              "published_at": null,
+              "accessed_at": "2026-06-12",
+              "source_type": "official",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "signal_slug": "domeniu_email_aproape_identic",
+          "text": "Adresa de email diferă subtil de cea reală (literă în plus/lipsă, TLD schimbat).",
+          "where": "mesaj",
+          "verify": "Verifică caracter cu caracter domeniul expeditorului; compară cu emailuri anterioare.",
+          "power": "mediu",
+          "verdict": "periculos_in_combo",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.knowbe4.com/ceo-fraud",
+              "publisher": "KnowBe4",
+              "published_at": null,
+              "accessed_at": "2026-06-12",
+              "source_type": "report",
+              "confidence": "medium"
+            }
+          ]
+        }
+      ],
+      "verification_sources": [
+        {
+          "name": "ONRC – portal date firme",
+          "url": "https://portal.onrc.ro/",
+          "what_can_verify": "Existența și datele reale ale firmei/furnizorului",
+          "access_type": "public_search",
+          "confidence": "high"
+        },
+        {
+          "name": "RO e-Factura (ANAF SPV)",
+          "url": "https://www.anaf.ro/",
+          "what_can_verify": "Validitatea facturilor B2B în România",
+          "access_type": "manual",
+          "confidence": "medium"
+        }
+      ],
+      "payment_risk": {
+        "bank_transfer_to_company": "mare",
+        "bank_transfer_to_person": "extrem",
+        "revolut_personal": "extrem",
+        "crypto": "periculos",
+        "gift_card": "periculos",
+        "western_union_moneygram": "periculos"
+      }
+    },
+    {
+      "code": "IMP-07",
+      "name": "Impersonare persoane publice / deepfake investiții",
+      "status": "sustinut",
+      "signals": [
+        {
+          "signal_slug": "video_deepfake_persoana_publica",
+          "text": "Clip cu un politician/bancher/vedetă (Nicușor Dan, Bolojan, Isărescu) ce promovează o platformă de investiții.",
+          "where": "link",
+          "verify": "Persoanele publice nu recomandă platforme de investiții pe Facebook; caută sursa oficială.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.bitdefender.com/en-us/blog/hotforsecurity/deepfake-scam-exploits-romanian-presidential-candidates-to-lure-victims-into-fake-neptun-deep-investment",
+              "publisher": "Bitdefender",
+              "published_at": "2025-05-12",
+              "accessed_at": "2026-06-12",
+              "source_type": "report",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "signal_slug": "profit_garantat_taxa_activare",
+          "text": "Promite venit fix garantat (ex. 9000 lei/lună) după o mică „taxă de activare”.",
+          "where": "oferta",
+          "verify": "Profitul garantat nu există; orice „taxă de activare” pentru câștiguri = scam.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.wall-street.ro/articol/fara-categorie/apare-un-nou-tip-de-frauda-nicusor-dan-si-bolojan-dau-sfaturi-de-investitii.html",
+              "publisher": "Wall-Street.ro",
+              "published_at": null,
+              "accessed_at": "2026-06-12",
+              "source_type": "press",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "signal_slug": "plata_doar_in_crypto",
+          "text": "Platforma funcționează exclusiv cu depuneri în criptomonede.",
+          "where": "instructiuni plata",
+          "verify": "Plățile crypto sunt ireversibile; verifică autorizarea entității la ASF/autorități.",
+          "power": "mediu",
+          "verdict": "periculos_in_combo",
+          "confidence": "medium",
+          "source_refs": [
+            {
+              "url": "https://www.bursa.ro/advertorial-ro-amploarea-scam-urilor-crypto-bazate-pe-ai-in-2026-si-cum-sa-le-eviti-65400953",
+              "publisher": "Bursa.ro",
+              "published_at": "2026-04-30",
+              "accessed_at": "2026-06-12",
+              "source_type": "press",
+              "confidence": "medium"
+            }
+          ]
+        }
+      ],
+      "verification_sources": [
+        {
+          "name": "DNSC – alerte deepfake/investiții",
+          "url": "https://www.dnsc.ro/",
+          "what_can_verify": "Campanii deepfake semnalate oficial",
+          "access_type": "manual",
+          "confidence": "high"
+        }
+      ],
+      "payment_risk": {
+        "bank_transfer_to_company": "mare",
+        "bank_transfer_to_person": "extrem",
+        "revolut_personal": "extrem",
+        "crypto": "periculos",
+        "gift_card": "periculos",
+        "western_union_moneygram": "periculos"
+      }
+    },
+    {
+      "code": "IMP-08",
+      "name": "Impersonare marketplace (OLX / Publi24) — cumpărător/vânzător fals",
+      "status": "sustinut",
+      "signals": [
+        {
+          "signal_slug": "link_fals_livrare_olx",
+          "text": "„Cumpărătorul” trimite un link de „livrare prin OLX” unde ți se cer datele cardului și soldul.",
+          "where": "link",
+          "verify": "Folosește doar fluxul oficial din aplicația OLX; nu introduce datele cardului pe linkuri externe.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://ajutor.olx.ro/olxhelpro/s/article/ai-grija-la-linkurile-false-pentru-articole-platite-recunoaste-semnalele-unui-atac-de-phishing-V7",
+              "publisher": "OLX",
+              "published_at": null,
+              "accessed_at": "2026-06-12",
+              "source_type": "brand_official",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "signal_slug": "mutare_conversatie_pe_whatsapp",
+          "text": "Ți se cere să muți rapid discuția pe WhatsApp „pentru că nu vede pozele”.",
+          "where": "mesaj",
+          "verify": "Păstrează comunicarea în aplicația platformei; mutarea pe WhatsApp e tactică de scam.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos",
+          "confidence": "medium",
+          "source_refs": [
+            {
+              "url": "https://www.dnsc.ro/citeste/alerta-tentativa-de-frauda-olx",
+              "publisher": "DNSC",
+              "published_at": null,
+              "accessed_at": "2026-06-12",
+              "source_type": "official",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "signal_slug": "dovada_falsa_de_transfer",
+          "text": "Vânzătorul/cumpărătorul trimite o „dovadă” de transfer bancar care nu se confirmă la bancă.",
+          "where": "mesaj",
+          "verify": "Confirmă încasarea direct în contul tău, nu pe baza unui screenshot.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.reddit.com/r/Scams/comments/1u0elfw/i_am_looking_for_advice_regarding_a_possible_olx/",
+              "publisher": "Reddit r/Scams",
+              "published_at": null,
+              "accessed_at": "2026-06-12",
+              "source_type": "community_noisy",
+              "confidence": "medium"
+            }
+          ]
+        }
+      ],
+      "verification_sources": [
+        {
+          "name": "OLX – centru ajutor phishing",
+          "url": "https://ajutor.olx.ro/olxhelpro/s/article/ai-grija-la-linkurile-false-pentru-articole-platite-recunoaste-semnalele-unui-atac-de-phishing-V7",
+          "what_can_verify": "Cum arată linkurile false de livrare",
+          "access_type": "manual",
+          "confidence": "high"
+        }
+      ],
+      "payment_risk": {
+        "bank_transfer_to_company": "mare",
+        "bank_transfer_to_person": "extrem",
+        "revolut_personal": "extrem",
+        "crypto": "periculos",
+        "gift_card": "periculos",
+        "western_union_moneygram": "periculos"
+      }
+    },
+    {
+      "code": "IMP-09",
+      "name": "Impersonare branduri / retaileri (promoții și premii false)",
+      "status": "partial",
+      "signals": [
+        {
+          "signal_slug": "premiu_sau_pret_imposibil",
+          "text": "Pagină/cont care imită un brand (eMAG, Altex) cu „premii” sau produse la prețuri imposibile.",
+          "where": "oferta",
+          "verify": "Verifică pe site-ul oficial al brandului; raportează conturile false.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos",
+          "confidence": "medium",
+          "source_refs": [
+            {
+              "url": "https://www.instagram.com/p/DSDDvB_AdGr/",
+              "publisher": "Instagram (community)",
+              "published_at": "2025-12-09",
+              "accessed_at": "2026-06-12",
+              "source_type": "community_noisy",
+              "confidence": "low"
+            }
+          ]
+        },
+        {
+          "signal_slug": "domeniu_lookalike_brand",
+          "text": "Domeniu care imită brandul (ex. emag-promo.xyz) în loc de domeniul oficial.",
+          "where": "link",
+          "verify": "Compară cu domeniul oficial (.ro/.com); orice variantă cu sufix ciudat = fals.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://validsoftware.ro/fraude-online-romania-2026/",
+              "publisher": "ValidSoftware",
+              "published_at": null,
+              "accessed_at": "2026-06-12",
+              "source_type": "press",
+              "confidence": "medium"
+            }
+          ]
+        },
+        {
+          "signal_slug": "cerere_date_card_pentru_premiu",
+          "text": "Pentru „premiu/transport gratuit” ți se cer datele cardului.",
+          "where": "instructiuni plata",
+          "verify": "Premiile reale nu cer date card; nu le introduce.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://validsoftware.ro/fraude-online-romania-2026/",
+              "publisher": "ValidSoftware",
+              "published_at": null,
+              "accessed_at": "2026-06-12",
+              "source_type": "press",
+              "confidence": "medium"
+            }
+          ]
+        }
+      ],
+      "verification_sources": [
+        {
+          "name": "Site-ul oficial al brandului",
+          "url": "https://www.emag.ro/",
+          "what_can_verify": "Dacă promoția/premiul există cu adevărat",
+          "access_type": "manual",
+          "confidence": "medium"
+        }
+      ],
+      "payment_risk": {
+        "bank_transfer_to_company": "mare",
+        "bank_transfer_to_person": "extrem",
+        "revolut_personal": "extrem",
+        "crypto": "periculos",
+        "gift_card": "periculos",
+        "western_union_moneygram": "periculos"
+      }
+    },
+    {
+      "code": "IMP-10",
+      "name": "Impersonare ONG / donații false (charity)",
+      "status": "partial",
+      "signals": [
+        {
+          "signal_slug": "donatie_urgenta_dupa_dezastru",
+          "text": "Cerere de donație urgentă în numele unei organizații reale, după un dezastru/eveniment.",
+          "where": "mesaj",
+          "verify": "Donează doar prin canalul oficial al organizației; verifică conturile pe site-ul oficial.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos",
+          "confidence": "medium",
+          "source_refs": [
+            {
+              "url": "https://www.scamwatch.gov.au/types-of-scams",
+              "publisher": "Scamwatch (ACCC)",
+              "published_at": null,
+              "accessed_at": "2026-06-12",
+              "source_type": "official",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "signal_slug": "cont_personal_pentru_donatii",
+          "text": "Banii se cer într-un cont personal/Revolut, nu în contul oficial al ONG-ului.",
+          "where": "instructiuni plata",
+          "verify": "ONG-urile legitime folosesc conturi oficiale verificabile, nu conturi personale.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.usa.gov/imposter-scams",
+              "publisher": "USAGov",
+              "published_at": null,
+              "accessed_at": "2026-06-12",
+              "source_type": "official",
+              "confidence": "high"
+            }
+          ]
+        }
+      ],
+      "verification_sources": [
+        {
+          "name": "Site-ul oficial al ONG-ului",
+          "url": "https://www.usa.gov/imposter-scams",
+          "what_can_verify": "Conturile reale și campaniile active",
+          "access_type": "manual",
+          "confidence": "medium"
+        }
+      ],
+      "payment_risk": {
+        "bank_transfer_to_company": "mare",
+        "bank_transfer_to_person": "extrem",
+        "revolut_personal": "extrem",
+        "crypto": "periculos",
+        "gift_card": "periculos",
+        "western_union_moneygram": "periculos"
+      }
+    },
+    {
+      "code": "IMP-11",
+      "name": "Impersonare romance / militar (identitate furată)",
+      "status": "sustinut",
+      "signals": [
+        {
+          "signal_slug": "relatie_intensa_rapida",
+          "text": "Relație devine foarte personală și intensă rapid, urmată de o urgență financiară.",
+          "where": "mesaj",
+          "verify": "Atenție la escaladarea rapidă; nu trimite bani cuiva întâlnit doar online.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.fbi.gov/how-we-can-help-you/scams-and-safety/common-frauds-and-scams/romance-scams",
+              "publisher": "FBI",
+              "published_at": null,
+              "accessed_at": "2026-06-12",
+              "source_type": "official",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "signal_slug": "refuz_intalnire_video",
+          "text": "Refuză constant întâlnirea în persoană sau pe video; folosește poze furate (adesea „militar”).",
+          "where": "profil",
+          "verify": "Caută imaginile invers (reverse image search); cere o întâlnire video live.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://travel.state.gov/en/international-travel/travel-advisories/romania.html",
+              "publisher": "US Dept. of State",
+              "published_at": "2025-10-14",
+              "accessed_at": "2026-06-12",
+              "source_type": "official",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "signal_slug": "cerere_bani_urgenta_medicala_calatorie",
+          "text": "Cere bani pentru o „urgență medicală”, bilet de avion sau taxe vamale.",
+          "where": "mesaj",
+          "verify": "Refuză; este tiparul clasic de romance scam.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.europol.europa.eu/operations-services-and-innovation/public-awareness-and-prevention-guides/romance-scams-recognising-manipulation-it-escalates",
+              "publisher": "Europol",
+              "published_at": "2026-02-13",
+              "accessed_at": "2026-06-12",
+              "source_type": "official",
+              "confidence": "high"
+            }
+          ]
+        }
+      ],
+      "verification_sources": [
+        {
+          "name": "Reverse image search (poze profil)",
+          "url": "https://www.fbi.gov/how-we-can-help-you/scams-and-safety/common-frauds-and-scams/romance-scams",
+          "what_can_verify": "Dacă pozele sunt furate/reutilizate",
+          "access_type": "manual",
+          "confidence": "medium"
+        }
+      ],
+      "payment_risk": {
+        "bank_transfer_to_company": "mare",
+        "bank_transfer_to_person": "extrem",
+        "revolut_personal": "extrem",
+        "crypto": "periculos",
+        "gift_card": "periculos",
+        "western_union_moneygram": "periculos"
+      }
+    },
+    {
+      "code": "IMP-12",
+      "name": "Impersonare autorități internaționale (Europol/Interpol) — acuzație + extorcare",
+      "status": "sustinut",
+      "signals": [
+        {
+          "signal_slug": "email_acuzatie_grava_termen_72h",
+          "text": "Email „de la Europol/Interpol” care te acuză de fapte grave și cere răspuns/plată în 72h.",
+          "where": "mesaj",
+          "verify": "Europol nu trimite acuzații personale prin email; ignoră și raportează.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://cyberscoop.com/europol-cahterine-de-bolle-belgium-scam/",
+              "publisher": "CyberScoop",
+              "published_at": null,
+              "accessed_at": "2026-06-12",
+              "source_type": "press",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "signal_slug": "presiune_secret_si_credentiale",
+          "text": "Ți se cere să păstrezi secret și să oferi credențiale (ex. PayPal) sau plată pentru a evita „urmărirea penală”.",
+          "where": "mesaj",
+          "verify": "Nu oferi credențiale; autoritățile reale nu procedează astfel.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.ic3.gov/crimeinfo/techsupportgovimpersonation",
+              "publisher": "FBI IC3",
+              "published_at": null,
+              "accessed_at": "2026-06-12",
+              "source_type": "official",
+              "confidence": "high"
+            }
+          ]
+        }
+      ],
+      "verification_sources": [
+        {
+          "name": "Europol – raportare cybercrime (RO: Poliția Română)",
+          "url": "https://www.politiaromana.ro/ro/petitii-online",
+          "what_can_verify": "Canalul oficial de raportare; inexistența acuzației",
+          "access_type": "manual",
+          "confidence": "high"
+        }
+      ],
+      "payment_risk": {
+        "bank_transfer_to_company": "mare",
+        "bank_transfer_to_person": "extrem",
+        "revolut_personal": "extrem",
+        "crypto": "periculos",
+        "gift_card": "periculos",
+        "western_union_moneygram": "periculos"
+      }
+    }
+  ],
+  "scan_rules": [
+    {
+      "rule_id": "SR-OTP-REQUEST",
+      "applies_to": [
+        "IMP-01",
+        "IMP-02",
+        "IMP-03"
+      ],
+      "description": "Cerere de cod OTP/parolă/cod de verificare.",
+      "regex": "(cod(ul)?|code|otp|parol[ăa])\\s(de\\s)?(verificare|securitate|autentificare|sms|acces)",
+      "flags": "i",
+      "weight": "decisiv",
+      "verdict_hint": "periculos"
+    },
+    {
+      "rule_id": "SR-SAFE-ACCOUNT",
+      "applies_to": [
+        "IMP-02"
+      ],
+      "description": "Îndemn de a muta banii într-un „cont sigur”.",
+      "regex": "(mut[ăa]|transfer[ăa]|pune[țt]i?).{0,30}(cont(ul)?\\s+(sigur|securizat|de\\s+siguran[țt][ăa]))",
+      "flags": "i",
+      "weight": "decisiv",
+      "verdict_hint": "periculos"
+    },
+    {
+      "rule_id": "SR-REMOTE-ACCESS",
+      "applies_to": [
+        "IMP-02",
+        "IMP-04"
+      ],
+      "description": "Cerere de instalare a unei aplicații de acces la distanță.",
+      "regex": "(anydesk|teamviewer|quicksupport|acces\\s+la\\s+distan[țt][ăa]|remote\\s+access|instala[țt]i?\\s+aplica[țt]i)",
+      "flags": "i",
+      "weight": "decisiv",
+      "verdict_hint": "periculos"
+    },
+    {
+      "rule_id": "SR-COURIER-FEE",
+      "applies_to": [
+        "IMP-03"
+      ],
+      "description": "Taxă de livrare/reprogramare colet.",
+      "regex": "(colet(ul)?|pachet(ul)?|livrare).{0,40}(tax[ăa]|pl[ăa]te[șs]te|achit|reprogram)",
+      "flags": "i",
+      "weight": "decisiv",
+      "verdict_hint": "periculos"
+    },
+    {
+      "rule_id": "SR-WHATSAPP-CODE",
+      "applies_to": [
+        "IMP-03",
+        "IMP-05"
+      ],
+      "description": "Cerere a codului WhatsApp.",
+      "regex": "(cod(ul)?|code).{0,15}(whatsapp|wa|whats\\s*app)",
+      "flags": "i",
+      "weight": "decisiv",
+      "verdict_hint": "periculos"
+    },
+    {
+      "rule_id": "SR-ARREST-THREAT",
+      "applies_to": [
+        "IMP-01",
+        "IMP-12"
+      ],
+      "description": "Amenințare cu arest/dosar penal/amendă/deportare.",
+      "regex": "(arest|dosar\\s+penal|mandat|amend[ăa]|urm[ăa]rire\\s+penal|deport|jail|prosecution)",
+      "flags": "i",
+      "weight": "decisiv",
+      "verdict_hint": "periculos"
+    },
+    {
+      "rule_id": "SR-URGENCY",
+      "applies_to": [
+        "IMP-01",
+        "IMP-02",
+        "IMP-03",
+        "IMP-04",
+        "IMP-05",
+        "IMP-06",
+        "IMP-07",
+        "IMP-08",
+        "IMP-11",
+        "IMP-12"
+      ],
+      "description": "Presiune de urgență/termen scurt.",
+      "regex": "(urgent|imediat|acum|ast[ăa]zi|în\\s\\d+\\s(min|minute|ore|h)|expir[ăa]|ultima\\s+[șs]ans|72\\s*h)",
+      "flags": "i",
+      "weight": "mediu",
+      "verdict_hint": "suspect"
+    },
+    {
+      "rule_id": "SR-IBAN-CHANGE",
+      "applies_to": [
+        "IMP-06"
+      ],
+      "description": "Schimbare de IBAN/cont pe factură.",
+      "regex": "(iban|cont\\s+bancar|date\\s+de\\s+plat[ăa]|payment\\s+details).{0,40}(schimb|modific|actualiz|nou|new|updated)",
+      "flags": "i",
+      "weight": "decisiv",
+      "verdict_hint": "periculos"
+    },
+    {
+      "rule_id": "SR-GIFT-CARD",
+      "applies_to": [
+        "IMP-01",
+        "IMP-04",
+        "IMP-10"
+      ],
+      "description": "Plată în gift carduri.",
+      "regex": "(gift\\scard|card\\s+cadou|google\\s+play|steam|itunes|app\\sstore|paysafe)",
+      "flags": "i",
+      "weight": "decisiv",
+      "verdict_hint": "periculos"
+    },
+    {
+      "rule_id": "SR-CRYPTO-PAY",
+      "applies_to": [
+        "IMP-07",
+        "IMP-11"
+      ],
+      "description": "Plată/depunere în criptomonede sau adresă de wallet.",
+      "regex": "(bitcoin|btc|usdt|tether|ethereum|eth|crypto|portofel|wallet|0x[a-fA-F0-9]{6,})",
+      "flags": "i",
+      "weight": "mediu",
+      "verdict_hint": "periculos_in_combo"
+    },
+    {
+      "rule_id": "SR-WIRE-PERSON",
+      "applies_to": [
+        "IMP-01",
+        "IMP-02",
+        "IMP-05",
+        "IMP-10",
+        "IMP-11"
+      ],
+      "description": "Transfer prin Western Union/MoneyGram sau către persoană fizică/Revolut personal.",
+      "regex": "(western\\s+union|moneygram|revolut\\s+personal|transfer.{0,15}(c[ăa]tre\\s+)?persoan)",
+      "flags": "i",
+      "weight": "mediu",
+      "verdict_hint": "periculos"
+    },
+    {
+      "rule_id": "SR-URL-SHORTENER",
+      "applies_to": [
+        "IMP-01",
+        "IMP-03",
+        "IMP-07",
+        "IMP-08",
+        "IMP-09"
+      ],
+      "description": "Link scurtat care ascunde domeniul real.",
+      "regex": "(bit\\.ly|tinyurl\\.com|cutt\\.ly|t\\.co|is\\.gd|rb\\.gy|shorturl|tiny\\.cc|s\\.id)",
+      "flags": "i",
+      "weight": "mediu",
+      "verdict_hint": "suspect"
+    },
+    {
+      "rule_id": "SR-FAKE-GOV-DOMAIN",
+      "applies_to": [
+        "IMP-01"
+      ],
+      "description": "Domeniu care imită ANAF/instituții pe TLD/hosting neoficial.",
+      "regex": "(anaf|spv|politia|dnsc|interpol|guvern)[\\-.][a-z0-9.-]*\\.(web\\.app|firebaseapp\\.com|xyz|top|info|online|ru|click|live|site)",
+      "flags": "i",
+      "weight": "decisiv",
+      "verdict_hint": "periculos"
+    },
+    {
+      "rule_id": "SR-LOOKALIKE-BRAND-DOMAIN",
+      "applies_to": [
+        "IMP-03",
+        "IMP-09"
+      ],
+      "description": "Domeniu lookalike de brand pe TLD diferit de cel oficial.",
+      "regex": "(emag|altex|fancourier|fan-courier|dhl|posta-?romana|olx|revolut)[a-z0-9-]*\\.(?!ro\b|com\b)[a-z]{2,}",
+      "flags": "i",
+      "weight": "decisiv",
+      "verdict_hint": "periculos"
+    },
+    {
+      "rule_id": "SR-FREE-EMAIL-OFFICIAL-CLAIM",
+      "applies_to": [
+        "IMP-01",
+        "IMP-06",
+        "IMP-12"
+      ],
+      "description": "Pretins emitent oficial, dar de pe adresă de email gratuită.",
+      "regex": "(anaf|politia|dnsc|interpol|europol|banca|minister)[a-z0-9 ._-]{0,30}@(gmail|yahoo|outlook|hotmail|proton|mail)\\.",
+      "flags": "i",
+      "weight": "decisiv",
+      "verdict_hint": "periculos"
+    },
+    {
+      "rule_id": "SR-LOST-PHONE-RELATIVE",
+      "applies_to": [
+        "IMP-05"
+      ],
+      "description": "„Mi-am pierdut/schimbat telefonul, am număr nou”.",
+      "regex": "(mi[\\s\\-]?am\\s+(pierdut|schimbat)|am\\s+(un\\s+)?num[ăa]r\\s+nou).{0,25}(telefon|num[ăa]r|sim)",
+      "flags": "i",
+      "weight": "mediu",
+      "verdict_hint": "suspect_to_periculos"
+    },
+    {
+      "rule_id": "SR-INVESTMENT-GUARANTEE",
+      "applies_to": [
+        "IMP-07"
+      ],
+      "description": "Profit garantat / venit fix din investiție.",
+      "regex": "(profit|c[âa][șs]tig|venit|randament).{0,20}(garantat|sigur|100%|zilnic|lunar)|9\\.?000\\s*(lei|ron)",
+      "flags": "i",
+      "weight": "decisiv",
+      "verdict_hint": "periculos"
+    },
+    {
+      "rule_id": "SR-OFF-PLATFORM-MOVE",
+      "applies_to": [
+        "IMP-08"
+      ],
+      "description": "Mutarea discuției de pe marketplace pe WhatsApp/telefon.",
+      "regex": "(nu\\s+v[ăa]d\\s+pozele|continu[ăa]m|scrie[\\-]?mi|d[ăa]\\-?mi).{0,20}(whatsapp|wa|telefon|num[ăa]r)",
+      "flags": "i",
+      "weight": "mediu",
+      "verdict_hint": "suspect_to_periculos"
+    }
+  ],
+  "scan_logic": {
+    "note": "Heuristică de scor pentru NuDaClick: evaluează textul (mesaj/email/anunț) cu toate regulile aplicabile.",
+    "weights": {
+      "decisiv": 3,
+      "mediu": 1,
+      "slab": 0.5
+    },
+    "scoring": "scor = suma weight-urilor regulilor care fac match.",
+    "thresholds": {
+      "periculos": ">=3 sau cel puțin o regulă 'decisiv'",
+      "suspect": ">=1.5 fără nicio regulă 'decisiv'",
+      "curat": "<1.5"
+    },
+    "combo_boost": "Dacă SR-URGENCY face match împreună cu orice regulă de plată (SR-GIFT-CARD/SR-CRYPTO-PAY/SR-WIRE-PERSON) sau cu SR-REMOTE-ACCESS, ridică verdictul la 'periculos'.",
+    "golden_rule": "Orice cerere de OTP/parolă, acces remote, mutare în 'cont sigur' sau plată în gift card/crypto/către persoană fizică => 'periculos' indiferent de scor."
+  },
+  "examples": [
+    {
+      "text": "ANAF: am identificat o posibilă neregularitate în declarațiile dvs. Accesați [link] în 24h pentru remediere, altfel se aplică penalități.",
+      "family": "IMP-01",
+      "expected_signals": [
+        "email_fals_anaf_neregularitate",
+        "amenintare_arest_dosar_amenda"
+      ],
+      "expected_rules": [
+        "SR-URGENCY",
+        "SR-FAKE-GOV-DOMAIN"
+      ],
+      "payment_method": "card pe site fals",
+      "source_refs": [
+        {
+          "url": "https://www.dnsc.ro/citeste/alerta-phishing-e-mail-anaf",
+          "publisher": "DNSC",
+          "published_at": "2025-03-20",
+          "accessed_at": "2026-06-12",
+          "source_type": "official",
+          "confidence": "high"
+        }
+      ],
+      "fixture_type": "real_paraphrased",
+      "confidence": "high"
+    },
+    {
+      "text": "Bună ziua, sunt de la departamentul antifraudă al băncii. Am detectat o tranzacție suspectă. Pentru a o bloca, spuneți-mi codul primit prin SMS și mutați fondurile în contul sigur indicat.",
+      "family": "IMP-02",
+      "expected_signals": [
+        "cerere_cod_otp",
+        "mutare_in_cont_sigur"
+      ],
+      "expected_rules": [
+        "SR-OTP-REQUEST",
+        "SR-SAFE-ACCOUNT"
+      ],
+      "payment_method": "transfer către cont controlat de atacator",
+      "source_refs": [
+        {
+          "url": "https://www.mai.gov.ro/politia-romana-directoratul-national-de-securitate-cibernetica-si-asociatia-romana-a-bancilor-avertizeaza-asupra-riscului-de-frauda-de-tip-spoofing/",
+          "publisher": "MAI",
+          "published_at": "2024-05-14",
+          "accessed_at": "2026-06-12",
+          "source_type": "official",
+          "confidence": "high"
+        }
+      ],
+      "fixture_type": "real_paraphrased",
+      "confidence": "high"
+    },
+    {
+      "text": "FAN Courier: coletul tău nu a putut fi livrat. Plătește taxa de 3,57 lei pentru reprogramare: hxxps://fancurier-reprogramare.invalid/plata",
+      "family": "IMP-03",
+      "expected_signals": [
+        "taxa_mica_livrare_colet",
+        "cerere_date_card_pe_link"
+      ],
+      "expected_rules": [
+        "SR-COURIER-FEE",
+        "SR-LOOKALIKE-BRAND-DOMAIN"
+      ],
+      "payment_method": "card pe site fals",
+      "source_refs": [
+        {
+          "url": "https://www.radioromania.ro/Actualitate/dnsc-campanie-frauduloasa-care-imita-serviciile-de-curierat-ale-dhl-id180135.html",
+          "publisher": "Radio România / DNSC",
+          "published_at": "2026-05-14",
+          "accessed_at": "2026-06-12",
+          "source_type": "press",
+          "confidence": "high"
+        }
+      ],
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high"
+    },
+    {
+      "text": "Pentru a confirma reprogramarea livrării, introduceți codul de verificare WhatsApp primit acum pe telefon.",
+      "family": "IMP-03",
+      "expected_signals": [
+        "furt_cod_whatsapp"
+      ],
+      "expected_rules": [
+        "SR-WHATSAPP-CODE"
+      ],
+      "payment_method": "fără (preluare cont)",
+      "source_refs": [
+        {
+          "url": "https://www.bitdefender.com/en-us/blog/hotforsecurity/fan-courier-sms-scam-targets-1-million-romanians-in-massive-whatsapp-takeover-campaign",
+          "publisher": "Bitdefender",
+          "published_at": "2026-03-12",
+          "accessed_at": "2026-06-12",
+          "source_type": "report",
+          "confidence": "high"
+        }
+      ],
+      "fixture_type": "real_paraphrased",
+      "confidence": "high"
+    },
+    {
+      "text": "ATENȚIE! Computerul dvs. este infectat. Sunați URGENT la 0XXX-XXX-XXX. Nu închideți fereastra.",
+      "family": "IMP-04",
+      "expected_signals": [
+        "popup_alarmant_cu_numar"
+      ],
+      "expected_rules": [
+        "SR-URGENCY"
+      ],
+      "payment_method": "gift card / acces remote",
+      "source_refs": [
+        {
+          "url": "https://support.microsoft.com/en-us/windows/protect-yourself-from-tech-support-scams-2ebf91bd-f94c-2a8a-e541-f5c800d18435",
+          "publisher": "Microsoft",
+          "published_at": null,
+          "accessed_at": "2026-06-12",
+          "source_type": "brand_official",
+          "confidence": "high"
+        }
+      ],
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high"
+    },
+    {
+      "text": "Pentru a remedia problema, instalați AnyDesk și dați-mi codul de acces. Apoi cumpărați un Google Play gift card de 500 lei.",
+      "family": "IMP-04",
+      "expected_signals": [
+        "cerere_acces_remote",
+        "plata_in_gift_card"
+      ],
+      "expected_rules": [
+        "SR-REMOTE-ACCESS",
+        "SR-GIFT-CARD"
+      ],
+      "payment_method": "gift card",
+      "source_refs": [
+        {
+          "url": "https://www.fbi.gov/how-we-can-help-you/scams-and-safety/common-frauds-and-scams/tech-support-scams",
+          "publisher": "FBI",
+          "published_at": null,
+          "accessed_at": "2026-06-12",
+          "source_type": "official",
+          "confidence": "high"
+        }
+      ],
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high"
+    },
+    {
+      "text": "Salut tati, mi-am pierdut telefonul și am număr nou. Poți să-mi plătești tu urgent o factură? Îți dau eu banii diseară.",
+      "family": "IMP-05",
+      "expected_signals": [
+        "numar_nou_pierdut_telefon",
+        "cerere_plata_urgenta_factura"
+      ],
+      "expected_rules": [
+        "SR-LOST-PHONE-RELATIVE",
+        "SR-URGENCY"
+      ],
+      "payment_method": "transfer către persoană",
+      "source_refs": [
+        {
+          "url": "https://www.takefive-stopfraud.org.uk/protect-yourself/impersonation-fraud/",
+          "publisher": "Take Five",
+          "published_at": null,
+          "accessed_at": "2026-06-12",
+          "source_type": "report",
+          "confidence": "high"
+        }
+      ],
+      "fixture_type": "real_paraphrased",
+      "confidence": "high"
+    },
+    {
+      "text": "Confidențial: sunt în ședință, nu pot vorbi. Te rog procesează urgent un transfer către un furnizor nou, fără aprobarea obișnuită. Îți trimit IBAN-ul nou imediat.",
+      "family": "IMP-06",
+      "expected_signals": [
+        "cerere_urgenta_de_la_director",
+        "schimbare_iban_furnizor"
+      ],
+      "expected_rules": [
+        "SR-URGENCY",
+        "SR-IBAN-CHANGE"
+      ],
+      "payment_method": "transfer bancar internațional",
+      "source_refs": [
+        {
+          "url": "https://www.europol.europa.eu/cms/sites/default/files/documents/uk.pdf",
+          "publisher": "Europol",
+          "published_at": null,
+          "accessed_at": "2026-06-12",
+          "source_type": "official",
+          "confidence": "high"
+        }
+      ],
+      "fixture_type": "real_paraphrased",
+      "confidence": "high"
+    },
+    {
+      "text": "Furnizorul X: ne-am schimbat banca. Vă rugăm achitați factura restantă pe noul IBAN atașat.",
+      "family": "IMP-06",
+      "expected_signals": [
+        "schimbare_iban_furnizor",
+        "domeniu_email_aproape_identic"
+      ],
+      "expected_rules": [
+        "SR-IBAN-CHANGE",
+        "SR-FREE-EMAIL-OFFICIAL-CLAIM"
+      ],
+      "payment_method": "transfer bancar către firmă",
+      "source_refs": [
+        {
+          "url": "https://www.fbi.gov/how-we-can-help-you/scams-and-safety/common-frauds-and-scams/business-email-compromise",
+          "publisher": "FBI",
+          "published_at": null,
+          "accessed_at": "2026-06-12",
+          "source_type": "official",
+          "confidence": "high"
+        }
+      ],
+      "fixture_type": "real_paraphrased",
+      "confidence": "high"
+    },
+    {
+      "text": "[Persoană publică cunoscută] anunță un program prin care fiecare român primește 9000 lei/lună. Activează-ți contul cu doar 1400 lei la adresa de wallet de mai jos.",
+      "family": "IMP-07",
+      "expected_signals": [
+        "video_deepfake_persoana_publica",
+        "profit_garantat_taxa_activare",
+        "plata_doar_in_crypto"
+      ],
+      "expected_rules": [
+        "SR-INVESTMENT-GUARANTEE",
+        "SR-CRYPTO-PAY"
+      ],
+      "payment_method": "crypto",
+      "source_refs": [
+        {
+          "url": "https://www.bitdefender.com/en-us/blog/hotforsecurity/deepfake-scam-exploits-romanian-presidential-candidates-to-lure-victims-into-fake-neptun-deep-investment",
+          "publisher": "Bitdefender",
+          "published_at": "2025-05-12",
+          "accessed_at": "2026-06-12",
+          "source_type": "report",
+          "confidence": "high"
+        }
+      ],
+      "fixture_type": "real_paraphrased",
+      "confidence": "high"
+    },
+    {
+      "text": "Salut, nu văd pozele la anunț. Scrie-mi pe WhatsApp la numărul ăsta. Trimit eu curier și plătesc prin linkul de livrare OLX: hxxps://olx-livrare-plata.test",
+      "family": "IMP-08",
+      "expected_signals": [
+        "mutare_conversatie_pe_whatsapp",
+        "link_fals_livrare_olx"
+      ],
+      "expected_rules": [
+        "SR-OFF-PLATFORM-MOVE",
+        "SR-LOOKALIKE-BRAND-DOMAIN"
+      ],
+      "payment_method": "card pe site fals",
+      "source_refs": [
+        {
+          "url": "https://ajutor.olx.ro/olxhelpro/s/article/ai-grija-la-linkurile-false-pentru-articole-platite-recunoaste-semnalele-unui-atac-de-phishing-V7",
+          "publisher": "OLX",
+          "published_at": null,
+          "accessed_at": "2026-06-12",
+          "source_type": "brand_official",
+          "confidence": "high"
+        }
+      ],
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high"
+    },
+    {
+      "text": "Felicitări! Ai fost selectat pentru un premiu [Brand cunoscut]. Plătește doar transportul introducând datele cardului la hxxps://emag-premii.xyz",
+      "family": "IMP-09",
+      "expected_signals": [
+        "premiu_sau_pret_imposibil",
+        "domeniu_lookalike_brand",
+        "cerere_date_card_pentru_premiu"
+      ],
+      "expected_rules": [
+        "SR-LOOKALIKE-BRAND-DOMAIN"
+      ],
+      "payment_method": "card pe site fals",
+      "source_refs": [
+        {
+          "url": "https://validsoftware.ro/fraude-online-romania-2026/",
+          "publisher": "ValidSoftware",
+          "published_at": null,
+          "accessed_at": "2026-06-12",
+          "source_type": "press",
+          "confidence": "medium"
+        }
+      ],
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "medium"
+    },
+    {
+      "text": "În numele [ONG], strângem fonduri urgente pentru victimele dezastrului. Trimite donația pe acest cont personal Revolut.",
+      "family": "IMP-10",
+      "expected_signals": [
+        "donatie_urgenta_dupa_dezastru",
+        "cont_personal_pentru_donatii"
+      ],
+      "expected_rules": [
+        "SR-URGENCY",
+        "SR-WIRE-PERSON"
+      ],
+      "payment_method": "Revolut personal",
+      "source_refs": [
+        {
+          "url": "https://www.scamwatch.gov.au/types-of-scams",
+          "publisher": "Scamwatch",
+          "published_at": null,
+          "accessed_at": "2026-06-12",
+          "source_type": "official",
+          "confidence": "high"
+        }
+      ],
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "medium"
+    },
+    {
+      "text": "Te iubesc enorm. Sunt blocat în străinătate și am o urgență medicală. Poți trimite urgent bani prin Western Union? Promit că ne vedem curând.",
+      "family": "IMP-11",
+      "expected_signals": [
+        "relatie_intensa_rapida",
+        "cerere_bani_urgenta_medicala_calatorie"
+      ],
+      "expected_rules": [
+        "SR-URGENCY",
+        "SR-WIRE-PERSON"
+      ],
+      "payment_method": "Western Union",
+      "source_refs": [
+        {
+          "url": "https://www.europol.europa.eu/operations-services-and-innovation/public-awareness-and-prevention-guides/romance-scams-recognising-manipulation-it-escalates",
+          "publisher": "Europol",
+          "published_at": "2026-02-13",
+          "accessed_at": "2026-06-12",
+          "source_type": "official",
+          "confidence": "high"
+        }
+      ],
+      "fixture_type": "real_paraphrased",
+      "confidence": "high"
+    },
+    {
+      "text": "Europol: sunteți acuzat de fapte grave. Răspundeți în 72 de ore și achitați pentru a evita urmărirea penală, altfel emitem mandat.",
+      "family": "IMP-12",
+      "expected_signals": [
+        "email_acuzatie_grava_termen_72h",
+        "presiune_secret_si_credentiale"
+      ],
+      "expected_rules": [
+        "SR-ARREST-THREAT",
+        "SR-URGENCY"
+      ],
+      "payment_method": "credențiale / plată",
+      "source_refs": [
+        {
+          "url": "https://cyberscoop.com/europol-cahterine-de-bolle-belgium-scam/",
+          "publisher": "CyberScoop",
+          "published_at": null,
+          "accessed_at": "2026-06-12",
+          "source_type": "press",
+          "confidence": "high"
+        }
+      ],
+      "fixture_type": "real_paraphrased",
+      "confidence": "high"
+    }
+  ]
+}

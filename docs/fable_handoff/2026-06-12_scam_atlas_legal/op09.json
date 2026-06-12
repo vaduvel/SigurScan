@@ -1,0 +1,141 @@
+{
+  "family": {
+    "code": "OP-09",
+    "name": "Investiții / crypto / profit garantat",
+    "status": "complet",
+    "signals": [
+      {
+        "text": "Promisiune de câştig rapid sau dublarea sumei într-un timp scurt, fără risc: „profit garantat 20% pe zi” sau „investiţie sigură în energie/crypto”.",
+        "where": "oferta",
+        "verify": "Bugetul.ro citează ASF, care avertizează că nu există reţete de îmbogăţire rapidă şi că promisiunile de dublare a banilor sunt semnale de fraudă【382366992117261†L84-L137】.",
+        "power": "decisiv",
+        "verdict": "periculos"
+      },
+      {
+        "text": "„Mentor/coach” pe grupuri WhatsApp/Telegram care oferă acces la o platformă de trading şi cere să introduci sume mici la început, apoi tot mai mari, cu obligaţia de a recruta alţi membri.",
+        "where": "mesaj",
+        "verify": "ASF a avertizat că grupurile false folosesc roboţi şi mentori pentru a simula activitate. Membrii sunt încurajaţi să facă investiţii repetate şi să aducă alţi clienţi【927013177760943†L32-L87】.",
+        "power": "decisiv",
+        "verdict": "periculos"
+      },
+      {
+        "text": "Site de investiţii care foloseşte imaginea unor personalităţi (politicieni, vedete) în reclame, cu testimoniale false şi link către o „platformă de trading” necunoscută.",
+        "where": "link",
+        "verify": "ProTV şi DNSC arată că escrocii creează site‑uri care imită presa, folosesc deepfake cu celebrităţi şi includ testimoniale inexistente【456132330344051†L99-L122】. Verifică URL‑ul exact şi compară cu domeniile oficiale.",
+        "power": "mediu",
+        "verdict": "suspect_to_periculos"
+      },
+      {
+        "text": "Solicitare de a instala aplicaţii de acces la distanţă (AnyDesk, TeamViewer, AirDroid) pentru a „ajuta” la tranzacţii. Consultantul cere datele cardului sau autentificarea în internet banking.",
+        "where": "mesaj",
+        "verify": "Poliţia şi StartupCafe avertizează că escrocii se prezintă ca reprezentanţi ai companiilor Hidroelectrica sau Transgaz şi cer instalarea de aplicaţii remote pentru a controla conturile victimelor【708065203948739†L76-L127】.",
+        "power": "decisiv",
+        "verdict": "periculos"
+      },
+      {
+        "text": "Cerinţa de a plăti taxe suplimentare (comisioane de retragere, taxe AML, impozite) pentru a accesa „profitul”. După plata taxelor, nu se primesc banii.",
+        "where": "factura",
+        "verify": "ASF explică faptul că fraudatorii pretind comisioane fictive pentru a debloca fondurile şi nu virează niciodată câştigurile【927013177760943†L32-L87】.",
+        "power": "decisiv",
+        "verdict": "periculos"
+      },
+      {
+        "text": "„Recuperare” după o fraudă: un pretins agent ASF/avocat promite să recupereze banii pierduţi în schimbul unei taxe; solicită plata în cont neoficial sau crypto.",
+        "where": "mesaj",
+        "verify": "Investigaţii internaţionale arată că reţelele de call‑center folosesc astfel de recovery scams; Context.ro descrie cum victimele sunt abordate de noi escroci care cer bani pentru a recupera pierderile【3806622316537†L50-L115】.",
+        "power": "mediu",
+        "verdict": "suspect_to_periculos"
+      },
+      {
+        "text": "Platformă de tranzacţionare care nu este listată în registrul ASF; datele firmei lipsesc sau CUI‑ul este inexistent.",
+        "where": "oferta",
+        "verify": "Se poate verifica în Registrul public al Autorităţii de Supraveghere Financiară (ASF) dacă societatea e autorizată. ASF recomandă verificarea oricărui intermediar【927013177760943†L32-L87】.",
+        "power": "mediu",
+        "verdict": "suspect"
+      },
+      {
+        "text": "Apel telefonic de pe un număr internaţional (de ex. +44) în care interlocutorul pretinde că reprezintă Hidroelectrica / Petrom şi oferă investiţii sigure cu profit de 10% pe lună; solicită depunerea de bani la un ATM de criptomonede.",
+        "where": "mesaj",
+        "verify": "Poliţia a avertizat că escrocii folosesc numele unor companii mari şi contactează victimele de pe numere străine, cerând instalarea de aplicaţii remote şi depuneri la bancomate crypto【708065203948739†L76-L127】.",
+        "power": "mediu",
+        "verdict": "periculos"
+      }
+    ],
+    "verification_sources": [
+      "Registrul ASF – lista firmelor de investiţii şi brokerilor autorizaţi (public pe asfromania.ro)",
+      "Lista de avertismente ASF pentru entităţi neautorizate",
+      "Banca Naţională a României – registrul instituţiilor financiare nebancare (pentru a verifica IFN‑uri legitime)",
+      "Site‑uri oficiale ale companiilor (Hidroelectrica, Transgaz etc.) pentru confirmarea ofertelor",
+      "Serviciul de afişare a numelui beneficiar (SANB) pentru a verifica dacă IBAN‑ul corespunde deponentului"
+    ],
+    "payment_risk": {
+      "crypto/QR": "extrem",
+      "transfer bancar în cont necunoscut": "mare",
+      "plată cu card prin link necunoscut": "mare",
+      "portofel electronic (PayPal, Revolut) către persoană fizică": "mare",
+      "transfer bancar către societate autorizată ASF": "scăzut"
+    }
+  },
+  "examples": [
+    {
+      "text": "Salut! Sunt mentorul tău de pe grupul VIP Profit. Pentru a începe, investeşte 500 RON într-o monedă recomandată (USDT). Vei primi 15% profit pe zi. Invita‑ţi prietenii şi câştigă comisioane suplimentare!",
+      "family": "OP-09",
+      "expected_signals": [
+        "Promisiune de profit rapid",
+        "Mentor pe grup de mesagerie",
+        "Plată în crypto"
+      ],
+      "source": "ASF avertizează că grupurile de pe WhatsApp/Telegram folosesc mentori şi promit profituri garantate【927013177760943†L32-L87】"
+    },
+    {
+      "text": "În urma investiţiei tale ai câştigat 4.000 USD! Pentru a retrage fondurile, trebuie să plăteşti taxa de 20% pentru procedurile AML şi impozitul de retragere. Depune 800 USD în acelaşi portofel crypto şi îţi deblocăm profitul imediat.",
+      "family": "OP-09",
+      "expected_signals": [
+        "Taxă de retragere/comision fictiv",
+        "Solicitare de plată suplimentară",
+        "Plată în crypto"
+      ],
+      "source": "ASF explică că escrocii cer comisioane fictive pentru a elibera fondurile şi nu trimit niciodată banii【927013177760943†L32-L87】"
+    },
+    {
+      "text": "Vezi cum celebrul investitor X a transformat 250 de euro în 5.000 euro! Află secretul în articolul nostru exclusiv şi înscrie‑te pe platforma ProfitNow! Locurile sunt limitate!",
+      "family": "OP-09",
+      "expected_signals": [
+        "Site cu imaginea unei personalităţi",
+        "Promisiune de profit incredibil",
+        "Link către platformă necunoscută"
+      ],
+      "source": "DNSC şi ProTV au raportat că site‑urile false folosesc imagini ale celebrităţilor şi testimoniale inexistente pentru a promova platforme de investiţii inexistente【456132330344051†L99-L122】"
+    },
+    {
+      "text": "Bună ziua! Sunt consultantul G. de la Hidroelectrica. Vă oferim posibilitatea de a investi direct în companie cu randament sigur de 12% lunar. Pentru a vă asista, instalaţi aplicaţia AnyDesk şi apoi mergeţi la un bancomat de criptomonede să depuneţi 5.000 RON.",
+      "family": "OP-09",
+      "expected_signals": [
+        "Prezentare falsă în numele unei companii mari",
+        "Solicitare de instalare a aplicaţiei de acces la distanţă",
+        "Depunere la bancomat de criptomonede"
+      ],
+      "source": "Poliţia şi StartupCafe avertizează că escrocii se dau drept consultanţi ai companiilor energetice, folosesc numere internaţionale şi cer instalarea AnyDesk plus depuneri la ATM crypto【708065203948739†L76-L127】"
+    },
+    {
+      "text": "Suntem Compania 'Recovery Invest'. Ştim că aţi fost înşelat pe platforma X. Putem recupera fondurile pierdute, dar trebuie să plătiţi o taxă de 5% pentru demararea procedurii. Vă rugăm să transferaţi suma în contul ROxx **** pe numele S.C. Recovery SRL.",
+      "family": "OP-09",
+      "expected_signals": [
+        "Ofertă de recuperare a banilor pierduţi",
+        "Taxă iniţială",
+        "Transfer către cont neclar"
+      ],
+      "source": "Context.ro descrie cum victimele sunt abordate ulterior de alte reţele care promit recuperarea banilor contra unei taxe【3806622316537†L50-L115】"
+    },
+    {
+      "text": "Ne pare rău, dar nu poţi retrage profitul până nu confirmi identitatea. Trimite o copie a buletinului, un selfie şi codul 2FA de la platformă. Aceasta este o procedură obligatorie conform ASF.",
+      "family": "OP-09",
+      "expected_signals": [
+        "Cerere de documente personale şi coduri de autentificare",
+        "Invocarea falsă a unei autorităţi",
+        "Blochează retragerea până la furnizarea datelor"
+      ],
+      "source": "ASF şi Bugetul.ro avertizează că fraudatorii cer documente şi coduri OTP sub pretextul verificărilor şi securităţii, lucru pe care instituţiile reale nu îl solicită【382366992117261†L84-L137】"
+    }
+  ]
+}

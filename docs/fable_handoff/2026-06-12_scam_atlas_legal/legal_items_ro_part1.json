@@ -1,0 +1,284 @@
+{
+"legal_items": [
+{
+"id": "law-art-244",
+"item": "Cod penal art. 244 - înșelăciune",
+"status": "confirmat",
+"current_text_summary": "Înșelăciunea constă în inducerea în eroare a unei persoane prin prezentarea ca adevărată a unei fapte mincinoase sau ca mincinoasă a unei fapte adevărate, pentru obținerea unui folos patrimonial injust, dacă s-a produs o pagubă. Forma agravată există când fapta este săvârșită prin nume/calități mincinoase sau alte mijloace frauduloase. Împăcarea înlătură răspunderea penală.",
+"penalties_or_terms": "Art. 244 alin. (1): închisoare de la 6 luni la 3 ani. Art. 244 alin. (2): închisoare de la 1 la 5 ani. Dacă mijlocul fraudulos este infracțiune distinctă, se aplică regulile concursului de infracțiuni. Art. 244 alin. (3): împăcarea înlătură răspunderea penală.",
+"use_in_sigurscan": "Card juridic pentru situații în care documentul/oferta induce utilizatorul în eroare ca să plătească: avans pentru cazare/mașină/job/ofertă falsă, firmă/agenție pretinsă, calitate mincinoasă, document sau promisiune falsă.",
+"triggers": [
+"advance_payment_before_delivery",
+"fake_offer_document",
+"false_company_or_agent_claim",
+"iban_personal_for_company_claim",
+"off_platform_payment_pressure",
+"payment_for_nonexistent_goods_or_service"
+],
+"actions": [
+"Nu plăti până nu verifici emitentul și beneficiarul plății.",
+"Verifică firma în ANAF/ONRC și folosește canalul oficial al brandului/platformei.",
+"Dacă ai plătit deja, contactează banca imediat și depune sesizare la Poliție/Parchet; pentru fraudă online poți sesiza și DNSC/PNRISC."
+],
+"source_refs": [
+{
+"url": "https://legislatie.just.ro/Public/DetaliiDocument/109855",
+"publisher": "legislatie.just.ro",
+"published_at": "2009-07-17",
+"accessed_at": "2026-06-12",
+"source_type": "legal_official",
+"confidence": "high"
+}
+],
+"confidence": "high",
+"notes": "Confirmat în forma consolidată a Codului penal disponibilă pe Portalul Legislativ; include și mențiunea HP nr. 37/2021 privind anunțurile fictive online care pot întruni tipicitatea art. 244 când produc pagubă."
+},
+{
+"id": "law-art-311",
+"item": "Cod penal art. 311 - falsificarea de titluri de credit sau instrumente de plată",
+"status": "confirmat",
+"current_text_summary": "Art. 311 sancționează falsificarea titlurilor de credit, titlurilor sau instrumentelor pentru efectuarea plăților ori a altor titluri/valori asemănătoare. Pentru instrumente de plată fără numerar există regim mai sever.",
+"penalties_or_terms": "Art. 311 alin. (1): închisoare de la 2 la 7 ani și interzicerea exercitării unor drepturi. Art. 311 alin. (2): dacă privește un instrument de plată fără numerar, pedeapsa este închisoarea de la 3 la 10 ani și interzicerea exercitării unor drepturi. Tentativa se pedepsește.",
+"use_in_sigurscan": "Card juridic pentru documente/fluxuri care implică instrumente de plată false sau frauduloase: card fals, QR/wallet/ordin de plată contrafăcut, document de plată fals, instrument de plată fără numerar falsificat. Nu se folosește ca bază generală pentru orice phishing; pentru phishing/card/CVV se poate afișa împreună cu recomandarea de a suna banca.",
+"triggers": [
+"fake_payment_instrument",
+"fake_bank_payment_order",
+"counterfeit_payment_confirmation",
+"card_or_payment_instrument_falsification",
+"payment_qr_or_wallet_fraud_context"
+],
+"actions": [
+"Nu introduce card, CVV, PIN sau coduri SMS în documente/linkuri primite.",
+"Verifică plata doar în aplicația băncii sau pe canalul oficial.",
+"Dacă ai introdus date de card/coduri, blochează cardul și contactează banca imediat."
+],
+"source_refs": [
+{
+"url": "https://legislatie.just.ro/Public/DetaliiDocument/109855",
+"publisher": "legislatie.just.ro",
+"published_at": "2009-07-17",
+"accessed_at": "2026-06-12",
+"source_type": "legal_official",
+"confidence": "high"
+}
+],
+"confidence": "high",
+"notes": "Art. 311 a fost modificat în 2021 pentru instrumente de plată fără numerar; forma consolidată confirmă pedepsele actuale."
+},
+{
+"id": "law-art-320-323",
+"item": "Cod penal art. 320–323 - falsuri în înscrisuri și uz de fals",
+"status": "confirmat",
+"current_text_summary": "Art. 320 sancționează falsul material în înscrisuri oficiale. Art. 321 sancționează falsul intelectual. Art. 322 sancționează falsul în înscrisuri sub semnătură privată. Art. 323 sancționează uzul de fals, adică folosirea unui înscris fals cunoscând că este fals, pentru producerea unei consecințe juridice.",
+"penalties_or_terms": "Art. 320 alin. (1): închisoare de la 6 luni la 3 ani; alin. (2), dacă este comis de funcționar public în atribuții, închisoare de la 1 la 5 ani și interzicerea unor drepturi. Art. 321: închisoare de la 1 la 5 ani. Art. 322: închisoare de la 6 luni la 3 ani sau amendă. Art. 323: pentru înscris oficial fals, închisoare de la 3 luni la 3 ani sau amendă; pentru înscris sub semnătură privată fals, închisoare de la 3 luni la 2 ani sau amendă.",
+"use_in_sigurscan": "Card juridic pentru facturi/proforme/contracte/confirmări de plată/legitimații/grafice de credit aparent falsificate sau folosite pentru a determina plata sau transmiterea de date.",
+"triggers": [
+"fake_invoice_or_contract",
+"fake_booking_confirmation",
+"fake_bank_statement_or_payment_schedule",
+"fake_identity_or_authority_document",
+"document_fields_incoherent",
+"issuer_cui_mismatch"
+],
+"actions": [
+"Nu plăti doar pe baza unui PDF/contract primit pe WhatsApp sau e-mail.",
+"Verifică CUI-ul, emitentul și IBAN-ul în surse oficiale.",
+"Dacă documentul pretinde ANAF/bancă/autoritate, verifică autenticitatea pe canalul oficial al instituției."
+],
+"source_refs": [
+{
+"url": "https://legislatie.just.ro/Public/DetaliiDocument/109855",
+"publisher": "legislatie.just.ro",
+"published_at": "2009-07-17",
+"accessed_at": "2026-06-12",
+"source_type": "legal_official",
+"confidence": "high"
+}
+],
+"confidence": "high",
+"notes": "Relevant pentru SigurScan deoarece familia OP ofertă/plată primește frecvent artefacte documentare: factură proformă, contract, confirmare rezervare, desfășurător bancar, legitimație, grafic de credit."
+},
+{
+"id": "law-art-327",
+"item": "Cod penal art. 327 - falsul privind identitatea",
+"status": "confirmat",
+"current_text_summary": "Art. 327 sancționează prezentarea sub o identitate falsă sau atribuirea unei identități false altei persoane, făcută către autorități/unități relevante prin folosirea frauduloasă a unui act de identificare sau a unui act falsificat, pentru producerea unei consecințe juridice. Sancționează și întrebuințarea identității reale a altei persoane, precum și încredințarea unui act de identitate pentru folosire fără drept.",
+"penalties_or_terms": "Art. 327 alin. (1): închisoare de la 6 luni la 3 ani. Art. 327 alin. (2): când se folosește identitatea reală a unei persoane, închisoare de la 1 la 5 ani. Art. 327 alin. (3): încredințarea unui act de identificare/legitimare/stare civilă spre a fi folosit fără drept, închisoare de la 3 luni la 2 ani sau amendă.",
+"use_in_sigurscan": "Card juridic pentru situațiile în care oferta cere poză CI, pașaport, selfie cu actul, permis, CNP sau alte documente înainte de verificarea entității; util mai ales pentru OP-07 furt de identitate → credit IFN.",
+"triggers": [
+"identity_documents_before_verified_entity",
+"selfie_with_id_requested",
+"cnp_requested_before_contract",
+"loan_or_ifn_identity_onboarding_risk",
+"contract_requires_ci_before_viewing_or_delivery"
+],
+"actions": [
+"Nu trimite poză CI, pașaport sau selfie cu actul către persoane/entități neverificate.",
+"Verifică entitatea în BNR/ANPC/ASF/ANAF/ONRC, după caz.",
+"Dacă ai trimis deja datele, monitorizează Biroul de Credit, banca și conturile și depune sesizare dacă apar contracte/credite necunoscute."
+],
+"source_refs": [
+{
+"url": "https://legislatie.just.ro/Public/DetaliiDocument/109855",
+"publisher": "legislatie.just.ro",
+"published_at": "2009-07-17",
+"accessed_at": "2026-06-12",
+"source_type": "legal_official",
+"confidence": "high"
+}
+],
+"confidence": "high",
+"notes": "Confirmat în Codul penal consolidat. Pentru SigurScan, acesta nu este verdict juridic automat; este card educațional declanșat de cererea de acte personale în contexte neverificate."
+},
+{
+"id": "law-efactura-oug-120-2021",
+"item": "RO e-Factura - OUG 120/2021 și modificări 2024–2026",
+"status": "incert",
+"current_text_summary": "Există reglementare RO e-Factura bazată pe OUG 120/2021, modificată succesiv, însă în această verificare nu pot confirma integral, din surse oficiale accesibile, toate detaliile cerute pentru 2026: B2B/B2G/B2C, termenele exacte aplicabile, regimul pentru persoane fizice/CNP și afirmația despre OUG 89/2025 sau termenul 1 iunie 2026.",
+"penalties_or_terms": "Incert pentru runtime KB: nu introduce în legal_kb termene sau obligații concrete pentru 2026 fără refresh manual din legislație oficială consolidată și ghid ANAF actual.",
+"use_in_sigurscan": "Nu afișa card juridic cu termene exacte RO e-Factura până nu se face review manual. Poți afișa doar mesaj neutru: «O factură emisă corect fiscal nu garantează că oferta este legitimă; verifică emitentul, CUI-ul, IBAN-ul și canalul oficial.»",
+"triggers": [
+"invoice_claims_efactura",
+"spv_document_claim",
+"invoice_tax_compliance_claim",
+"issuer_cui_present"
+],
+"actions": [
+"Verifică CUI-ul și starea firmei în ANAF/ONRC.",
+"Nu trata mențiunea «e-Factura» ca dovadă că plata este sigură.",
+"Pentru termene și obligații e-Factura, cere refresh juridic manual înainte de runtime."
+],
+"source_refs": [
+{
+"url": "https://legislatie.just.ro/Public/RezultateCautare?text=OUG%20120%2F2021",
+"publisher": "legislatie.just.ro",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "legal_official",
+"confidence": "medium"
+},
+{
+"url": "https://www.anaf.ro/anaf/internet/ANAF/servicii_online/RO_e-Factura",
+"publisher": "ANAF",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "medium"
+}
+],
+"confidence": "low",
+"notes": "Nu include în runtime KB ca item confirmat. Afirmația despre OUG 89/2025 și termenul 1 iunie 2026 nu a fost confirmată în această sesiune din sursă oficială accesibilă; merge în review manual."
+},
+{
+"id": "law-ouG-34-2014-withdrawal",
+"item": "OUG 34/2014 - drept de retragere 14 zile și excepții",
+"status": "confirmat",
+"current_text_summary": "Consumatorul are, în general, dreptul de retragere din contractele la distanță sau în afara spațiilor comerciale în termen de 14 zile, fără a justifica decizia. Comerciantul trebuie să ramburseze sumele primite în termenul legal după informarea privind retragerea, cu reguli specifice pentru returnarea bunurilor și costuri. Există excepții relevante: servicii de cazare, transport, închiriere auto, catering sau agrement cu dată/perioadă specifică; bunuri personalizate; anumite bunuri sigilate/desigilate; conținut digital/servicii începute cu acordul consumatorului, în condițiile legii.",
+"penalties_or_terms": "Drept general de retragere: 14 zile. Rambursare comerciant: în principiu 14 zile de la informarea retragerii, cu posibilitatea amânării rambursării până la primirea bunurilor sau dovada trimiterii, după caz. Dacă nu există informare corectă privind dreptul de retragere, perioada poate fi prelungită conform OUG 34/2014.",
+"use_in_sigurscan": "Card juridic pentru oferte online unde userul este presat să plătească în avans. Trebuie afișat prudent: dreptul de retragere nu se aplică tuturor serviciilor, iar cazarea/transportul/evenimentele cu dată fixă pot fi exceptate.",
+"triggers": [
+"distance_sale_offer",
+"online_purchase_advance_payment",
+"merchant_refuses_withdrawal",
+"fixed_date_accommodation_transport_event",
+"personalized_goods_exception"
+],
+"actions": [
+"Verifică dacă oferta este contract la distanță și dacă se aplică excepții.",
+"Nu presupune că ai 14 zile pentru cazare, transport sau eveniment cu dată fixă.",
+"Păstrează documentul ofertei, confirmarea plății și comunicările cu comerciantul."
+],
+"source_refs": [
+{
+"url": "https://legislatie.just.ro/Public/RezultateCautare?text=OUG%2034%2F2014",
+"publisher": "legislatie.just.ro",
+"published_at": "2014-06-04",
+"accessed_at": "2026-06-12",
+"source_type": "legal_official",
+"confidence": "medium"
+},
+{
+"url": "https://anpc.ro/",
+"publisher": "ANPC",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "medium"
+}
+],
+"confidence": "medium",
+"notes": "Confirmat ca principiu legal, dar pentru runtime KB recomand păstrarea formulării generale și listarea explicită a excepțiilor comune. Pentru text exact/articole, rulați refresh manual direct pe Portalul Legislativ înainte de release."
+},
+{
+"id": "law-ouG-22-2026-price-cap",
+"item": "OUG 22/2026 - plafonare produse",
+"status": "incert",
+"current_text_summary": "Nu am putut confirma din sursă oficială accesibilă existența și conținutul unei OUG 22/2026 privind plafonarea unor produse, nici lista exactă de produse/categorii și perioada de aplicare.",
+"penalties_or_terms": "Incert. Nu introduce produse, perioade sau obligații în legal_kb fără confirmare oficială.",
+"use_in_sigurscan": "Nu afișa card juridic despre plafonare produse până la verificare manuală. Pentru oferte cu prețuri exagerate sau prea mici, folosește doar semnale comerciale: preț neobișnuit, presiune, lipsă CUI/IBAN incoerent, fără a afirma existența unui plafon legal.",
+"triggers": [
+"price_cap_claim",
+"too_cheap_or_overpriced_offer",
+"seller_claims_legal_price_cap"
+],
+"actions": [
+"Nu transforma afirmația despre plafonare într-o regulă hard.",
+"Verifică manual în Monitorul Oficial/Portalul Legislativ dacă OUG 22/2026 există și este în vigoare.",
+"Pentru runtime, tratează prețul ca semnal contextual, nu legal."
+],
+"source_refs": [
+{
+"url": "https://legislatie.just.ro/Public/RezultateCautare?text=OUG%2022%2F2026",
+"publisher": "legislatie.just.ro",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "legal_official",
+"confidence": "medium"
+}
+],
+"confidence": "low",
+"notes": "Merge în review manual, nu în runtime KB. Nu am confirmat actul, produsele sau perioada."
+},
+{
+"id": "law-lege-363-2007",
+"item": "Legea 363/2007 - practici comerciale incorecte, înșelătoare și agresive",
+"status": "confirmat",
+"current_text_summary": "Legea 363/2007 privește combaterea practicilor incorecte ale comercianților în relația cu consumatorii. Include practici comerciale înșelătoare, prin acțiuni sau omisiuni, și practici agresive. Este relevantă pentru oferte false, informații esențiale ascunse, afirmații neadevărate despre preț, disponibilitate, identitatea comerciantului, drepturile consumatorului sau presiune nejustificată.",
+"penalties_or_terms": "Nu se introduce aici o pedeapsă penală; legea este de protecția consumatorului și poate atrage măsuri/sancțiuni contravenționale prin autoritățile competente. Pentru încadrare exactă și cuantum sancțiuni, se cere refresh manual pe textul consolidat înainte de runtime.",
+"use_in_sigurscan": "Card educațional pentru oferte comerciale suspecte care induc în eroare: preț fals, disponibilitate falsă, identitate falsă a comerciantului, ascunderea costurilor, presiune agresivă sau promisiuni false. Nu se folosește ca verdict penal; se afișează ca drepturi consumator/ANPC.",
+"triggers": [
+"misleading_price_or_discount",
+"false_limited_availability",
+"hidden_fees_before_payment",
+"false_trader_identity",
+"fake_guarantee_or_rights_claim",
+"aggressive_pressure_to_pay"
+],
+"actions": [
+"Verifică identitatea comerciantului și datele obligatorii înainte de plată.",
+"Nu plăti dacă oferta ascunde costuri, folosește presiune sau schimbă condițiile după contact.",
+"Pentru practici comerciale înșelătoare, poți sesiza ANPC dacă comerciantul este identificabil."
+],
+"source_refs": [
+{
+"url": "https://legislatie.just.ro/Public/RezultateCautare?text=Legea%20363%2F2007",
+"publisher": "legislatie.just.ro",
+"published_at": "2007-12-21",
+"accessed_at": "2026-06-12",
+"source_type": "legal_official",
+"confidence": "medium"
+},
+{
+"url": "https://anpc.ro/",
+"publisher": "ANPC",
+"published_at": null,
+"accessed_at": "2026-06-12",
+"source_type": "official",
+"confidence": "medium"
+}
+],
+"confidence": "medium",
+"notes": "Confirmat ca act relevant pentru practici comerciale incorecte. Pentru runtime KB se poate include cu formulare generală, dar cuantumul sancțiunilor/articolele exacte trebuie revalidate pe text consolidat înainte de release."
+}
+]
+}
