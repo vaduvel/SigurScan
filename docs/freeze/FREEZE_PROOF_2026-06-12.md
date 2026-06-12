@@ -91,6 +91,11 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - POST: `HTTP 200`, `1.434s`, scan created.
   - poll 1: `HTTP 200`, `4.382s`, total `5.815s`, `SIGUR`, `risk=low`, `is_final=false`, preview `ready`.
   - poll 2: `HTTP 200`, `4.307s`, total `11.131s`, `SIGUR`, `risk=low`, `is_final=true`, preview `ready`.
+- Quota-safe live URL-provider smoke through `https://api.sigurscan.com` with Android UA after proof commit `e49ace6`:
+  - input: benign DNSC official URL smoke.
+  - POST: `HTTP 200`, `1.103s`, scan created.
+  - poll 1: `HTTP 200`, `3.159s`, total `4.772s`, `SIGUR`, `risk=low`, `is_final=false`, preview `ready`.
+  - poll 2: `HTTP 200`, `4.281s`, total `11.057s`, `SIGUR`, `risk=low`, `is_final=true`, preview `ready`.
 - Cloud Build log audit for build `8d7baef8-3a79-482c-be3c-c7d4e0823ef8` found no build failures/errors; only two standard Docker `pip as root` warnings.
 - Authenticated lightweight concurrency probe through `https://api.sigurscan.com/health` with Android UA:
   - 20 requests, 10 workers.
@@ -124,7 +129,7 @@ Status: in progress. This document is proof-led: an item is not green unless the
 ### Not Yet Green
 
 - Cold-start test after 15 minutes idle has not been run.
-- Full URL-provider scan concurrency/load test has not been run; only text-only scan concurrency is proven.
+- Full URL-provider scan concurrency/load test has not been run; only single URL-provider smoke and text-only scan concurrency are proven.
 - Latency outlier root-cause is not fully closed: a prior live run had one `29s` poll. The latest 4-run probe and the post-`21a6943` probe did not reproduce it, and Cloud Run logs show sub-4s server-side poll latency for the latest scan, so this remains a watch item rather than a confirmed code defect.
 - Rollback has not been executed end-to-end; readiness is proven non-destructively.
 
