@@ -54,6 +54,14 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - amount: `20 USD` monthly
   - project filter: `projects/357849228072`
   - thresholds: `50% current`, `100% current`, `100% forecasted`
+- Cloud Logging latency outlier metric exists:
+  - metric id: `sigurscan_poll_latency_over_8s`
+  - filter: Cloud Run `GET /v1/scan/orchestrated/{id}` with `httpRequest.latency > 8s`
+  - validation read returned `[]` before creation, proving the filter parses and no current outlier was present.
+- Cloud Monitoring alert policy exists:
+  - policy id: `9868521767490194527`
+  - display name: `SigurScan orchestrated poll latency > 8s`
+  - condition: any logged poll-latency metric count greater than `0` over a `300s` alignment window.
 - Authenticated smoke scan through official domain completed:
   - scan id: `orch_1781267052_627619ad`
   - poll 1: `SUSPECT`, `is_final=false`, `1.532s`
@@ -79,6 +87,20 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - result: `20/20 HTTP 200`, `0` errors.
   - total wall time: `5.577s`.
   - latency: min `0.150s`, p50 `0.224s`, p95 `0.300s`, max `5.343s`.
+- Controlled scan concurrency probe through `https://api.sigurscan.com` with Android UA:
+  - 3 concurrent `input_type=offer` text-only scans.
+  - No URL was included, avoiding urlscan/Web Risk/URLhaus calls.
+  - result: `3/3` POST `HTTP 200`, `3/3` final polls `HTTP 200`.
+  - wall time: `9.872s`.
+  - final labels: `SUSPECT`, `PERICULOS`, `SUSPECT`.
+  - final per-scan totals: `9.862s`, `9.629s`, `9.869s`.
+- Rollback readiness is proven non-destructively:
+  - previous revision `sigurscan-api-00019-lxl` is `Ready=True`.
+  - current traffic remains `100%` on `sigurscan-api-00020-xvd`.
+  - rollback command, if needed:
+    `gcloud run services update-traffic sigurscan-api --project project-20f225c0-d756-4cba-864 --region europe-west1 --to-revisions sigurscan-api-00019-lxl=100`
+  - restore command:
+    `gcloud run services update-traffic sigurscan-api --project project-20f225c0-d756-4cba-864 --region europe-west1 --to-revisions sigurscan-api-00020-xvd=100`
 - Post-deploy latency re-check after `21a6943`:
   - Existing scan `orch_1781268789_c6e92ca2` returned `HTTP 200` in `4.008s` and was already `complete`, `SUSPECT`, `is_final=true`.
   - New offer scan `orch_1781269113_5074e703`:
@@ -92,16 +114,17 @@ Status: in progress. This document is proof-led: an item is not green unless the
 ### Not Yet Green
 
 - Cold-start test after 15 minutes idle has not been run.
-- Full scan concurrency/load test has not been run; only lightweight health concurrency is proven.
+- Full URL-provider scan concurrency/load test has not been run; only text-only scan concurrency is proven.
 - Cloud Logging structured-error proof has not been captured.
 - Latency outlier root-cause is not fully closed: a prior live run had one `29s` poll. The latest 4-run probe and the post-`21a6943` probe did not reproduce it, and Cloud Run logs show sub-4s server-side poll latency for the latest scan, so this remains a watch item rather than a confirmed code defect.
-- Rollback has not been tested end-to-end.
+- Rollback has not been executed end-to-end; readiness is proven non-destructively.
 
 ### Immediate Fixes
 
-1. Add/confirm Cloud Logging alerting for poll latency outliers, for example any `GET /v1/scan/orchestrated/{id}` over `8s` or any component duration over provider timeout.
-2. Document rollback command and test it against the previous ready revision, or run a non-destructive dry-run proof if we do not want to move production traffic.
-3. Run a controlled scan concurrency test with provider-safe fixtures/mocks or a very small live sample.
+1. Capture Cloud Logging structured-error proof.
+2. Run cold-start proof after an idle window if we ever reduce `min-instances` back to `0`.
+3. Run a tiny URL-provider scan concurrency probe only when rate-limit budget allows.
+4. Execute rollback end-to-end only during a maintenance window or incident drill.
 
 ## Zone 2 - Cloudflare Official Domain
 
@@ -158,4 +181,4 @@ Status: in progress. This document is proof-led: an item is not green unless the
 
 Freeze is not complete yet.
 
-The backend is live and healthy on Cloud Run behind `api.sigurscan.com`, with provider smoke green, API auth active, invoice HMAC secret fallback removed, Android UA hardening deployed, reproducible min instances enabled, request-based CPU billing preserved, a Cloud Billing budget guard created, build log audited, and lightweight concurrency proven. The next blocking items are latency alerting, rollback proof, and a controlled scan-concurrency probe.
+The backend is live and healthy on Cloud Run behind `api.sigurscan.com`, with provider smoke green, API auth active, invoice HMAC secret fallback removed, Android UA hardening deployed, reproducible min instances enabled, request-based CPU billing preserved, a Cloud Billing budget guard created, build log audited, latency alerting configured, rollback readiness proven, lightweight concurrency proven, and controlled text-only scan concurrency proven. The remaining Cloud Run freeze items are structured-error proof, optional cold-start proof if scale-to-zero returns, optional URL-provider concurrency, and an end-to-end rollback drill when we intentionally choose a maintenance window.
