@@ -7,7 +7,8 @@ Status: in progress. This document is proof-led: an item is not green unless the
 - Repository: `vaduvel/SigurScan`
 - Local repo: `/Users/vaduvageorge/AndroidStudioProjects/SigurScan`
 - Current branch: `main`
-- Current commit: `21a6943`
+- Current repo commit: `9bae857`
+- Deployed code commit: `21a6943`
 - Cloud Run project: `project-20f225c0-d756-4cba-864`
 - Cloud Run service: `sigurscan-api`
 - Cloud Run region: `europe-west1`
@@ -128,7 +129,8 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - `789d497 chore: wire invoice HMAC secret into Cloud Run deploy`
   - `cf842d2 fix: flag upfront fee offer scams`
   - `21a6943 fix: close freeze secret and edge UA gaps`
-- `origin/main` points to `21a6943`.
+- `origin/main` points to `9bae857`.
+- Cloud Run intentionally remains on code image `21a6943`; `9bae857` is documentation-only.
 
 ### Not Yet Green
 
