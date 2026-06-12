@@ -7,7 +7,7 @@ Status: proof-led, not marketing-led. Nothing is green unless there is a rerunna
 - Repo: `/Users/vaduvageorge/AndroidStudioProjects/SigurScan`
 - Branch: `main`
 - GitHub: `origin/main`
-- Current repo head before this proof update: `4918162`
+- Current repo/proof head before this Zone 7 update: `7cb7651`
 - Deployed Cloud Run code image: `4918162`
 - API domain: `https://api.sigurscan.com`
 - Cloud project id: `project-20f225c0-d756-4cba-864`
@@ -19,15 +19,22 @@ Status: proof-led, not marketing-led. Nothing is green unless there is a rerunna
 | Source | Status | Decision |
 | --- | --- | --- |
 | DeepSeek invoice handoff | Integrated | `main` already contains `90b551c` and `a38c7af`; no merge needed. |
+| Freeze-ready main handoff | Integrated | `origin/feature/freeze-ready-main-2026-06-12` is an ancestor of `main`; no merge needed. |
+| Text pipeline privacy hardening | Integrated | `origin/fix/text-pipeline-privacy-hardening` is an ancestor of `main`; no merge needed. |
 | Fable freeze handoff | Do not merge directly | Branch is older than `main` in several operational areas and would remove Cloud Run freeze proof, deploy-script fixes, and newer impersonation assets if merged raw. |
 | Fable/freeze integration branch | Do not merge directly | Functional delta vs `main` is mostly older/reverting material; use `main` as source of truth. |
-| Sonet new UI | Not part of this freeze audit | Keep separate until explicitly merged/reviewed; no branch deletion yet. |
+| Offer PR stage branches | Archive / no raw merge | `offer-core-parser-readiness`, `offer-anaf-iban-gate`, `offer-android-field-confirmation`, `offer-registry-snapshots`, `offer-legal-layer`, `offer-web-confirm-async`, `offer-knowledge-v3`, and `offer-knowledge-v3-complete` are older stage branches. Current `main` contains the release-ready combined implementation; raw merge would delete current freeze docs/tests/assets. |
+| Sonet new UI | Not part of this freeze audit | No `origin/feature/new-ui-design` branch was visible during this fetch. Keep any UI branch separate until explicitly reviewed/merged; no branch deletion yet. |
+| Local `gate/unverified-verdict` | Active external work | Physical checkout `/Users/vaduvageorge/AndroidStudioProjects/SigurScan` is on this branch with uncommitted changes. Freeze work is isolated in `/Users/vaduvageorge/.config/superpowers/worktrees/SigurScan/freeze-main-2026-06-12`; do not touch or overwrite the active branch. |
 
 Evidence:
 
 - `git cherry -v main origin/feature/deepseek-invoice-freeze-handoff-2026-06-12` produced no pending commits.
+- `git merge-base --is-ancestor origin/feature/deepseek-invoice-freeze-handoff-2026-06-12 main`, `origin/feature/freeze-ready-main-2026-06-12 main`, and `origin/fix/text-pipeline-privacy-hardening main` returned true.
 - `git diff --stat main..origin/feature/fable-freeze-handoff-2026-06-12` shows large deletions/reverts from current `main`, including freeze docs and impersonation knowledge.
 - `git diff --stat main..origin/feature/freeze-integration-2026-06-12` shows the branch would delete `docs/freeze/FREEZE_PROOF_2026-06-12.md` and revert recent Cloud Run/deploy fixes.
+- `git diff --name-status main..origin/feature/offer-knowledge-v3-complete`, `main..origin/feature/offer-web-confirm-async`, and the other offer stage branches shows each branch is missing current freeze docs, current Cloud Run/deploy hardening, and/or current data assets.
+- Content check on `main`: `scam_atlas_offer_seed.json` has `10` offer families; OP-08 has `16` signals; OP-09 has `15` signals; `offer_corpus_fixtures.json` has `51` fixtures; `legal_kb.json` has `9` cards; `scam_atlas_impersonation_seed.json` has `13` impersonation families.
 
 ## Zone Matrix
 
@@ -39,15 +46,15 @@ Evidence:
 | 4 | Cache/providers | Green for single-scan provider/cache posture, Partial for load | Provider smoke, single live URL-provider smoke, cache stats, and preview cache paths have proof. Live flows prove urlscan, Google Web Risk consultation, Phishing.Database, URLhaus, and offer-claim verifier behavior; `/v1/reputation/cache/stats` reads the Supabase-backed cache on Cloud Run after `45b5663`; deployed runtime is now `4918162`. Open: full provider load/concurrency intentionally not run to avoid quota burn; legacy expired cache rows remain as non-blocking cache hygiene. |
 | 5 | Android direct infra | Green for build/config, Partial for device proof | Debug and release local config point to `https://api.sigurscan.com/`; app API keys are configured without logging their values; direct provider keys are empty in generated BuildConfig; API key interceptor sends `X-API-KEY` and stable Android UA; `testDebugUnitTest`, `assembleDebug`, and `assembleRelease` pass; release APK is signed with SigurScan cert. Open: physical-device proof, mobile-network proof, upload-size proof, poor-network behavior, and post-UI-merge regression. AVD exists but did not boot into ADB during this continuation. |
 | 6 | Live feature flows | Green for backend/API live flows, Partial for full device/import coverage | Backend tests cover text/url/email/offer/invoice/security/registry/legal paths. Live provider smoke is `3/3`; live YOXO and eMAG tracking are `SIGUR`, and hard-provider controls are `PERICULOS` through Phishing.Database/urlscan. Email HTML hidden-link extraction and scan are proven live. PDF annotation-link extraction was fixed in `4918162` and proven live on Cloud Run. Android emulator URL scan reaches final `SIGUR` with preview. Android emulator text-only offer/job scan reaches final non-safe `SUSPECT`. Android invoice image scan reaches verified invoice state with issuer/CUI/IBAN/dates/totals and live API top-level `SIGUR` after CUI + finalization fixes. Open: QR import/camera, physical-device release, mobile-network proof, and fuller offer-with-URL/payment proof if required. |
-| 7 | Code consolidation | Partial Green | `main` is clean and has current invoice + offer + Cloud Run fixes. Backend full suite passes. Android build/tests pass. Open: do not delete old branches until Sonet UI and any wanted handoff deltas are explicitly resolved. |
+| 7 | Code consolidation | Green for current release consolidation, Partial for branch cleanup/UI | `main` is clean in the freeze worktree and has current invoice + offer + Cloud Run fixes. Backend full suite passes from the clean freeze worktree. Android unit/debug/release build passes from the clean freeze worktree. Branch audit is complete: DeepSeek/freeze-ready/privacy hardening are integrated; Fable/offer stage branches must not be merged raw because they would revert current `main`. Open: do not delete old branches until Sonet UI and any active `gate/unverified-verdict` work are explicitly resolved. |
 | 8 | Hardening/regression | Partial Green | Latency alert, budget, structured error proof, API key requirement, Android UA hardening, and freeze docs exist. Open: full live regression pack, Play-ready privacy/legal store checklist, and physical-device proof. |
 
 ## Tests Run In This Audit
 
 - Backend full suite:
   - Command: `python3 -m pytest backend -q`
-  - Location: `/Users/vaduvageorge/AndroidStudioProjects/SigurScan`
-  - Result after PDF annotation-link fix: `666 passed, 1 warning`
+  - Location: `/Users/vaduvageorge/.config/superpowers/worktrees/SigurScan/freeze-main-2026-06-12`
+  - Result after Zone 7 branch audit: `666 passed, 1 warning`
 - Reproducible container contract:
   - Command: `python3 -m pytest backend/test_container_contract.py -q`
   - Result: `1 passed`
@@ -71,10 +78,15 @@ Evidence:
   - Deployed digest: `sha256:1951be05e620f71b74923f4d6460ab36f322767f98f14987e38ff20eea11d1c7`.
 - Android unit + debug build:
   - Command: `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease`
-  - Location: `/Users/vaduvageorge/AndroidStudioProjects/SigurScan`
-  - Result: `BUILD SUCCESSFUL`
+  - Location: `/Users/vaduvageorge/.config/superpowers/worktrees/SigurScan/freeze-main-2026-06-12`
+  - Result after Zone 7 branch audit: `BUILD SUCCESSFUL` in `1m 2s`, `96 actionable tasks`.
   - Release APK: `app/build/outputs/apk/release/app-release.apk`, signed as `CN=SigurScan, OU=Mobile Security, O=SigurScan, L=Bucharest, ST=Bucharest, C=RO`.
   - Generated debug/release BuildConfig uses `https://api.sigurscan.com/`, app key `SET`, `URLSCAN_API_KEY=EMPTY`, and `GOOGLE_WEB_RISK_API_KEY=EMPTY`.
+- Zone 7 branch audit:
+  - Worktree: `/Users/vaduvageorge/.config/superpowers/worktrees/SigurScan/freeze-main-2026-06-12`, branch `main`, head `7cb7651`.
+  - `origin/feature/deepseek-invoice-freeze-handoff-2026-06-12`, `origin/feature/freeze-ready-main-2026-06-12`, and `origin/fix/text-pipeline-privacy-hardening` are ancestors of `main`.
+  - Offer/Fable stage branches are not merge candidates as whole branches; tree diffs from `main` show deletion/revert risk against current freeze docs, current data files, deploy scripts, and tests.
+  - The physical checkout is on `gate/unverified-verdict` with uncommitted external work; freeze checks intentionally avoided mutating it.
 - Supabase remote migrations:
   - Command: `supabase migration list --linked`
   - Result: all local migrations from `20260525091000` through `20260609214000` are present remotely.
@@ -130,8 +142,8 @@ Evidence:
 
 ## Next Actions
 
-1. Do not merge Fable handoff branches raw. If a specific missing feature is found later, cherry-pick or reimplement the minimal diff onto `main`.
-2. Keep `main` as the freeze base.
-3. Run the remaining Android E2E flows: invoice, email HTML hidden-link, PDF/image, QR, and fuller offer-with-URL/payment if needed.
+1. Do not merge Fable/offer stage branches raw. If a specific missing feature is found later, cherry-pick or reimplement the minimal diff onto `main`.
+2. Keep `main` as the freeze base and treat the current physical `gate/unverified-verdict` checkout as separate active work.
+3. Run the remaining Android E2E flows: QR import/camera, physical-device release, mobile-network, and fuller offer-with-URL/payment if needed.
 4. Run full URL-provider concurrency only during a deliberate quota window, not during normal freeze checks.
-5. Keep old feature branches until the UI branch and invoice/offer freeze deltas are fully accounted for; delete only after a named cleanup pass.
+5. Keep old feature branches until the UI branch and active gate branch are fully accounted for; delete only after a named cleanup pass.

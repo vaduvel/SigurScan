@@ -471,11 +471,44 @@ Status: in progress. This document is proof-led: an item is not green unless the
 - `4918162 fix: keep PDF annotation links when OCR is empty`
 - `origin/main` includes deployed code commit `4918162`.
 - Cloud Run intentionally runs code image `4918162`.
+- Branch audit was run from isolated worktree `/Users/vaduvageorge/.config/superpowers/worktrees/SigurScan/freeze-main-2026-06-12` at `7cb7651`.
+- Integrated/ancestor branches:
+  - `origin/feature/deepseek-invoice-freeze-handoff-2026-06-12`
+  - `origin/feature/freeze-ready-main-2026-06-12`
+  - `origin/fix/text-pipeline-privacy-hardening`
+- Branches not safe for raw merge:
+  - `origin/feature/fable-freeze-handoff-2026-06-12`
+  - `origin/feature/freeze-integration-2026-06-12`
+  - `origin/feature/offer-core-parser-readiness`
+  - `origin/feature/offer-anaf-iban-gate`
+  - `origin/feature/offer-android-field-confirmation`
+  - `origin/feature/offer-registry-snapshots`
+  - `origin/feature/offer-legal-layer`
+  - `origin/feature/offer-web-confirm-async`
+  - `origin/feature/offer-knowledge-v3`
+  - `origin/feature/offer-knowledge-v3-complete`
+- Reason: tree diffs from current `main` show these branch trees are older than the freeze base and would delete or revert current freeze docs/evidence, Cloud Run deploy hardening, data assets, and/or tests if merged as whole branches.
+- Current `main` content check:
+  - offer atlas: `10` families.
+  - OP-08 job scams: `16` signals.
+  - OP-09 investment/crypto scams: `15` signals.
+  - offer corpus: `51` fixtures.
+  - legal KB: `9` cards.
+  - impersonation atlas: `13` scam families.
+- Fresh backend verification from the clean worktree:
+  - Command: `python3 -m pytest backend -q`
+  - Result: `666 passed, 1 warning in 4.29s`.
+- Fresh Android verification from the clean worktree:
+  - Command: `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease`
+  - Result: `BUILD SUCCESSFUL in 1m 2s`, `96 actionable tasks`.
+- Physical checkout guard:
+  - `/Users/vaduvageorge/AndroidStudioProjects/SigurScan` is on local branch `gate/unverified-verdict` with uncommitted external work.
+  - Freeze work did not mutate that branch; all checks and doc edits were done in the isolated `main` worktree.
 
 ### Not Yet Green
 
-- Need a final branch audit for unmerged feature branches before deleting anything.
-- Need one full backend + Android test run after any remaining Cloud Run config fixes.
+- Do not delete old feature branches until Sonet UI and active `gate/unverified-verdict` work are explicitly resolved.
+- Remaining unproven device flows are outside Zone 7: QR import/camera, physical-device release, mobile-network, and fuller offer-with-URL/payment proof if required.
 
 ## Current Verdict
 
