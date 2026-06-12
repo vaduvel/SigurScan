@@ -1,4 +1,22 @@
 const PUBLIC_HOST = "api.sigurscan.com";
+
+export function buildHttpsRedirect(request) {
+  const incomingUrl = new URL(request.url);
+  if (incomingUrl.protocol === "https:") {
+    return null;
+  }
+
+  incomingUrl.protocol = "https:";
+  return new Response(null, {
+    status: 308,
+    headers: {
+      "cache-control": "no-store",
+      "location": incomingUrl.toString(),
+      "x-sigurscan-edge": "cloudflare",
+    },
+  });
+}
+
 export function buildUpstreamRequest(request, originUrl) {
   const incomingUrl = new URL(request.url);
   const upstreamUrl = new URL(originUrl);
@@ -46,6 +64,11 @@ export function buildPublicResponse(upstreamResponse, originUrl) {
 export default {
   async fetch(request, env) {
     try {
+      const httpsRedirect = buildHttpsRedirect(request);
+      if (httpsRedirect) {
+        return httpsRedirect;
+      }
+
       const upstreamRequest = buildUpstreamRequest(request, env.ORIGIN_URL);
       const upstreamResponse = await fetch(upstreamRequest, {
         cf: { cacheEverything: false },

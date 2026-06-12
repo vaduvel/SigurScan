@@ -204,6 +204,21 @@ Status: in progress. This document is proof-led: an item is not green unless the
 ### Verified
 
 - `https://api.sigurscan.com/health` responds with `HTTP/2 200`.
+- HTTP requests are redirected before hitting the origin:
+  - `http://api.sigurscan.com/health` returns `HTTP 308`.
+  - `Location: https://api.sigurscan.com/health`.
+  - `cache-control: no-store`.
+  - `x-sigurscan-edge: cloudflare`.
+- TLS certificate proof:
+  - certificate subject: `CN=sigurscan.com`.
+  - issuer: `Google Trust Services WE1`.
+  - validity: `2026-06-11` through `2026-09-09`.
+  - SAN contains `sigurscan.com`, `api.sigurscan.com`, and `*.api.sigurscan.com`.
+- Cloudflare Worker proxy version deployed:
+  - worker: `sigurscan-api-proxy`.
+  - version id: `d5e812eb-baca-4b88-95af-595966e1613c`.
+  - route: `api.sigurscan.com`.
+  - `workers/api-proxy` test suite: `5/5 passed`.
 - Response headers show Cloudflare in the path:
   - `server: cloudflare`
   - `cf-cache-status: DYNAMIC`
@@ -224,12 +239,14 @@ Status: in progress. This document is proof-led: an item is not green unless the
     - `SigurScan/1.0 Android OkHttp`: `HTTP 200`, `0.184060s`
     - authenticated Android UA health: `HTTP 200`, `0.164287s`
   - This is a Cloudflare/WAF user-agent rule, not CORS. QA scripts and legitimate non-Android clients must send an app-like UA or be allowlisted intentionally.
+- `/v1/*` edge behavior after Worker deploy `d5e812eb-baca-4b88-95af-595966e1613c`:
+  - unauthenticated `POST https://api.sigurscan.com/v1/scan/orchestrated` returns `HTTP 401` in `0.281984s`.
+  - response includes `cache-control: no-store`.
+  - response includes `x-sigurscan-edge: cloudflare`.
+  - backend body is preserved: `{"detail":"Missing or invalid API key."}`.
 
 ### Not Yet Green
 
-- TLS chain screenshot/proof not captured.
-- HTTP to HTTPS redirect not tested.
-- Cloudflare cache bypass/rate-limit rules for `/v1/*` not fully audited.
 - Cloudflare timeout behavior for long scans not tested.
 - Android mobile-network test on 4G/5G not recorded.
 

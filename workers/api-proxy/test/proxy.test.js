@@ -2,11 +2,22 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  buildHttpsRedirect,
   buildPublicResponse,
   buildUpstreamRequest,
 } from "../src/index.js";
 
 const ORIGIN = "https://sigurscan-api-tvszku44fq-ew.a.run.app";
+
+test("redirects plain HTTP requests to the same HTTPS URL", () => {
+  const input = new Request("http://api.sigurscan.com/v1/scan/orchestrated?mode=full");
+  const output = buildHttpsRedirect(input);
+
+  assert.equal(output.status, 308);
+  assert.equal(output.headers.get("location"), "https://api.sigurscan.com/v1/scan/orchestrated?mode=full");
+  assert.equal(output.headers.get("cache-control"), "no-store");
+  assert.equal(output.headers.get("x-sigurscan-edge"), "cloudflare");
+});
 
 test("preserves path, query, API key, method, and body", async () => {
   const input = new Request("https://api.sigurscan.com/v1/scan/orchestrated?mode=full", {
