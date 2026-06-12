@@ -21,12 +21,11 @@ CACHE_TTL = 43200  # 12 hours
 _cui_cache: dict[str, tuple[float, dict]] = {}
 _verdict_cache: dict[str, tuple[float, "InvoiceScanResult"]] = {}
 
-_CACHE_HMAC_KEY_FALLBACK = "sigurscan-cache-key-v1"
-
-
 def _cache_hmac_key() -> bytes:
-    # Production can override this from Secret Manager/env; fallback keeps local tests deterministic.
-    return os.getenv("INVOICE_CACHE_HMAC_KEY", _CACHE_HMAC_KEY_FALLBACK).encode()
+    key = os.getenv("INVOICE_CACHE_HMAC_KEY")
+    if not key:
+        raise RuntimeError("INVOICE_CACHE_HMAC_KEY must be configured from Secret Manager/env")
+    return key.encode()
 
 
 def _hmac_digest(data: str) -> str:

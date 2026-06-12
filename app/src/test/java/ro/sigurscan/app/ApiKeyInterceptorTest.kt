@@ -47,6 +47,7 @@ class ApiKeyInterceptorTest {
     fun `adds api key header when key is configured`() {
         val forwarded = requestThrough(ApiKeyInterceptor("secret-key"))
         assertEquals("secret-key", forwarded.header(SIGURSCAN_API_KEY_HEADER))
+        assertEquals(SIGURSCAN_USER_AGENT, forwarded.header("User-Agent"))
     }
 
     @Test
@@ -56,15 +57,17 @@ class ApiKeyInterceptorTest {
     }
 
     @Test
-    fun `leaves request untouched when key is blank`() {
+    fun `does not add api key when key is blank`() {
         val forwarded = requestThrough(ApiKeyInterceptor("   "))
         assertNull(forwarded.header(SIGURSCAN_API_KEY_HEADER))
+        assertEquals(SIGURSCAN_USER_AGENT, forwarded.header("User-Agent"))
     }
 
     @Test
-    fun `leaves request untouched when key is null`() {
+    fun `does not add api key when key is null`() {
         val forwarded = requestThrough(ApiKeyInterceptor(null))
         assertNull(forwarded.header(SIGURSCAN_API_KEY_HEADER))
+        assertEquals(SIGURSCAN_USER_AGENT, forwarded.header("User-Agent"))
     }
 
     @Test

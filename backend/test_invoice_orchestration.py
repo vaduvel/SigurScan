@@ -155,3 +155,18 @@ def test_invoice_cache_keys_are_hmac_and_do_not_leak_identifiers(monkeypatch):
     assert "24387371" not in key_a
     assert "24387371" not in cui_key_a
     assert "RO33RNCB1234567890123456" not in key_a
+
+
+def test_invoice_cache_key_requires_env_secret(monkeypatch):
+    fields = InvoiceFields(
+        cui="24387371",
+        iban="RO33RNCB1234567890123456",
+        total=245.50,
+        data_emitere="2026-06-01",
+        nr_factura="INV-123",
+    )
+
+    monkeypatch.delenv("INVOICE_CACHE_HMAC_KEY", raising=False)
+
+    with pytest.raises(RuntimeError, match="INVOICE_CACHE_HMAC_KEY"):
+        _cache_key(fields)
