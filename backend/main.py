@@ -37,6 +37,13 @@ import tldextract
 
 # Import our custom services
 from services.pii_redactor import redact_pii
+from services.external_url_privacy import (
+    prepare_external_url,
+    prepare_external_urls,
+    sanitize_resolved_url_entry,
+    sanitize_resolved_url_entries,
+    sanitize_external_text,
+)
 from services.redirect_resolver import (
     resolve_redirects_safely,
     is_known_shortener,
@@ -1692,30 +1699,101 @@ def _safe_scan_url_list(urls: List[str]) -> List[Dict[str, Any]]:
     resolved_urls: List[Dict[str, Any]] = []
     if PRIVACY_SAFE_MODE:
         for url in urls:
-            resolved_urls.append(_safe_mode_url_entry(url))
+            resolved_urls.append(sanitize_resolved_url_entry(_safe_mode_url_entry(url)))
         return resolved_urls
     for url in urls:
         try:
-            resolved_urls.append(resolve_redirects_safely(url))
+            resolved_urls.append(
+                sanitize_resolved_url_entry(resolve_redirects_safely(url))
+            )
         except Exception as exc:
-            logger.warning(f"Redirect resolution failed for {url}: {exc}")
-            resolved_urls.append({
-                "original_url": url,
-                "final_url": url,
-                "final_hostname": urllib.parse.urlparse(url).hostname,
-                "final_registered_domain": urllib.parse.urlparse(url).hostname,
-                "domain_age_days": None,
-                "domain_created_date": None,
-                "has_mx_records": None,
-                "redirect_chain": [],
-                "redirect_count": 0,
-                "shortener_count": 0,
-                "uses_shortener": False,
-                "detected_soft_redirects": [],
-                "success": False,
-                "error_message": str(exc),
-            })
+            failed_entry = sanitize_resolved_url_entry(
+                {
+                    "original_url": url,
+                    "final_url": url,
+                    "final_hostname": urllib.parse.urlparse(url).hostname,
+                    "final_registered_domain": urllib.parse.urlparse(url).hostname,
+                    "domain_age_days": None,
+                    "domain_created_date": None,
+                    "has_mx_records": None,
+                    "redirect_chain": [],
+                    "redirect_count": 0,
+                    "shortener_count": 0,
+                    "uses_shortener": False,
+                    "detected_soft_redirects": [],
+                    "success": False,
+                    "error_message": str(exc),
+                }
+            )
+            logger.warning(
+                "Redirect resolution failed for %s: %s",
+                url,
+                failed_entry.get("error_message") or "resolver_error",
+            )
+            resolved_urls.append(failed_entry)
     return resolved_urls
+
+
+def _merge_url_privacy(
+    current: Optional[Dict[str, Any]],
+    incoming: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    priority = {"unchanged": 0, "sanitized": 1, "origin_only": 2, "blocked": 3}
+    candidates = [
+        entry
+        for entry in (current, incoming)
+        if isinstance(entry, dict) and entry
+    ]
+    winner = max(
+        candidates,
+        key=lambda entry: priority.get(str(entry.get("action") or "unchanged"), 0),
+        default={},
+    )
+    removed_query_params = sorted(
+        {
+            str(key)
+            for entry in candidates
+            for key in (entry.get("removed_query_params") or [])
+            if str(key)
+        }
+    )
+    return {
+        "action": winner.get("action") or "unchanged",
+        "reason": winner.get("reason"),
+        "removed_query_params": removed_query_params,
+        "preview_allowed": all(entry.get("preview_allowed") is not False for entry in candidates),
+    }
+
+
+def _attach_initial_url_privacy(
+    resolved_urls: List[Dict[str, Any]],
+    url_privacy: Optional[List[Dict[str, Any]]],
+) -> List[Dict[str, Any]]:
+    privacy_by_external_url: Dict[str, Dict[str, Any]] = {}
+    for entry in url_privacy or []:
+        if not isinstance(entry, dict) or not entry.get("external_url"):
+            continue
+        external_url = str(entry["external_url"])
+        privacy_by_external_url[external_url] = _merge_url_privacy(
+            privacy_by_external_url.get(external_url),
+            entry,
+        )
+
+    attached: List[Dict[str, Any]] = []
+    for resolved in resolved_urls:
+        candidate = dict(resolved) if isinstance(resolved, dict) else {}
+        initial_privacy = None
+        for key in ("original_url", "url", "final_url"):
+            value = candidate.get(key)
+            if isinstance(value, str) and value in privacy_by_external_url:
+                initial_privacy = privacy_by_external_url[value]
+                break
+        candidate["url_privacy"] = _merge_url_privacy(
+            candidate.get("url_privacy"),
+            initial_privacy,
+        )
+        attached.append(candidate)
+    return attached
 
 
 def _resolve_eval_dataset_path(dataset_path: Optional[str]) -> Path:
@@ -1774,9 +1852,10 @@ def _gather_external_intel(
 ) -> Dict[str, Dict[str, Any]]:
     if PRIVACY_SAFE_MODE:
         return {}
+    safe_resolved_urls = sanitize_resolved_url_entries(resolved_urls)
     final_urls = [
         entry.get("final_url")
-        for entry in resolved_urls
+        for entry in safe_resolved_urls
         if isinstance(entry.get("final_url"), str) and entry.get("final_url")
     ]
     return get_reputation_for_urls(
@@ -2963,6 +3042,8 @@ async def _enrich_semantic_review_async(
     resolved_urls: List[Dict[str, Any]],
 ) -> None:
     evidence = analysis.setdefault("evidence", {})
+    provider_safe_text = sanitize_external_text(redacted_text)
+    provider_safe_resolved_urls = sanitize_resolved_url_entries(resolved_urls)
     fallback = _semantic_review_from_analysis(analysis)
     tier1_result = tier1_classifier.classify(redacted_text or "")
     evidence["tier1_classifier"] = tier1_result
@@ -2981,12 +3062,12 @@ async def _enrich_semantic_review_async(
         evidence["semantic_review"] = _calibrate_semantic_review_with_tier1(
             fallback,
             tier1_result,
-            raw_text=redacted_text,
+            raw_text=provider_safe_text,
         )
         return
 
     payload = {
-        "redacted_text": (redacted_text or "")[:2500],
+        "redacted_text": (provider_safe_text or "")[:2500],
         "claimed_brand": analysis.get("claimed_brand"),
         "atlas_semantic_review": fallback,
         "family": {
@@ -2999,7 +3080,7 @@ async def _enrich_semantic_review_async(
                 "final_registered_domain": item.get("final_registered_domain"),
                 "success": item.get("success"),
             }
-            for item in (resolved_urls or [])[:5]
+            for item in (provider_safe_resolved_urls or [])[:5]
             if isinstance(item, dict)
         ],
         "external_intel_summary": evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {},
@@ -3010,7 +3091,7 @@ async def _enrich_semantic_review_async(
         evidence["semantic_review"] = _calibrate_semantic_review_with_tier1(
             normalized_review,
             tier1_result,
-            raw_text=redacted_text,
+            raw_text=provider_safe_text,
         )
     except Exception as exc:
         fallback = dict(fallback)
@@ -3021,7 +3102,7 @@ async def _enrich_semantic_review_async(
         evidence["semantic_review"] = _calibrate_semantic_review_with_tier1(
             fallback,
             tier1_result,
-            raw_text=redacted_text,
+            raw_text=provider_safe_text,
         )
 
 
@@ -4126,6 +4207,8 @@ def _emit_scan_event(
         risk_score_int = 0
     risk_level = str(scan_payload.get("risk_level") or "low").lower()
     predicted_is_scam = bool(risk_score_int >= RISK_THRESHOLD or risk_level in {"high", "critical"})
+    safe_resolved_urls = sanitize_resolved_url_entries(resolved_urls)
+    safe_text = sanitize_external_text(scan_payload.get("redacted_text") or "")
 
     event = {
         "scan_id": scan_id,
@@ -4140,9 +4223,9 @@ def _emit_scan_event(
         "claimed_brand": scan_payload.get("claimed_brand"),
         "predicted_is_scam": predicted_is_scam,
         "signal_ids": _collect_signal_ids(analysis),
-        "url_count": len(resolved_urls),
-        "urls": [_extract_url_signal(item) for item in resolved_urls],
-        "redacted_text_snippet": (scan_payload.get("redacted_text") or "")[:120],
+        "url_count": len(safe_resolved_urls),
+        "urls": [_extract_url_signal(item) for item in safe_resolved_urls],
+        "redacted_text_snippet": safe_text[:120],
         "evidence": {
             "external_intel": analysis.get("evidence", {}).get("external_intel", False),
             "external_intel_hits": analysis.get("evidence", {}).get("external_intel_hits", 0),
@@ -4157,9 +4240,9 @@ def _emit_scan_event(
     if scan_payload.get("is_final") is not False:
         evidence_bundle = build_evidence_bundle(
             input_type=input_channel,
-            redacted_text=str(scan_payload.get("redacted_text") or ""),
+            redacted_text=safe_text,
             analysis=analysis,
-            resolved_urls=resolved_urls,
+            resolved_urls=safe_resolved_urls,
             scan_payload=scan_payload,
         )
         maybe_run_shadow_adjudication(
@@ -4352,9 +4435,11 @@ def _build_ai_explanation(
     analysis: Dict[str, Any],
     resolved_urls: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
+    provider_safe_text = sanitize_external_text(text)
+    provider_safe_resolved_urls = sanitize_resolved_url_entries(resolved_urls)
     if PRIVACY_SAFE_MODE:
-        return generate_fallback_explanation(text, analysis)
-    return generate_ai_explanation(text, analysis, resolved_urls)
+        return generate_fallback_explanation(provider_safe_text, analysis)
+    return generate_ai_explanation(provider_safe_text, analysis, provider_safe_resolved_urls)
 
 
 async def _build_ai_explanation_async(
@@ -4362,19 +4447,21 @@ async def _build_ai_explanation_async(
     analysis: Dict[str, Any],
     resolved_urls: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
+    provider_safe_text = sanitize_external_text(text)
+    provider_safe_resolved_urls = sanitize_resolved_url_entries(resolved_urls)
     if PRIVACY_SAFE_MODE or not ENABLE_CLOUD_AI_EXPLANATION or AI_EXPLANATION_TIMEOUT_SECONDS <= 0:
-        return generate_fallback_explanation(text, analysis)
+        return generate_fallback_explanation(provider_safe_text, analysis)
 
     try:
         return await asyncio.wait_for(
-            run_in_threadpool(generate_ai_explanation, text, analysis, resolved_urls),
+            run_in_threadpool(generate_ai_explanation, provider_safe_text, analysis, provider_safe_resolved_urls),
             timeout=AI_EXPLANATION_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:
         logger.warning("AI explanation timed out; using deterministic fallback.")
     except Exception as exc:
         logger.warning("AI explanation failed; using deterministic fallback: %s", exc)
-    return generate_fallback_explanation(text, analysis)
+    return generate_fallback_explanation(provider_safe_text, analysis)
 
 
 def _attach_offer_claim_verification(
@@ -4451,12 +4538,14 @@ async def _enrich_offer_claim_verification_async(
         return offer_claim
 
     try:
+        provider_safe_text = sanitize_external_text(text)
+        provider_safe_resolved_urls = sanitize_resolved_url_entries(resolved_urls)
         offer_claim = await asyncio.wait_for(
             run_in_threadpool(
                 verify_offer_claim,
-                text,
+                provider_safe_text,
                 analysis,
-                resolved_urls,
+                provider_safe_resolved_urls,
                 brand_registry=BRAND_REGISTRY,
             ),
             timeout=AI_OFFER_CLAIM_TIMEOUT_SECONDS,
@@ -4618,6 +4707,16 @@ def _validate_sandbox_url(raw_url: str) -> str:
     url = _canonicalize_url(_normalise_obfuscated_text(raw_url or ""))
     if not url:
         raise HTTPException(status_code=400, detail="URL invalid sau format neacceptat.")
+    privacy = prepare_external_url(url)
+    safe_url = privacy.get("external_url")
+    if not isinstance(safe_url, str) or not safe_url:
+        raise HTTPException(status_code=400, detail="URL invalid sau format neacceptat.")
+    if privacy.get("preview_allowed") is False or privacy.get("action") in {"origin_only", "blocked"}:
+        raise HTTPException(
+            status_code=400,
+            detail="URL blocat pentru sandbox din motive de privacy: contine date sensibile in path.",
+        )
+    url = safe_url
     blocked_reason = _is_scan_target_blocked(url)
     if blocked_reason:
         raise HTTPException(status_code=400, detail=f"URL blocat pentru sandbox: {blocked_reason}")
@@ -4889,10 +4988,33 @@ def _normalize_urlscan_preview_cache_entry(entry: Any) -> Optional[Dict[str, Any
     screenshot_url = _normalize_screenshot_proxy_url(entry.get("screenshot_url"))
     if not final_url or not report_url:
         return None
+    final_privacy = prepare_external_url(final_url)
+    if (
+        final_privacy.get("preview_allowed") is False
+        or final_privacy.get("action") != "unchanged"
+    ):
+        return None
+    safe_final_url = str(final_privacy.get("external_url") or "").strip()
+    submitted_url = str(entry.get("submitted_url") or entry.get("canonical_url") or final_url).strip()
+    submitted_privacy = prepare_external_url(submitted_url)
+    if (
+        submitted_privacy.get("preview_allowed") is False
+        or submitted_privacy.get("action") != "unchanged"
+    ):
+        return None
+    safe_submitted_url = str(submitted_privacy.get("external_url") or safe_final_url).strip()
+    if not safe_final_url or not safe_submitted_url:
+        return None
     normalized = dict(entry)
     normalized["status"] = "finished"
-    normalized["final_url"] = final_url
-    normalized["submitted_url"] = normalized.get("submitted_url") or normalized.get("canonical_url") or final_url
+    normalized["final_url"] = safe_final_url
+    normalized["submitted_url"] = safe_submitted_url
+    if normalized.get("canonical_url"):
+        normalized["canonical_url"] = safe_submitted_url
+    normalized["url_privacy"] = _merge_url_privacy(
+        final_privacy,
+        submitted_privacy,
+    )
     normalized["screenshot_url"] = screenshot_url
     normalized["report_url"] = report_url
     normalized["screenshot_ready"] = bool(normalized.get("screenshot_ready", bool(screenshot_url))) and bool(screenshot_url)
@@ -4930,6 +5052,12 @@ def _normalize_fast_preview_cache_entry(entry: Any) -> Optional[Dict[str, Any]]:
     final_url = str(entry.get("final_url") or "").strip()
     screenshot_path = str(entry.get("screenshot_path") or "").strip()
     if status != "ready" or not final_url or not screenshot_path or not entry.get("reachable"):
+        return None
+    final_privacy = prepare_external_url(final_url)
+    if (
+        final_privacy.get("preview_allowed") is False
+        or final_privacy.get("action") != "unchanged"
+    ):
         return None
     if not _urlscan_preview_cache_is_fresh(entry):
         return None
@@ -5035,6 +5163,15 @@ def _save_urlscan_preview_cache(entry: Dict[str, Any]) -> None:
     screenshot_url = str(entry.get("screenshot_url") or "").strip()
     screenshot_ready = bool(entry.get("screenshot_ready", bool(screenshot_url))) and bool(screenshot_url)
     if not final_url or not report_url:
+        return
+    final_privacy = prepare_external_url(final_url)
+    submitted_privacy = prepare_external_url(submitted_url or final_url)
+    if (
+        final_privacy.get("preview_allowed") is False
+        or final_privacy.get("action") != "unchanged"
+        or submitted_privacy.get("preview_allowed") is False
+        or submitted_privacy.get("action") != "unchanged"
+    ):
         return
     hostname = (urllib.parse.urlparse(final_url).hostname or "").lower()
     lookup_urls = [final_url]
@@ -5349,27 +5486,49 @@ def _sync_resolved_urls_with_urlscan_final(job: Dict[str, Any]) -> None:
     final_url = str(urlscan_summary.get("final_url") or preview.get("final_url") or "").strip()
     if not final_url:
         return
+    final_privacy = prepare_external_url(final_url)
+    safe_final_url = str(final_privacy.get("external_url") or "").strip()
+    if not safe_final_url:
+        return
+    if isinstance(urlscan_summary, dict) and urlscan_summary.get("final_url"):
+        urlscan_summary["final_url"] = safe_final_url
+    if isinstance(preview, dict) and preview.get("final_url"):
+        preview["final_url"] = safe_final_url
 
-    parsed = urllib.parse.urlparse(final_url)
+    parsed = urllib.parse.urlparse(safe_final_url)
     final_hostname = (parsed.hostname or "").lower()
     final_registered_domain = _extract_domain_root(final_hostname)
     resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
     if not resolved_urls:
-        original_url = (job.get("urls") or [final_url])[0] if isinstance(job.get("urls"), list) and job.get("urls") else final_url
+        original_url = (
+            (job.get("urls") or [safe_final_url])[0]
+            if isinstance(job.get("urls"), list) and job.get("urls")
+            else safe_final_url
+        )
         resolved_urls = [{"url": original_url, "original_url": original_url}]
         job["resolved_urls"] = resolved_urls
     if resolved_urls:
         entry = resolved_urls[0]
         if isinstance(entry, dict):
-            entry["final_url"] = final_url
+            entry["final_url"] = safe_final_url
             entry["final_hostname"] = final_hostname
             entry["final_registered_domain"] = final_registered_domain
+            entry["url_privacy"] = _merge_url_privacy(
+                entry.get("url_privacy") if isinstance(entry.get("url_privacy"), dict) else None,
+                final_privacy,
+            )
             if not entry.get("hostname"):
                 original_url = str(entry.get("url") or entry.get("original_url") or "")
                 entry["hostname"] = (urllib.parse.urlparse(original_url).hostname or "").lower()
             if not entry.get("registered_domain"):
                 entry["registered_domain"] = _extract_domain_root(entry.get("hostname"))
-    job["primary_final_url"] = final_url
+    job["primary_final_url"] = safe_final_url
+    job["primary_url_privacy"] = _merge_url_privacy(
+        job.get("primary_url_privacy")
+        if isinstance(job.get("primary_url_privacy"), dict)
+        else None,
+        final_privacy,
+    )
     extra_fields = job.setdefault("extra_fields", {})
     if isinstance(extra_fields, dict):
         extra_fields["resolved_urls"] = resolved_urls
@@ -5739,6 +5898,58 @@ def _select_primary_resolved_url(resolved_urls: List[Dict[str, Any]], analysis: 
     return max(resolved_urls, key=suspicion_score)
 
 
+def _apply_primary_resolved_url(
+    job: Dict[str, Any],
+    primary_entry: Optional[Dict[str, Any]],
+) -> Optional[str]:
+    primary_final_url = None
+    if isinstance(primary_entry, dict):
+        primary_final_url = (
+            primary_entry.get("final_url")
+            or primary_entry.get("url")
+            or primary_entry.get("original_url")
+        )
+        job["primary_url_privacy"] = _merge_url_privacy(
+            job.get("primary_url_privacy")
+            if isinstance(job.get("primary_url_privacy"), dict)
+            else None,
+            primary_entry.get("url_privacy")
+            if isinstance(primary_entry.get("url_privacy"), dict)
+            else None,
+        )
+    job["primary_final_url"] = primary_final_url
+    preview = job.setdefault("preview", {})
+    if isinstance(preview, dict):
+        preview["final_url"] = primary_final_url
+    return primary_final_url
+
+
+def _sanitize_urlscan_result_payload(result: Dict[str, Any]) -> Dict[str, Any]:
+    sanitized = dict(result if isinstance(result, dict) else {})
+    final_url = sanitized.get("final_url")
+    if not isinstance(final_url, str) or not final_url.strip():
+        return sanitized
+    privacy = prepare_external_url(final_url)
+    sanitized["final_url"] = privacy.get("external_url")
+    sanitized["url_privacy"] = _merge_url_privacy(
+        sanitized.get("url_privacy")
+        if isinstance(sanitized.get("url_privacy"), dict)
+        else None,
+        privacy,
+    )
+    if (
+        sanitized["url_privacy"].get("preview_allowed") is False
+        or sanitized["url_privacy"].get("action") != "unchanged"
+    ):
+        sanitized["url_privacy"]["preview_allowed"] = False
+        sanitized["report_url"] = None
+        sanitized["result_url"] = None
+        sanitized["screenshot_url"] = None
+        sanitized["screenshot_ready"] = False
+        sanitized["privacy_blocked_preview"] = True
+    return sanitized
+
+
 def _urlscan_provider_payload(summary: Dict[str, Any]) -> Dict[str, Any]:
     verdict = str(summary.get("verdict") or "").strip()
     severity = str(summary.get("severity") or "unknown").strip().lower()
@@ -6031,6 +6242,28 @@ async def _submit_orchestrated_urlscan(
 
 async def _submit_orchestrated_urlscan_preview_once(job: Dict[str, Any], request: Request) -> Dict[str, Any]:
     primary_final_url = job.get("primary_final_url")
+    primary_url_privacy = (
+        job.get("primary_url_privacy")
+        if isinstance(job.get("primary_url_privacy"), dict)
+        else {}
+    )
+    if primary_final_url and primary_url_privacy.get("preview_allowed") is False:
+        job["urlscan"] = {
+            "status": "skipped",
+            "details": "Preview omis pentru a proteja datele sensibile din URL.",
+        }
+        preview = job.setdefault("preview", {})
+        preview["status"] = "unavailable"
+        preview["source"] = None
+        preview["image_url"] = None
+        preview["screenshot_url"] = None
+        preview["report_url"] = None
+        preview["reason"] = "privacy_protected_url"
+        _set_orchestrated_stage(job, "urlscan_submitted")
+        job = _persist_orchestrated_job(job)
+        _emit_orchestrated_telemetry("orchestrated_urlscan_privacy_skipped", job)
+        return job
+
     urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
     urlscan_status = str(urlscan_state.get("status") or "").strip().lower()
     if primary_final_url and urlscan_status in {"queued", "", "skipped"}:
@@ -6187,14 +6420,42 @@ def _build_orchestrated_text_context(payload: OrchestratedScanRequest) -> Dict[s
 
 async def _create_orchestrated_job(payload: OrchestratedScanRequest) -> Dict[str, Any]:
     context = _build_orchestrated_text_context(payload)
-    redacted_text = redact_pii(context["raw_text"])
+    raw_urls = [str(url) for url in (context.get("urls") or []) if str(url).strip()]
+    urls, url_privacy = prepare_external_urls(raw_urls)
+    privacy_by_hash = {entry["input_url_hash"]: entry for entry in url_privacy}
+    privacy_by_external_url = {
+        str(entry.get("external_url")): entry
+        for entry in url_privacy
+        if entry.get("external_url")
+    }
+
+    privacy_safe_text = str(context["raw_text"])
+    for raw_url in raw_urls:
+        privacy_entry = privacy_by_hash.get(hashlib.sha256(raw_url.encode("utf-8")).hexdigest(), {})
+        safe_url = str(privacy_entry.get("external_url") or "")
+        privacy_safe_text = privacy_safe_text.replace(raw_url, safe_url)
+    redacted_text = redact_pii(privacy_safe_text)
     scan_id = _new_scan_id("orch")
-    urls = list(context.get("urls") or [])
     extra_fields = dict(context.get("extra_fields") or {})
+    for key in ("input_url", "canonical_url"):
+        if isinstance(extra_fields.get(key), str):
+            extra_fields[key] = prepare_external_url(extra_fields[key]).get("external_url")
+    if isinstance(extra_fields.get("buttons"), list):
+        sanitized_buttons = []
+        for button in extra_fields["buttons"]:
+            sanitized_button = dict(button) if isinstance(button, dict) else {}
+            button_url = sanitized_button.get("original_url")
+            if isinstance(button_url, str):
+                entry = prepare_external_url(button_url)
+                sanitized_button["original_url"] = entry.get("external_url")
+                sanitized_button["url_privacy_action"] = entry.get("action")
+            sanitized_buttons.append(sanitized_button)
+        extra_fields["buttons"] = sanitized_buttons
     extra_fields.update(
         {
             "resolved_urls": [],
             "orchestrated": True,
+            "url_privacy": url_privacy,
         }
     )
     job = {
@@ -6210,6 +6471,11 @@ async def _create_orchestrated_job(payload: OrchestratedScanRequest) -> Dict[str
         "analysis": {},
         "resolved_urls": [],
         "primary_final_url": None,
+        "primary_url_privacy": (
+            privacy_by_external_url.get(urls[0], {})
+            if len(urls) == 1
+            else {}
+        ),
         "claim_verifier_required": False,
         "urlscan": (
             {"status": "queued", "details": "urlscan preview asteapta rezolvarea URL-ului."}
@@ -6256,6 +6522,12 @@ async def _run_orchestrated_fast_lane(job: Dict[str, Any], request: Request) -> 
         job,
         "fast_lane.resolve_urls",
         lambda: _safe_scan_url_list([str(url) for url in urls if str(url).strip()]),
+    )
+    resolved_urls = _attach_initial_url_privacy(
+        resolved_urls,
+        job.get("extra_fields", {}).get("url_privacy")
+        if isinstance(job.get("extra_fields"), dict)
+        else None,
     )
     job["resolved_urls"] = resolved_urls
     job.setdefault("extra_fields", {})["resolved_urls"] = resolved_urls
@@ -6370,15 +6642,10 @@ async def _run_orchestrated_fast_lane(job: Dict[str, Any], request: Request) -> 
         "fast_lane.primary_url_picker",
         lambda: _select_primary_resolved_url(resolved_urls, analysis),
     )
-    primary_final_url = None
-    if primary_entry:
-        primary_final_url = primary_entry.get("final_url") or primary_entry.get("url") or primary_entry.get("original_url")
 
     job["analysis"] = analysis
     job["claim_verifier_required"] = claim_required
-    job["primary_final_url"] = primary_final_url
-    preview = job.setdefault("preview", {})
-    preview["final_url"] = primary_final_url
+    primary_final_url = _apply_primary_resolved_url(job, primary_entry)
     if primary_final_url:
         job = _apply_best_preview_cache_hit(job, primary_final_url)
     next_stage = "analysis_ready" if _has_bad_provider_verdict(summary) else "semantic_ready"
@@ -6660,13 +6927,8 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
         )
         summary = _external_intel_summary_from_threat_intel(threat_intel)
         primary_entry = _select_primary_resolved_url(resolved_urls, {"claimed_brand": "Nespecificat"})
-        primary_final_url = None
-        if primary_entry:
-            primary_final_url = primary_entry.get("final_url") or primary_entry.get("url") or primary_entry.get("original_url")
         job["threat_intel"] = threat_intel
-        job["primary_final_url"] = primary_final_url
-        preview = job.setdefault("preview", {})
-        preview["final_url"] = primary_final_url
+        _apply_primary_resolved_url(job, primary_entry)
 
         if _has_bad_provider_verdict(summary):
             analysis = _provider_reputation_context_analysis(redacted_text, resolved_urls, summary)
@@ -6737,15 +6999,10 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
         claim_required = _claim_verifier_required(analysis)
 
         primary_entry = _select_primary_resolved_url(resolved_urls, analysis)
-        primary_final_url = None
-        if primary_entry:
-            primary_final_url = primary_entry.get("final_url") or primary_entry.get("url") or primary_entry.get("original_url")
 
         job["analysis"] = analysis
         job["claim_verifier_required"] = claim_required
-        job["primary_final_url"] = primary_final_url
-        preview = job.setdefault("preview", {})
-        preview["final_url"] = primary_final_url
+        _apply_primary_resolved_url(job, primary_entry)
         _set_orchestrated_stage(job, "semantic_ready")
         job = _persist_orchestrated_job(job)
         _emit_orchestrated_telemetry("orchestrated_stage_semantic_ready", job, claim_required=claim_required)
@@ -6887,6 +7144,12 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
             result = None
         if result is not None:
             if str(result.get("status") or "").lower() != "pending":
+                result = _sanitize_urlscan_result_payload(result)
+                result_privacy = (
+                    result.get("url_privacy")
+                    if isinstance(result.get("url_privacy"), dict)
+                    else {}
+                )
                 urlscan_state.update(result)
                 urlscan_state["screenshot_ready"] = False
                 urlscan_state["status"] = "finished"
@@ -6895,31 +7158,52 @@ async def _refresh_orchestrated_job(job: Dict[str, Any], request: Request) -> Di
                 preview = job.setdefault("preview", {})
                 preview["report_url"] = result.get("report_url") or preview.get("report_url")
                 preview["final_url"] = result.get("final_url") or preview.get("final_url")
-                has_ready_visual = preview.get("status") == "ready" and bool(
-                    preview.get("image_url") or preview.get("screenshot_url")
-                )
-                if not has_ready_visual:
-                    preview["status"] = "pending"
-                    preview["source"] = "urlscan"
+                if result_privacy.get("preview_allowed") is False:
+                    preview["status"] = "unavailable"
+                    preview["source"] = None
+                    preview["report_url"] = None
                     preview["screenshot_url"] = None
                     preview["image_url"] = None
-                    preview["reason"] = "urlscan_screenshot_pending"
-                cache_entry = _urlscan_preview_cache_entry_from_job(job)
-                if cache_entry:
-                    _save_urlscan_preview_cache(cache_entry)
+                    preview["reason"] = "privacy_protected_url"
+                else:
+                    has_ready_visual = preview.get("status") == "ready" and bool(
+                        preview.get("image_url") or preview.get("screenshot_url")
+                    )
+                    if not has_ready_visual:
+                        preview["status"] = "pending"
+                        preview["source"] = "urlscan"
+                        preview["screenshot_url"] = None
+                        preview["image_url"] = None
+                        preview["reason"] = "urlscan_screenshot_pending"
+                    cache_entry = _urlscan_preview_cache_entry_from_job(job)
+                    if cache_entry:
+                        _save_urlscan_preview_cache(cache_entry)
                 if result.get("final_url"):
                     job["primary_final_url"] = result.get("final_url")
+                    job["primary_url_privacy"] = _merge_url_privacy(
+                        job.get("primary_url_privacy")
+                        if isinstance(job.get("primary_url_privacy"), dict)
+                        else None,
+                        result_privacy,
+                    )
                     resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
                     if resolved_urls:
                         resolved_urls[0]["final_url"] = result.get("final_url")
                         resolved_urls[0]["final_hostname"] = urllib.parse.urlparse(str(result.get("final_url"))).hostname
                         resolved_urls[0]["final_registered_domain"] = _extract_domain_root(resolved_urls[0].get("final_hostname"))
+                        resolved_urls[0]["url_privacy"] = _merge_url_privacy(
+                            resolved_urls[0].get("url_privacy")
+                            if isinstance(resolved_urls[0].get("url_privacy"), dict)
+                            else None,
+                            result_privacy,
+                        )
 
                 analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
                 evidence = analysis.setdefault("evidence", {})
                 summary = evidence.setdefault("external_intel_summary", {})
                 if isinstance(summary, dict):
                     summary["urlscan"] = _urlscan_provider_payload(result)
+                _sync_resolved_urls_with_urlscan_final(job)
             elif _urlscan_pending_has_timed_out(job):
                 urlscan_state["status"] = "timeout"
                 _increment_orchestrated_metric(job, "urlscan_timeout_count")

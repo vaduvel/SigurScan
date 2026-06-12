@@ -36,7 +36,7 @@ from services.telemetry import (
     summarize_feedback_records,
     summarize_feedback_trend,
 )
-from services import redirect_resolver, scam_atlas, supabase_store, url_reputation
+from services import gemini_explainer, redirect_resolver, scam_atlas, supabase_store, url_reputation
 from services.tier1_classifier import Tier1Classifier
 from services import google_web_risk
 from eval.evaluate import run_threshold_sweep
@@ -125,6 +125,556 @@ def test_pii_redaction():
     assert "[OTP_REDACTED]" in redacted
     assert "492-385" not in redacted
     print("  - OTP: PASS")
+
+
+def test_orchestrated_job_removes_sensitive_url_query_values_before_persisting(monkeypatch):
+    raw_url = (
+        "https://example.com/offer?campaign=summer"
+        "&email=popescu.ion%40gmail.com"
+        "&phone=0722123456"
+        "&otp=4346"
+        "&session=0123456789abcdef0123456789abcdef"
+        "&ref=public"
+    )
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        job = asyncio.run(
+            app_main._create_orchestrated_job(
+                app_main.OrchestratedScanRequest(
+                    input_type="text",
+                    text=f"Verifică oferta aici: {raw_url}",
+                    source_channel="android_native",
+                )
+            )
+        )
+
+    serialized = json.dumps(job, ensure_ascii=False)
+    assert job["urls"] == ["https://example.com/offer?campaign=summer&ref=public"]
+    assert job["extra_fields"]["url_privacy"][0]["action"] == "sanitized"
+    assert set(job["extra_fields"]["url_privacy"][0]["removed_query_params"]) == {
+        "email",
+        "phone",
+        "otp",
+        "session",
+    }
+    assert "popescu.ion" not in serialized
+    assert "0722123456" not in serialized
+    assert "4346" not in serialized
+    assert "0123456789abcdef" not in serialized
+
+
+def test_orchestrated_job_uses_origin_only_and_blocks_preview_when_path_contains_pii(monkeypatch):
+    raw_url = "https://example.com/reset/popescu.ion@gmail.com?ref=public"
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        job = asyncio.run(
+            app_main._create_orchestrated_job(
+                app_main.OrchestratedScanRequest(
+                    input_type="text",
+                    text=f"Continuă aici: {raw_url}",
+                    source_channel="android_native",
+                )
+            )
+        )
+
+    serialized = json.dumps(job, ensure_ascii=False)
+    assert job["urls"] == ["https://example.com/"]
+    assert job["extra_fields"]["url_privacy"][0]["action"] == "origin_only"
+    assert job["extra_fields"]["url_privacy"][0]["preview_allowed"] is False
+    assert "popescu.ion" not in serialized
+
+
+def test_orchestrated_job_uses_origin_only_for_opaque_token_in_path(monkeypatch):
+    token = "0123456789abcdef0123456789abcdef"
+    raw_url = f"https://example.com/reset/{token}?ref=public"
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        job = asyncio.run(
+            app_main._create_orchestrated_job(
+                app_main.OrchestratedScanRequest(
+                    input_type="text",
+                    text=f"Continuă aici: {raw_url}",
+                    source_channel="android_native",
+                )
+            )
+        )
+
+    serialized = json.dumps(job, ensure_ascii=False)
+    assert job["urls"] == ["https://example.com/"]
+    assert job["extra_fields"]["url_privacy"][0]["action"] == "origin_only"
+    assert job["extra_fields"]["url_privacy"][0]["reason"] == "secret_in_path"
+    assert job["extra_fields"]["url_privacy"][0]["preview_allowed"] is False
+    assert token not in serialized
+
+
+def test_orchestrated_job_removes_url_credentials_and_blocks_preview(monkeypatch):
+    raw_url = "https://user:password@example.com/account?ref=public"
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        job = asyncio.run(
+            app_main._create_orchestrated_job(
+                app_main.OrchestratedScanRequest(
+                    input_type="text",
+                    text=f"Continuă aici: {raw_url}",
+                    source_channel="android_native",
+                )
+            )
+        )
+
+    serialized = json.dumps(job, ensure_ascii=False)
+    assert job["urls"] == ["https://example.com/account?ref=public"]
+    assert job["extra_fields"]["url_privacy"][0]["action"] == "sanitized"
+    assert job["extra_fields"]["url_privacy"][0]["reason"] == "url_credentials_removed"
+    assert job["extra_fields"]["url_privacy"][0]["preview_allowed"] is False
+    assert "user:password" not in serialized
+
+
+@pytest.mark.parametrize(
+    "public_url",
+    [
+        "https://apps.apple.com/us/app/yoxo-voce-internet-roaming/id1481946568",
+        (
+            "https://bilete.sublime.ro/"
+            "bilete-timisoara-stand-up-comedy-cu-dan-badea-domnu-danut-ora-21-00-119514/"
+        ),
+    ],
+)
+def test_orchestrated_job_keeps_public_slug_and_catalog_id_paths(public_url, monkeypatch):
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        job = asyncio.run(
+            app_main._create_orchestrated_job(
+                app_main.OrchestratedScanRequest(
+                    input_type="text",
+                    text=f"Vezi detalii aici: {public_url}",
+                    source_channel="android_native",
+                )
+            )
+        )
+
+    assert [url.rstrip("/") for url in job["urls"]] == [public_url.rstrip("/")]
+    assert job["extra_fields"]["url_privacy"][0]["action"] == "unchanged"
+    assert job["extra_fields"]["url_privacy"][0]["preview_allowed"] is True
+
+
+def test_orchestrated_urlscan_does_not_submit_origin_only_privacy_target(monkeypatch):
+    job = {
+        "scan_id": "orch_privacy_origin_only",
+        "pipeline_stage": "analysis_ready",
+        "input_type": "text",
+        "source_channel": "android_native",
+        "primary_final_url": "https://example.com/",
+        "primary_url_privacy": {
+            "action": "origin_only",
+            "preview_allowed": False,
+            "reason": "pii_in_path",
+        },
+        "urlscan": {"status": "queued"},
+        "preview": {"status": "pending", "final_url": "https://example.com/"},
+        "sandbox_options": {},
+        "orchestration_metrics": {"poll_count": 0, "stage_sequence": [], "stage_durations_ms": {}},
+    }
+
+    async def fail_submit(*args, **kwargs):
+        raise AssertionError("Privacy-blocked targets must never be submitted to urlscan.")
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "_submit_orchestrated_urlscan", fail_submit)
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main._submit_orchestrated_urlscan_preview_once(job, None))
+
+    assert refreshed["urlscan"]["status"] == "skipped"
+    assert refreshed["preview"]["status"] == "unavailable"
+    assert refreshed["preview"]["reason"] == "privacy_protected_url"
+
+
+def test_safe_scan_url_list_sanitizes_redirect_output_before_provider_use(monkeypatch):
+    token = "0123456789abcdef0123456789abcdef"
+    final_url = f"https://destination.example/pay?session={token}&ref=public"
+
+    def fake_resolve(url):
+        return {
+            "original_url": url,
+            "final_url": final_url,
+            "final_hostname": "destination.example",
+            "final_registered_domain": "destination.example",
+            "redirect_chain": [
+                {"url": url, "status_code": 302},
+                {"url": final_url, "status_code": 200},
+            ],
+            "detected_soft_redirects": [final_url],
+            "success": True,
+        }
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "resolve_redirects_safely", fake_resolve)
+        result = app_main._safe_scan_url_list(["https://short.example/go"])[0]
+
+    serialized = json.dumps(result, ensure_ascii=False)
+    assert result["final_url"] == "https://destination.example/pay?ref=public"
+    assert result["url_privacy"]["action"] == "sanitized"
+    assert result["redirect_chain"][-1]["url"] == "https://destination.example/pay?ref=public"
+    assert result["detected_soft_redirects"] == ["https://destination.example/pay?ref=public"]
+    assert token not in serialized
+
+
+def test_safe_scan_url_list_does_not_log_sensitive_redirect_exception(monkeypatch, caplog):
+    token = "0123456789abcdef0123456789abcdef"
+    sensitive_url = f"https://destination.example/reset/{token}"
+
+    def fail_resolve(url):
+        raise RuntimeError(f"Redirect failed at {sensitive_url}")
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "resolve_redirects_safely", fail_resolve)
+        result = app_main._safe_scan_url_list(["https://short.example/go"])[0]
+
+    serialized = json.dumps(result, ensure_ascii=False)
+    assert result["error_message"] == "Redirect failed at https://destination.example/"
+    assert token not in serialized
+    assert token not in caplog.text
+
+
+def test_attach_initial_url_privacy_preserves_origin_only_after_resolution():
+    resolved_urls = [
+        {
+            "original_url": "https://example.com/",
+            "final_url": "https://example.com/",
+            "success": True,
+        }
+    ]
+    initial_privacy = [
+        {
+            "external_url": "https://example.com/",
+            "action": "origin_only",
+            "reason": "pii_in_path",
+            "removed_query_params": ["ref"],
+            "preview_allowed": False,
+        }
+    ]
+
+    result = app_main._attach_initial_url_privacy(resolved_urls, initial_privacy)
+
+    assert result[0]["url_privacy"]["action"] == "origin_only"
+    assert result[0]["url_privacy"]["reason"] == "pii_in_path"
+    assert result[0]["url_privacy"]["preview_allowed"] is False
+
+
+def test_sync_resolved_urls_with_urlscan_final_scrubs_sensitive_url_data():
+    token = "0123456789abcdef0123456789abcdef"
+    raw_final_url = f"https://destination.example/offer?session={token}&ref=public"
+    job = {
+        "urls": ["https://short.example/go"],
+        "resolved_urls": [
+            {
+                "url": "https://short.example/go",
+                "original_url": "https://short.example/go",
+                "final_url": "https://short.example/go",
+                "url_privacy": {
+                    "action": "unchanged",
+                    "reason": None,
+                    "removed_query_params": [],
+                    "preview_allowed": True,
+                },
+            }
+        ],
+        "analysis": {
+            "evidence": {
+                "external_intel_summary": {
+                    "urlscan": {
+                        "status": "clean",
+                        "final_url": raw_final_url,
+                    }
+                }
+            }
+        },
+        "preview": {"final_url": raw_final_url},
+        "extra_fields": {},
+    }
+
+    app_main._sync_resolved_urls_with_urlscan_final(job)
+
+    serialized = json.dumps(job, ensure_ascii=False)
+    safe_final_url = "https://destination.example/offer?ref=public"
+    assert job["primary_final_url"] == safe_final_url
+    assert job["preview"]["final_url"] == safe_final_url
+    assert (
+        job["analysis"]["evidence"]["external_intel_summary"]["urlscan"]["final_url"]
+        == safe_final_url
+    )
+    assert job["resolved_urls"][0]["final_url"] == safe_final_url
+    assert token not in serialized
+
+
+def test_sanitize_urlscan_result_payload_scrubs_final_url_before_cache():
+    token = "0123456789abcdef0123456789abcdef"
+    result = {
+        "status": "finished",
+        "final_url": f"https://destination.example/offer?session={token}&ref=public",
+        "report_url": "https://urlscan.io/result/example/",
+        "screenshot_url": "https://urlscan.io/screenshots/example.png",
+    }
+
+    sanitized = app_main._sanitize_urlscan_result_payload(result)
+
+    assert sanitized["final_url"] == "https://destination.example/offer?ref=public"
+    assert sanitized["url_privacy"]["action"] == "sanitized"
+    assert sanitized["url_privacy"]["preview_allowed"] is False
+    assert sanitized["report_url"] is None
+    assert sanitized["screenshot_url"] is None
+    assert sanitized["privacy_blocked_preview"] is True
+    assert token not in json.dumps(sanitized, ensure_ascii=False)
+
+
+def test_sanitize_urlscan_result_payload_blocks_preview_for_pii_path():
+    result = {
+        "status": "finished",
+        "final_url": "https://destination.example/reset/popescu.ion@gmail.com",
+        "report_url": "https://urlscan.io/result/example/",
+        "screenshot_url": "https://urlscan.io/screenshots/example.png",
+    }
+
+    sanitized = app_main._sanitize_urlscan_result_payload(result)
+
+    assert sanitized["final_url"] == "https://destination.example/"
+    assert sanitized["url_privacy"]["action"] == "origin_only"
+    assert sanitized["url_privacy"]["preview_allowed"] is False
+    assert "popescu.ion" not in json.dumps(sanitized, ensure_ascii=False)
+
+
+def test_external_intel_sanitizes_urls_at_provider_boundary(monkeypatch):
+    captured: dict[str, Any] = {}
+    token = "0123456789abcdef0123456789abcdef"
+    raw_url = f"https://example.com/pay?session={token}&ref=public"
+
+    def fake_get_reputation_for_urls(urls, **kwargs):
+        captured["urls"] = urls
+        captured["kwargs"] = kwargs
+        return {"summary": {"providers": []}}
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
+        patched.setattr(app_main, "get_reputation_for_urls", fake_get_reputation_for_urls)
+        app_main._gather_external_intel(
+            [{"final_url": raw_url}],
+            include_phishing_database=True,
+            include_urlhaus=True,
+            persist_partial=True,
+        )
+
+    serialized = json.dumps(captured, ensure_ascii=False)
+    assert captured["urls"] == ["https://example.com/pay?ref=public"]
+    assert token not in serialized
+
+
+def test_mistral_semantic_boundary_redacts_text_and_sanitizes_urls(monkeypatch):
+    captured: dict[str, Any] = {}
+    email = "popescu.ion@gmail.com"
+    token = "0123456789abcdef0123456789abcdef"
+    raw_url = f"https://example.com/pay?session={token}&ref=public"
+
+    def fake_mistral(payload):
+        captured["payload"] = payload
+        return {
+            "risk_class": "medium",
+            "claim_matches_known_scam_family": False,
+            "reason_codes": ["semantic_context"],
+            "confidence": 0.4,
+        }
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
+        patched.setattr(app_main, "ENABLE_MISTRAL_SEMANTIC_PILLAR", True)
+        patched.setattr(app_main, "MISTRAL_SEMANTIC_API_KEY", "test-key")
+        patched.setattr(app_main, "_call_mistral_semantic_review", fake_mistral)
+        asyncio.run(
+            app_main._enrich_semantic_review_async(
+                f"Salut {email}, confirma aici {raw_url}",
+                {"claimed_brand": "Example", "evidence": {}},
+                [{"final_url": raw_url, "success": True}],
+            )
+        )
+
+    serialized = json.dumps(captured["payload"], ensure_ascii=False)
+    assert email not in serialized
+    assert token not in serialized
+    assert "https://example.com/pay?ref=public" in serialized
+
+
+def test_offer_claim_boundary_redacts_text_and_sanitizes_urls(monkeypatch):
+    captured: dict[str, Any] = {}
+    email = "popescu.ion@gmail.com"
+    token = "0123456789abcdef0123456789abcdef"
+    raw_url = f"https://example.com/promo?auth_token={token}&utm_campaign=summer"
+
+    def fake_verify_offer_claim(text, analysis, resolved_urls, **kwargs):
+        captured["text"] = text
+        captured["resolved_urls"] = resolved_urls
+        return {"status": "skipped", "reason": "test"}
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
+        patched.setattr(app_main, "AI_OFFER_CLAIM_TIMEOUT_SECONDS", 1.0)
+        patched.setattr(app_main, "verify_offer_claim", fake_verify_offer_claim)
+        result = asyncio.run(
+            app_main._enrich_offer_claim_verification_async(
+                f"Oferta pentru {email}: {raw_url}",
+                {"claimed_brand": "Example"},
+                [{"final_url": raw_url, "success": True}],
+            )
+        )
+
+    serialized = json.dumps({"captured": captured, "result": result}, ensure_ascii=False)
+    assert email not in serialized
+    assert token not in serialized
+    assert "https://example.com/promo?utm_campaign=summer" in serialized
+
+
+def test_ai_explanation_boundary_redacts_text_and_sanitizes_urls(monkeypatch):
+    captured: dict[str, Any] = {}
+    email = "popescu.ion@gmail.com"
+    token = "0123456789abcdef0123456789abcdef"
+    raw_url = f"https://example.com/login?session={token}&ref=public"
+
+    def fake_generate_ai_explanation(text, analysis, resolved_urls):
+        captured["text"] = text
+        captured["resolved_urls"] = resolved_urls
+        return {"summary": "ok", "recommendation": "test"}
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
+        patched.setattr(app_main, "ENABLE_CLOUD_AI_EXPLANATION", True)
+        patched.setattr(app_main, "AI_EXPLANATION_TIMEOUT_SECONDS", 1.0)
+        patched.setattr(app_main, "generate_ai_explanation", fake_generate_ai_explanation)
+        asyncio.run(
+            app_main._build_ai_explanation_async(
+                f"Verifica {email} aici {raw_url}",
+                {"claimed_brand": "Example"},
+                [{"final_url": raw_url, "success": True}],
+            )
+        )
+
+    serialized = json.dumps(captured, ensure_ascii=False)
+    assert email not in serialized
+    assert token not in serialized
+    assert "https://example.com/login?ref=public" in serialized
+
+
+def test_shadow_adjudication_boundary_redacts_bundle(monkeypatch):
+    captured: dict[str, Any] = {}
+    email = "popescu.ion@gmail.com"
+    token = "0123456789abcdef0123456789abcdef"
+    raw_url = f"https://example.com/reset/{email}?session={token}"
+
+    def fake_log_scan_event(*args, **kwargs):
+        return None
+
+    def fake_shadow_adjudication(**kwargs):
+        captured["bundle"] = kwargs.get("evidence")
+        return None
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
+        patched.setattr(app_main, "log_scan_event", fake_log_scan_event)
+        patched.setattr(app_main, "maybe_run_shadow_adjudication", fake_shadow_adjudication)
+        app_main._emit_scan_event(
+            scan_id="privacy-shadow-test",
+            scan_payload={
+                "scan_id": "privacy-shadow-test",
+                "redacted_text": f"Salut {email}, intra aici {raw_url}",
+                "user_risk_label": "SUSPECT",
+                "is_final": True,
+                "processing_time_ms": 1,
+            },
+            analysis={"claimed_brand": "Example", "evidence": {}},
+            resolved_urls=[{"final_url": raw_url, "success": True}],
+            input_channel="text",
+            source_channel="android_test",
+        )
+
+    serialized = json.dumps(captured["bundle"], ensure_ascii=False)
+    assert email not in serialized
+    assert token not in serialized
+    assert "https://example.com" in serialized
+
+
+def test_offer_claim_verifier_direct_call_sanitizes_provider_inputs(monkeypatch):
+    captured: dict[str, Any] = {}
+    email = "popescu.ion@gmail.com"
+    token = "0123456789abcdef0123456789abcdef"
+    raw_url = f"https://example.com/promo?auth_token={token}&utm_campaign=summer"
+
+    def fake_fetch_page_text(url):
+        captured.setdefault("fetched_urls", []).append(url)
+        return ""
+
+    def fake_call_gemini_grounding(**kwargs):
+        captured["gemini_kwargs"] = kwargs
+        return {
+            "status": "confirmed",
+            "summary": "Oferta apare pe sursa oficiala.",
+            "evidence_urls": [raw_url],
+            "official_source_found": True,
+            "confidence": 80,
+        }
+
+    with monkeypatch.context() as patched:
+        patched.setattr(offer_claim_verifier, "ENABLE_OFFER_CLAIM_WEB_CHECK", True)
+        patched.setattr(offer_claim_verifier, "_gemini_api_key_candidates", lambda: ["test-key"])
+        patched.setattr(offer_claim_verifier, "_fetch_page_text", fake_fetch_page_text)
+        patched.setattr(offer_claim_verifier, "_call_gemini_grounding", fake_call_gemini_grounding)
+        result = offer_claim_verifier.verify_offer_claim(
+            f"Oferta pentru {email}: {raw_url}",
+            {"claimed_brand": "Example"},
+            [{"final_url": raw_url, "success": True}],
+            brand_registry={"Example": ["example.com"]},
+        )
+
+    serialized = json.dumps({"captured": captured, "result": result}, ensure_ascii=False)
+    assert email not in serialized
+    assert token not in serialized
+    assert "https://example.com/promo?utm_campaign=summer" in serialized
+
+
+def test_gemini_explainer_direct_call_sanitizes_prompt_before_provider(monkeypatch):
+    captured: dict[str, Any] = {}
+    email = "popescu.ion@gmail.com"
+    token = "0123456789abcdef0123456789abcdef"
+    raw_url = f"https://example.com/login?session={token}&ref=public"
+
+    def fake_mistral(prompt):
+        captured["prompt"] = prompt
+        return {
+            "verdict_summary": "ok",
+            "explanation": "ok",
+            "offer_analysis": "ok",
+            "key_dangers": [],
+            "safe_actions": [],
+        }
+
+    with monkeypatch.context() as patched:
+        patched.setattr(gemini_explainer, "AI_EXPLAINER_PROVIDER", "mistral")
+        patched.setattr(gemini_explainer, "_call_mistral", fake_mistral)
+        result = gemini_explainer.generate_ai_explanation(
+            f"Verifica {email} aici {raw_url}",
+            {"risk_score": 10, "risk_level": "low", "reasons": []},
+            [{"original_url": raw_url, "final_url": raw_url, "final_registered_domain": "example.com"}],
+        )
+
+    serialized = json.dumps({"captured": captured, "result": result}, ensure_ascii=False)
+    assert email not in serialized
+    assert token not in serialized
+    assert "https://example.com/login?ref=public" in serialized
 
 
 def test_extract_urls_keeps_link_when_phone_period_is_adjacent_to_https():
@@ -2373,6 +2923,55 @@ def test_orchestrated_resolved_stage_collects_fast_reputation_without_urlhaus(mo
     ]
 
 
+def test_orchestrated_resolved_stage_preserves_primary_url_privacy(monkeypatch):
+    job = {
+        "scan_id": "orch_privacy_resolved_stage",
+        "created_at": int(time.time()),
+        "pipeline_stage": "resolved",
+        "status": "scanning",
+        "input_type": "text",
+        "source_channel": "test",
+        "urls": ["https://example.com/"],
+        "redacted_text": "Verifică pe https://example.com/",
+        "resolved_urls": [
+            {
+                "url": "https://example.com/",
+                "original_url": "https://example.com/",
+                "final_url": "https://example.com/",
+                "final_hostname": "example.com",
+                "final_registered_domain": "example.com",
+                "success": True,
+                "url_privacy": {
+                    "action": "origin_only",
+                    "reason": "pii_in_path",
+                    "removed_query_params": [],
+                    "preview_allowed": False,
+                },
+            }
+        ],
+        "analysis": {},
+        "preview": {},
+        "urlscan": {"status": "queued"},
+        "orchestration_metrics": {"poll_count": 0, "stage_sequence": [], "stage_durations_ms": {}},
+    }
+
+    with monkeypatch.context() as patched:
+        patched.setattr(
+            app_main,
+            "_gather_external_intel_safe",
+            lambda resolved_urls, *args, **kwargs: _clean_web_risk_and_phishing_database_for_resolved_urls(
+                resolved_urls
+            ),
+        )
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+
+    assert refreshed["primary_final_url"] == "https://example.com/"
+    assert refreshed["primary_url_privacy"]["action"] == "origin_only"
+    assert refreshed["primary_url_privacy"]["preview_allowed"] is False
+
+
 def test_orchestrated_urlhaus_stage_collects_urlhaus_once(monkeypatch):
     calls = []
     job = {
@@ -3235,6 +3834,64 @@ def test_urlscan_preview_cache_rewrites_legacy_screenshot_proxy_url():
         == "https://api.sigurscan.com/v1/sandbox/urlscan/legacy-cache-1/screenshot"
     )
     assert normalized["screenshot_ready"] is True
+
+
+def test_urlscan_preview_cache_rejects_legacy_entry_with_sensitive_final_path():
+    token = "0123456789abcdef0123456789abcdef"
+    row = {
+        "url_hash": "legacy-sensitive",
+        "final_url": f"https://example.com/reset/{token}",
+        "report_url": "https://urlscan.io/result/legacy-sensitive/",
+        "screenshot_url": "https://api.sigurscan.com/v1/sandbox/urlscan/legacy-sensitive/screenshot",
+        "expires_at": int(time.time()) + 3600,
+    }
+
+    normalized = app_main._normalize_urlscan_preview_cache_entry(row)
+
+    assert normalized is None
+
+
+def test_fast_preview_cache_rejects_legacy_entry_with_sensitive_final_url():
+    token = "0123456789abcdef0123456789abcdef"
+    row = {
+        "url_hash": "legacy-fast-sensitive",
+        "final_url": f"https://example.com/offer?session={token}",
+        "screenshot_path": "https://signed.example/legacy-fast-sensitive.png",
+        "reachable": True,
+        "status": "ready",
+        "visual_only": True,
+        "verdict_role": "none",
+        "expires_at": int(time.time()) + 3600,
+    }
+
+    normalized = app_main._normalize_fast_preview_cache_entry(row)
+
+    assert normalized is None
+
+
+def test_save_urlscan_preview_cache_rejects_sensitive_target(monkeypatch):
+    token = "0123456789abcdef0123456789abcdef"
+    saved = []
+    app_main._URLSCAN_PREVIEW_CACHE.clear()
+    entry = {
+        "uuid": "sensitive-cache-target",
+        "submitted_url": "https://short.example/go",
+        "final_url": f"https://example.com/offer?session={token}",
+        "report_url": "https://urlscan.io/result/sensitive-cache-target/",
+        "screenshot_url": "https://urlscan.io/screenshots/sensitive-cache-target.png",
+        "screenshot_ready": True,
+    }
+
+    with monkeypatch.context() as patched:
+        patched.setattr(
+            app_main.supabase_store,
+            "save_urlscan_preview_cache",
+            lambda cache_entry: saved.append(dict(cache_entry)),
+        )
+        app_main._save_urlscan_preview_cache(entry)
+
+    assert saved == []
+    assert app_main._URLSCAN_PREVIEW_CACHE == {}
 
 
 def test_save_urlscan_preview_cache_allows_report_only_entry(monkeypatch):
@@ -5471,6 +6128,49 @@ def test_urlscan_sandbox_submit_returns_backend_proxy_urls(monkeypatch):
     assert captured["headers"]["api-key"] == "server-only-key"
     assert captured["json"]["url"] == "https://example.com/path"
     assert captured["json"]["visibility"] == "private"
+
+
+def test_urlscan_sandbox_submit_sanitizes_sensitive_url_before_provider(monkeypatch):
+    client = TestClient(app_main.app)
+    captured = {}
+    token = "0123456789abcdef0123456789abcdef"
+
+    def fake_post(url, headers, json, timeout):
+        captured["json"] = json
+        return _FakeUrlscanResponse(payload={"uuid": "scan-sensitive"})
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "URLSCAN_API_KEY", "server-only-key")
+        patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
+        patched.setattr(app_main.requests, "post", fake_post)
+        response = client.post(
+            "/v1/sandbox/urlscan",
+            json={"url": f"https://example.com/path?session={token}&ref=public"},
+        )
+
+    assert response.status_code == 200
+    serialized = json.dumps(captured, ensure_ascii=False)
+    assert captured["json"]["url"] == "https://example.com/path?ref=public"
+    assert token not in serialized
+
+
+def test_urlscan_sandbox_rejects_privacy_blocked_path_before_provider(monkeypatch):
+    client = TestClient(app_main.app)
+
+    def fail_post(*args, **kwargs):
+        raise AssertionError("Privacy-blocked targets must not be submitted to urlscan.")
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "URLSCAN_API_KEY", "server-only-key")
+        patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
+        patched.setattr(app_main.requests, "post", fail_post)
+        response = client.post(
+            "/v1/sandbox/urlscan",
+            json={"url": "https://example.com/reset/popescu.ion@gmail.com"},
+        )
+
+    assert response.status_code == 400
+    assert "privacy" in response.json()["detail"].lower()
 
 
 def test_urlscan_sandbox_submit_accepts_scan_persona(monkeypatch):
