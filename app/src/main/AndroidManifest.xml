@@ -54,6 +54,8 @@
                 <data android:mimeType="text/html" />
                 <data android:mimeType="text/plain" />
                 <data android:mimeType="application/pdf" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="*/*" />
             </intent-filter>
 
             <intent-filter>

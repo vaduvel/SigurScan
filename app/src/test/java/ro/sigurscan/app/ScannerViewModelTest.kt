@@ -249,6 +249,7 @@ class ScannerViewModelTest {
     @Test
     fun sharedIntentMixedTextAndFilesKeepsBothEvidencePaths() {
         val activitySource = File("src/main/java/ro/sigurscan/app/MainActivity.kt").readText()
+        val plannerSource = File("src/main/java/ro/sigurscan/app/SharedIntentIntakePlanner.kt").readText()
         val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
 
         assertTrue(
@@ -260,16 +261,18 @@ class ScannerViewModelTest {
             viewModelSource.contains("preserveSharedTextState: Boolean = false")
         )
         assertTrue(
-            "ACTION_SEND with text plus streams must keep the streams queued after auto-scanning text/HTML.",
-            activitySource.contains("preservePendingFiles = sharedStreams.isNotEmpty()")
+            "MainActivity must use the same intake planner and executor for cold start and onNewIntent.",
+            activitySource.contains("buildSharedIntentIntakePlan(intent)") &&
+                activitySource.contains("executeSharedIntentIntakePlan(")
         )
         assertTrue(
-            "ACTION_SEND_MULTIPLE with text plus streams must append files without replacing the text/HTML scan.",
-            activitySource.contains("preserveSharedTextState = sharedTextPayload != null")
+            "The intake executor must stage every stream while preserving the already-staged HTML/text evidence.",
+            plannerSource.contains("plan.streams.forEach") &&
+                plannerSource.contains("preserveSharedTextState = plan.textPayload != null")
         )
         assertTrue(
-            "When ACTION_SEND_MULTIPLE contains text, the app must not auto-scan the first attachment over the text scan.",
-            activitySource.contains("if (sharedTextPayload == null && sharedStreams.size == 1)")
+            "Mixed text/files must start the text scan only after every attachment has been staged.",
+            plannerSource.indexOf("plan.streams.forEach") in 0 until plannerSource.indexOf("when (plan.autoScan)")
         )
     }
 

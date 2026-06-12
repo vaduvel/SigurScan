@@ -8,6 +8,8 @@ import android.net.Uri
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+import android.text.Html
+import android.text.Spanned
 import android.view.ViewGroup.LayoutParams
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -108,102 +110,53 @@ class MainActivity : ComponentActivity() {
 }
 
 private fun handleIncomingIntent(context: Context, intent: Intent?, viewModel: ScannerViewModel) {
-    if (intent == null) return
-
-    val sharedSubject = intent.getStringExtra(android.content.Intent.EXTRA_SUBJECT)
-    val sharedType = intent.type?.lowercase(Locale.getDefault()) ?: ""
-    val sharedTextPayload = resolveSharedTextPayload(intent)
-    val sharedStreams = collectSharedStreamUris(intent)
-
-    if (intent.action == android.content.Intent.ACTION_VIEW && isDeepLinkScanIntent(intent)) {
-        val scanData = resolveDeepLinkScanText(intent)
-        if (!scanData.isNullOrBlank()) {
-            viewModel.text = scanData
-        }
-        viewModel.currentTab = "scan"
-        return
-    }
-
-    if (intent.action == android.content.Intent.ACTION_SEND) {
-        when {
-            sharedTextPayload != null -> {
+    val plan = buildSharedIntentIntakePlan(intent)
+    executeSharedIntentIntakePlan(
+        plan = plan,
+        sink = object : SharedIntentIntakeSink {
+            override fun clear() {
                 viewModel.clearAllPendingShared()
-                viewModel.stageSharedTextPayload(
-                    payload = sharedTextPayload.text,
-                    sourceLabel = sharedTextPayload.sourceLabel,
-                    preserveHtml = sharedTextPayload.preserveHtml,
-                    autoScan = true,
-                    fidelity = sharedTextPayload.fidelity,
-                    preservePendingFiles = sharedStreams.isNotEmpty()
-                )
-                sharedStreams.forEach { stream ->
-                    val sourceLabel = sourceLabelForSharedUri(context, stream, sharedType)
-                    viewModel.stageSharedFile(
-                        uri = stream,
-                        context = context,
-                        sourceLabel = sourceLabel,
-                        preserveSharedTextState = true
-                    )
+            }
+
+            override fun showDeepLink(text: String?) {
+                if (!text.isNullOrBlank()) {
+                    viewModel.text = text
                 }
+                viewModel.currentTab = "scan"
             }
-            sharedStreams.isNotEmpty() -> {
-                val stream = sharedStreams.first()
-                val sourceLabel = sourceLabelForSharedUri(context, stream, sharedType)
-                viewModel.clearAllPendingShared()
-                viewModel.stageSharedFile(stream, context, sourceLabel)
-                viewModel.scanPendingSharedFile(viewModel.pendingSharedFiles.lastOrNull()?.id ?: "", context)
-            }
-            sharedSubject?.isNotBlank() == true -> {
-                viewModel.clearAllPendingShared()
-                viewModel.stageSharedTextPayload(
-                    payload = sharedSubject,
-                    sourceLabel = "Subiect",
-                    autoScan = true,
-                    fidelity = SharedContentFidelity.PLAIN_TEXT_ONLY
-                )
-            }
-        }
-    } else if (intent.action == android.content.Intent.ACTION_SEND_MULTIPLE) {
-        if (sharedStreams.isEmpty()) {
-            sharedTextPayload?.let { payload ->
-                viewModel.clearAllPendingShared()
+
+            override fun stageText(payload: ResolvedSharedTextPayload, preservePendingFiles: Boolean) {
                 viewModel.stageSharedTextPayload(
                     payload = payload.text,
                     sourceLabel = payload.sourceLabel,
                     preserveHtml = payload.preserveHtml,
-                    autoScan = true,
-                    fidelity = payload.fidelity
+                    autoScan = false,
+                    fidelity = payload.fidelity,
+                    preservePendingFiles = preservePendingFiles
                 )
             }
-            return
-        }
 
-        viewModel.clearAllPendingShared()
-        sharedTextPayload?.let { payload ->
-            viewModel.stageSharedTextPayload(
-                payload = payload.text,
-                sourceLabel = payload.sourceLabel,
-                preserveHtml = payload.preserveHtml,
-                autoScan = true,
-                fidelity = payload.fidelity,
-                preservePendingFiles = true
-            )
-        }
+            override fun stageFile(uri: Uri, fallbackMime: String, preserveSharedTextState: Boolean) {
+                viewModel.stageSharedFile(
+                    uri = uri,
+                    context = context,
+                    sourceLabel = sourceLabelForSharedUri(context, uri, fallbackMime),
+                    preserveSharedTextState = preserveSharedTextState
+                )
+            }
 
-        sharedStreams.forEach { stream ->
-            val sourceLabel = sourceLabelForSharedUri(context, stream, sharedType)
-            viewModel.stageSharedFile(
-                uri = stream,
-                context = context,
-                sourceLabel = sourceLabel,
-                preserveSharedTextState = sharedTextPayload != null
-            )
-        }
+            override fun scanText() {
+                viewModel.scanPendingSharedText()
+            }
 
-        if (sharedTextPayload == null && sharedStreams.size == 1) {
-            viewModel.scanPendingSharedFile(viewModel.pendingSharedFiles.firstOrNull()?.id ?: "", context)
+            override fun scanSingleFile() {
+                viewModel.scanPendingSharedFile(
+                    viewModel.pendingSharedFiles.singleOrNull()?.id.orEmpty(),
+                    context
+                )
+            }
         }
-    }
+    )
 }
 
 internal fun resolveSharedTextPayload(intent: Intent): ResolvedSharedTextPayload? {
@@ -217,6 +170,7 @@ internal fun resolveDeepLinkScanText(intent: Intent?): String? {
 
 internal fun collectSharedTextCandidates(intent: Intent): List<SharedTextCandidate> {
     val candidates = mutableListOf<SharedTextCandidate>()
+    val intentTypeIsHtml = intent.type?.equals("text/html", ignoreCase = true) == true
 
     intent.getStringExtra(Intent.EXTRA_HTML_TEXT)
         ?.takeIf { it.isNotBlank() }
@@ -228,13 +182,21 @@ internal fun collectSharedTextCandidates(intent: Intent): List<SharedTextCandida
             )
         }
 
-    intent.getStringExtra(Intent.EXTRA_TEXT)
-        ?.takeIf { it.isNotBlank() }
-        ?.let { text ->
+    intent.getCharSequenceExtra(Intent.EXTRA_TEXT)
+        ?.let(::sharedCharSequenceCandidate)
+        ?.let { candidate ->
             candidates += SharedTextCandidate(
-                text = text,
-                kind = SharedTextCandidateKind.PLAIN_TEXT,
-                sourceLabel = "Conținut text partajat"
+                text = candidate.text,
+                kind = if (candidate.kind == SharedTextCandidateKind.HTML || intentTypeIsHtml) {
+                    SharedTextCandidateKind.HTML
+                } else {
+                    SharedTextCandidateKind.PLAIN_TEXT
+                },
+                sourceLabel = if (candidate.kind == SharedTextCandidateKind.HTML || intentTypeIsHtml) {
+                    "Conținut HTML partajat"
+                } else {
+                    "Conținut text partajat"
+                }
             )
         }
 
@@ -253,18 +215,31 @@ internal fun collectSharedTextCandidates(intent: Intent): List<SharedTextCandida
             }
 
         item.text
-            ?.toString()
-            ?.takeIf { it.isNotBlank() }
-            ?.let { text ->
+            ?.let(::sharedCharSequenceCandidate)
+            ?.let { candidate ->
+                val isHtml = candidate.kind == SharedTextCandidateKind.HTML || clipDescriptionIsHtml
                 candidates += SharedTextCandidate(
-                    text = text,
-                    kind = if (clipDescriptionIsHtml) SharedTextCandidateKind.HTML else SharedTextCandidateKind.PLAIN_TEXT,
-                    sourceLabel = if (clipDescriptionIsHtml) "Conținut HTML din ClipData" else "Conținut text din ClipData"
+                    text = candidate.text,
+                    kind = if (isHtml) SharedTextCandidateKind.HTML else SharedTextCandidateKind.PLAIN_TEXT,
+                    sourceLabel = if (isHtml) "Conținut HTML din ClipData" else "Conținut text din ClipData"
                 )
             }
     }
 
     return candidates
+}
+
+private fun sharedCharSequenceCandidate(value: CharSequence): SharedTextCandidate? {
+    val text = when (value) {
+        is Spanned -> Html.toHtml(value, Html.TO_HTML_PARAGRAPH_LINES_CONSECUTIVE)
+        else -> value.toString()
+    }.takeIf { it.isNotBlank() } ?: return null
+
+    return SharedTextCandidate(
+        text = text,
+        kind = if (value is Spanned) SharedTextCandidateKind.HTML else SharedTextCandidateKind.PLAIN_TEXT,
+        sourceLabel = if (value is Spanned) "Conținut HTML partajat" else "Conținut text partajat"
+    )
 }
 
 internal fun collectSharedStreamUris(intent: Intent): List<Uri> {
@@ -318,7 +293,7 @@ private fun sourceLabelForMime(mime: String): String {
     }
 }
 
-private fun isDeepLinkScanIntent(intent: Intent?): Boolean {
+internal fun isDeepLinkScanIntent(intent: Intent?): Boolean {
     val data = intent?.data ?: return false
     if (!"sigurscan".equals(data.scheme, ignoreCase = true)) return false
     val host = data.host?.lowercase(Locale.getDefault())

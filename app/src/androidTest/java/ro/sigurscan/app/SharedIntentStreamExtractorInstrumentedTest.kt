@@ -4,6 +4,9 @@ import android.content.ClipData
 import android.content.ClipDescription
 import android.content.Intent
 import android.net.Uri
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.URLSpan
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
@@ -66,6 +69,42 @@ class SharedIntentStreamExtractorInstrumentedTest {
         assertEquals(SharedContentFidelity.FULL_HTML, payload?.fidelity)
         assertTrue(payload?.preserveHtml == true)
         assertEquals(html, payload?.text)
+    }
+
+    @Test
+    fun actionSendHtmlMimePreservesHtmlFromExtraText() {
+        val html = """<a href="https://hidden.example.test/pay">Plătește factura</a>"""
+        val intent = Intent(Intent.ACTION_SEND)
+            .setType("text/html")
+            .putExtra(Intent.EXTRA_TEXT, html)
+
+        val payload = resolveSharedTextPayload(intent)
+
+        assertEquals(SharedContentFidelity.FULL_HTML, payload?.fidelity)
+        assertTrue(payload?.preserveHtml == true)
+        assertEquals(html, payload?.text)
+    }
+
+    @Test
+    fun actionSendSpannedTextPreservesUrlSpanAsHtml() {
+        val visibleText = "Vezi factura"
+        val spanned = SpannableString(visibleText).apply {
+            setSpan(
+                URLSpan("https://hidden.example.test/invoice"),
+                0,
+                visibleText.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+        val intent = Intent(Intent.ACTION_SEND)
+            .setType("text/plain")
+            .putExtra(Intent.EXTRA_TEXT, spanned)
+
+        val payload = resolveSharedTextPayload(intent)
+
+        assertEquals(SharedContentFidelity.FULL_HTML, payload?.fidelity)
+        assertTrue(payload?.preserveHtml == true)
+        assertTrue(payload?.text?.contains("""href="https://hidden.example.test/invoice"""") == true)
     }
 
     @Test
@@ -176,5 +215,111 @@ class SharedIntentStreamExtractorInstrumentedTest {
         }
 
         assertEquals(listOf(stream, clipOnly), collectSharedStreamUris(intent))
+    }
+
+    @Test
+    fun htmlMailWithAttachmentPlansOneAtomicTextScanAfterStagingEverything() {
+        val html = """<a href="https://hidden.example.test/pay">Vezi factura</a>"""
+        val pdf = Uri.parse("content://ro.sigurscan.test/share/invoice.pdf")
+        val intent = Intent(Intent.ACTION_SEND)
+            .setType("message/rfc822")
+            .putExtra(Intent.EXTRA_HTML_TEXT, html)
+            .putExtra(Intent.EXTRA_STREAM, pdf)
+
+        val plan = buildSharedIntentIntakePlan(intent)
+
+        assertTrue(plan is SharedIntentIntakePlan.SharedContent)
+        plan as SharedIntentIntakePlan.SharedContent
+        assertEquals(SharedContentFidelity.FULL_HTML, plan.textPayload?.fidelity)
+        assertEquals(listOf(pdf), plan.streams)
+        assertEquals(SharedIntentAutoScan.TEXT, plan.autoScan)
+    }
+
+    @Test
+    fun multipleAttachmentsWithoutTextAreStagedForIndividualScanning() {
+        val first = Uri.parse("content://ro.sigurscan.test/share/one.pdf")
+        val second = Uri.parse("content://ro.sigurscan.test/share/two.png")
+        val intent = Intent(Intent.ACTION_SEND_MULTIPLE)
+            .setType("*/*")
+            .putParcelableArrayListExtra(Intent.EXTRA_STREAM, arrayListOf(first, second))
+
+        val plan = buildSharedIntentIntakePlan(intent)
+
+        assertTrue(plan is SharedIntentIntakePlan.SharedContent)
+        plan as SharedIntentIntakePlan.SharedContent
+        assertEquals(listOf(first, second), plan.streams)
+        assertEquals(SharedIntentAutoScan.NONE, plan.autoScan)
+    }
+
+    @Test
+    fun subjectOnlyShareFallsBackToTextScan() {
+        val intent = Intent(Intent.ACTION_SEND)
+            .setType("message/rfc822")
+            .putExtra(Intent.EXTRA_SUBJECT, "Confirmă plata facturii")
+
+        val plan = buildSharedIntentIntakePlan(intent)
+
+        assertTrue(plan is SharedIntentIntakePlan.SharedContent)
+        plan as SharedIntentIntakePlan.SharedContent
+        assertEquals("Confirmă plata facturii", plan.textPayload?.text)
+        assertEquals("Subiect", plan.textPayload?.sourceLabel)
+        assertEquals(SharedIntentAutoScan.TEXT, plan.autoScan)
+    }
+
+    @Test
+    fun executorStagesTextAndEveryAttachmentBeforeStartingTextScan() {
+        val html = """<a href="https://hidden.example.test/pay">Vezi factura</a>"""
+        val first = Uri.parse("content://ro.sigurscan.test/share/mail.eml")
+        val second = Uri.parse("content://ro.sigurscan.test/share/invoice.pdf")
+        val events = mutableListOf<String>()
+        val sink = object : SharedIntentIntakeSink {
+            override fun clear() {
+                events += "clear"
+            }
+
+            override fun showDeepLink(text: String?) {
+                events += "deep:$text"
+            }
+
+            override fun stageText(payload: ResolvedSharedTextPayload, preservePendingFiles: Boolean) {
+                events += "text:${payload.fidelity}:$preservePendingFiles"
+            }
+
+            override fun stageFile(uri: Uri, fallbackMime: String, preserveSharedTextState: Boolean) {
+                events += "file:$uri:$preserveSharedTextState"
+            }
+
+            override fun scanText() {
+                events += "scan:text"
+            }
+
+            override fun scanSingleFile() {
+                events += "scan:file"
+            }
+        }
+        val plan = SharedIntentIntakePlan.SharedContent(
+            textPayload = ResolvedSharedTextPayload(
+                text = html,
+                sourceLabel = "Conținut HTML partajat",
+                preserveHtml = true,
+                fidelity = SharedContentFidelity.FULL_HTML
+            ),
+            streams = listOf(first, second),
+            fallbackMime = "message/rfc822",
+            autoScan = SharedIntentAutoScan.TEXT
+        )
+
+        executeSharedIntentIntakePlan(plan, sink)
+
+        assertEquals(
+            listOf(
+                "clear",
+                "text:FULL_HTML:true",
+                "file:$first:true",
+                "file:$second:true",
+                "scan:text"
+            ),
+            events
+        )
     }
 }
