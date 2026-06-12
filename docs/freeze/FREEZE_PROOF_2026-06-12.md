@@ -109,6 +109,15 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - wall time: `9.872s`.
   - final labels: `SUSPECT`, `PERICULOS`, `SUSPECT`.
   - final per-scan totals: `9.862s`, `9.629s`, `9.869s`.
+- Android emulator E2E through the installed debug app:
+  - Device: `emulator-5554`.
+  - App package: `ro.sigurscan.app`.
+  - Installed with `./gradlew :app:installDebug`.
+  - Input entered in the UI: `https://dnsc.ro/`.
+  - Result after polling: `SIGUR`, `Verdict final`, `Verificari complete`.
+  - Preview card rendered inside the app with final destination `https://dnsc.ro/`.
+  - App crash log check: no SigurScan `AndroidRuntime` crash or fatal app exception found in the filtered logcat window; the only earlier crash was Android `uiautomator` itself while dumping UI hierarchy.
+  - Screenshot evidence: `docs/freeze/evidence/android_e2e_dnsc_sigur_preview_2026-06-12.png`.
 - Rollback readiness is proven non-destructively:
   - previous revision `sigurscan-api-00019-lxl` is `Ready=True`.
   - current traffic remains `100%` on `sigurscan-api-00020-xvd`.
@@ -194,4 +203,4 @@ Status: in progress. This document is proof-led: an item is not green unless the
 
 Freeze is not complete yet.
 
-The backend is live and healthy on Cloud Run behind `api.sigurscan.com`, with provider smoke green, API auth active, invoice HMAC secret fallback removed, Android UA hardening deployed, reproducible min instances enabled, request-based CPU billing preserved, a Cloud Billing budget guard created, build log audited, latency alerting configured, structured-error proof captured, rollback readiness proven, lightweight concurrency proven, and controlled text-only scan concurrency proven. The remaining Cloud Run freeze items are optional cold-start proof if scale-to-zero returns, optional URL-provider concurrency, and an end-to-end rollback drill when we intentionally choose a maintenance window.
+The backend is live and healthy on Cloud Run behind `api.sigurscan.com`, with provider smoke green, API auth active, invoice HMAC secret fallback removed, Android UA hardening deployed, reproducible min instances enabled, request-based CPU billing preserved, a Cloud Billing budget guard created, build log audited, latency alerting configured, structured-error proof captured, rollback readiness proven, lightweight concurrency proven, controlled text-only scan concurrency proven, and Android emulator URL E2E proven. The remaining Cloud Run freeze items are optional cold-start proof if scale-to-zero returns, optional URL-provider concurrency, and an end-to-end rollback drill when we intentionally choose a maintenance window.
