@@ -7,8 +7,8 @@ Status: in progress. This document is proof-led: an item is not green unless the
 - Repository: `vaduvel/SigurScan`
 - Local repo: `/Users/vaduvageorge/AndroidStudioProjects/SigurScan`
 - Current branch: `main`
-- Verified code commit: `17dcfc7`
-- Deployed code commit: `17dcfc7`
+- Verified code commit: `e55bc7b`
+- Deployed code commit: `e55bc7b`
 - Documentation may advance past the deployed code commit with proof-only updates.
 - Cloud Run project: `project-20f225c0-d756-4cba-864`
 - Cloud Run service: `sigurscan-api`
@@ -21,11 +21,11 @@ Status: in progress. This document is proof-led: an item is not green unless the
 
 - Cloud Run service exists in `europe-west1`.
   Evidence: `gcloud run services describe sigurscan-api --project project-20f225c0-d756-4cba-864 --region europe-west1`.
-- Latest ready revision is `sigurscan-api-00020-xvd`.
-- Traffic is `100%` to `sigurscan-api-00020-xvd`.
-- Deployed image is `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:17dcfc7`.
+- Latest ready revision is `sigurscan-api-00022-wj8`.
+- Traffic is `100%` to `sigurscan-api-00022-wj8`.
+- Deployed image is `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:e55bc7b`.
 - Cloud Build deployment proof:
-  - build id: `8d7baef8-3a79-482c-be3c-c7d4e0823ef8`
+  - build id: `0dce50cd-bacb-415b-944d-da30bff9c8b7`
   - status: `SUCCESS`
   - service URL: `https://sigurscan-api-357849228072.europe-west1.run.app`
 - Request timeout is `300s`.
@@ -44,6 +44,7 @@ Status: in progress. This document is proof-led: an item is not green unless the
 - Health check returns `HTTP 200` through Cloudflare on `https://api.sigurscan.com/health`.
   - Post-deploy health after `21a6943`: `HTTP 200`, `0.361590s`.
   - Post-deploy health after `17dcfc7`: `HTTP 200`, `0.336330s`.
+  - Post-deploy health after `e55bc7b`: `HTTP 200`, `0.288110s`.
 - API protection is active:
   - unauthenticated `POST /v1/scan/orchestrated` returns `401`.
   - authenticated `POST /v1/scan/orchestrated` returns `200` and creates a scan.
@@ -137,13 +138,32 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - Backend fix proof: `check_cui("5888716")` and `check_cui("RO5888716")` now return `exists=true`, `checked=true`, `denumire="DIGI ROMANIA S.A."`, `activ=true`.
   - Test proof: backend full suite after the fix: `662 passed, 1 warning`.
   - Before-fix screenshot evidence: `docs/freeze/evidence/android_e2e_invoice_digi_attention_before_cui_fallback_fix_2026-06-12.png`.
+- Invoice finalize fix after deploy `e55bc7b`:
+  - Root cause: invoice fast-lane produced an internal `SIGUR` bundle, but generic finalization recomputed it as text/payment risk and exposed public `SUSPECT`.
+  - Fix: invoice and offer specialized decision bundles are now preserved during orchestrated finalization.
+  - Backend full suite after the fix: `663 passed, 1 warning`.
+  - Live API smoke through `https://api.sigurscan.com` with Android UA:
+    - POST: `HTTP 200`, `1.358s`, scan id `orch_1781279790_48bef996`.
+    - poll 1: `HTTP 200`, `1.376s`, no public label yet.
+    - poll 2: `HTTP 200`, `0.893s`, `SIGUR`, `is_final=false`.
+    - poll 3: `HTTP 200`, `3.516s`, `SIGUR`, `is_final=true`, status `complete`.
+    - top-level gate: `SIGUR`, reason `official_clean`.
+    - invoice gate: `SIGUR`, reason `official_clean`.
+    - invoice warnings: `[]`.
+  - Android emulator after-fix proof:
+    - Installed with `./gradlew :app:installDebug`.
+    - Input: generated Romanian invoice PNG selected through Android DocumentsUI.
+    - Result: `Scanare Factură` screen shows status `Verificat`, issuer `DIGI ROMANIA S.A.`, CUI `5888716`, IBAN valid `Da`, invoice number `TEST-2026-0612`, dates and totals.
+    - App-only logcat check: no SigurScan `AndroidRuntime` crash, fatal exception, or ANR found.
+    - Screenshot evidence: `docs/freeze/evidence/android_e2e_invoice_digi_verified_after_invoice_finalize_fix_2026-06-12.png`.
 - Rollback readiness is proven non-destructively:
-  - previous revision `sigurscan-api-00019-lxl` is `Ready=True`.
-  - current traffic remains `100%` on `sigurscan-api-00020-xvd`.
+  - current revision `sigurscan-api-00022-wj8` is `Ready=True`.
+  - immediate previous revision `sigurscan-api-00021-rmt` is `Ready=True`.
+  - current traffic remains `100%` on `sigurscan-api-00022-wj8`.
   - rollback command, if needed:
-    `gcloud run services update-traffic sigurscan-api --project project-20f225c0-d756-4cba-864 --region europe-west1 --to-revisions sigurscan-api-00019-lxl=100`
+    `gcloud run services update-traffic sigurscan-api --project project-20f225c0-d756-4cba-864 --region europe-west1 --to-revisions sigurscan-api-00021-rmt=100`
   - restore command:
-    `gcloud run services update-traffic sigurscan-api --project project-20f225c0-d756-4cba-864 --region europe-west1 --to-revisions sigurscan-api-00020-xvd=100`
+    `gcloud run services update-traffic sigurscan-api --project project-20f225c0-d756-4cba-864 --region europe-west1 --to-revisions sigurscan-api-00022-wj8=100`
 - Post-deploy latency re-check after `21a6943`:
   - Existing scan `orch_1781268789_c6e92ca2` returned `HTTP 200` in `4.008s` and was already `complete`, `SUSPECT`, `is_final=true`.
   - New offer scan `orch_1781269113_5074e703`:
@@ -210,8 +230,10 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - `789d497 chore: wire invoice HMAC secret into Cloud Run deploy`
   - `cf842d2 fix: flag upfront fee offer scams`
   - `21a6943 fix: close freeze secret and edge UA gaps`
-- `origin/main` includes deployed code commit `17dcfc7`; later proof-only documentation commits do not require a backend redeploy.
-- Cloud Run intentionally remains on code image `17dcfc7` until the next code deploy.
+- `fa6a22c fix: map live CUI fallback company data`
+- `e55bc7b fix: preserve invoice fast-lane verdict`
+- `origin/main` includes deployed code commit `e55bc7b`.
+- Cloud Run intentionally runs code image `e55bc7b`.
 
 ### Not Yet Green
 
@@ -222,4 +244,4 @@ Status: in progress. This document is proof-led: an item is not green unless the
 
 Freeze is not complete yet.
 
-The backend is live and healthy on Cloud Run behind `api.sigurscan.com`, with provider smoke green, API auth active, invoice HMAC secret fallback removed, Android UA hardening deployed, reproducible min instances enabled, request-based CPU billing preserved, a Cloud Billing budget guard created, build log audited, latency alerting configured, structured-error proof captured, rollback readiness proven, lightweight concurrency proven, controlled text-only scan concurrency proven, and Android emulator URL E2E proven. The remaining Cloud Run freeze items are optional cold-start proof if scale-to-zero returns, optional URL-provider concurrency, and an end-to-end rollback drill when we intentionally choose a maintenance window.
+The backend is live and healthy on Cloud Run behind `api.sigurscan.com`, with provider smoke green, API auth active, invoice HMAC secret fallback removed, Android UA hardening deployed, reproducible min instances enabled, request-based CPU billing preserved, a Cloud Billing budget guard created, build log audited, latency alerting configured, structured-error proof captured, rollback readiness proven, lightweight concurrency proven, controlled text-only scan concurrency proven, Android emulator URL E2E proven, and Android emulator invoice E2E now verified after the CUI/finalization fixes. The remaining Cloud Run freeze items are optional cold-start proof if scale-to-zero returns, optional URL-provider concurrency, and an end-to-end rollback drill when we intentionally choose a maintenance window.
