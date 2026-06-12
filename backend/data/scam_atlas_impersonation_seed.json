@@ -1,0 +1,532 @@
+{
+  "metadata": {
+    "name": "SigurScan Romania Impersonation Atlas",
+    "version": "2026-06-12",
+    "purpose": "Runtime semantic coverage for impersonation scam families. This file contains no verdict oracle fields; it only enriches semantic evidence.",
+    "source": "docs/fable_handoff/2026-06-12_scam_atlas_legal/op_imp_impersonation_atlas_cleaned.json"
+  },
+  "scam_families": [
+    {
+      "id": "IMP-01",
+      "title": "Impersonare instituții de stat",
+      "family": "impersonation/authority_state_institution",
+      "hook": "ANAF Poliția IGPR MAI DNSC Interpol Europol instanță dosar penal mandat amendă neregularitate fiscală restanță penalități remediere în 24h portal oficial logo instituție domeniu neoficial",
+      "asks_for": [
+        "card",
+        "cvv",
+        "cnp",
+        "personal data",
+        "money transfer",
+        "tax payment"
+      ],
+      "safe_actions": [
+        "Verifică doar în SPV, pe site-ul instituției introdus manual sau la numărul oficial.",
+        "Nu plăti și nu trimite date personale dintr-un link primit prin SMS, email sau chat."
+      ],
+      "channels": [
+        "sms",
+        "email",
+        "whatsapp",
+        "call transcript",
+        "pdf"
+      ],
+      "claimed_brand_or_role": "ANAF Poliția Română DNSC Interpol Europol instanță",
+      "requested_asset": [
+        "card",
+        "personal_data",
+        "money_transfer"
+      ],
+      "signals": [
+        "FAKE_AUTHORITY_DOCUMENT",
+        "LOGO_ABUSE",
+        "CARD_OR_ID_REQUEST",
+        "DO_NOT_VERIFY_PRESSURE",
+        "URGENT_CASH_REQUEST"
+      ],
+      "sources": [
+        "src_dnsc_anaf_phishing",
+        "src_profit_interpol_politia_anaf_impersonation"
+      ],
+      "examples": [
+        "ANAF: am identificat o posibilă neregularitate în declarațiile dvs. Accesați linkul în 24h pentru remediere, altfel se aplică penalități.",
+        "Interpol România: citație atașată, plătiți taxa de procedură.",
+        "Sunteți implicat într-un caz de fraudă, trimiteți poză buletin."
+      ],
+      "acceptance_test_idea": "Mesajele care invocă autorități și cer plată/date prin link sau chat trebuie recunoscute semantic chiar fără reputație provider."
+    },
+    {
+      "id": "IMP-02",
+      "title": "Impersonare bancă sau fintech",
+      "family": "impersonation/bank_fintech_spoofing",
+      "hook": "bancă antifraudă Revolut ING BCR BT tranzacție suspectă blocare tranzacție agent antifraudă cod OTP cod SMS parolă PIN cont sigur cont securizat mută fondurile spoofing număr oficial",
+      "asks_for": [
+        "otp",
+        "password",
+        "banking pin",
+        "money transfer",
+        "safe account transfer"
+      ],
+      "safe_actions": [
+        "Închide apelul și contactează banca doar pe numărul de pe card sau din aplicația oficială.",
+        "Nu comunica niciodată coduri OTP, parole, PIN sau instrucțiuni de transfer."
+      ],
+      "channels": [
+        "sms",
+        "phone transcript",
+        "whatsapp",
+        "email"
+      ],
+      "claimed_brand_or_role": "Bancă Revolut departament antifraudă",
+      "requested_asset": [
+        "otp",
+        "password",
+        "safe_account_transfer"
+      ],
+      "signals": [
+        "OTP_REQUEST",
+        "PASSWORD_REQUEST",
+        "SAFE_ACCOUNT_TRANSFER_REQUEST",
+        "BANK_HANDOFF",
+        "DO_NOT_VERIFY_PRESSURE"
+      ],
+      "sources": [
+        "src_mai_politia_dnsc_arb_spoofing",
+        "src_revolut_official_fraud"
+      ],
+      "examples": [
+        "Bună ziua, sunt de la departamentul antifraudă al băncii. Am detectat o tranzacție suspectă. Pentru a o bloca, spuneți-mi codul primit prin SMS și mutați fondurile în contul sigur indicat.",
+        "Revolut: ca să anulăm transferul, spune codul de autentificare primit acum."
+      ],
+      "acceptance_test_idea": "Cod OTP/parolă/cont sigur invocat de bancă sau fintech este semnal semantic decisiv."
+    },
+    {
+      "id": "IMP-03",
+      "title": "Impersonare curierat",
+      "family": "impersonation/courier_delivery",
+      "hook": "FAN Courier Poșta Română DHL Sameday colet livrare AWB locker reprogramare taxă mică vamă adresă incompletă cod WhatsApp verificare WhatsApp date card CVC CVV",
+      "asks_for": [
+        "card",
+        "cvv",
+        "whatsapp code",
+        "tax payment",
+        "personal data"
+      ],
+      "safe_actions": [
+        "Verifică AWB-ul în aplicația sau site-ul oficial al curierului.",
+        "Nu introduce cod WhatsApp sau date de card într-un link primit prin SMS."
+      ],
+      "channels": [
+        "sms",
+        "whatsapp",
+        "email"
+      ],
+      "claimed_brand_or_role": "FAN Courier Poșta Română DHL Sameday",
+      "requested_asset": [
+        "card",
+        "cvv",
+        "whatsapp_code"
+      ],
+      "signals": [
+        "CARD_OR_BANKING_REQUEST",
+        "CARD_OR_ID_REQUEST",
+        "WHATSAPP_VERIFICATION_CODE_REQUEST",
+        "DELIVERY_TAX_REQUEST",
+        "LOGO_ABUSE"
+      ],
+      "sources": [
+        "src_dnsc_delivery_smishing",
+        "src_fan_courier_whatsapp_takeover"
+      ],
+      "examples": [
+        "FAN Courier: coletul tău nu a putut fi livrat. Plătește taxa de 3,57 lei pentru reprogramare.",
+        "Pentru a confirma reprogramarea livrării, introduceți codul de verificare WhatsApp primit acum pe telefon."
+      ],
+      "acceptance_test_idea": "Curier + taxă mică/card/cod WhatsApp trebuie să fie acoperit indiferent de domeniul exact."
+    },
+    {
+      "id": "IMP-04",
+      "title": "Impersonare suport tehnic",
+      "family": "impersonation/technical_support",
+      "hook": "Microsoft Apple Google antivirus suport tehnic computer infectat dispozitiv infectat browser blocat sunați urgent nu închideți fereastra AnyDesk TeamViewer RustDesk cod acces remote gift card Google Play Steam iTunes",
+      "asks_for": [
+        "remote access",
+        "anydesk",
+        "teamviewer",
+        "password",
+        "gift card",
+        "money transfer"
+      ],
+      "safe_actions": [
+        "Închide fereastra/browserul și nu suna la numărul afișat.",
+        "Nu instala aplicații de acces remote cerute de cineva care te-a contactat din senin."
+      ],
+      "channels": [
+        "browser popup",
+        "phone transcript",
+        "sms",
+        "email"
+      ],
+      "claimed_brand_or_role": "Microsoft Apple Google antivirus suport tehnic",
+      "requested_asset": [
+        "remote_access",
+        "password",
+        "gift_card"
+      ],
+      "signals": [
+        "REMOTE_ACCESS_APP_REQUEST",
+        "PASSWORD_REQUEST",
+        "CREDENTIAL_REQUEST",
+        "URGENT_CASH_REQUEST",
+        "DO_NOT_VERIFY_PRESSURE"
+      ],
+      "sources": [
+        "src_microsoft_tech_support_scam",
+        "src_fbi_tech_support_scam"
+      ],
+      "examples": [
+        "ATENȚIE! Computerul dvs. este infectat. Sunați URGENT la 0XXX-XXX-XXX. Nu închideți fereastra.",
+        "Pentru a remedia problema, instalați AnyDesk și dați-mi codul de acces. Apoi cumpărați un Google Play gift card de 500 lei."
+      ],
+      "acceptance_test_idea": "Pop-up/telefon de suport tehnic cu număr, acces remote sau gift card trebuie acoperit chiar fără URL."
+    },
+    {
+      "id": "IMP-05",
+      "title": "Impersonare rudă sau prieten",
+      "family": "impersonation/family_friend_emergency",
+      "hook": "salut tati salut mama sunt fiul tău fiica ta număr nou telefon pierdut telefon stricat accident spital factură urgentă plătește urgent îți dau banii diseară cont WhatsApp compromis",
+      "asks_for": [
+        "cash",
+        "money transfer",
+        "bank transfer to person",
+        "revolut personal"
+      ],
+      "safe_actions": [
+        "Sună persoana pe numărul vechi cunoscut sau cere verificare video.",
+        "Nu trimite bani doar pe baza unui mesaj urgent."
+      ],
+      "channels": [
+        "sms",
+        "whatsapp",
+        "messenger"
+      ],
+      "claimed_brand_or_role": "rudă prieten copil părinte",
+      "requested_asset": [
+        "cash",
+        "money_transfer"
+      ],
+      "signals": [
+        "FAMILY_EMERGENCY_CLAIM",
+        "ACCIDENT_CLAIM",
+        "URGENT_CASH_REQUEST",
+        "DO_NOT_VERIFY_PRESSURE"
+      ],
+      "sources": [
+        "src_siguranta_online_urgenta_mare",
+        "src_takefive_impersonation"
+      ],
+      "examples": [
+        "Salut tati, mi-am pierdut telefonul și am număr nou. Poți să-mi plătești tu urgent o factură? Îți dau eu banii diseară.",
+        "Sunt la spital după accident, am nevoie urgent de bani."
+      ],
+      "acceptance_test_idea": "Rudă/prieten + număr nou/accident/urgență financiară trebuie prins ca impersonare socială."
+    },
+    {
+      "id": "IMP-06",
+      "title": "CEO fraud / BEC / furnizor fals",
+      "family": "impersonation/business_email_compromise",
+      "hook": "CEO CFO director contabil furnizor factură restantă schimbare IBAN bancă nouă noul IBAN plată urgentă confidențial sunt în ședință nu pot vorbi fără aprobarea obișnuită domeniu email aproape identic",
+      "asks_for": [
+        "iban",
+        "money transfer",
+        "bank transfer to person",
+        "bank transfer to company"
+      ],
+      "safe_actions": [
+        "Confirmă schimbarea IBAN sau plata urgentă pe un canal cunoscut, nu prin reply.",
+        "Aplică aprobare duală pentru facturi și schimbări de cont bancar."
+      ],
+      "channels": [
+        "email",
+        "whatsapp",
+        "call transcript",
+        "pdf"
+      ],
+      "claimed_brand_or_role": "CEO CFO director furnizor contabil",
+      "requested_asset": [
+        "iban",
+        "money_transfer"
+      ],
+      "signals": [
+        "BANK_HANDOFF",
+        "SAFE_ACCOUNT_TRANSFER_REQUEST",
+        "URGENT_CASH_REQUEST",
+        "DO_NOT_VERIFY_PRESSURE"
+      ],
+      "sources": [
+        "src_fbi_bec",
+        "src_europol_bec"
+      ],
+      "examples": [
+        "Confidențial: sunt în ședință, nu pot vorbi. Te rog procesează urgent un transfer către un furnizor nou, fără aprobarea obișnuită. Îți trimit IBAN-ul nou imediat.",
+        "Furnizorul X: ne-am schimbat banca. Vă rugăm achitați factura restantă pe noul IBAN atașat."
+      ],
+      "acceptance_test_idea": "Schimbare IBAN/furnizor/CEO urgent trebuie ridicată semantic, nu pierdută ca simplu text business."
+    },
+    {
+      "id": "IMP-07",
+      "title": "Impersonare persoane publice / deepfake investiții",
+      "family": "impersonation/public_figure_deepfake_investment",
+      "hook": "persoană publică politician bancher vedetă Nicușor Dan Bolojan Isărescu deepfake investiții platformă investiții program fiecare român primește 9000 lei lună venit garantat profit garantat taxă activare wallet crypto depunere crypto",
+      "asks_for": [
+        "crypto",
+        "money transfer",
+        "activation fee",
+        "card"
+      ],
+      "safe_actions": [
+        "Nu investi din reclame cu persoane publice; verifică autorizarea entității la ASF sau pe sursa oficială.",
+        "Nu trimite crypto sau taxă de activare pentru profit garantat."
+      ],
+      "channels": [
+        "social ad",
+        "sms",
+        "whatsapp",
+        "email"
+      ],
+      "claimed_brand_or_role": "persoană publică vedetă politician bancher",
+      "requested_asset": [
+        "crypto",
+        "money_transfer"
+      ],
+      "signals": [
+        "GUARANTEED_RETURN_PROMISE",
+        "CRYPTO_PAYMENT_REQUEST",
+        "URGENT_CASH_REQUEST",
+        "LOGO_ABUSE"
+      ],
+      "sources": [
+        "src_bitdefender_deepfake_investment_ro",
+        "src_dnsc_investment_scams"
+      ],
+      "examples": [
+        "[Persoană publică cunoscută] anunță un program prin care fiecare român primește 9000 lei/lună. Activează-ți contul cu doar 1400 lei la adresa de wallet de mai jos.",
+        "Isărescu recomandă platforma care dublează banii în 7 zile."
+      ],
+      "acceptance_test_idea": "Persoană publică/deepfake + profit garantat/crypto/taxă de activare trebuie acoperit semantic."
+    },
+    {
+      "id": "IMP-08",
+      "title": "Impersonare marketplace",
+      "family": "impersonation/marketplace_buyer_seller",
+      "hook": "OLX Publi24 marketplace cumpărător fals vânzător fals nu văd pozele scrie-mi pe WhatsApp livrare OLX curier plătesc prin link primești banii pe card introdu datele cardului dovadă falsă transfer",
+      "asks_for": [
+        "card",
+        "cvv",
+        "whatsapp",
+        "banking data",
+        "personal data"
+      ],
+      "safe_actions": [
+        "Păstrează conversația și plata în platforma oficială.",
+        "Nu introduce date de card pentru a primi bani."
+      ],
+      "channels": [
+        "marketplace chat",
+        "whatsapp",
+        "sms"
+      ],
+      "claimed_brand_or_role": "OLX Publi24 cumpărător vânzător curier",
+      "requested_asset": [
+        "card",
+        "cvv",
+        "personal_data"
+      ],
+      "signals": [
+        "CARD_OR_BANKING_REQUEST",
+        "CARD_OR_ID_REQUEST",
+        "DO_NOT_VERIFY_PRESSURE",
+        "LOGO_ABUSE"
+      ],
+      "sources": [
+        "src_olx_false_links",
+        "src_dnsc_olx_fraud"
+      ],
+      "examples": [
+        "Salut, nu văd pozele la anunț. Scrie-mi pe WhatsApp la numărul ăsta. Trimit eu curier și plătesc prin linkul de livrare OLX.",
+        "Ca să primești banii, introdu cardul pe pagina de livrare."
+      ],
+      "acceptance_test_idea": "Marketplace + mutare pe WhatsApp + card pentru primire bani trebuie să rămână acoperit."
+    },
+    {
+      "id": "IMP-09",
+      "title": "Impersonare branduri / retaileri",
+      "family": "impersonation/retail_brand_giveaway",
+      "hook": "brand cunoscut eMAG Altex Lidl Kaufland premiu giveaway felicitări ai fost selectat transport premiu plătește transportul date card domeniu lookalike promo xyz premii gratis",
+      "asks_for": [
+        "card",
+        "cvv",
+        "shipping fee",
+        "personal data"
+      ],
+      "safe_actions": [
+        "Verifică promoția pe site-ul oficial al brandului.",
+        "Nu plăti transport sau taxă ca să primești un premiu dintr-un link necunoscut."
+      ],
+      "channels": [
+        "sms",
+        "social ad",
+        "email",
+        "whatsapp"
+      ],
+      "claimed_brand_or_role": "brand retailer magazin online",
+      "requested_asset": [
+        "card",
+        "cvv",
+        "personal_data"
+      ],
+      "signals": [
+        "CARD_OR_BANKING_REQUEST",
+        "CARD_OR_ID_REQUEST",
+        "LOGO_ABUSE",
+        "GUARANTEED_RETURN_PROMISE"
+      ],
+      "sources": [
+        "src_brand_giveaway_impersonation",
+        "src_dns_community_reports"
+      ],
+      "examples": [
+        "Felicitări! Ai fost selectat pentru un premiu Brand cunoscut. Plătește doar transportul introducând datele cardului la emag-premii.xyz.",
+        "Ai câștigat un voucher, achită taxa de livrare pentru validare."
+      ],
+      "acceptance_test_idea": "Retail/premiu + taxă/card/lookalike domain trebuie acoperit semantic."
+    },
+    {
+      "id": "IMP-10",
+      "title": "Impersonare ONG / donații false",
+      "family": "impersonation/charity_ngo",
+      "hook": "ONG donație urgentă victime dezastru campanie umanitară strângem fonduri cont personal Revolut donație pe cont personal ajutor copii bolnavi caz social",
+      "asks_for": [
+        "money transfer",
+        "revolut personal",
+        "bank transfer to person",
+        "cont personal",
+        "donație"
+      ],
+      "safe_actions": [
+        "Donează doar prin site-ul oficial al ONG-ului sau prin conturi publicate oficial.",
+        "Nu trimite bani într-un cont personal pentru o campanie care pretinde că este a unui ONG."
+      ],
+      "channels": [
+        "sms",
+        "social post",
+        "whatsapp",
+        "email"
+      ],
+      "claimed_brand_or_role": "ONG voluntar organizație caritabilă",
+      "requested_asset": [
+        "money_transfer"
+      ],
+      "signals": [
+        "URGENT_CASH_REQUEST",
+        "DO_NOT_VERIFY_PRESSURE",
+        "LOGO_ABUSE"
+      ],
+      "sources": [
+        "src_charity_imposter_scams"
+      ],
+      "examples": [
+        "În numele ONG-ului, strângem fonduri urgente pentru victimele dezastrului. Trimite donația pe acest cont personal Revolut.",
+        "Campanie umanitară urgentă: donați acum într-un cont personal pentru a salva copiii."
+      ],
+      "acceptance_test_idea": "ONG/donație urgentă + cont personal trebuie acoperit ca impersonare socială."
+    },
+    {
+      "id": "IMP-11",
+      "title": "Impersonare romance / identitate furată",
+      "family": "impersonation/romance_identity_theft",
+      "hook": "te iubesc enorm relație rapidă intensă militar medic investitor străinătate urgență medicală blocat în străinătate bilet avion taxe vamale Western Union MoneyGram Revolut trimite urgent bani ne vedem curând",
+      "asks_for": [
+        "cash",
+        "money transfer",
+        "western union",
+        "crypto",
+        "revolut personal"
+      ],
+      "safe_actions": [
+        "Nu trimite bani unei persoane cunoscute doar online.",
+        "Cere verificare video live și caută invers imaginile de profil."
+      ],
+      "channels": [
+        "dating app",
+        "whatsapp",
+        "messenger",
+        "email"
+      ],
+      "claimed_brand_or_role": "partener romantic militar medic investitor",
+      "requested_asset": [
+        "cash",
+        "money_transfer"
+      ],
+      "signals": [
+        "URGENT_CASH_REQUEST",
+        "DO_NOT_VERIFY_PRESSURE",
+        "FAMILY_EMERGENCY_CLAIM"
+      ],
+      "sources": [
+        "src_fbi_romance_scams",
+        "src_europol_romance_scams"
+      ],
+      "examples": [
+        "Te iubesc enorm. Sunt blocat în străinătate și am o urgență medicală. Poți trimite urgent bani prin Western Union? Promit că ne vedem curând.",
+        "Sunt militar în misiune și am nevoie de bani pentru taxele de întoarcere."
+      ],
+      "acceptance_test_idea": "Romance + urgență financiară trebuie să fie cel puțin semantic medium/high, nu unknown."
+    },
+    {
+      "id": "IMP-12",
+      "title": "Impersonare autorități internaționale cu extorcare",
+      "family": "impersonation/international_authority_extortion",
+      "hook": "Europol Interpol FBI IC3 autoritate internațională acuzație fapte grave mandat urmărire penală răspundeți în 72 ore achitați pentru a evita urmărirea penală păstrați secret PayPal crypto card credențiale",
+      "asks_for": [
+        "money transfer",
+        "crypto",
+        "password",
+        "credentials",
+        "card"
+      ],
+      "safe_actions": [
+        "Nu răspunde și nu plăti; verifică doar prin Poliția Română sau canale oficiale.",
+        "Nu oferi credențiale sau plăți pentru a evita o acuzație primită prin email."
+      ],
+      "channels": [
+        "email",
+        "pdf",
+        "phone transcript",
+        "whatsapp"
+      ],
+      "claimed_brand_or_role": "Europol Interpol autoritate internațională",
+      "requested_asset": [
+        "money_transfer",
+        "crypto",
+        "password",
+        "card"
+      ],
+      "signals": [
+        "FAKE_AUTHORITY_DOCUMENT",
+        "CREDENTIAL_REQUEST",
+        "CRYPTO_PAYMENT_REQUEST",
+        "DO_NOT_VERIFY_PRESSURE",
+        "URGENT_CASH_REQUEST"
+      ],
+      "sources": [
+        "src_europol_impersonation",
+        "src_fbi_ic3_government_impersonation"
+      ],
+      "examples": [
+        "Europol: sunteți acuzat de fapte grave. Răspundeți în 72 de ore și achitați pentru a evita urmărirea penală, altfel emitem mandat.",
+        "Interpol: păstrați confidențialitatea anchetei și trimiteți plata prin crypto pentru suspendarea dosarului."
+      ],
+      "acceptance_test_idea": "Europol/Interpol + acuzație + termen/plată trebuie prins ca impersonare cu extorcare."
+    }
+  ]
+}

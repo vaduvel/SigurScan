@@ -6,6 +6,7 @@ from services.scam_atlas import ScamAtlasEngine
 
 ROOT = Path(__file__).resolve().parent
 SEED_PATH = ROOT / "data" / "scam_atlas_ro_2025_2026_seed.json"
+IMPERSONATION_SEED_PATH = ROOT / "data" / "scam_atlas_impersonation_seed.json"
 VERDICT_LIKE_FIELDS = {
     "max_verdict_without_provider_scan",
     "max_verdict_with_provider_scan",
@@ -17,17 +18,21 @@ VERDICT_LIKE_FIELDS = {
 
 
 def _raw_families() -> list[dict]:
-    payload = json.loads(SEED_PATH.read_text(encoding="utf-8"))
-    return payload["scam_families"]
+    families: list[dict] = []
+    for path in (SEED_PATH, IMPERSONATION_SEED_PATH):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        families.extend(payload["scam_families"])
+    return families
 
 
-def test_runtime_seed_has_all_three_atlas_blocks():
+def test_runtime_seed_has_all_four_atlas_blocks():
     ids = [str(item.get("id") or "") for item in _raw_families()]
 
-    assert len(ids) == 63
+    assert len(ids) == 75
     assert sum(item.startswith("RO_SCN_") for item in ids) == 20
     assert sum(item.startswith("F") and item[1:].isdigit() for item in ids) == 25
     assert sum(item.startswith("MINOR_") for item in ids) == 18
+    assert sum(item.startswith("IMP-") for item in ids) == 12
 
 
 def test_runtime_seed_excludes_verdict_like_oracle_fields():
@@ -46,7 +51,7 @@ def test_runtime_seed_excludes_verdict_like_oracle_fields():
 def test_runtime_loader_normalizes_every_family_to_semantic_contract():
     families = ScamAtlasEngine().families
 
-    assert len(families) == 63
+    assert len(families) == 75
     for family in families:
         assert family["id"]
         assert family["family"]

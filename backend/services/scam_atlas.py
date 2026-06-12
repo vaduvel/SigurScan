@@ -589,6 +589,23 @@ SEED_PATH = _resolve_path(
     os.getenv("SCAM_ATLAS_SEED_PATH"),
     "data/scam_atlas_ro_2025_2026_seed.json",
 )
+DEFAULT_EXTRA_SEED_PATHS = ("data/scam_atlas_impersonation_seed.json",)
+
+
+def _extra_seed_paths() -> List[str]:
+    raw_paths = list(DEFAULT_EXTRA_SEED_PATHS)
+    env_value = os.getenv("SCAM_ATLAS_EXTRA_SEED_PATHS")
+    if env_value:
+        raw_paths.extend(item.strip() for item in env_value.split(os.pathsep) if item.strip())
+
+    resolved: List[str] = []
+    seen = set()
+    for raw_path in raw_paths:
+        path = _resolve_path(raw_path, raw_path)
+        if path not in seen:
+            seen.add(path)
+            resolved.append(path)
+    return resolved
 
 
 def _build_brand_mention_patterns(
@@ -624,22 +641,22 @@ class ScamAtlasEngine:
         self.load_seed_data()
 
     def load_seed_data(self):
-        if os.path.exists(SEED_PATH):
+        self.families = []
+        for path in [SEED_PATH, *_extra_seed_paths()]:
+            if not os.path.exists(path):
+                print(f"Scam Atlas seed not found at {path}")
+                continue
             try:
-                with open(SEED_PATH, "r", encoding="utf-8") as f:
+                with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     raw_families = data.get("scam_families", []) if isinstance(data, dict) else data
-                    self.families = [
+                    self.families.extend(
                         normalized
                         for raw in (raw_families if isinstance(raw_families, list) else [])
                         if (normalized := _normalize_atlas_family(raw)) is not None
-                    ]
+                    )
             except Exception as e:
-                print(f"Error loading Scam Atlas seed: {e}")
-                self.families = []
-        else:
-            print(f"Scam Atlas seed not found at {SEED_PATH}")
-            self.families = []
+                print(f"Error loading Scam Atlas seed from {path}: {e}")
 
     def _is_whitelisted_domain(self, reg_domain: str, hostname: str | None = None) -> bool:
         if not reg_domain and not hostname:
