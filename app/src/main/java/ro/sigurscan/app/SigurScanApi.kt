@@ -53,11 +53,28 @@ data class ScanResponse(
     @SerializedName("offer_analysis") val offerAnalysis: String? = null,
     @SerializedName("key_dangers") val keyDangers: List<String>? = null,
     @SerializedName("safe_actions") val safeActions: List<String>? = null,
+    @SerializedName("legal") val legal: LegalSection? = null,
     val evidence: Map<String, Any>? = null,
     @SerializedName("extracted_urls") val extractedUrls: List<Map<String, Any>>? = null,
     @SerializedName("resolved_urls") val resolvedUrls: List<Map<String, Any>>? = null,
     @SerializedName("buttons") val buttons: List<Map<String, Any>>? = null,
     @SerializedName("email_auth") val emailAuth: Map<String, Any>? = null
+)
+
+// Strat educativ „Ce spune legea" (PR5). Clientul randează verbatim, sub verdict;
+// nu calculează nimic și nu modifică verdictul.
+data class LegalCard(
+    val id: String? = null,
+    val title: String? = null,
+    val summary: String? = null,
+    val actions: List<String>? = null,
+    @SerializedName("source_refs") val sourceRefs: List<String>? = null
+)
+
+data class LegalSection(
+    val label: String? = null,
+    val cards: List<LegalCard>? = null,
+    val disclaimer: String? = null
 )
 
 data class ExtractionResponse(

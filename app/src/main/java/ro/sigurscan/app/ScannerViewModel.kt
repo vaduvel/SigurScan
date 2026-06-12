@@ -161,6 +161,7 @@ data class OfflineAssessment(
     val evidenceSnapshot: EvidenceSnapshot? = null,
     val gateResult: GateResult? = null,
     val offerEvidence: OfferEvidenceSummary? = null,
+    val legal: LegalSection? = null,
     val inputFidelity: SharedContentFidelity? = null,
     val cacheStatus: ScanCacheStatus? = null
 )
@@ -1202,7 +1203,8 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             threatIntel = threatIntel,
             screenshotUrl = preview?.screenshotUrl,
             sandboxReportUrl = preview?.reportUrl,
-            offerEvidence = offerEvidenceFrom(evidence)
+            offerEvidence = offerEvidenceFrom(evidence),
+            legal = response.legal
         )
         val snapshot = EvidenceSignalNormalizer.buildSnapshot(
             EvidenceNormalizerInput(

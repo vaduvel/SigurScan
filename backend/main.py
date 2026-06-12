@@ -4104,6 +4104,9 @@ def _build_scan_response(
         "offer_analysis": ai_explanation.get("offer_analysis"),
         "key_dangers": ai_explanation.get("key_dangers"),
         "safe_actions": ai_explanation.get("safe_actions", analysis_results.get("safe_actions", [])),
+        # Strat educativ „Ce spune legea" (PR5): {label, cards[], disclaimer}.
+        # Prezent doar pe ruta ofertă; clientul îl randează verbatim, sub verdict.
+        "legal": analysis_results.get("legal"),
     }
     if extra_fields:
         payload.update(extra_fields)
