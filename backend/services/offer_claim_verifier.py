@@ -18,6 +18,12 @@ from typing import Any, Dict, List, Optional
 import requests
 from bs4 import BeautifulSoup
 
+from services.external_url_privacy import (
+    prepare_external_url,
+    sanitize_external_text,
+    sanitize_resolved_url_entries,
+)
+
 try:
     import certifi
 except Exception:  # pragma: no cover - optional dependency
@@ -121,17 +127,19 @@ def verify_offer_claim(
     if not ENABLE_OFFER_CLAIM_WEB_CHECK:
         return _payload("skipped", "unknown", "AI offer web check disabled.", confidence=0)
 
-    claimed_brand = _claimed_brand(text, analysis, brand_registry)
-    final_urls = _final_urls(resolved_urls)
-    claim_target = _match_claim_target(text, claimed_brand, final_urls)
+    safe_text = sanitize_external_text(text)
+    safe_resolved_urls = sanitize_resolved_url_entries(resolved_urls)
+    claimed_brand = _claimed_brand(safe_text, analysis, brand_registry)
+    final_urls = _final_urls(safe_resolved_urls)
+    claim_target = _match_claim_target(safe_text, claimed_brand, final_urls)
     official_domains = _official_domains_for_claim(claimed_brand, final_urls, brand_registry, claim_target=claim_target)
-    query = _build_claim_query(text, claimed_brand, claim_target=claim_target)
+    query = _build_claim_query(safe_text, claimed_brand, claim_target=claim_target)
 
     if not query and not final_urls:
         return _payload("skipped", "unknown", "No concrete claim or URL to verify.", confidence=0)
 
     official_result = _verify_with_official_pages(
-        text=text,
+        text=safe_text,
         claimed_brand=claimed_brand,
         official_domains=official_domains,
         final_urls=final_urls,
@@ -143,7 +151,7 @@ def verify_offer_claim(
         return official_result
 
     gemini_result = _verify_with_gemini_search(
-        text=text,
+        text=safe_text,
         claimed_brand=claimed_brand,
         official_domains=official_domains,
         final_urls=final_urls,
@@ -588,7 +596,9 @@ def _final_urls(resolved_urls: List[Dict[str, Any]]) -> List[str]:
     for entry in resolved_urls or []:
         final_url = entry.get("final_url") or entry.get("url") or entry.get("original_url")
         if isinstance(final_url, str) and final_url.strip():
-            urls.append(final_url.strip())
+            safe_url = prepare_external_url(final_url.strip()).get("external_url")
+            if safe_url:
+                urls.append(str(safe_url))
     return list(dict.fromkeys(urls))
 
 
@@ -763,6 +773,11 @@ def _match_claim_target(
 
 
 def _fetch_page_text(url: str) -> str:
+    privacy = prepare_external_url(url)
+    safe_url = privacy.get("external_url")
+    if not isinstance(safe_url, str) or not safe_url or privacy.get("action") in {"blocked", "origin_only"}:
+        return ""
+
     verify_settings = [True]
     if certifi is not None:
         verify_settings.append(certifi.where())
@@ -771,7 +786,7 @@ def _fetch_page_text(url: str) -> str:
         for verify in verify_settings:
             try:
                 response = requests.get(
-                    url,
+                    safe_url,
                     timeout=OFFER_CLAIM_HTTP_TIMEOUT_SECONDS,
                     headers={"User-Agent": "SigurScan claim verifier (+https://sigurscan.ro)"},
                     allow_redirects=True,
@@ -802,7 +817,9 @@ def _clean_urls(values: List[Any]) -> List[str]:
     for value in values:
         raw = str(value or "").strip()
         if raw.startswith("http://") or raw.startswith("https://"):
-            output.append(raw)
+            safe_url = prepare_external_url(raw).get("external_url")
+            if safe_url:
+                output.append(str(safe_url))
     return list(dict.fromkeys(output))[:6]
 
 

@@ -6,6 +6,8 @@ import logging
 import requests
 logger = logging.getLogger("gemini_explainer")
 
+from services.external_url_privacy import sanitize_external_text, sanitize_resolved_url_entries
+
 # Try importing the Google GenAI SDK
 try:
     from google import genai
@@ -44,11 +46,13 @@ def _build_prompt(
     rule_results: Dict[str, Any],
     redirect_info: List[Dict[str, Any]] = None
 ) -> str:
+    safe_text = sanitize_external_text(text)
+    safe_redirect_info = sanitize_resolved_url_entries(redirect_info or [])
     urls_str = ""
-    if redirect_info:
+    if safe_redirect_info:
         urls_str = "\n".join([
             f"- Original URL: {info.get('original_url')} -> Final: {info.get('final_url')} (Registered Domain: {info.get('final_registered_domain')})"
-            for info in redirect_info
+            for info in safe_redirect_info
         ])
 
     return f"""
@@ -59,7 +63,7 @@ OBIECTIV CRITIC: Analizează conținutul ofertei sau al acțiunii cerute.
 Verifică dacă mesajul conține indicatori de phishing, deturnare de brand, solicitare date sensibile sau acțiuni riscante.
 
 Text suspect primit de utilizator:
-"{text}"
+"{safe_text}"
 
 Rezultate motor de reguli:
 - Scorul de risc: {rule_results.get('risk_score')}/100
