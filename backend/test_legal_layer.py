@@ -157,3 +157,40 @@ class TestVerdictNeverChanges:
         # Verdictul vine tot din verdict_gate (neatins de stratul legal).
         assert analysis["evidence"]["verdict_gate"]["label"] in {"SIGUR", "SUSPECT", "PERICULOS"}
         assert analysis["risk_level"] == analysis["evidence"]["verdict_gate"]["risk_level"]
+
+    def test_result_legal_is_the_client_contract_key(self):
+        # Cheia consumată de Android: result.legal = {label, cards[], disclaimer}.
+        from fastapi.testclient import TestClient
+        from unittest.mock import AsyncMock, patch
+        import main as app_main
+        from services.anaf_cui import CuiResult
+
+        async def _fake_explain(*args, **kwargs):
+            return {"summary": "stub"}
+
+        client = TestClient(app_main.app)
+        cui = CuiResult(exists=False, checked=False, denumire=None, activ=False,
+                        data_inactivare=None, platitor_tva=False, enrolled_efactura=False, raw=None)
+        old_explain = app_main._build_ai_explanation_async
+        old_defer = app_main.ORCHESTRATED_DEFER_AI_EXPLANATION
+        app_main._build_ai_explanation_async = _fake_explain
+        app_main.ORCHESTRATED_DEFER_AI_EXPLANATION = False
+        try:
+            with patch("services.offer_entity_verifier.check_cui", new_callable=AsyncMock) as mock:
+                mock.return_value = cui
+                post = client.post(
+                    "/v1/scan/orchestrated",
+                    json={"input_type": "offer", "text": "Hai pe WhatsApp, plata direct, trimite CVV ca sa primesti banii"},
+                )
+                scan_id = post.json()["scan_id"]
+                payload = None
+                for _ in range(4):
+                    payload = client.get(f"/v1/scan/orchestrated/{scan_id}").json()
+                    if payload.get("result"):
+                        break
+        finally:
+            app_main._build_ai_explanation_async = old_explain
+            app_main.ORCHESTRATED_DEFER_AI_EXPLANATION = old_defer
+        legal = payload["result"]["legal"]
+        assert legal["label"] == "Ce spune legea"
+        assert legal["cards"] and legal["disclaimer"]

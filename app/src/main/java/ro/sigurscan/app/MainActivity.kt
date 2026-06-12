@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -2509,6 +2510,10 @@ fun ResultCard(
 
             ResultSection(title = "Ce să faci acum", items = nextActions, icon = Icons.Default.CheckCircle)
 
+            assessment.legal?.let { legal ->
+                LegalEducationSection(legal)
+            }
+
             Text(
                 text = "SigurScan oferă o estimare automată de risc. Scamurile noi sau personalizate pot să nu fie detectate. Verifică datele importante direct pe site-ul sau în aplicația oficială.",
                 color = SigurColors.TextMuted,
@@ -2806,6 +2811,61 @@ fun OfferEvidenceSection(offer: OfferEvidenceSummary) {
                 color = SigurColors.TextMuted,
                 modifier = Modifier.padding(top = 10.dp)
             )
+        }
+    }
+}
+
+@Composable
+fun LegalEducationSection(legal: LegalSection) {
+    // Strat educativ: randează DOAR ce întoarce backend-ul, verbatim. Nu atinge
+    // verdictul. 0 carduri sau label lipsă => secțiunea nu apare deloc.
+    val cards = legal.cards.orEmpty().filter { !it.title.isNullOrBlank() || !it.summary.isNullOrBlank() }
+    val label = legal.label
+    if (cards.isEmpty() || label.isNullOrBlank()) return
+
+    Spacer(modifier = Modifier.height(12.dp))
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
+        Icon(Icons.Default.Info, contentDescription = null, tint = SigurColors.Brand, modifier = Modifier.size(16.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(label, color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+    }
+    cards.forEach { card ->
+        Card(
+            colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
+            shape = DSCardShape,
+            border = DSCardBorder,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                card.title?.takeIf { it.isNotBlank() }?.let {
+                    Text(it, color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+                card.summary?.takeIf { it.isNotBlank() }?.let {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(it, color = SigurColors.TextSecondary, fontSize = 12.sp, lineHeight = 18.sp)
+                }
+                val actions = card.actions.orEmpty().filter { it.isNotBlank() }
+                if (actions.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    actions.forEach { action ->
+                        Text("\u2022 $action", color = SigurColors.TextPrimary, fontSize = 12.sp, lineHeight = 18.sp)
+                    }
+                }
+                val refs = card.sourceRefs.orEmpty().filter { it.isNotBlank() }
+                if (refs.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    refs.forEach { ref ->
+                        Text(ref, color = SigurColors.TextMuted, fontSize = 10.sp)
+                    }
+                }
+            }
+        }
+    }
+    legal.disclaimer?.takeIf { it.isNotBlank() }?.let { disclaimer ->
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 8.dp)) {
+            Icon(Icons.Default.Info, contentDescription = null, tint = SigurColors.TextMuted, modifier = Modifier.size(12.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(disclaimer, color = SigurColors.TextMuted, fontSize = 10.sp, lineHeight = 14.sp, fontStyle = FontStyle.Italic)
         }
     }
 }
