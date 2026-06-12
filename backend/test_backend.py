@@ -3311,6 +3311,42 @@ def test_orchestrated_text_scan_completes_safe_after_urlscan_preview(monkeypatch
     assert payload["result"]["evidence"]["provider_gate"]["urlscan_consulted"] is True
 
 
+def test_orchestrated_text_only_required_timeout_returns_final_suspect(monkeypatch):
+    job = {
+        "scan_id": "orch_text_only_timeout",
+        "created_at": int(time.time()) - app_main.ORCHESTRATED_REQUIRED_PILLAR_TIMEOUT_SECONDS - 1,
+        "pipeline_stage": "queued",
+        "status": "scanning",
+        "input_type": "text",
+        "source_channel": "android_native",
+        "urls": [],
+        "redacted_text": "Mesaj fara link care nu a primit analiza semantica la timp.",
+        "analysis": {},
+        "resolved_urls": [],
+        "urlscan": {"status": "skipped", "details": "nu exista URL pentru preview"},
+        "claim_verifier_required": False,
+        "orchestration_metrics": {"poll_count": 0, "stage_sequence": [], "stage_durations_ms": {}},
+    }
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
+
+        timed_out = app_main._mark_required_pillars_timeout(job)
+        refreshed = asyncio.run(app_main._finalize_orchestrated_job_if_ready(timed_out, None))
+
+    assert refreshed["pipeline_stage"] == "done"
+    pillars = app_main._build_orchestrated_pillars(refreshed)
+    assert pillars["semantic_review"]["status"] == "ok"
+    assert refreshed["result"]["user_risk_label"] == "SUSPECT"
+    assert refreshed["result"]["risk_level"] == "medium"
+    assert refreshed["result"]["is_final"] is True
+    gate = refreshed["result"]["evidence"]["verdict_gate"]
+    assert gate["label"] == "SUSPECT"
+    assert gate["reason_codes"] == ["residual"]
+
+
 def test_orchestrated_scan_finalizes_when_urlscan_report_exists_but_screenshot_is_not_ready(monkeypatch):
     client = TestClient(app_main.app)
     message = (

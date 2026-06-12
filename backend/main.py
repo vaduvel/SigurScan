@@ -5825,6 +5825,19 @@ def _orchestrated_required_pillars_timed_out(job: Dict[str, Any]) -> bool:
 
 def _mark_required_pillars_timeout(job: Dict[str, Any]) -> Dict[str, Any]:
     analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) and job.get("analysis") else {}
+    timeout_semantic_review = {
+        "status": "done",
+        "claim_matches_known_scam_family": False,
+        "matched_family": None,
+        "claim_matches_legit_template": False,
+        "matched_template": None,
+        "reason_codes": ["semantic:timeout", "orchestration:required_timeout"],
+        "risk_class": "unknown",
+        "confidence_class": "low",
+        "family_confidence": 0.0,
+        "completeness": True,
+        "source": "required_pillar_timeout",
+    }
     if not analysis:
         analysis = {
             "risk_score": 50,
@@ -5858,6 +5871,20 @@ def _mark_required_pillars_timeout(job: Dict[str, Any]) -> Dict[str, Any]:
             "Nu am putut finaliza piloanele obligatorii in timpul maxim permis.",
         ]
         analysis.setdefault("evidence", {}).setdefault("provider_gate", {})["required_timeout"] = True
+    evidence = analysis.setdefault("evidence", {})
+    existing_semantic = evidence.get("semantic_review") if isinstance(evidence.get("semantic_review"), dict) else {}
+    if str(existing_semantic.get("status") or "").strip().lower() != "done":
+        evidence["semantic_review"] = timeout_semantic_review
+    else:
+        existing_semantic["completeness"] = True
+        reason_codes = [
+            str(item)
+            for item in existing_semantic.get("reason_codes") or []
+            if str(item).strip()
+        ]
+        if "orchestration:required_timeout" not in reason_codes:
+            reason_codes.append("orchestration:required_timeout")
+        existing_semantic["reason_codes"] = reason_codes
     job["analysis"] = analysis
     _set_orchestrated_stage(job, "done")
     _emit_orchestrated_telemetry("orchestrated_required_timeout", job)
