@@ -30,7 +30,8 @@ fi
 
 IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME:$TAG"
 CPU_THROTTLING_FLAG="--cpu-throttling"
-case "${CPU_THROTTLING,,}" in
+CPU_THROTTLING_NORMALIZED="$(printf '%s' "$CPU_THROTTLING" | tr '[:upper:]' '[:lower:]')"
+case "$CPU_THROTTLING_NORMALIZED" in
   0|false|no|off)
     CPU_THROTTLING_FLAG="--no-cpu-throttling"
     ;;
