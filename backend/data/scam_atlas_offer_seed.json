@@ -1,6 +1,6 @@
 {
-  "version": "2026-06-12",
-  "source": "Atlas Oferta+Plata + EvidenceGate Partea II + cercetari fable_handoff 2026-06-12 (v3 OP-08/09)",
+  "version": "2026-06-12.2",
+  "source": "Atlas Oferta+Plata + cercetari brute fable_handoff 2026-06-12 (OP-08/09 complete cu slug/confidence/source_refs)",
   "power_legend": {
     "decisiv": "determina aproape sigur frauda -> PERICULOS (de regula in combinatie)",
     "mediu": "indica suspiciune -> SUSPECT, necesita coroborare",
@@ -377,203 +377,706 @@
     },
     {
       "code": "OP-08",
-      "name": "Oferte de muncă / joburi false",
+      "name": "Joburi false / oferte de muncă cu plată în avans",
       "status": "sustinut",
       "signals": [
         {
-          "text": "Mesaj nesolicitat pe WhatsApp sau Telegram care oferă un „job part‑time” bine plătit (de ex. 1.000 lei/zi pentru a da like‑uri sau a viziona clipuri) şi invită victima să adauge un contact necunoscut.",
+          "signal_slug": "unexpected_recruiter_on_messenger",
+          "text": "Oferta de muncă vine nesolicitat prin WhatsApp, Telegram, Signal, SMS sau mesaj privat, de la un recrutor necunoscut.",
           "where": [
             "mesaj"
           ],
-          "verify": "Caută pe site‑ul DNSC sau Poliţia Română avertizări despre mesaje cu oferte de muncă pe WhatsApp; compară numărul expeditorului cu contactele oficiale. Digi24 arată că Poliţia a descoperit astfel de înşelăciuni şi că în mesajele reale nu se cer date personale.",
-          "power": "decisiv",
-          "verdict": "periculos"
-        },
-        {
-          "text": "Ofertă care promite bani uşor pentru „taskuri” cu investiţie minimă: după câteva sarcini gratuite, victima trebuie să depună o sumă (ex. 100 USDT) pentru a continua sau a retrage câştigurile.",
-          "where": [
-            "instructiuni plata"
-          ],
-          "verify": "Consultă articole de investigare (Start‑up.ro) sau alerte ESET. Acestea descriu cum escrocherii cu taskuri cer depozite în USDT după 40 de sarcini şi că victimele nu mai retrag banii.",
-          "power": "decisiv",
-          "verdict": "periculos"
-        },
-        {
-          "text": "Recrutorul cere o „taxă de procesare”, „echipament” sau „training” înainte de angajare. Plata este solicitată în cont personal, criptomonedă sau alte metode nereversibile.",
-          "where": [
-            "factura"
-          ],
-          "verify": "ESET explică faptul că anunţurile false de angajare solicită avans pentru instruire sau echipament şi că plata în avans este un semnal clar de fraudă.",
-          "power": "decisiv",
-          "verdict": "periculos"
-        },
-        {
-          "text": "Interviu desfăşurat exclusiv pe WhatsApp/Telegram, fără adresă de e‑mail de companie şi cu adrese de Gmail sau Yahoo. Cer date personale (CNP, copii acte) înainte de ofertă.",
-          "where": [
-            "profil"
-          ],
-          "verify": "Hays România avertizează că un e‑mail generic şi lipsa unui interviu real sunt semnale că oferta nu este autentică. Ei nu cer niciodată plăţi şi folosesc doar adrese corporative.",
+          "verify": "Verifică dacă recrutorul poate fi contactat prin canalul oficial al companiei sau agenției, nu doar prin numărul/profilul care a trimis mesajul. Pentru oferte în România verifică angajatorul în ANOFM/ONRC/ANAF; pentru munca în străinătate verifică agentul/furnizorul de plasare la Inspecția Muncii/ITM și ANOFM/EURES.",
           "power": "mediu",
-          "verdict": "suspect"
+          "verdict": "suspect",
+          "confidence": "high",
+          "source_refs": [
+            "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+            "https://www.anofm.ro/locuri-de-munca-vacante/"
+          ]
         },
         {
-          "text": "„Job” care implică primirea de bani în contul personal şi transferul lor mai departe (reshipping/mula de bani).",
+          "signal_slug": "pay_to_get_paid_or_topup_required",
+          "text": "Candidatul trebuie să plătească, să alimenteze un cont, să cumpere crypto/USDT sau să facă un top-up ca să poată continua sarcinile ori să retragă câștigurile.",
           "where": [
-            "mesaj"
-          ],
-          "verify": "Hays România menţionează că cererile de a transfera bani pentru altcineva sau de a trimite bunuri sunt un semnal de activitate ilegală.",
-          "power": "mediu",
-          "verdict": "periculos_in_combo"
-        },
-        {
-          "text": "Salariu neobişnuit de mare pentru o muncă simplă, „garantat” fără experienţă şi cu program flexibil. Nu există descriere clară a companiei sau a responsabilităţilor.",
-          "where": [
-            "oferta"
-          ],
-          "verify": "Atât Hays România, cât şi Digi24 avertizează că promisiunea de câştig rapid şi salarii mari pentru efort minim este o tactică folosită de escroci.",
-          "power": "mediu",
-          "verdict": "suspect"
-        },
-        {
-          "text": "Link din mesaj care redirecţionează către un site necunoscut unde ţi se cere să introduci date personale, să încarci buletinul sau să plăteşti cu cardul/crypto.",
-          "where": [
+            "mesaj",
+            "instructiuni plata",
             "link"
           ],
-          "verify": "Digi24 şi DNSC avertizează să nu accesaţi linkuri primite de la numere necunoscute şi să nu furnizaţi date personale; verifică URL‑ul şi căută compania pe site‑uri oficiale.",
-          "power": "mediu",
-          "verdict": "suspect"
+          "verify": "Caută în document/mesaj expresii precum top-up, recharge, activare cont, pachet VIP, deblocare câștig, taxă retragere, comision eliberare, depunere minimă. Un job real nu cere bani ca să primești salariu sau comision.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+            "https://apnews.com/article/bfbbf95e12513c595fe3da998dcffad3",
+            "https://www.theverge.com/2024/12/13/24320391/ftc-task-scams-spotlight-warning"
+          ]
         },
         {
-          "text": "Anunţuri de angajare generate cu AI care imită perfect CV‑ul candidatului; după interesare, ţi se oferă să‑ţi „îmbunătăţeşti” CV‑ul sau să plăteşti pentru un serviciu de procesare.",
+          "signal_slug": "high_income_low_effort_no_experience",
+          "text": "Oferta promite venit mare pentru muncă foarte simplă, de acasă, fără experiență, fără calificări și cu timp foarte redus.",
           "where": [
+            "oferta",
+            "mesaj",
+            "anunt"
+          ],
+          "verify": "Compară promisiunea cu cerințele reale ale rolului: joburile legitime au descriere clară, proces de selecție, criterii de calificare și contract. Semnalul este slab singur, dar devine puternic împreună cu plată în avans, crypto, lipsă interviu sau canal neoficial.",
+          "power": "slab",
+          "verdict": "suspect",
+          "confidence": "high",
+          "source_refs": [
+            "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+            "https://consumer.ftc.gov/articles/job-scams"
+          ]
+        },
+        {
+          "signal_slug": "paid_likes_reviews_product_boosting",
+          "text": "Jobul constă în like-uri, review-uri, rating-uri, optimizare aplicații, product boosting, cumpărări simulate sau sarcini repetitive într-un dashboard.",
+          "where": [
+            "oferta",
+            "mesaj",
+            "link"
+          ],
+          "verify": "Identifică termeni ca rating, like, review, boost, optimize, task, set de sarcini, comision per click. Verifică dacă există cerere ulterioară de top-up/crypto pentru a continua sau retrage câștigul.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos",
+          "confidence": "high",
+          "source_refs": [
+            "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+            "https://apnews.com/article/bfbbf95e12513c595fe3da998dcffad3"
+          ]
+        },
+        {
+          "signal_slug": "small_initial_payment_trust_hook",
+          "text": "Victima primește o plată mică inițială pentru a crede că jobul este real, apoi i se cere să depună bani proprii pentru sarcini mai mari sau retragerea câștigurilor.",
+          "where": [
+            "mesaj",
+            "instructiuni plata",
+            "link"
+          ],
+          "verify": "Caută mențiuni despre plată de probă, bonus de start, comision inițial, prima retragere mică, apoi top-up/depunere/recharge pentru nivel superior sau task special.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos",
+          "confidence": "high",
+          "source_refs": [
+            "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+            "https://www.theverge.com/2024/12/13/24320391/ftc-task-scams-spotlight-warning"
+          ]
+        },
+        {
+          "signal_slug": "advance_fee_training_equipment_certification",
+          "text": "Recrutorul cere bani înainte de angajare pentru training, echipament, certificat, dosar, uniformă, material de lucru sau garanție.",
+          "where": [
+            "oferta",
+            "contract",
+            "mesaj",
+            "instructiuni plata"
+          ],
+          "verify": "În document caută taxă de înscriere, taxă training, kit starter, garanție echipament, certificare obligatorie, plată înainte de prima zi. Pentru munca în străinătate, Inspecția Muncii indică faptul că agentul de plasare nu trebuie să perceapă tarife, taxe sau comisioane lucrătorului român.",
+          "power": "decisiv",
+          "verdict": "periculos_in_combo",
+          "confidence": "high",
+          "source_refs": [
+            "https://www.inspectiamuncii.ro/documents/66402/201782/info_agenti_plasare.pdf/108ec86f-7377-482e-9dbf-e114f831d0b8",
+            "https://consumer.ftc.gov/articles/job-scams"
+          ]
+        },
+        {
+          "signal_slug": "foreign_job_agent_fee_or_transport_fee_before_contract",
+          "text": "Pentru job în străinătate se cere comision, garanție, taxă de mediere, transport neefectuat sau costuri de procesare înainte să existe contract de mediere și contract de muncă în limba română.",
+          "where": [
+            "oferta",
+            "contract",
+            "mesaj",
+            "instructiuni plata"
+          ],
+          "verify": "Verifică dacă documentul conține contract de mediere cu datele angajatorului străin, țara, meseria, durata muncii, salariul, cazarea și transportul. Inspecția Muncii precizează că agentul de plasare face medierea gratuit, fără tarif/comision/taxe, iar lucrătorul trebuie să primească contractul înainte de plecarea din România.",
+          "power": "decisiv",
+          "verdict": "periculos_in_combo",
+          "confidence": "high",
+          "source_refs": [
+            "https://www.inspectiamuncii.ro/documents/66402/200730/INFO_mai_2021_SITE%2B156_ian_2026.pdf/9f1c8d81-2695-4b48-977f-dd8420308a10",
+            "https://www.inspectiamuncii.ro/documents/66402/201782/info_agenti_plasare.pdf/108ec86f-7377-482e-9dbf-e114f831d0b8"
+          ]
+        },
+        {
+          "signal_slug": "contract_promised_after_arrival_abroad",
+          "text": "Pentru muncă în străinătate, recrutorul spune că semnarea contractului se face abia la sosirea în țara de destinație sau după plata transportului.",
+          "where": [
+            "oferta",
+            "contract",
             "mesaj"
           ],
-          "verify": "ProTV a relatat un caz în care infractorii au folosit AI pentru a crea oferte personalizate şi au cerut bani pentru a îmbunătăţi CV‑ul.",
+          "verify": "Verifică dacă oferta include contract de mediere și contract/document echivalent al angajatorului străin, inclusiv în limba română, înainte de plecarea din România. Lipsa contractului înainte de plecare este semnal puternic de risc.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos",
+          "confidence": "high",
+          "source_refs": [
+            "https://www.inspectiamuncii.ro/documents/66402/200730/INFO_mai_2021_SITE%2B156_ian_2026.pdf/9f1c8d81-2695-4b48-977f-dd8420308a10"
+          ]
+        },
+        {
+          "signal_slug": "agency_not_registered_or_unverifiable",
+          "text": "Agenția/recrutorul pretinde că intermediază locuri de muncă, dar nu oferă CUI/date firmă sau nu apare într-o sursă oficială relevantă.",
+          "where": [
+            "oferta",
+            "contract",
+            "profil",
+            "mesaj"
+          ],
+          "verify": "Verifică firma în ONRC/ANAF după CUI/nume. Pentru furnizori de servicii de ocupare verificați în Registrul național al furnizorilor de servicii de ocupare acreditați ANOFM. Pentru plasare forță de muncă în străinătate, verificați informațiile și listele indicate de Inspecția Muncii/ITM.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos",
+          "confidence": "medium",
+          "source_refs": [
+            "https://www.anofm.ro/registrul-national-al-furnizorilor-de-servicii-de-ocupare-acreditati/",
+            "https://www.onrc.ro/index.php/ro/infocert",
+            "https://www.inspectiamuncii.ro/documents/66402/200730/INFO_mai_2021_SITE%2B156_ian_2026.pdf/9f1c8d81-2695-4b48-977f-dd8420308a10"
+          ]
+        },
+        {
+          "signal_slug": "reshipping_or_package_forwarding_job",
+          "text": "Jobul cere să primești colete acasă, să arunci ambalajul/bonul, să reambalezi și să retrimiți produsele către o altă adresă.",
+          "where": [
+            "oferta",
+            "contract",
+            "mesaj",
+            "instructiuni plata"
+          ],
+          "verify": "Caută roluri de tip quality control manager, logistic assistant, virtual assistant, package inspector, operator coletărie, reshipping, reambalare și expediere. Astfel de roluri sunt frecvent asociate cu bunuri cumpărate cu carduri furate sau fraudă de reshipping.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            "https://consumer.ftc.gov/articles/job-scams",
+            "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams"
+          ]
+        },
+        {
+          "signal_slug": "money_mule_transfer_job",
+          "text": "Jobul cere să primești bani în contul personal și să îi transferi mai departe către alte conturi, crypto wallet-uri, carduri cadou sau servicii de transfer.",
+          "where": [
+            "oferta",
+            "contract",
+            "mesaj",
+            "instructiuni plata"
+          ],
+          "verify": "Caută denumiri de rol precum finance agent, remote cashier, bookkeeper, payment processor, administrator conturi, operator tranzacții. Dacă instrucțiunile spun să păstrezi un comision și să muți restul banilor, semnalul este decisiv.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams"
+          ]
+        },
+        {
+          "signal_slug": "identity_documents_before_verified_employer",
+          "text": "Se cer CI, pașaport, selfie, permis, adresă completă, date bancare sau cont crypto înainte ca angajatorul/recrutorul să fie verificat.",
+          "where": [
+            "oferta",
+            "contract",
+            "link",
+            "profil",
+            "mesaj"
+          ],
+          "verify": "Verifică dacă documentul/oferta cere acte înainte de contract, înainte de interviu real sau înainte de verificarea firmei. Caută upload CI, pașaport, selfie, document identitate, scan permis, date cont bancar, wallet, seed phrase. Semnalul devine sever când este combinat cu canal neoficial, lipsă firmă verificabilă sau plată în avans.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos",
+          "confidence": "high",
+          "source_refs": [
+            "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+            "https://consumer.ftc.gov/articles/job-scams"
+          ]
+        },
+        {
+          "signal_slug": "fake_check_overpayment_forward_money",
+          "text": "Așa-zisul angajator trimite un cec/ordin de plată/screenshot de plată mai mare decât suma datorată și cere să trimiți diferența mai departe.",
+          "where": [
+            "mesaj",
+            "instructiuni plata",
+            "contract"
+          ],
+          "verify": "Caută cuvinte ca overpayment, eroare de plată, păstrează comisionul, trimite diferența, cumpără materiale/gift card, transferă către furnizor. Este un pattern clasic de fake check/overpayment, chiar dacă în România poate apărea ca screenshot de ordin de plată sau transfer bancar fals.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "medium",
+          "source_refs": [
+            "https://consumer.ftc.gov/articles/job-scams"
+          ]
+        },
+        {
+          "signal_slug": "interview_absent_or_hiring_instant",
+          "text": "Procesul de angajare este extrem de rapid: fără interviu real, fără verificarea experienței, fără referințe, fără discuție despre contract și condiții.",
+          "where": [
+            "oferta",
+            "mesaj",
+            "contract"
+          ],
+          "verify": "Caută expresii ca ești acceptat instant, fără experiență, fără interviu, start azi, selectare rapidă. Semnal slab singur, dar puternic împreună cu plată în avans, messenger-only și promisiune de venit mare.",
           "power": "slab",
-          "verdict": "suspect_to_periculos"
+          "verdict": "suspect",
+          "confidence": "high",
+          "source_refs": [
+            "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+            "https://www.inspectiamuncii.ro/documents/66402/200730/INFO_mai_2021_SITE%2B156_ian_2026.pdf/9f1c8d81-2695-4b48-977f-dd8420308a10"
+          ]
+        },
+        {
+          "signal_slug": "off_platform_group_chat_social_proof",
+          "text": "Recrutorul mută candidatul într-un grup WhatsApp/Telegram cu persoane care postează câștiguri, screenshoturi și testimoniale pentru a crea presiune socială.",
+          "where": [
+            "mesaj",
+            "profil",
+            "link"
+          ],
+          "verify": "Caută invitații în grupuri, capturi cu câștiguri, mesaje de la alți «angajați», presiune că alții câștigă deja, leaderboard sau nivel VIP. Este semnal de context; devine sever dacă apare împreună cu top-up, crypto sau plată în avans.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos",
+          "confidence": "high",
+          "source_refs": [
+            "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+            "https://arxiv.org/abs/2602.24223"
+          ]
+        },
+        {
+          "signal_slug": "employer_domain_or_email_mismatch",
+          "text": "Documentul pretinde că vine de la o companie/agenție cunoscută, dar emailul, domeniul sau linkul nu aparțin companiei oficiale.",
+          "where": [
+            "oferta",
+            "mesaj",
+            "contract",
+            "link",
+            "profil"
+          ],
+          "verify": "Compară domeniul emailului și linkului cu site-ul oficial al companiei, cu pagina de cariere oficială, cu ONRC/ANAF pentru firmă și cu datele de contact publice. Un mismatch nu e periculos singur, dar în combinație cu plată în avans, acte sau crypto devine sever.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos",
+          "confidence": "medium",
+          "source_refs": [
+            "https://consumer.ftc.gov/articles/job-scams",
+            "https://www.onrc.ro/index.php/ro/infocert"
+          ]
         }
       ],
       "verification_sources": [
-        "Alerte DNSC / Poliţia Română pentru job scams (verificare numere şi mesaje)",
-        "Registrul ONRC / ANAF pentru a verifica dacă firma este înregistrată şi activă",
-        "Căutare pe site‑ul companiei sau profilul LinkedIn al recrutorului",
-        "ESET şi publicaţii de securitate (ESET România) pentru scenarii de task scams"
+        {
+          "name": "ANOFM - Locuri de muncă vacante",
+          "url": "https://www.anofm.ro/locuri-de-munca-vacante/",
+          "what_can_verify": "Dacă oferta apare ca loc de muncă vacant comunicat oficial de angajatori către ANOFM; include detalii precum ocupație, salariu, beneficii, locație și valabilitatea ofertei.",
+          "access_type": "public_search",
+          "confidence": "high"
+        },
+        {
+          "name": "ANOFM - Registrul național al furnizorilor de servicii de ocupare acreditați",
+          "url": "https://www.anofm.ro/registrul-national-al-furnizorilor-de-servicii-de-ocupare-acreditati/",
+          "what_can_verify": "Dacă un furnizor de servicii de ocupare este listat în registrul național public; pagina oferă documente PDF/XLSX descărcabile actualizate.",
+          "access_type": "pdf_xls",
+          "confidence": "high"
+        },
+        {
+          "name": "Inspecția Muncii - Obligațiile agenților/furnizorilor de plasare forță de muncă în străinătate",
+          "url": "https://www.inspectiamuncii.ro/documents/66402/201782/info_agenti_plasare.pdf/108ec86f-7377-482e-9dbf-e114f831d0b8",
+          "what_can_verify": "Regula că activitatea de mediere și plasare în străinătate pentru cetățenii români se face gratuit, fără tarife, taxe sau comisioane; condiții de funcționare ale agenților.",
+          "access_type": "pdf_xls",
+          "confidence": "high"
+        },
+        {
+          "name": "Inspecția Muncii - Informații despre intermedierea și plasarea forței de muncă în străinătate",
+          "url": "https://www.inspectiamuncii.ro/documents/66402/200730/INFO_mai_2021_SITE%2B156_ian_2026.pdf/9f1c8d81-2695-4b48-977f-dd8420308a10",
+          "what_can_verify": "Ce trebuie să conțină contractul de mediere și contractul de muncă pentru străinătate; avertizări privind comisioane, garanții, transport neefectuat, contract după sosire și selecție rapidă.",
+          "access_type": "pdf_xls",
+          "confidence": "high"
+        },
+        {
+          "name": "ONRC InfoCert / portal ONRC",
+          "url": "https://www.onrc.ro/index.php/ro/infocert",
+          "what_can_verify": "Existența și starea unei firme prin certificat constatator/furnizare informații; util pentru verificarea CUI, denumirii, stării și activității declarate a angajatorului sau agenției.",
+          "access_type": "manual",
+          "confidence": "high"
+        },
+        {
+          "name": "ANAF Platitor TVA Rest v9",
+          "url": "https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva",
+          "what_can_verify": "Denumire firmă după CUI, stare fiscală/inactivitate, TVA și informații de bază pentru entitatea pretinsă. Endpointul este util programatic, dar poate respinge accesări browser directe.",
+          "access_type": "api",
+          "confidence": "high"
+        },
+        {
+          "name": "EURES prin ANOFM",
+          "url": "https://www.anofm.ro/legaturi-eures/",
+          "what_can_verify": "Canal oficial pentru locuri de muncă europene și legături EURES. Util pentru verificarea ofertelor de muncă în străinătate care pretind proveniență EURES/ANOFM.",
+          "access_type": "public_search",
+          "confidence": "medium"
+        },
+        {
+          "name": "Scamwatch / ACCC - Jobs and employment scams",
+          "url": "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+          "what_can_verify": "Tipare internaționale curente pentru job scams: task scams, money mule, upfront payment, messenger recruitment, crypto top-up, cereri de documente de identitate.",
+          "access_type": "public_search",
+          "confidence": "high"
+        },
+        {
+          "name": "FTC - Job Scams",
+          "url": "https://consumer.ftc.gov/articles/job-scams",
+          "what_can_verify": "Tipare generale: work-from-home, reshipping, fake check, mystery shopper, job placement fees, training/certification fees, personal information theft.",
+          "access_type": "public_search",
+          "confidence": "high"
+        }
       ],
       "payment_risk": {
+        "bank_transfer_to_company": "scazut",
         "bank_transfer_to_person": "mare",
-        "crypto_wallet": "extrem",
-        "card_on_link": "mare",
-        "western_union_moneygram": "extrem"
-      },
-      "examples": [
-        "Bună! Suntem de la \"CERT‑RO HR department\". Îţi oferim un job part‑time: apreciezi postări pe social media şi câştigi 1.000 lei/zi! Adaugă acest număr pe WhatsApp ca să primeşti detaliile. Vom avea nevoie de numele tău complet şi un clip scurt pentru verificare.",
-        "După ce ai completat 40 de sarcini simple pe platforma noastră, ai acumulat 50 USDT. Pentru a trece la nivelul următor şi a retrage câştigurile, trebuie să depui 100 USDT în contul tău. Îţi vom dubla suma imediat!",
-        "Felicitări! Te‑am selectat pentru un post remote cu salariu de 4.000 EUR/lună. Trebuie doar să participi la un training plătit (150 EUR) şi să îţi achiziţionezi laptopul de lucru. Trimite taxa în contul ROxx BTRL **** pe numele Popescu A.",
-        "Bună ziua, sunt recrutorul Ana de la Hays Global. Am găsit profilul tău pe LinkedIn. Trimite-mi copia CNP‑ului şi datele bancare pentru a începe contractul. Vom semna online prin Gmail.",
-        "Salut! Avem un post de operator logistic. Vei primi colete acasă şi le vei reexpedia. Primeşti 200 lei/comandă. Eşti de acord? Trimite numărul de cont pentru plăţi şi CNP pentru contract.",
-        "E‑mail personalizat: ‘Ne extindem discret echipa editorială de tehnologie şi pieţe. CV‑ul tău corespunde perfect! Salariul propus: 7.000 £ pe lună. Trimite 50 £ pentru îmbunătăţirea CV‑ului ca să evidenţiem abilităţile de leadership’."
-      ]
+        "revolut_personal": "mare",
+        "crypto_wallet": "periculos",
+        "gift_card": "periculos",
+        "western_union_moneygram": "periculos"
+      }
     },
     {
       "code": "OP-09",
-      "name": "Investiții / crypto / profit garantat",
+      "name": "Investiții false / crypto / profit garantat",
       "status": "sustinut",
       "signals": [
         {
-          "text": "Promisiune de câştig rapid sau dublarea sumei într-un timp scurt, fără risc: „profit garantat 20% pe zi” sau „investiţie sigură în energie/crypto”.",
+          "signal_slug": "guaranteed_profit_or_zero_risk",
+          "text": "Oferta promite profit garantat, câștig rapid, risc zero, randament zilnic/săptămânal fix sau recuperarea investiției într-un termen foarte scurt.",
           "where": [
-            "oferta"
+            "oferta",
+            "mesaj",
+            "link",
+            "profil"
           ],
-          "verify": "Bugetul.ro citează ASF, care avertizează că nu există reţete de îmbogăţire rapidă şi că promisiunile de dublare a banilor sunt semnale de fraudă.",
-          "power": "decisiv",
-          "verdict": "periculos"
+          "verify": "Caută expresii precum profit garantat, risc zero, venit pasiv sigur, câștig zilnic, randament fix, multiplicare bani. Semnalul este slab singur și devine sever doar împreună cu entitate nelicențiată, crypto, plată în avans, remote access sau domeniu neoficial.",
+          "power": "slab",
+          "verdict": "suspect",
+          "confidence": "high",
+          "source_refs": [
+            "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+            "https://consumer.ftc.gov/articles/what-know-about-cryptocurrency-scams",
+            "https://www.hidroelectrica.ro/press-release/1d738954-4c1b-1ad9-c046-4d0d6001e187"
+          ]
         },
         {
-          "text": "„Mentor/coach” pe grupuri WhatsApp/Telegram care oferă acces la o platformă de trading şi cere să introduci sume mici la început, apoi tot mai mari, cu obligaţia de a recruta alţi membri.",
+          "signal_slug": "unlicensed_investment_entity_asf_alert",
+          "text": "Entitatea, platforma sau domeniul prezent în ofertă apare în lista ASF de alerte investitori ca neautorizată sau nu poate fi găsită în registrele ASF ale entităților autorizate.",
           "where": [
-            "mesaj"
+            "oferta",
+            "mesaj",
+            "contract",
+            "link",
+            "profil"
           ],
-          "verify": "ASF a avertizat că grupurile false folosesc roboţi şi mentori pentru a simula activitate. Membrii sunt încurajaţi să facă investiţii repetate şi să aducă alţi clienţi.",
+          "verify": "Verifică numele entității și domeniul în pagina ASF Alerte investitori și în Registre entități autorizate ASF. Dacă documentul pretinde servicii de investiții și entitatea este listată de ASF ca neautorizată, semnalul este decisiv. Dacă nu apare în registre, dar nu există încă alertă, nu marca singur PERICULOS; folosește în combinație cu profit garantat, plată crypto, remote access sau domeniu lookalike.",
           "power": "decisiv",
-          "verdict": "periculos"
+          "verdict": "periculos_in_combo",
+          "confidence": "high",
+          "source_refs": [
+            "https://asfromania.ro/ro/a/19/alerte-investitori---informari",
+            "https://asfromania.ro/ro/a/1544/registre-entit%C4%83%C8%9Bi-autorizate"
+          ]
         },
         {
-          "text": "Site de investiţii care foloseşte imaginea unor personalităţi (politicieni, vedete) în reclame, cu testimoniale false şi link către o „platformă de trading” necunoscută.",
+          "signal_slug": "public_company_impersonation_investment",
+          "text": "Oferta folosește numele sau imaginea unei companii cunoscute din România, de exemplu Hidroelectrica, pentru o oportunitate de investiții promovată prin reclame, mesaje sau platforme neoficiale.",
           "where": [
+            "oferta",
+            "mesaj",
+            "link",
+            "profil"
+          ],
+          "verify": "Compară domeniul, canalul și numele platformei cu website-ul oficial al companiei. Hidroelectrica a avertizat explicit că platformele care folosesc abuziv numele său pentru investiții online, inclusiv reclame și platforme promovate pe social media, nu aparțin companiei și pot cere bani/date personale sau bancare.",
+          "power": "decisiv",
+          "verdict": "periculos_in_combo",
+          "confidence": "high",
+          "source_refs": [
+            "https://www.hidroelectrica.ro/press-release/1d738954-4c1b-1ad9-c046-4d0d6001e187",
+            "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/"
+          ]
+        },
+        {
+          "signal_slug": "deepfake_or_fake_public_persona_endorsement",
+          "text": "Oferta invocă video-uri, reclame sau declarații ale unor persoane publice, directori de companii, politicieni, jurnaliști sau experți care ar recomanda platforma de investiții.",
+          "where": [
+            "oferta",
+            "mesaj",
+            "link",
+            "profil"
+          ],
+          "verify": "Verifică dacă endorsement-ul apare pe canalele oficiale ale persoanei/companiei și dacă domeniul aparține entității oficiale. Semnalul devine puternic dacă este combinat cu profit garantat, domeniu neoficial, solicitare de date bancare sau transfer crypto. Hidroelectrica avertizează că astfel de scheme pot folosi materiale video manipulate sau imaginea unor persoane publice din conducerea companiei.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos",
+          "confidence": "high",
+          "source_refs": [
+            "https://www.hidroelectrica.ro/press-release/1d738954-4c1b-1ad9-c046-4d0d6001e187",
+            "https://www.arb.ro/cum-recunosti-phishing-ul-inainte-sa-ti-fure-datele-personale-si-bancare-explicatiile-expertilor-arb/"
+          ]
+        },
+        {
+          "signal_slug": "remote_access_required_for_investment",
+          "text": "Așa-zisul broker/consilier cere instalarea AnyDesk, TeamViewer, QuickSupport sau a unei aplicații de control la distanță pentru deschiderea contului, configurarea tranzacțiilor ori retragerea profitului.",
+          "where": [
+            "mesaj",
+            "contract",
+            "link",
+            "instructiuni plata"
+          ],
+          "verify": "Caută termeni precum AnyDesk, TeamViewer, QuickSupport, remote support, control telefon, partajare ecran, instalare aplicație pentru tranzacționare. ARB avertizează că aplicația prezentată ca tranzacționare poate fi de fapt remote control care permite acces la telefon, mesaje de banking și coduri de autorizare.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            "https://www.arb.ro/cum-recunosti-phishing-ul-inainte-sa-ti-fure-datele-personale-si-bancare-explicatiile-expertilor-arb/",
+            "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/"
+          ]
+        },
+        {
+          "signal_slug": "crypto_payment_wallet_or_qr",
+          "text": "Instrucțiunile de plată cer transfer în crypto, wallet address, USDT/BTC/ETH, scanarea unui QR crypto sau depunere la ATM de criptomonede.",
+          "where": [
+            "instructiuni plata",
+            "mesaj",
+            "factura",
+            "contract",
             "link"
           ],
-          "verify": "ProTV şi DNSC arată că escrocii creează site‑uri care imită presa, folosesc deepfake cu celebrităţi şi includ testimoniale inexistente. Verifică URL‑ul exact şi compară cu domeniile oficiale.",
-          "power": "mediu",
-          "verdict": "suspect_to_periculos"
-        },
-        {
-          "text": "Solicitare de a instala aplicaţii de acces la distanţă (AnyDesk, TeamViewer, AirDroid) pentru a „ajuta” la tranzacţii. Consultantul cere datele cardului sau autentificarea în internet banking.",
-          "where": [
-            "mesaj"
-          ],
-          "verify": "Poliţia şi StartupCafe avertizează că escrocii se prezintă ca reprezentanţi ai companiilor Hidroelectrica sau Transgaz şi cer instalarea de aplicaţii remote pentru a controla conturile victimelor.",
+          "verify": "Detectează wallet addresses, QR crypto, termeni precum USDT, BTC, ETH, Binance, wallet, seed, exchange, crypto ATM, deposit address. FTC explică faptul că plățile crypto sunt în mod tipic ireversibile și fără protecțiile cardurilor; Siguranța Online include scenarii unde banii sunt mutați în aparate de criptomonede.",
           "power": "decisiv",
-          "verdict": "periculos"
+          "verdict": "periculos_in_combo",
+          "confidence": "high",
+          "source_refs": [
+            "https://consumer.ftc.gov/articles/what-know-about-cryptocurrency-scams",
+            "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/"
+          ]
         },
         {
-          "text": "Cerinţa de a plăti taxe suplimentare (comisioane de retragere, taxe AML, impozite) pentru a accesa „profitul”. După plata taxelor, nu se primesc banii.",
+          "signal_slug": "withdrawal_fee_or_tax_to_release_profit",
+          "text": "Platforma arată profit în dashboard, dar cere taxă, impozit, comision de deblocare, verificare cont sau depunere suplimentară înainte de retragere.",
           "where": [
-            "factura"
+            "mesaj",
+            "link",
+            "instructiuni plata",
+            "contract"
           ],
-          "verify": "ASF explică faptul că fraudatorii pretind comisioane fictive pentru a debloca fondurile şi nu virează niciodată câştigurile.",
+          "verify": "Caută expresii precum taxă retragere, impozit profit, deblocare cont, comision AML, verificare lichiditate, taxă activare retragere, profit blocat. FTC descrie platforme fake de investiții unde utilizatorul nu poate retrage banii sau poate retrage doar dacă plătește taxe mari.",
           "power": "decisiv",
-          "verdict": "periculos"
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            "https://consumer.ftc.gov/articles/what-know-about-cryptocurrency-scams"
+          ]
         },
         {
-          "text": "„Recuperare” după o fraudă: un pretins agent ASF/avocat promite să recupereze banii pierduţi în schimbul unei taxe; solicită plata în cont neoficial sau crypto.",
+          "signal_slug": "recovery_scam_advance_fee",
+          "text": "După o pierdere anterioară, cineva promite recuperarea banilor investiți sau crypto pierdut, dar cere plată în avans, taxă de dosar, comision legal, taxă blockchain sau date personale.",
           "where": [
-            "mesaj"
+            "mesaj",
+            "oferta",
+            "contract",
+            "instructiuni plata"
           ],
-          "verify": "Investigaţii internaţionale arată că reţelele de call‑center folosesc astfel de recovery scams; Context.ro descrie cum victimele sunt abordate de noi escroci care cer bani pentru a recupera pierderile.",
-          "power": "mediu",
-          "verdict": "suspect_to_periculos"
+          "verify": "Caută promisiuni de recuperare garantată, recovery department, blockchain tracing, avocat internațional, chargeback crypto, taxă de activare recuperare. FTC avertizează că refund/recovery scams cer de obicei bani sau informații pentru a recupera presupuse pierderi.",
+          "power": "decisiv",
+          "verdict": "periculos_in_combo",
+          "confidence": "high",
+          "source_refs": [
+            "https://consumer.ftc.gov/articles/refund-and-recovery-scams"
+          ]
         },
         {
-          "text": "Platformă de tranzacţionare care nu este listată în registrul ASF; datele firmei lipsesc sau CUI‑ul este inexistent.",
+          "signal_slug": "unknown_advisor_manages_account",
+          "text": "Un consilier/broker necunoscut cere să administreze contul, să tranzacționeze în numele victimei sau să primească acces la cont, seed phrase, exchange sau aplicația bancară.",
           "where": [
+            "mesaj",
+            "contract",
+            "profil",
+            "instructiuni plata"
+          ],
+          "verify": "Verifică dacă persoana/entitatea este autorizată ASF/BNR unde pretinde servicii de investiții sau plată. Nu introduce datele contului, parole, coduri sau seed phrase. Semnalul devine decisiv dacă este combinat cu remote access, profit garantat sau transfer crypto.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos",
+          "confidence": "high",
+          "source_refs": [
+            "https://asfromania.ro/ro/a/1544/registre-entit%C4%83%C8%9Bi-autorizate",
+            "https://www.arb.ro/cum-recunosti-phishing-ul-inainte-sa-ti-fure-datele-personale-si-bancare-explicatiile-expertilor-arb/"
+          ]
+        },
+        {
+          "signal_slug": "fake_platform_dashboard_initial_returns",
+          "text": "Platforma arată sold, profit, tranzacții câștigătoare sau retrageri mici inițiale pentru a crea încredere, apoi cere depuneri mai mari sau taxe.",
+          "where": [
+            "link",
+            "mesaj",
             "oferta"
           ],
-          "verify": "Se poate verifica în Registrul public al Autorităţii de Supraveghere Financiară (ASF) dacă societatea e autorizată. ASF recomandă verificarea oricărui intermediar.",
+          "verify": "Caută mențiuni despre dashboard, cont trading, profit vizibil, retragere de probă, bonus, nivel VIP. Confirmă domeniul și entitatea în ASF/BNR/ESMA/registrul relevant. Dacă platforma apare în ASF Alerte investitori sau cere crypto/remote access, escaladează.",
           "power": "mediu",
-          "verdict": "suspect"
+          "verdict": "suspect_to_periculos",
+          "confidence": "high",
+          "source_refs": [
+            "https://consumer.ftc.gov/articles/what-know-about-cryptocurrency-scams",
+            "https://asfromania.ro/ro/a/19/alerte-investitori---informari"
+          ]
         },
         {
-          "text": "Apel telefonic de pe un număr internaţional (de ex. +44) în care interlocutorul pretinde că reprezintă Hidroelectrica / Petrom şi oferă investiţii sigure cu profit de 10% pe lună; solicită depunerea de bani la un ATM de criptomonede.",
+          "signal_slug": "move_to_whatsapp_telegram_for_investment",
+          "text": "După o reclamă sau un formular, discuția este mutată rapid pe WhatsApp/Telegram cu un broker, mentor sau grup de investitori.",
           "where": [
-            "mesaj"
+            "mesaj",
+            "profil",
+            "link"
           ],
-          "verify": "Poliţia a avertizat că escrocii folosesc numele unor companii mari şi contactează victimele de pe numere străine, cerând instalarea de aplicaţii remote şi depuneri la bancomate crypto.",
+          "verify": "Detectează invitații către WhatsApp/Telegram, grup VIP, canal de semnale, mentor, analist personal. Semnalul este mediu singur; devine sever împreună cu profit garantat, crypto, remote access, entitate nelicențiată sau presiune să plătești.",
           "power": "mediu",
-          "verdict": "periculos"
+          "verdict": "suspect_to_periculos",
+          "confidence": "high",
+          "source_refs": [
+            "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+            "https://www.arb.ro/cum-recunosti-phishing-ul-inainte-sa-ti-fure-datele-personale-si-bancare-explicatiile-expertilor-arb/"
+          ]
+        },
+        {
+          "signal_slug": "telegram_pump_dump_or_signal_group",
+          "text": "Oferta promovează un grup de semnale/pump, achiziții coordonate, monede/tokenuri care urmează să explodeze sau recomandări de cumpărare rapidă pe Telegram/Discord.",
+          "where": [
+            "mesaj",
+            "profil",
+            "link"
+          ],
+          "verify": "Caută termeni precum pump, signal group, entry price, target, moon, private group, memecoin, cumpără acum, listare secretă. Semnalul este mediu în România fără sursă directă oficială pe cazul concret; devine sever în combinație cu token necunoscut, presiune, wallet/DEX/crypto și lipsa entității autorizate.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos",
+          "confidence": "medium",
+          "source_refs": [
+            "https://www.reuters.com/markets/australias-regulator-says-four-persons-criminally-charged-alleged-market-rigging-2024-07-23/",
+            "https://www.barrons.com/advisor/articles/facebook-instagram-investment-scams-0f82cdb3"
+          ]
+        },
+        {
+          "signal_slug": "crypto_job_or_investment_requires_buying_crypto",
+          "text": "Oferta prezintă o activitate de investiții sau job asociat crypto, dar prima acțiune cerută este cumpărarea și trimiterea de crypto către o adresă indicată de recrutor/mentor.",
+          "where": [
+            "mesaj",
+            "instructiuni plata",
+            "contract"
+          ],
+          "verify": "Caută instrucțiuni de cumpărare crypto la ATM/exchange, trimitere către wallet extern, scanare QR sau conversie bani în crypto pentru un client. FTC spune explicit că un job care începe prin cumpărarea de crypto sau plata unei taxe crypto este scam.",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "confidence": "high",
+          "source_refs": [
+            "https://consumer.ftc.gov/articles/what-know-about-cryptocurrency-scams"
+          ]
+        },
+        {
+          "signal_slug": "mica_or_regulated_status_misleading",
+          "text": "Platforma pretinde că este reglementată în UE/MiCA/ASF/ESMA, dar nu precizează entitatea autorizată, autoritatea competentă, numărul autorizației sau combină produse reglementate cu servicii neclare/nereglementate.",
+          "where": [
+            "oferta",
+            "contract",
+            "link",
+            "profil"
+          ],
+          "verify": "Caută numărul autorizației, denumirea legală exactă și registrul unde poate fi verificată. Pentru investiții tradiționale verifică ASF; pentru servicii bancare/plată verifică BNR; pentru crypto verifică dacă există CASP autorizat la autoritatea competentă relevantă. ESMA a avertizat că statutul reglementat poate fi folosit ca argument de marketing care confundă clienții între produse reglementate și nereglementate.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos",
+          "confidence": "medium",
+          "source_refs": [
+            "https://www.reuters.com/sustainability/boards-policy-regulation/european-securities-regulator-warns-about-crypto-firms-misleading-customers-2025-07-11/",
+            "https://asfromania.ro/ro/a/1544/registre-entit%C4%83%C8%9Bi-autorizate",
+            "https://www.bnr.ro/2349-registre-si-liste"
+          ]
+        },
+        {
+          "signal_slug": "tokenized_stock_or_company_share_without_rights",
+          "text": "Oferta vinde expunere la acțiuni/tokenuri ale unor companii cunoscute, dar nu explică drepturile investitorului, custodia, intermediarul autorizat sau faptul că produsul nu conferă acțiuni reale.",
+          "where": [
+            "oferta",
+            "contract",
+            "link"
+          ],
+          "verify": "Verifică dacă produsul este listat printr-un intermediar autorizat, dacă entitatea poate presta servicii de investiții și dacă documentul explică drepturile reale. ESMA a avertizat că tokenized stocks pot crea risc de neînțelegere pentru investitori, deoarece pot oferi expunere fără drepturile unui acționar real.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos",
+          "confidence": "medium",
+          "source_refs": [
+            "https://www.reuters.com/sustainability/boards-policy-regulation/european-regulator-says-tokenised-stocks-risk-investor-misunderstanding-2025-09-01/"
+          ]
         }
       ],
       "verification_sources": [
-        "Registrul ASF – lista firmelor de investiţii şi brokerilor autorizaţi (public pe asfromania.ro)",
-        "Lista de avertismente ASF pentru entităţi neautorizate",
-        "Banca Naţională a României – registrul instituţiilor financiare nebancare (pentru a verifica IFN‑uri legitime)",
-        "Site‑uri oficiale ale companiilor (Hidroelectrica, Transgaz etc.) pentru confirmarea ofertelor",
-        "Serviciul de afişare a numelui beneficiar (SANB) pentru a verifica dacă IBAN‑ul corespunde deponentului"
+        {
+          "name": "ASF - Alerte investitori / informări",
+          "url": "https://asfromania.ro/ro/a/19/alerte-investitori---informari",
+          "what_can_verify": "Dacă o entitate, platformă sau domeniu apare în lista ASF ca neautorizată pentru servicii și activități de investiții conform Legii nr. 126/2018. Util pentru domain/brand exact match și pentru evidence decisiv.",
+          "access_type": "public_search",
+          "confidence": "high"
+        },
+        {
+          "name": "ASF - Registre entități autorizate",
+          "url": "https://asfromania.ro/ro/a/1544/registre-entit%C4%83%C8%9Bi-autorizate",
+          "what_can_verify": "Dacă o entitate care pretinde servicii de investiții, intermediere, asigurări sau alte servicii supravegheate ASF apare în registrele entităților autorizate.",
+          "access_type": "public_search",
+          "confidence": "high"
+        },
+        {
+          "name": "BNR - Registre și liste",
+          "url": "https://www.bnr.ro/2349-registre-si-liste",
+          "what_can_verify": "Dacă o entitate pretinde că este bancă, IFN, instituție de plată sau emitent de monedă electronică autorizat/supravegheat de BNR.",
+          "access_type": "public_search",
+          "confidence": "high"
+        },
+        {
+          "name": "Siguranța Online - Uniți împotriva escrocheriilor",
+          "url": "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+          "what_can_verify": "Taxonomie oficială/educațională pentru tehnica „Câștig peste noapte”: Hidroelectrica, Broker, Cripto, Aplicația bancară, Marketplace, Investiții cu AI și Loteria Română; utilă pentru corpus și semnale, nu pentru domenii concrete.",
+          "access_type": "public_search",
+          "confidence": "high"
+        },
+        {
+          "name": "Hidroelectrica - avertizare utilizare frauduloasă nume companie în scheme de investiții online",
+          "url": "https://www.hidroelectrica.ro/press-release/1d738954-4c1b-1ad9-c046-4d0d6001e187",
+          "what_can_verify": "Dacă oferta folosește abuziv numele Hidroelectrica sau promite investiții prin platforme/reclame social media neoficiale. Confirmă domeniul oficial hidroelectrica.ro și faptul că Hidroelectrica nu solicită investiții prin astfel de platforme.",
+          "access_type": "public_search",
+          "confidence": "high"
+        },
+        {
+          "name": "ARB - phishing, investment scheme, remote control apps",
+          "url": "https://www.arb.ro/cum-recunosti-phishing-ul-inainte-sa-ti-fure-datele-personale-si-bancare-explicatiile-expertilor-arb/",
+          "what_can_verify": "Tipare de fraudă bancară și investment scheme, inclusiv folosirea AI/deepfake, brokeri falși, aplicații prezentate ca trading dar care pot fi remote control și riscul instalării de aplicații cerute de persoane necunoscute.",
+          "access_type": "public_search",
+          "confidence": "high"
+        },
+        {
+          "name": "FTC - What to know about cryptocurrency scams",
+          "url": "https://consumer.ftc.gov/articles/what-know-about-cryptocurrency-scams",
+          "what_can_verify": "Tipare internaționale: profit garantat, crypto ireversibil, investment manager fals, celebrity impersonation, wallet/QR, taxe de retragere, joburi crypto. Nu este sursă RO, dar este sursă oficială reputabilă pentru pattern-uri globale relevante.",
+          "access_type": "public_search",
+          "confidence": "high"
+        },
+        {
+          "name": "FTC - Refund and recovery scams",
+          "url": "https://consumer.ftc.gov/articles/refund-and-recovery-scams",
+          "what_can_verify": "Tiparul recovery scam: promisiune de recuperare bani pierduți contra taxă/comision/date. Nu este sursă RO, dar este utilă pentru OP-09 recovery scam.",
+          "access_type": "public_search",
+          "confidence": "high"
+        },
+        {
+          "name": "ESMA/MiCA context via Reuters",
+          "url": "https://www.reuters.com/sustainability/boards-policy-regulation/european-securities-regulator-warns-about-crypto-firms-misleading-customers-2025-07-11/",
+          "what_can_verify": "Context reputabil despre riscul ca furnizorii crypto să creeze confuzie între produse reglementate și nereglementate sub MiCA. Nu este registru direct; folosește ca sursă de context, nu ca verificare hard a unei entități.",
+          "access_type": "manual",
+          "confidence": "medium"
+        }
       ],
       "payment_risk": {
-        "crypto_atm_qr": "extrem",
+        "card_3ds": "scazut",
+        "bank_transfer_to_company": "scazut",
         "bank_transfer_to_person": "mare",
-        "card_on_link": "mare",
-        "revolut_personal": "mare",
-        "bank_transfer_to_company": "scazut"
-      },
-      "examples": [
-        "Salut! Sunt mentorul tău de pe grupul VIP Profit. Pentru a începe, investeşte 500 RON într-o monedă recomandată (USDT). Vei primi 15% profit pe zi. Invita‑ţi prietenii şi câştigă comisioane suplimentare!",
-        "În urma investiţiei tale ai câştigat 4.000 USD! Pentru a retrage fondurile, trebuie să plăteşti taxa de 20% pentru procedurile AML şi impozitul de retragere. Depune 800 USD în acelaşi portofel crypto şi îţi deblocăm profitul imediat.",
-        "Vezi cum celebrul investitor X a transformat 250 de euro în 5.000 euro! Află secretul în articolul nostru exclusiv şi înscrie‑te pe platforma ProfitNow! Locurile sunt limitate!",
-        "Bună ziua! Sunt consultantul G. de la Hidroelectrica. Vă oferim posibilitatea de a investi direct în companie cu randament sigur de 12% lunar. Pentru a vă asista, instalaţi aplicaţia AnyDesk şi apoi mergeţi la un bancomat de criptomonede să depuneţi 5.000 RON.",
-        "Suntem Compania 'Recovery Invest'. Ştim că aţi fost înşelat pe platforma X. Putem recupera fondurile pierdute, dar trebuie să plătiţi o taxă de 5% pentru demararea procedurii. Vă rugăm să transferaţi suma în contul ROxx **** pe numele S.C. Recovery SRL.",
-        "Ne pare rău, dar nu poţi retrage profitul până nu confirmi identitatea. Trimite o copie a buletinului, un selfie şi codul 2FA de la platformă. Aceasta este o procedură obligatorie conform ASF."
-      ]
+        "crypto_wallet": "periculos",
+        "crypto_atm_qr": "periculos",
+        "remote_access_required": "periculos"
+      }
     }
   ]
 }

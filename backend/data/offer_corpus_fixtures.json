@@ -1,396 +1,1074 @@
 {
-  "version": "2026-06-12",
-  "source": "fable_handoff 2026-06-12 (examples_op_families + v3 OP-08/09)",
+  "version": "2026-06-12.2",
+  "source": "bruturi fable_handoff (offer_examples_legal_pack_part1 + op08/op09 raw)",
+  "coverage_report": [
+    {
+      "family": "OP-01",
+      "real_paraphrased_count": 1,
+      "synthetic_illustrative_count": 4,
+      "notes": "Surse RO solide pentru pattern general de bilete/cazare/turism false prin DNSC/Euronews și verificare prin SITUR/ANAF/ONRC. Nu au fost incluse mesaje reale 1:1; majoritatea fixtures sunt sintetice inspirate din pattern-uri oficiale."
+    },
+    {
+      "family": "OP-02",
+      "real_paraphrased_count": 3,
+      "synthetic_illustrative_count": 2,
+      "notes": "Acoperire bună pentru off-platform payment, Booking/Airbnb lookalike, cazare evenimente și confirmări false. Airbnb Help Center și avertizarea DNSC/Euronews susțin semnalele principale."
+    },
+    {
+      "family": "OP-03",
+      "real_paraphrased_count": 1,
+      "synthetic_illustrative_count": 4,
+      "notes": "Pentru chirii termen lung există mai multă susținere internațională oficială FTC decât surse RO oficiale detaliate. Fixtures sunt predominant sintetice, dar semnalele sunt direct detectabile pe ofertă: avans înainte de vizionare, proprietar plecat, adresă ascunsă, cerere acte."
+    },
+    {
+      "family": "OP-04",
+      "real_paraphrased_count": 0,
+      "synthetic_illustrative_count": 5,
+      "notes": "Pentru vânzare auto/import/transport auto nu au fost folosite texte reale copiate. Semnalele sunt construite în jurul verificărilor oficiale RAR/ANAF/ONRC și a patternurilor de avans/vizualizare/VIN lipsă."
+    },
+    {
+      "family": "OP-05",
+      "real_paraphrased_count": 2,
+      "synthetic_illustrative_count": 3,
+      "notes": "Acoperire bună pentru bilete/cazare de Revelion și evenimente prin DNSC/Euronews. Nu există registru național public de bilete; verificarea trebuie făcută pe platforma oficială de ticketing sau prin transfer oficial."
+    },
+    {
+      "family": "OP-06",
+      "real_paraphrased_count": 3,
+      "synthetic_illustrative_count": 2,
+      "notes": "OLX oferă sursă brand-official foarte clară pentru linkuri false, cerere card/CVV pentru a primi bani și mutarea conversației în afara chatului. Acestea pot susține teste decisive pentru marketplace."
+    },
+    {
+      "family": "OP-07",
+      "real_paraphrased_count": 1,
+      "synthetic_illustrative_count": 4,
+      "notes": "OP-07 este foarte important pentru SigurScan, dar exemplele sunt sintetice pentru a evita PII și instrucțiuni abuzive. Sursele oficiale BNR, ANPC, Biroul de Credit și SiguranțaOnline susțin verificarea entității și patternurile credit/cont sigur/furt identitate."
+    }
+  ],
   "fixtures": [
     {
-      "text": "Bună ziua, avem o ofertă last‑minute pentru 4 persoane în Maldive la doar 500 € de persoană, cazare 7 nopţi la hotel de 5* şi zbor inclus. Plata trebuie făcută azi până la ora 16 în contul RO49 AAAA 0000 0000 XXXX deschis pe numele Popa M. Vă trimitem imediat confirmarea.",
+      "text": "Bună ziua, mai avem un singur pachet disponibil pentru Antalya, 7 nopți, avion inclus, 389 EUR/persoană. Rezervarea se blochează doar azi cu avans 40% în contul consultantului. Factura fiscală finală o primiți după confirmarea hotelului. Link ofertă: https://vacante-earlydeal.test/antalya",
       "family": "OP-01",
-      "expected_offer_signals": [],
-      "source": "ziare.com – Escrocherie cu oferte de vacanţă",
-      "xfail_live": false
-    },
-    {
-      "text": "Stimate client, rezervarea dvs. pe Booking va fi anulată deoarece cardul nu a putut fi autorizat. Pentru a evita anularea, accesaţi acest link şi reintroduceţi datele cardului în termen de 12 ore.",
-      "family": "OP-01",
-      "expected_offer_signals": [
-        "OFFER_CARD_CVV_OTP_REQUEST"
+      "expected_signals_research": [
+        "too_good_last_minute_offer",
+        "off_platform_tourism_payment",
+        "iban_personal_for_agency_hotel",
+        "package_invoice_missing_cui_license"
       ],
-      "source": "Economica.net (Booking phishing) – detalii din avertisment DNSC (2023)",
+      "expected_offer_signals": [
+        "OFFER_PRICE_URGENCY"
+      ],
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": "Oferta cere avans într-un cont personal pentru un pachet turistic pretins de agenție, fără CUI/licență verificabilă și cu presiune de timp. În turism, entitatea și licența trebuie verificate, iar plata către persoană fizică pentru agenție este semnal sever în combo.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high",
+      "source_refs": [
+        "https://www.euronews.ro/articole/dnsc-avertizeaza-biletele-ieftine-la-concerte-si-cazare-online-de-revelion-pot-as",
+        "https://se.situr.gov.ro/OpenData/OpenDataMain"
+      ],
       "xfail_live": false
     },
     {
-      "text": "Bună! Îţi oferim vacanţa de vis în Maldive. Îţi trimitem contractul de rezervare (vezi PDF). Te rugăm să plăteşti avansul de 1.000 € în contul ROxx **** pe numele Mari Travel SRL. (Notă: plata se face într‑un cont deschis la o bancă din Lituania).",
+      "text": "Confirmare rezervare Hotel Marina Palace — Booking ID RO-88421. Pentru a evita anularea, achitați taxa locală de 620 lei prin transfer bancar în următoarele 2 ore. Plata prin platformă nu este disponibilă temporar. Detalii: https://booking-confirmare-hotel.example/pay",
       "family": "OP-01",
+      "expected_signals_research": [
+        "domain_lookalike_booking_agency",
+        "off_platform_tourism_payment",
+        "booking_compromised_host_external_payment",
+        "urgent_deposit_before_platform_checkout"
+      ],
       "expected_offer_signals": [],
-      "source": "InfoCons şi ANAT – listele agenţiilor licenţiate (2024)",
+      "payment_method": "platform_offsite",
+      "why_fraud": "Mesajul invocă o rezervare și împinge plata în afara platformei printr-un domeniu neoficial. DNSC a avertizat că pot exista conturi compromise pe platforme de booking și cereri de bani prin conversații/linkuri externe.",
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://www.euronews.ro/articole/dnsc-avertizeaza-biletele-ieftine-la-concerte-si-cazare-online-de-revelion-pot-as"
+      ],
       "xfail_live": false
     },
     {
-      "text": "Agenţia X vă oferă pachetul complet (zbor + hotel) pentru Cuba cu 70% reducere. Avansul trebuie achitat prin Western Union către Maria P. pentru a bloca oferta. Restul se achită la aeroport.",
+      "text": "Voucher vacanță câștigată: 5 zile în Grecia pentru două persoane. Pentru emiterea voucherului și taxele aeroportuare achitați 249 lei prin Revolut până la ora 18:00. Nu ratați, oferta expiră azi.",
       "family": "OP-01",
-      "expected_offer_signals": [],
-      "source": "DNSC/Poliţia – avertismente privind plăţile nereversibile (2025)",
+      "expected_signals_research": [
+        "fake_prize_tax_before_benefit",
+        "revolut_personal_for_agency_hotel",
+        "too_good_last_minute_offer"
+      ],
+      "expected_offer_signals": [
+        "OFFER_PAYMENT_METHOD_HIGH_RISK",
+        "OFFER_PRICE_URGENCY"
+      ],
+      "payment_method": "revolut_personal",
+      "why_fraud": "Câștigul/vacanța gratuită este condiționată de o taxă plătită în avans prin canal personal. SiguranțaOnline include scenarii de câștig/premiu în care victima este determinată să depună bani sau să ofere date.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "medium",
+      "source_refs": [
+        "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/"
+      ],
       "xfail_live": false
     },
     {
-      "text": "Factura: Servicii turistice – pachet Istanbul 3 nopţi. Beneficiar: TravelGroup SRL, CUI 12345678. IBAN: RO12 XXXX 0000 0000 1234. Total: 750 RON. Observaţie: vă rugăm să nu treceţi detalii la plată. Semnat, TravelGroup.",
+      "text": "Factura proformă Travel Sun SRL: circuit Dubai, 4 persoane, total 5.960 lei. Emitent: Travel Sun SRL, CUI lipsă, licență turism menționată doar ca «în curs de actualizare». Beneficiar plată: persoană fizică, IBAN RO00TEST0000000000000000.",
       "family": "OP-01",
+      "expected_signals_research": [
+        "package_invoice_missing_cui_license",
+        "iban_personal_for_agency_hotel",
+        "agency_license_unverified"
+      ],
       "expected_offer_signals": [],
-      "source": "Registrul ANAF/ONRC pentru verificarea CUI",
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": "Documentul pretinde firmă/agenție, dar nu oferă CUI verificabil și cere plata către persoană fizică. Pentru agenții și structuri turistice, licența/statutul ar trebui verificat în surse oficiale, iar lipsa CUI este semnal puternic.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high",
+      "source_refs": [
+        "https://se.situr.gov.ro/OpenData/OpenDataMain",
+        "https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva"
+      ],
       "xfail_live": false
     },
     {
-      "text": "Gazdă Airbnb (numită 'Ion'): 'Salut! Dacă vrei să economiseşti comisionul Airbnb, te rog să îmi trimiţi direct suma de 300 € în contul meu Revolut. Îţi trimit imediat confirmarea de rezervare şi codul de acces.'",
-      "family": "OP-02",
+      "text": "Oferta charter Egipt — pachet complet, all inclusive, 299 EUR. Agenția lucrează doar prin WhatsApp pentru rapiditate. Pentru emitere bilete trimiteți copie CI și avansul pe card Revolut. Contractul vine după ce se confirmă locurile.",
+      "family": "OP-01",
+      "expected_signals_research": [
+        "too_good_last_minute_offer",
+        "off_platform_tourism_payment",
+        "identity_docs_before_verified_entity",
+        "contract_after_payment"
+      ],
       "expected_offer_signals": [
         "OFFER_PAYMENT_METHOD_HIGH_RISK"
       ],
-      "source": "Snoop.ro – escrocherie 'apartamente fantomă'",
+      "payment_method": "revolut_personal",
+      "why_fraud": "Oferta combină preț nerealist, comunicare exclusivă pe WhatsApp, cerere de acte înainte de verificarea agenției și plată înaintea contractului.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "medium",
+      "source_refs": [
+        "https://www.euronews.ro/articole/dnsc-avertizeaza-biletele-ieftine-la-concerte-si-cazare-online-de-revelion-pot-as"
+      ],
       "xfail_live": false
     },
     {
-      "text": "Mesaj OLX: 'Sunt interesat să îţi închiriez apartamentul pentru 3 zile. Îţi voi trimite un link securizat pentru plată prin OLX. Completează datele cardului acolo pentru a primi avansul.'",
+      "text": "Apartament central Brașov, weekend 2 nopți, 350 lei total. Rezervarea prin Airbnb este blocată temporar, dar pot păstra prețul dacă achitați 50% avans prin transfer. Vă trimit eu confirmarea manuală pe email: https://airbnb-ro-reservation.test/confirm",
       "family": "OP-02",
+      "expected_signals_research": [
+        "off_platform_accommodation_payment",
+        "fake_airbnb_booking_link",
+        "price_below_market_urgency",
+        "host_requests_bank_transfer_revolut"
+      ],
+      "expected_offer_signals": [],
+      "payment_method": "platform_offsite",
+      "why_fraud": "Hostul mută plata în afara platformei și folosește un link care imită Airbnb. Airbnb indică faptul că, în general, costul rezervării este colectat prin platformă, cu excepții limitate și explicit afișate în checkout/listing.",
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://www.airbnb.com/help/article/199",
+        "https://consumer.ftc.gov/articles/rental-listing-scams"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Confirmare Booking: Vila Panorama Sinaia. Cardul introdus nu a putut fi preautorizat. Pentru reconfirmare folosiți acest link și introduceți datele cardului: https://booking-secure-reserve.example/card",
+      "family": "OP-02",
+      "expected_signals_research": [
+        "fake_booking_confirmation_link",
+        "card_details_outside_platform",
+        "domain_lookalike_booking"
+      ],
       "expected_offer_signals": [
         "OFFER_CARD_CVV_OTP_REQUEST"
       ],
-      "source": "BCR – fraude OLX",
+      "payment_method": "card_form",
+      "why_fraud": "Mesajul cere date card într-un link extern neoficial care imită platforma de booking. DNSC a avertizat despre conturi compromise sau pagini false care colectează date/bani de la potențiale victime.",
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://www.euronews.ro/articole/dnsc-avertizeaza-biletele-ieftine-la-concerte-si-cazare-online-de-revelion-pot-as"
+      ],
       "xfail_live": false
     },
     {
-      "text": "Anunţ pe Facebook: 'Închiriez apartament ultracentral în Cluj, 30 €/noapte. Pentru rezervare, semnaţi contractul digital la linkul de mai jos şi plătiţi prin crypto USDT pentru a securiza rezervarea'.",
+      "text": "Cazare Cluj Untold, 4 persoane, 600 lei/noapte. Plata integrală în avans prin Revolut pentru că am avut multe anulări. Nu pot face rezervarea prin platformă, dar trimit contract și poză cu buletinul meu după plată.",
       "family": "OP-02",
-      "expected_offer_signals": [
-        "OFFER_HAS_CRYPTO_WALLET"
+      "expected_signals_research": [
+        "full_advance_for_short_stay",
+        "revolut_personal_for_accommodation",
+        "off_platform_accommodation_payment",
+        "event_period_price_pressure"
       ],
-      "source": "ProTV – apartamente 'fantomă'",
-      "xfail_live": false
-    },
-    {
-      "text": "'Am doar o cameră disponibilă în weekend. Dacă vrei să o blochezi, plăteşte acum 200 RON prin PayPal Friends & Family. Nu este nevoie de contract – ne bazăm pe încredere'.",
-      "family": "OP-02",
-      "expected_offer_signals": [],
-      "source": "Recomandările DNSC privind plăţile nereversibile",
-      "xfail_live": false
-    },
-    {
-      "text": "Confirmare de rezervare: 'Hotel Vila Verde'. ID rezervare: 2026/05/1234. Suma: 1.500 RON. IBAN: LT12 2345 6789 0000 1234. Trimiteţi dovada plăţii la adresa bookingvila@gmail.com pentru a primi codul de check‑in.",
-      "family": "OP-02",
-      "expected_offer_signals": [],
-      "source": "InfoCons – ghid de verificare a agenţiilor / hotelurilor",
-      "xfail_live": false
-    },
-    {
-      "text": "Proprietar: 'Închiriez apartament 2 camere în centru cu 300 € pe lună, utilităţi incluse. Trebuie să plăteşti depozit două luni în avans într‑un cont Revolut (Andrei S.) pentru a primi cheia smart şi contractul digital'.",
-      "family": "OP-03",
-      "expected_offer_signals": [
-        "OFFER_PAYMENT_METHOD_HIGH_RISK"
-      ],
-      "source": "ProTV – schema apartamentelor fantomă",
-      "xfail_live": false
-    },
-    {
-      "text": "Mesaj: 'Sunt proprietar plecat în străinătate, pot trimite cheile prin curier. Pentru rezervare, plăteşte chiria pe prima lună + garanţia de 500 € via Western Union. Contractul îl semnăm după ce te muţi'.",
-      "family": "OP-03",
-      "expected_offer_signals": [],
-      "source": "Poliţia Română – avertizări privind chirii în străinătate",
-      "xfail_live": false
-    },
-    {
-      "text": "'Pentru că eşti primul interesat, îţi ofer reducere de 100 €. Trebuie doar să semnezi contractul online la linkul de mai jos şi să plăteşti taxa de rezervare prin crypto pentru a o securiza.'",
-      "family": "OP-03",
-      "expected_offer_signals": [
-        "OFFER_HAS_CRYPTO_WALLET"
-      ],
-      "source": "Snoop.ro – investigaţie apartamente fantomă",
-      "xfail_live": false
-    },
-    {
-      "text": "Contract tipărit: 'Chirie – apartament Str. X, Cluj'. Proprietar: Ionescu Daniel. CNP: 1234567890123. IBAN: ROXX. Preţ: 350 €. Nota: Plata se face în numerar fără chitanţă.",
-      "family": "OP-03",
-      "expected_offer_signals": [
-        "OFFER_ID_DOCUMENT_REQUEST"
-      ],
-      "source": "Recomandările ANAF/ANCPI privind contractele de închiriere",
-      "xfail_live": false
-    },
-    {
-      "text": "Anunţ: 'Caut chiriaşi serioşi pentru casă la curte. Trimite copia buletinului şi a adeverinţei de venit şi plăteşte taxa de procesare 150 RON într‑un cont personal pentru verificare. Dacă eşti acceptat, taxa se scade din chirie'.",
-      "family": "OP-03",
-      "expected_offer_signals": [
-        "OFFER_ID_DOCUMENT_REQUEST"
-      ],
-      "source": "AVERTISMENTE ONG – chirii false",
-      "xfail_live": false
-    },
-    {
-      "text": "Anunţ: 'BMW X5 2019 import Germania – 15.000 €. Preţ negociabil. Maşina este în Germania, transportul este inclus. Trebuie să achiţi un avans de 3.000 € într‑un cont deschis pe numele L.V. pentru a o aduce în ţară.'",
-      "family": "OP-04",
-      "expected_offer_signals": [],
-      "source": "Digi24 – escrocherie cu maşini inexistente",
-      "xfail_live": false
-    },
-    {
-      "text": "Persoană de pe marketplace: 'Sunt în străinătate, dar pot trimite maşina prin transportator. Îţi trimit contractul de vânzare-cumpărare şi actele maşinii (scanate). Plăteşte taxa de transport 2.000 lei prin Revolut şi restul la livrare'.",
-      "family": "OP-04",
-      "expected_offer_signals": [
-        "OFFER_PAYMENT_METHOD_HIGH_RISK"
-      ],
-      "source": "Observator News – anunţuri auto false",
-      "xfail_live": false
-    },
-    {
-      "text": "Contract de vânzare auto: Vânzător – AutoDealer SRL (CUI 000000). IBAN: ROxx. Preţ: 8.500 €. Menţiune: se acceptă doar plata integrală în avans. În caz de anulare, suma nu se returnează.",
-      "family": "OP-04",
-      "expected_offer_signals": [],
-      "source": "ONRC/ANAF – verificarea firmelor",
-      "xfail_live": false
-    },
-    {
-      "text": "Mesaj SMS: 'Am găsit cumpărător pentru maşina ta. Pentru a confirma tranzacţia, intră pe link-ul următor şi introdu datele cardului. Banii vor fi blocaţi şi livraţi la primirea maşinii'.",
-      "family": "OP-04",
-      "expected_offer_signals": [
-        "OFFER_CARD_CVV_OTP_REQUEST"
-      ],
-      "source": "BCR – avertisment OLX",
-      "xfail_live": false
-    },
-    {
-      "text": "Oferta: 'Vând Dacia Logan nouă, încă în garanţie, 2.000 €. Sunt urgent şi plec din ţară. Trimit buletinul scanat şi certificatul de înmatriculare. Plăteşte toată suma azi şi îţi trimit maşina prin trailer'.",
-      "family": "OP-04",
       "expected_offer_signals": [
         "OFFER_ID_DOCUMENT_REQUEST",
+        "OFFER_PAYMENT_METHOD_HIGH_RISK"
+      ],
+      "payment_method": "revolut_personal",
+      "why_fraud": "Cere plată integrală off-platform prin cont personal, pe fond de cerere mare la eveniment, înainte de confirmarea prin platformă sau verificarea proprietarului.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high",
+      "source_refs": [
+        "https://www.euronews.ro/articole/dnsc-avertizeaza-biletele-ieftine-la-concerte-si-cazare-online-de-revelion-pot-as",
+        "https://consumer.ftc.gov/articles/rental-listing-scams"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Apartamentul este liber, dar comunic doar pe WhatsApp. Pe platformă am comisioane mari, deci îți fac reducere dacă trimiți avansul direct. Adresa exactă o trimit după plată, din motive de securitate.",
+      "family": "OP-02",
+      "expected_signals_research": [
+        "platform_commission_excuse",
+        "off_platform_accommodation_payment",
+        "address_hidden_until_payment",
+        "copied_photos_address_mismatch"
+      ],
+      "expected_offer_signals": [],
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": "Scenariul evită platforma, refuză adresa exactă până după plată și cere avans direct. FTC descrie astfel de listări false care copiază fotografii și solicită bani înainte ca locul să poată fi verificat.",
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://consumer.ftc.gov/articles/rental-listing-scams",
+        "https://www.airbnb.com/help/article/199"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Vila de Revelion rămâne disponibilă dacă plătiți acum garanția de 1.000 lei. Avem multe cereri și nu ținem fără avans. Plata prin card virtual aici: https://vila-revelion-booking.invalid/pay",
+      "family": "OP-02",
+      "expected_signals_research": [
+        "urgent_deposit_before_platform_checkout",
+        "event_period_price_pressure",
+        "fake_booking_payment_domain",
+        "card_details_outside_platform"
+      ],
+      "expected_offer_signals": [],
+      "payment_method": "card_form",
+      "why_fraud": "Cazare de Revelion cu presiune de timp, link de plată neoficial și solicitare de card. DNSC/Euronews avertizează despre cazare online de Revelion și plăți urgente prin pagini false sau conturi compromise.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high",
+      "source_refs": [
+        "https://www.euronews.ro/articole/dnsc-avertizeaza-biletele-ieftine-la-concerte-si-cazare-online-de-revelion-pot-as"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Garsonieră ultracentrală București, 250 EUR/lună, toate utilitățile incluse. Proprietarul este plecat din țară, dar poate trimite cheia prin curier după plata garanției. Contractul se semnează online după transfer.",
+      "family": "OP-03",
+      "expected_signals_research": [
+        "rent_below_market_urgency",
+        "owner_abroad_key_delivery",
+        "deposit_before_viewing",
+        "contract_after_payment"
+      ],
+      "expected_offer_signals": [],
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": "Anunțul oferă chirie mult sub piață, proprietar plecat, cheie după plată și contract după transfer. FTC descrie listări false unde proprietarul invocă imposibilitatea vizionării și cere deposit/garanție înainte.",
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://consumer.ftc.gov/articles/rental-listing-scams"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Apartament 2 camere Timișoara, renovat, 300 EUR. Nu pot face vizionări săptămâna aceasta, dar trimit video. Pentru rezervare vă rog garanție 300 EUR prin Revolut. Sunt multe solicitări și nu îl țin fără avans.",
+      "family": "OP-03",
+      "expected_signals_research": [
+        "deposit_before_viewing",
+        "revolut_personal_for_rent",
+        "rent_below_market_urgency",
+        "no_viewing_video_only"
+      ],
+      "expected_offer_signals": [
+        "OFFER_PAYMENT_METHOD_HIGH_RISK"
+      ],
+      "payment_method": "revolut_personal",
+      "why_fraud": "Cere garanție înainte de vizionare, prin cont personal, cu presiune de timp. Pentru chirii, plata înainte de a vedea locuința/semna contractul și fără verificarea proprietarului este semnal major.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high",
+      "source_refs": [
+        "https://consumer.ftc.gov/articles/rental-listing-scams"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Contract de închiriere atașat. Pentru siguranța mea, înainte de vizionare trimiteți copie CI și extras de cont. După verificare, vă programez și semnăm. Dacă vreți să blocați apartamentul, trimiteți 500 lei rezervare.",
+      "family": "OP-03",
+      "expected_signals_research": [
+        "asks_identity_docs_before_viewing",
+        "deposit_before_viewing",
+        "identity_data_for_rental_without_verification"
+      ],
+      "expected_offer_signals": [
+        "OFFER_ID_DOCUMENT_REQUEST"
+      ],
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": "Cere acte personale și bani înainte de vizionare și înainte de verificarea proprietarului. Riscul este atât pierderea avansului, cât și folosirea actelor pentru furt de identitate.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high",
+      "source_refs": [
+        "https://consumer.ftc.gov/articles/rental-listing-scams",
+        "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Locuința este administrată de firmă, dar momentan contul firmei este blocat. Pentru garanție folosiți contul personal al administratorului. Extrasul CF îl trimit după ce decideți sigur.",
+      "family": "OP-03",
+      "expected_signals_research": [
+        "company_claim_personal_iban",
+        "property_documents_after_payment",
+        "deposit_before_viewing"
+      ],
+      "expected_offer_signals": [],
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": "Pretinde administrare de firmă, dar plata merge către persoană fizică și documentele de proprietate sunt amânate până după plată.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "medium",
+      "source_refs": [
+        "https://consumer.ftc.gov/articles/rental-listing-scams",
+        "https://geoportal.ancpi.ro/imobile.html"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Nu public adresa exactă din cauza agențiilor. Apartamentul este lângă Iulius Mall, exact ca în poze. Pentru a-l vedea mâine, trebuie plătită taxa de programare de 150 lei, returnabilă la semnare.",
+      "family": "OP-03",
+      "expected_signals_research": [
+        "address_hidden_until_payment",
+        "viewing_fee_before_visit",
+        "copied_listing_same_address"
+      ],
+      "expected_offer_signals": [],
+      "payment_method": "revolut_personal",
+      "why_fraud": "Cere taxă înainte de vizionare și ascunde adresa exactă, făcând imposibilă verificarea imobilului. FTC recomandă verificarea adresei și evitarea plăților pentru proprietăți nevăzute.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high",
+      "source_refs": [
+        "https://consumer.ftc.gov/articles/rental-listing-scams"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "BMW Seria 3 2019, 89.000 km, 9.900 EUR. Mașina este în Germania și o aduc pe platformă până vineri. Pentru rezervare și transport achitați 500 EUR în avans. VIN-ul îl dau după confirmarea transportului.",
+      "family": "OP-04",
+      "expected_signals_research": [
+        "vehicle_unseen_advance_transport",
+        "price_below_market_pressure",
+        "missing_vin_civ_autopass",
+        "seller_refuses_inspection"
+      ],
+      "expected_offer_signals": [],
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": "Vânzarea auto cere avans pentru transport fără vizionare și fără VIN verificabil. RAR Auto-Pass/istoric vehicul și verificările VIN sunt elemente-cheie înainte de plată.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high",
+      "source_refs": [
+        "https://www.rarom.ro/?p=298531",
+        "https://consumer.ftc.gov/articles/buying-used-car-dealer"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Dealer Auto Premium SRL vinde Audi A4 la lichidare stoc. Proforma are CUI și logo, dar plata rezervării de 2.000 lei se face în contul personal al agentului deoarece firma schimbă banca. Mașina se vede doar după rezervare.",
+      "family": "OP-04",
+      "expected_signals_research": [
+        "dealer_company_mismatch_iban",
+        "vehicle_unseen_advance_reservation",
+        "seller_refuses_inspection"
+      ],
+      "expected_offer_signals": [],
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": "Documentul pretinde dealer/firmă, dar plata merge către persoană fizică și vizionarea este condiționată de avans.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high",
+      "source_refs": [
+        "https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva",
+        "https://www.onrc.ro/index.php/ro/infocert"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Pentru contractul de vânzare-cumpărare am nevoie de poză CI față-verso, permis și dovadă adresă. După ce verific documentele, trimit factura și contul pentru avansul de 1.000 lei.",
+      "family": "OP-04",
+      "expected_signals_research": [
+        "asks_ci_for_contract_before_verification",
+        "identity_documents_before_vehicle_seen",
+        "vehicle_unseen_advance_reservation"
+      ],
+      "expected_offer_signals": [],
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": "Cere documente de identitate înainte de verificarea mașinii/vânzătorului și pregătește o plată de avans. Acest pattern poate duce la furt de identitate și fraudă financiară.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "medium",
+      "source_refs": [
+        "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+        "https://www.bnr.ro/2349-registre-si-liste"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Ford Transit 2021, adus din Belgia, fără probleme. Nu pot trimite Auto-Pass sau raport VIN pentru că sistemul nu acceptă mașini străine, dar accept rezervare rapidă cu 300 EUR. Dacă nu achitați azi, o dau altcuiva.",
+      "family": "OP-04",
+      "expected_signals_research": [
+        "missing_vin_civ_autopass",
+        "price_below_market_pressure",
+        "vehicle_unseen_advance_reservation"
+      ],
+      "expected_offer_signals": [],
+      "payment_method": "revolut_personal",
+      "why_fraud": "Presiune de timp și avans pentru vehicul neverificat, cu refuz de date tehnice verificabile. RAR Auto-Pass/istoric și VIN/CIV sunt ancore relevante înainte de plată în România.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "medium",
+      "source_refs": [
+        "https://www.rarom.ro/?p=298531"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Confirmare transport auto: Sibiu → Timișoara, 200 EUR avans. Factura și desfășurătorul de plată se emit pe numele dvs. Pentru documente trimiteți CI și semnătură pe contractul atașat.",
+      "family": "OP-04",
+      "expected_signals_research": [
+        "vehicle_transport_advance_before_service",
+        "asks_ci_for_contract_before_verification",
+        "fake_invoice_payment_schedule"
+      ],
+      "expected_offer_signals": [],
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": "Combinația dintre avans pentru transport auto, documente personale și documente de plată/proformă neverificabile este un pattern cu risc de plată pierdută și furt de identitate.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "medium",
+      "source_refs": [
+        "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Vând 2 bilete Coldplay sector A, preț sub listă, 350 lei/bucată. Le trimit PDF după plata pe Revolut. Nu pot folosi platforma oficială de transfer deoarece contul meu e blocat temporar.",
+      "family": "OP-05",
+      "expected_signals_research": [
+        "event_ticket_off_platform_payment",
+        "screenshot_ticket_pdf_no_transfer",
+        "price_below_face_value_urgent",
+        "platform_transfer_excuse"
+      ],
+      "expected_offer_signals": [
+        "OFFER_PAYMENT_METHOD_HIGH_RISK"
+      ],
+      "payment_method": "revolut_personal",
+      "why_fraud": "Biletul este vândut off-platform cu PDF după plată și scuză pentru a evita transferul oficial. DNSC avertizează despre bilete ieftine, profiluri false și plăți urgente pentru evenimente.",
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://www.euronews.ro/articole/dnsc-avertizeaza-biletele-ieftine-la-concerte-si-cazare-online-de-revelion-pot-as"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Ai câștigat o vacanță gratuită la munte pentru două persoane. Pentru activarea premiului achită taxa de procesare 199 lei pe linkul https://voucher-vacanta-premiu.test/activate. Locuri limitate azi.",
+      "family": "OP-05",
+      "expected_signals_research": [
+        "fake_event_vacation_win_fee",
+        "prize_requires_payment",
+        "fake_payment_domain",
+        "urgency_pressure"
+      ],
+      "expected_offer_signals": [
         "OFFER_PRICE_URGENCY"
       ],
-      "source": "Alerte Poliţia Română – vânzări auto false",
+      "payment_method": "card_form",
+      "why_fraud": "Premiul/vacanța gratuită cere taxă înainte de beneficiu și folosește presiune de timp. SiguranțaOnline include scenarii de câștig/premiu care cer bani/date personale pentru activare.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high",
+      "source_refs": [
+        "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/"
+      ],
       "xfail_live": false
     },
     {
-      "text": "Anunţ pe Instagram: 'Mai am 4 bilete la concertul Coldplay pentru mâine. Le dau la 150 RON bucata (pret original 300 RON). Plata prin Revolut, trimit QR după ce primesc banii'.",
+      "text": "Bilete festival, early access, 45% reducere față de site. Plata prin transfer până la 14:00, apoi trimit codurile QR pe WhatsApp. Profilul e nou pentru că l-am făcut doar pentru vânzare.",
       "family": "OP-05",
-      "expected_offer_signals": [
-        "OFFER_PAYMENT_METHOD_HIGH_RISK"
+      "expected_signals_research": [
+        "social_new_profile_ticket_seller",
+        "qr_ticket_unverified",
+        "price_below_face_value_urgent",
+        "event_ticket_off_platform_payment"
       ],
-      "source": "InfoCons – bilete false",
+      "expected_offer_signals": [],
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": "Profil nou, plată urgentă off-platform și QR trimis după plată. DNSC avertizează că escrocii folosesc profiluri social media nou-create, grupuri de vânzări și prețuri extrem de avantajoase.",
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://www.euronews.ro/articole/dnsc-avertizeaza-biletele-ieftine-la-concerte-si-cazare-online-de-revelion-pot-as"
+      ],
       "xfail_live": false
     },
     {
-      "text": "Vând pachet VIP pentru festivalul Untold la 200 €. Trimite bani prin PayPal Friends & Family şi îţi trimit screenshot cu biletul şi braceletă. Grăbeşte‑te, mai este un singur pachet!",
+      "text": "Invitație VIP Untold câștigată prin tragere la sorți. Pentru emiterea biletului nominal trebuie plătită garanția de participare 120 lei în USDT sau Revolut. După validare primiți QR-ul final.",
       "family": "OP-05",
-      "expected_offer_signals": [
-        "OFFER_PAYMENT_METHOD_HIGH_RISK"
+      "expected_signals_research": [
+        "fake_event_vacation_win_fee",
+        "prize_requires_payment",
+        "crypto_or_revolut_for_ticket",
+        "qr_ticket_unverified"
       ],
-      "source": "InfoCons – bilete false",
-      "xfail_live": false
-    },
-    {
-      "text": "Mesaj privat: 'Am câştigat la un concurs o vacanţă all‑inclusive în Grecia pentru 4 persoane. Nu pot merge şi o vând la jumătate de preţ. Plăteşte 50% avans într‑un cont bancar şi restul la preluarea voucherului'.",
-      "family": "OP-05",
-      "expected_offer_signals": [],
-      "source": "Avertismente InfoCons / DNSC – vacanţe câştigate false",
-      "xfail_live": false
-    },
-    {
-      "text": "Bilet electronic: 'Concert Artista Y'. QR code fără date de identificare, numele beneficiarului diferă de cumpărător, iar preţul imprimat este 0 RON. Vânzătorul cere 100 RON prin cash la întâlnire.",
-      "family": "OP-05",
-      "expected_offer_signals": [],
-      "source": "InfoCons – bilete false",
-      "xfail_live": false
-    },
-    {
-      "text": "Vând bilete la Cupa Mondială la preţ special. Transferaţi banii în crypto pentru confidenţialitate, iar biletele vor fi livrate pe mail. Oferta expiră în 2 ore.",
-      "family": "OP-05",
-      "expected_offer_signals": [
-        "OFFER_HAS_CRYPTO_WALLET"
-      ],
-      "source": "Avertismente InfoCons / DNSC",
-      "xfail_live": false
-    },
-    {
-      "text": "Cumpărător OLX: 'Am trimis deja plata pentru telefonul tău. Trebuie doar să îţi confirmi cardul aici (link). Introdu numărul cardului, data expirării şi codul CVV pentru a primi banii'.",
-      "family": "OP-06",
-      "expected_offer_signals": [
-        "OFFER_CARD_CVV_OTP_REQUEST"
-      ],
-      "source": "BCR / Adevarul – fraude pe OLX",
-      "xfail_live": false
-    },
-    {
-      "text": "Vând televizor la 300 RON, aproape nou. Plată doar în avans prin mandat poştal, deoarece sunt plecat din localitate. Îţi trimit coletul a doua zi.",
-      "family": "OP-06",
-      "expected_offer_signals": [],
-      "source": "Poliţia Română – avertismente marketplace",
-      "xfail_live": false
-    },
-    {
-      "text": "Bună, sunt curierul de la OLX. Pentru a prelua coletul, trebuie să plătiţi 50 RON taxă de expediere prin linkul de plată pe care vi-l trimit prin SMS.",
-      "family": "OP-06",
-      "expected_offer_signals": [],
-      "source": "BCR / OLX – avertismente",
-      "xfail_live": false
-    },
-    {
-      "text": "'Televizor livrat de OLX'. Urmează să primiţi un SMS cu codul de livrare. Pentru a anula tranzacţia, trimiteţi codul către mine. (În realitate, codul este 3D Secure şi autorizează o plată).",
-      "family": "OP-06",
-      "expected_offer_signals": [
-        "OFFER_CARD_CVV_OTP_REQUEST"
-      ],
-      "source": "BCR – avertismente",
-      "xfail_live": false
-    },
-    {
-      "text": "Persoană: 'Vând laptop în stare perfectă la 500 RON pentru că am nevoie urgent de bani. Dacă eşti interesat, plăteşte acum prin Revolut şi îl trimit prin curier. Nu accept predare personală.'",
-      "family": "OP-06",
-      "expected_offer_signals": [
-        "OFFER_PAYMENT_METHOD_HIGH_RISK"
-      ],
-      "source": "Poliţia Română – avertismente marketplace",
-      "xfail_live": false
-    },
-    {
-      "text": "Mail de la 'MaiMai Credit': 'Stimate client, vă mulţumim că aţi solicitat creditul de 10.000 RON. Pentru a finaliza evaluarea, încărcaţi o poză a buletinului şi efectuaţi o plată de 1 RON de pe aplicaţia bancară. Dacă nu aţi solicitat creditul, ignoraţi acest mesaj'.",
-      "family": "OP-07",
-      "expected_offer_signals": [
-        "OFFER_ID_DOCUMENT_REQUEST"
-      ],
-      "source": "Observator News – credit online deschis fără ştiinţa victimei",
-      "xfail_live": false
-    },
-    {
-      "text": "Telefon de la un 'consilier de credit': 'Aveţi un credit restant la Viaconto IFN. Pentru a evita executarea, plătiţi rata restantă de 900 RON într‑un cont indicat de noi. Trimiteţi şi copie după buletin'.",
-      "family": "OP-07",
-      "expected_offer_signals": [
-        "OFFER_ID_DOCUMENT_REQUEST"
-      ],
-      "source": "Snoop.ro – credite false la IFN",
-      "xfail_live": false
-    },
-    {
-      "text": "SMS: 'Verificăm o cerere de credit pe numele dvs. Dacă nu aţi aplicat, răspundeţi STOP şi accesaţi linkul pentru a introduce datele corecte'.",
-      "family": "OP-07",
-      "expected_offer_signals": [],
-      "source": "Observator News – credite online fără verificare",
-      "xfail_live": false
-    },
-    {
-      "text": "Contract de credit trimis pe email: 'Împrumut 9.431 RON de la Terra Credit, solicitant: [numele tău]'. Documentul include semnătură scanată şi CNP. Rugăm semnaţi şi retrimiteţi.",
-      "family": "OP-07",
-      "expected_offer_signals": [
-        "OFFER_ID_DOCUMENT_REQUEST"
-      ],
-      "source": "Snoop.ro – credite false la IFN",
-      "xfail_live": false
-    },
-    {
-      "text": "Anunţ: 'Obţine credit rapid fără verificare! Trimite copia actului tău de identitate pe WhatsApp şi primeşti banii în cont în 30 de minute. Taxă de procesare 200 RON plătită în avans'.",
-      "family": "OP-07",
-      "expected_offer_signals": [],
-      "source": "Epoch Times – credite false",
-      "xfail_live": false
-    },
-    {
-      "text": "Bună! Suntem de la \"CERT‑RO HR department\". Îţi oferim un job part‑time: apreciezi postări pe social media şi câştigi 1.000 lei/zi! Adaugă acest număr pe WhatsApp ca să primeşti detaliile. Vom avea nevoie de numele tău complet şi un clip scurt pentru verificare.",
-      "family": "OP-08",
-      "expected_offer_signals": [
-        "OFFER_OFF_PLATFORM_PAYMENT"
-      ],
-      "source": "Digi24 – Poliţia Română avertizează asupra mesajelor care promit bani pentru like‑uri şi cer date personale",
-      "xfail_live": false
-    },
-    {
-      "text": "După ce ai completat 40 de sarcini simple pe platforma noastră, ai acumulat 50 USDT. Pentru a trece la nivelul următor şi a retrage câştigurile, trebuie să depui 100 USDT în contul tău. Îţi vom dubla suma imediat!",
-      "family": "OP-08",
       "expected_offer_signals": [
         "OFFER_HAS_CRYPTO_WALLET",
-        "OFFER_GUARANTEED_PROFIT"
+        "OFFER_PAYMENT_METHOD_HIGH_RISK"
       ],
-      "source": "Investigaţie Start‑up.ro despre task scams – utilizatorii sunt obligaţi să depună 100 USDT după 40 de sarcini",
+      "payment_method": "crypto",
+      "why_fraud": "Premiu cu taxă/garanție plătită în avans, inclusiv crypto, înainte de emiterea biletului. Este semnal sever în combo cu eveniment cunoscut și canal neoficial.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high",
+      "source_refs": [
+        "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+        "https://www.euronews.ro/articole/dnsc-avertizeaza-biletele-ieftine-la-concerte-si-cazare-online-de-revelion-pot-as"
+      ],
       "xfail_live": false
     },
     {
-      "text": "Felicitări! Te‑am selectat pentru un post remote cu salariu de 4.000 EUR/lună. Trebuie doar să participi la un training plătit (150 EUR) şi să îţi achiziţionezi laptopul de lucru. Trimite taxa în contul ROxx BTRL **** pe numele Popescu A.",
-      "family": "OP-08",
+      "text": "Vând bilet e-ticket finală fotbal. Nu am dovada achiziției fiind primit cadou, dar QR-ul e valid. Trimit screenshot cu cod după transferul integral. Dacă vrei, mai am 3 cumpărători în așteptare.",
+      "family": "OP-05",
+      "expected_signals_research": [
+        "screenshot_ticket_pdf_no_transfer",
+        "qr_ticket_unverified",
+        "urgency_pressure",
+        "no_purchase_proof"
+      ],
       "expected_offer_signals": [],
-      "source": "ESET România arată că anunţurile false cer taxe pentru echipamente sau training înainte de a începe munca",
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": "Vânzătorul oferă doar screenshot/QR după plată, fără transfer oficial sau dovadă de achiziție, plus presiune de timp.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high",
+      "source_refs": [
+        "https://www.euronews.ro/articole/dnsc-avertizeaza-biletele-ieftine-la-concerte-si-cazare-online-de-revelion-pot-as"
+      ],
       "xfail_live": false
     },
     {
-      "text": "Bună ziua, sunt recrutorul Ana de la Hays Global. Am găsit profilul tău pe LinkedIn. Trimite-mi copia CNP‑ului şi datele bancare pentru a începe contractul. Vom semna online prin Gmail.",
-      "family": "OP-08",
+      "text": "Salut, am cumpărat produsul de pe OLX. Am făcut plata prin Livrare OLX, intră aici să primești banii și introdu cardul pentru verificare: https://olx-plata-curier.test/receive",
+      "family": "OP-06",
+      "expected_signals_research": [
+        "receive_money_card_cvv",
+        "olx_off_chat_payment_link",
+        "cloned_olx_domain",
+        "fake_courier_escrow"
+      ],
+      "expected_offer_signals": [],
+      "payment_method": "card_form",
+      "why_fraud": "OLX spune că atacatorii trimit linkuri false unde vânzătorilor li se cer datele cardului, soldul și CVV/CVC sub pretextul primirii banilor pentru produs.",
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://blog.olx.ro/2020/12/ai-grija-la-linkurile-false-pentru-articole-platite-vezi-cum-te-protejezi-de-cele-mai-noi-atacuri-de-phishing/"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Cumpărătorul a achitat deja transportul. Pentru confirmare FAN/OLX ai nevoie să introduci cardul și codul primit prin SMS. După confirmare banii intră instant.",
+      "family": "OP-06",
+      "expected_signals_research": [
+        "receive_money_card_cvv",
+        "otp_to_receive_money",
+        "fake_courier_escrow",
+        "olx_off_chat_payment_link"
+      ],
+      "expected_offer_signals": [],
+      "payment_method": "card_form",
+      "why_fraud": "A cere card/CVV/OTP ca să primești bani este un semnal decisiv de phishing; OLX precizează că încasarea pentru produse vândute prin Livrare OLX nu se face introducând datele cardului pe un link trimis de cumpărător.",
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://blog.olx.ro/2020/12/ai-grija-la-linkurile-false-pentru-articole-platite-vezi-cum-te-protejezi-de-cele-mai-noi-atacuri-de-phishing/",
+        "https://www.fancourier.ro/alerta-de-smishing/"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "iPhone 15 Pro, sigilat, 2.300 lei. Îl dau ieftin pentru că plec din țară. Trimit prin curier după plata integrală în Revolut. Nu folosesc ramburs, am avut probleme cu clienți care refuză colete.",
+      "family": "OP-06",
+      "expected_signals_research": [
+        "seller_requires_full_advance",
+        "seller_revolut_personal_for_goods",
+        "price_below_market_urgency",
+        "refuses_cash_on_delivery_or_platform"
+      ],
+      "expected_offer_signals": [
+        "OFFER_PAYMENT_METHOD_HIGH_RISK"
+      ],
+      "payment_method": "revolut_personal",
+      "why_fraud": "Preț foarte mic, plată integrală în avans către persoană fizică și refuzul rambursului/protecției platformei sunt semnale de marketplace scam.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "medium",
+      "source_refs": [
+        "https://blog.olx.ro/2020/12/ai-grija-la-linkurile-false-pentru-articole-platite-vezi-cum-te-protejezi-de-cele-mai-noi-atacuri-de-phishing/",
+        "https://consumer.ftc.gov/articles/avoiding-and-reporting-scams"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Am generat comanda prin curier. Trebuie doar să confirmi primirea banilor pe pagina curierului: https://fan-livrare-olx.example/confirm-card. Dacă nu confirmi în 30 minute, se anulează plata.",
+      "family": "OP-06",
+      "expected_signals_research": [
+        "fake_courier_escrow",
+        "receive_money_card_cvv",
+        "cloned_courier_domain",
+        "urgency_pressure"
+      ],
+      "expected_offer_signals": [],
+      "payment_method": "card_form",
+      "why_fraud": "Domeniu fals care imită curierul și cere card pentru primire bani; FAN și OLX avertizează despre linkuri false și cereri de date card/coduri sub pretext de livrare/plată.",
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://www.fancourier.ro/alerta-de-smishing/",
+        "https://blog.olx.ro/2020/12/ai-grija-la-linkurile-false-pentru-articole-platite-vezi-cum-te-protejezi-de-cele-mai-noi-atacuri-de-phishing/"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Pentru laptop trimit factura pe firmă după plată. Firma are multe comenzi și nu blocăm produsele fără avans 100%. Plata în contul personal al administratorului, apoi primești AWB.",
+      "family": "OP-06",
+      "expected_signals_research": [
+        "company_claim_personal_iban",
+        "seller_requires_full_advance",
+        "invoice_after_payment",
+        "no_platform_protection"
+      ],
+      "expected_offer_signals": [],
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": "Pretinde firmă/factură, dar plata merge către persoană fizică și factura vine după plată. Pentru vânzare firmă, CUI/emitent/beneficiar IBAN trebuie să fie coerente.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "medium",
+      "source_refs": [
+        "https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva",
+        "https://www.onrc.ro/index.php/ro/infocert"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Pentru aprobarea creditului rapid de 15.000 lei trimite CI față-verso, selfie cu actul și extras de cont. După verificare, achiți taxa de analiză 180 lei și banii intră în cont în 30 minute.",
+      "family": "OP-07",
+      "expected_signals_research": [
+        "identity_docs_for_offer",
+        "selfie_ci_credit_onboarding",
+        "upfront_fee_for_credit_release",
+        "ifn_not_in_bnr_anpc_register"
+      ],
       "expected_offer_signals": [
         "OFFER_ID_DOCUMENT_REQUEST"
       ],
-      "source": "Hays România avertizează că folosirea adreselor generice şi cererea de informaţii personale sunt semne de escrocherie",
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": "Cere CI/selfie/extras și taxă de analiză pentru un credit rapid, fără verificarea entității în registre. BNR publică registre și liste pentru entități financiare, iar ANPC are registre pentru intermediari/administratori credite.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high",
+      "source_refs": [
+        "https://www.bnr.ro/2349-registre-si-liste",
+        "https://anpc.ro/intermediari-credite/"
+      ],
       "xfail_live": false
     },
     {
-      "text": "Salut! Avem un post de operator logistic. Vei primi colete acasă şi le vei reexpedia. Primeşti 200 lei/comandă. Eşti de acord? Trimite numărul de cont pentru plăţi şi CNP pentru contract.",
-      "family": "OP-08",
+      "text": "Document aprobare IFN atașat: credit acceptat, grafic rate generat. Pentru virarea sumei trebuie plătită asigurarea obligatorie de 340 lei pe Revolut. Nu merge prin bancă deoarece dosarul este preaprobat special.",
+      "family": "OP-07",
+      "expected_signals_research": [
+        "fake_ifn_contract_or_schedule",
+        "upfront_fee_for_credit_release",
+        "revolut_personal_for_credit",
+        "ifn_not_in_bnr_anpc_register"
+      ],
+      "expected_offer_signals": [
+        "OFFER_PAYMENT_METHOD_HIGH_RISK"
+      ],
+      "payment_method": "revolut_personal",
+      "why_fraud": "Documentul pretinde aprobare IFN și grafic de rate, dar cere taxă/asigurare în cont personal înainte de virare. Entitatea trebuie verificată în registrele BNR/ANPC, iar taxa în avans către persoană fizică este severă.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high",
+      "source_refs": [
+        "https://www.bnr.ro/2349-registre-si-liste",
+        "https://anpc.ro/registrul-administatorilor-de-credite-e/"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "S-a accesat un credit pe numele dvs. Pentru blocare trebuie să mutăm banii într-un cont sigur și să confirmați datele din buletin. Vă trimit legitimația pe WhatsApp și formularul de securizare.",
+      "family": "OP-07",
+      "expected_signals_research": [
+        "credit_accessed_in_your_name_claim",
+        "secure_account_transfer",
+        "fake_official_documents_on_whatsapp",
+        "identity_docs_for_offer"
+      ],
       "expected_offer_signals": [
         "OFFER_ID_DOCUMENT_REQUEST"
       ],
-      "source": "Hays România semnalează că cerinţele de a transfera bani pentru altcineva sunt semne de activitate ilegală",
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": "Scenariul se potrivește metodei «creditul»/«cont sigur» din SiguranțaOnline, unde atacatorii pretind instituții oficiale și cer date personale/bancare sau bani.",
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+        "https://www.bnr.ro/2349-registre-si-liste"
+      ],
       "xfail_live": false
     },
     {
-      "text": "E‑mail personalizat: ‘Ne extindem discret echipa editorială de tehnologie şi pieţe. CV‑ul tău corespunde perfect! Salariul propus: 7.000 £ pe lună. Trimite 50 £ pentru îmbunătăţirea CV‑ului ca să evidenţiem abilităţile de leadership’.",
-      "family": "OP-08",
+      "text": "Pentru ștergerea istoricului negativ din Biroul de Credit avem nevoie de CI, semnătură și 500 lei taxă de procesare. După plată, raportul va fi curățat în 48h și puteți lua credit nou.",
+      "family": "OP-07",
+      "expected_signals_research": [
+        "credit_history_cleaning_guarantee",
+        "upfront_fee_for_credit_release",
+        "identity_docs_for_offer"
+      ],
       "expected_offer_signals": [],
-      "source": "Ştirile ProTV relatează despre escrocherii cu joburi generate cu AI care cer bani pentru ‘optimizarea CV‑ului’",
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": "Promite ștergerea garantată a istoricului din Biroul de Credit contra taxă și acte. Biroul de Credit oferă raport și proceduri de rectificare/opoziție, dar promisiunea de curățare garantată contra taxă este suspectă.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "medium",
+      "source_refs": [
+        "https://www.birouldecredit.ro/",
+        "https://anpc.ro/intermediari-credite/"
+      ],
       "xfail_live": false
     },
     {
-      "text": "Salut! Sunt mentorul tău de pe grupul VIP Profit. Pentru a începe, investeşte 500 RON într-o monedă recomandată (USDT). Vei primi 15% profit pe zi. Invita‑ţi prietenii şi câştigă comisioane suplimentare!",
-      "family": "OP-09",
+      "text": "Pentru contractul de telefonie în rate avem nevoie de poză CI, selfie și card pentru verificare identitate. Nu se retrage nicio sumă, dar trebuie completat formularul aici: https://contract-rate-identitate.test/verify",
+      "family": "OP-07",
+      "expected_signals_research": [
+        "identity_docs_for_offer",
+        "selfie_ci_credit_onboarding",
+        "card_details_for_identity_check",
+        "fake_contract_financing_link"
+      ],
+      "expected_offer_signals": [
+        "OFFER_ID_DOCUMENT_REQUEST"
+      ],
+      "payment_method": "card_form",
+      "why_fraud": "Cere CI/selfie/card printr-un link neoficial pentru un contract cu finanțare/rate, creând risc de furt de identitate și fraudă financiară.",
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "medium",
+      "source_refs": [
+        "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+        "https://www.bnr.ro/2349-registre-si-liste"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Bună, avem un job part-time remote pentru optimizare produse. Lucrezi 1-2 ore pe zi, câștig 300-500 lei/zi. După primele 20 de taskuri primești comisionul. Pentru activare trebuie să faci top-up minim 150 lei în contul de lucru: https://task-ro-hub.example/start",
+      "family": "OP-08",
+      "expected_signals_research": [
+        "unexpected_recruiter_on_messenger",
+        "high_income_low_effort_no_experience",
+        "paid_likes_reviews_product_boosting",
+        "pay_to_get_paid_or_topup_required"
+      ],
+      "expected_offer_signals": [],
+      "payment_method": "crypto_or_topup",
+      "why_fraud": null,
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams",
+        "https://apnews.com/article/bfbbf95e12513c595fe3da998dcffad3"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Felicitări, ai fost acceptat ca evaluator de magazine online. Primești 25 lei pentru fiecare review și poți retrage după 30 de comenzi. Ca să deblochezi pachetul VIP cu comision mai mare, alimentează contul cu USDT la adresa indicată de mentor.",
+      "family": "OP-08",
+      "expected_signals_research": [
+        "paid_likes_reviews_product_boosting",
+        "small_initial_payment_trust_hook",
+        "pay_to_get_paid_or_topup_required",
+        "off_platform_group_chat_social_proof"
+      ],
       "expected_offer_signals": [
         "OFFER_HAS_CRYPTO_WALLET"
       ],
-      "source": "ASF avertizează că grupurile de pe WhatsApp/Telegram folosesc mentori şi promit profituri garantate",
-      "xfail_live": false
-    },
-    {
-      "text": "În urma investiţiei tale ai câştigat 4.000 USD! Pentru a retrage fondurile, trebuie să plăteşti taxa de 20% pentru procedurile AML şi impozitul de retragere. Depune 800 USD în acelaşi portofel crypto şi îţi deblocăm profitul imediat.",
-      "family": "OP-09",
-      "expected_offer_signals": [
-        "OFFER_HAS_CRYPTO_WALLET"
+      "payment_method": "crypto",
+      "why_fraud": null,
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://www.theverge.com/2024/12/13/24320391/ftc-task-scams-spotlight-warning",
+        "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams"
       ],
-      "source": "ASF explică că escrocii cer comisioane fictive pentru a elibera fondurile şi nu trimit niciodată banii",
       "xfail_live": false
     },
     {
-      "text": "Vezi cum celebrul investitor X a transformat 250 de euro în 5.000 euro! Află secretul în articolul nostru exclusiv şi înscrie‑te pe platforma ProfitNow! Locurile sunt limitate!",
+      "text": "Agenția noastră recrutează muncitori pentru Olanda. Plecare rapidă, cazare inclusă, salariu 2.800 EUR. Pentru dosar, traduceri și rezervarea transportului plătiți azi 650 lei în contul RO00TEST0000000000000000. Contractul de muncă se semnează la sosire.",
+      "family": "OP-08",
+      "expected_signals_research": [
+        "foreign_job_agent_fee_or_transport_fee_before_contract",
+        "contract_promised_after_arrival_abroad",
+        "agency_not_registered_or_unverifiable"
+      ],
+      "expected_offer_signals": [],
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": null,
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high",
+      "source_refs": [
+        "https://www.inspectiamuncii.ro/documents/66402/200730/INFO_mai_2021_SITE%2B156_ian_2026.pdf/9f1c8d81-2695-4b48-977f-dd8420308a10",
+        "https://www.inspectiamuncii.ro/documents/66402/201782/info_agenti_plasare.pdf/108ec86f-7377-482e-9dbf-e114f831d0b8"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Post disponibil: manager control calitate colete, lucru de acasă. Primești pachete, verifici produsele, arunci ambalajul vechi și retrimiți coletul la adresa furnizată. Salariul se plătește după prima lună. Trimite CNP, copie CI și adresa completă pentru contract.",
+      "family": "OP-08",
+      "expected_signals_research": [
+        "reshipping_or_package_forwarding_job",
+        "identity_documents_before_verified_employer",
+        "high_income_low_effort_no_experience"
+      ],
+      "expected_offer_signals": [
+        "OFFER_ID_DOCUMENT_REQUEST"
+      ],
+      "payment_method": "none_initial_identity_theft_risk",
+      "why_fraud": null,
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://consumer.ftc.gov/articles/job-scams"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Te angajăm remote ca agent financiar. Vei primi sume de la clienți în contul tău personal, păstrezi 8% comision și transferi restul către partenerii noștri prin Revolut, carduri cadou sau wallet crypto. Nu este nevoie de experiență.",
+      "family": "OP-08",
+      "expected_signals_research": [
+        "money_mule_transfer_job",
+        "high_income_low_effort_no_experience",
+        "identity_documents_before_verified_employer"
+      ],
+      "expected_offer_signals": [
+        "OFFER_HAS_CRYPTO_WALLET",
+        "OFFER_PAYMENT_METHOD_HIGH_RISK"
+      ],
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": null,
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Ai fost selectat pentru poziția de asistent virtual. Îți trimitem un ordin de plată pentru 4.800 lei; păstrezi 700 lei avans salariu și trimiți restul furnizorului pentru laptop și software. Plata apare imediat, trebuie rezolvat azi.",
+      "family": "OP-08",
+      "expected_signals_research": [
+        "fake_check_overpayment_forward_money",
+        "advance_fee_training_equipment_certification",
+        "interview_absent_or_hiring_instant"
+      ],
+      "expected_offer_signals": [],
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": null,
+      "fixture_type": "real_paraphrased",
+      "confidence": "medium",
+      "source_refs": [
+        "https://consumer.ftc.gov/articles/job-scams"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "HR Global Jobs te-a aprobat fără interviu pentru depozit Germania. Pentru contract trimite poză CI față-verso, selfie cu actul și plătește 220 lei taxă de procesare viză/mediere până la ora 18:00. După plată primești detaliile angajatorului.",
+      "family": "OP-08",
+      "expected_signals_research": [
+        "foreign_job_agent_fee_or_transport_fee_before_contract",
+        "identity_documents_before_verified_employer",
+        "interview_absent_or_hiring_instant",
+        "agency_not_registered_or_unverifiable"
+      ],
+      "expected_offer_signals": [
+        "OFFER_ID_DOCUMENT_REQUEST"
+      ],
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": null,
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high",
+      "source_refs": [
+        "https://www.inspectiamuncii.ro/documents/66402/200730/INFO_mai_2021_SITE%2B156_ian_2026.pdf/9f1c8d81-2695-4b48-977f-dd8420308a10",
+        "https://www.anofm.ro/registrul-national-al-furnizorilor-de-servicii-de-ocupare-acreditati/"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Recrutăm operator chat pentru companie internațională. Nu ai nevoie de experiență, câștig 6.000 lei/lună. Pentru activarea contului trebuie cumpărat kitul de training de 99 EUR de pe https://job-kit-training.test/pay. După finalizare ai garantat contractul.",
+      "family": "OP-08",
+      "expected_signals_research": [
+        "advance_fee_training_equipment_certification",
+        "high_income_low_effort_no_experience",
+        "employer_domain_or_email_mismatch"
+      ],
+      "expected_offer_signals": [],
+      "payment_method": "card_form",
+      "why_fraud": null,
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "high",
+      "source_refs": [
+        "https://consumer.ftc.gov/articles/job-scams",
+        "https://www.scamwatch.gov.au/types-of-scams/jobs-and-employment-scams"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Am găsit o oportunitate oficială Hidroelectrica pentru investitori mici. Randament estimat 4.200 lei/lună la o depunere inițială de 1.250 lei. Înscrierea se face doar azi pe https://hidro-edge-profit.test și un consultant vă contactează pe WhatsApp după completarea formularului.",
       "family": "OP-09",
+      "expected_signals_research": [
+        "public_company_impersonation_investment",
+        "guaranteed_profit_or_zero_risk",
+        "move_to_whatsapp_telegram_for_investment"
+      ],
       "expected_offer_signals": [
         "OFFER_PRICE_URGENCY"
       ],
-      "source": "DNSC şi ProTV au raportat că site‑urile false folosesc imagini ale celebrităţilor şi testimoniale inexistente pentru a promova platforme de investiţii inexistente",
-      "xfail_live": false
-    },
-    {
-      "text": "Bună ziua! Sunt consultantul G. de la Hidroelectrica. Vă oferim posibilitatea de a investi direct în companie cu randament sigur de 12% lunar. Pentru a vă asista, instalaţi aplicaţia AnyDesk şi apoi mergeţi la un bancomat de criptomonede să depuneţi 5.000 RON.",
-      "family": "OP-09",
-      "expected_offer_signals": [
-        "OFFER_HAS_CRYPTO_WALLET",
-        "OFFER_REMOTE_ACCESS_REQUEST",
-        "OFFER_GUARANTEED_PROFIT"
+      "payment_method": "card_form",
+      "why_fraud": null,
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://www.hidroelectrica.ro/press-release/1d738954-4c1b-1ad9-c046-4d0d6001e187"
       ],
-      "source": "Poliţia şi StartupCafe avertizează că escrocii se dau drept consultanţi ai companiilor energetice, folosesc numere internaţionale şi cer instalarea AnyDesk plus depuneri la ATM crypto",
       "xfail_live": false
     },
     {
-      "text": "Suntem Compania 'Recovery Invest'. Ştim că aţi fost înşelat pe platforma X. Putem recupera fondurile pierdute, dar trebuie să plătiţi o taxă de 5% pentru demararea procedurii. Vă rugăm să transferaţi suma în contul ROxx **** pe numele S.C. Recovery SRL.",
+      "text": "Bună ziua, sunt Andrei, broker senior la platforma Alliance Global Markets. Aveți cont aprobat și puteți începe cu 250 EUR. Transferul se face către IBAN-ul consultantului pentru activare rapidă, apoi vedeți profitul în panou. Platforma este reglementată european.",
       "family": "OP-09",
+      "expected_signals_research": [
+        "unlicensed_investment_entity_asf_alert",
+        "unknown_advisor_manages_account",
+        "mica_or_regulated_status_misleading"
+      ],
       "expected_offer_signals": [],
-      "source": "Context.ro descrie cum victimele sunt abordate ulterior de alte reţele care promit recuperarea banilor contra unei taxe",
+      "payment_method": "bank_transfer_to_person",
+      "why_fraud": null,
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://asfromania.ro/ro/a/19/alerte-investitori---informari"
+      ],
       "xfail_live": false
     },
     {
-      "text": "Ne pare rău, dar nu poţi retrage profitul până nu confirmi identitatea. Trimite o copie a buletinului, un selfie şi codul 2FA de la platformă. Aceasta este o procedură obligatorie conform ASF.",
+      "text": "Pentru a configura contul de tranzacționare și a nu pierde poziția pe piață, instalați AnyDesk de aici: https://trading-support.example/desk. Brokerul vă va ghida pas cu pas și va autoriza primele tranzacții din aplicația bancară.",
       "family": "OP-09",
-      "expected_offer_signals": [
-        "OFFER_ID_DOCUMENT_REQUEST"
+      "expected_signals_research": [
+        "remote_access_required_for_investment",
+        "unknown_advisor_manages_account",
+        "move_to_whatsapp_telegram_for_investment"
       ],
-      "source": "ASF şi Bugetul.ro avertizează că fraudatorii cer documente şi coduri OTP sub pretextul verificărilor şi securităţii, lucru pe care instituţiile reale nu îl solicită",
+      "expected_offer_signals": [
+        "OFFER_REMOTE_ACCESS_REQUEST"
+      ],
+      "payment_method": "remote_access_required",
+      "why_fraud": null,
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://www.arb.ro/cum-recunosti-phishing-ul-inainte-sa-ti-fure-datele-personale-si-bancare-explicatiile-expertilor-arb/"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Contul dvs. arată profit de 18.430 EUR. Pentru retragere trebuie achitată taxa AML de 7% în USDT la wallet-ul de mai jos. După confirmarea blockchain, suma va fi eliberată automat în contul bancar.",
+      "family": "OP-09",
+      "expected_signals_research": [
+        "withdrawal_fee_or_tax_to_release_profit",
+        "crypto_payment_wallet_or_qr",
+        "fake_platform_dashboard_initial_returns"
+      ],
+      "expected_offer_signals": [
+        "OFFER_HAS_CRYPTO_WALLET"
+      ],
+      "payment_method": "crypto_wallet",
+      "why_fraud": null,
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://consumer.ftc.gov/articles/what-know-about-cryptocurrency-scams"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Departamentul nostru de recuperări crypto a identificat fondurile pierdute în platforma unde ați investit. Putem recupera 92% din sumă, dar trebuie plătită taxa de dosar blockchain de 310 EUR înainte de inițierea procedurii. Trimiteți și copie CI pentru contract.",
+      "family": "OP-09",
+      "expected_signals_research": [
+        "recovery_scam_advance_fee",
+        "crypto_payment_wallet_or_qr"
+      ],
+      "expected_offer_signals": [
+        "OFFER_HAS_CRYPTO_WALLET"
+      ],
+      "payment_method": "crypto_wallet",
+      "why_fraud": null,
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://consumer.ftc.gov/articles/refund-and-recovery-scams"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Videoclipul cu directorul cunoscutei companii energetice explică noua platformă de acțiuni tokenizate. Nu cumpărați acțiuni prin bursă, ci tokenuri private cu profit lunar garantat. Înregistrați-vă pe https://energy-token-share.test până diseară.",
+      "family": "OP-09",
+      "expected_signals_research": [
+        "deepfake_or_fake_public_persona_endorsement",
+        "tokenized_stock_or_company_share_without_rights",
+        "guaranteed_profit_or_zero_risk",
+        "public_company_impersonation_investment"
+      ],
+      "expected_offer_signals": [],
+      "payment_method": "card_form_or_crypto_wallet",
+      "why_fraud": null,
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "medium",
+      "source_refs": [
+        "https://www.hidroelectrica.ro/press-release/1d738954-4c1b-1ad9-c046-4d0d6001e187",
+        "https://www.reuters.com/sustainability/boards-policy-regulation/european-regulator-says-tokenised-stocks-risk-investor-misunderstanding-2025-09-01/"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "Grup privat Telegram: semnal premium pentru moneda NOVA. Intrare recomandată acum, target x6 în 48h. Administratorii cumpără primii și anunță momentul exact de vânzare. Accesul VIP se activează cu 200 USDT.",
+      "family": "OP-09",
+      "expected_signals_research": [
+        "telegram_pump_dump_or_signal_group",
+        "crypto_payment_wallet_or_qr",
+        "guaranteed_profit_or_zero_risk"
+      ],
+      "expected_offer_signals": [
+        "OFFER_HAS_CRYPTO_WALLET"
+      ],
+      "payment_method": "crypto_wallet",
+      "why_fraud": null,
+      "fixture_type": "synthetic_illustrative",
+      "confidence": "medium",
+      "source_refs": [
+        "https://www.reuters.com/markets/australias-regulator-says-four-persons-criminally-charged-alleged-market-rigging-2024-07-23/"
+      ],
+      "xfail_live": false
+    },
+    {
+      "text": "A fost detectată o problemă pe contul dvs. bancar. Pentru protecția banilor, trebuie să îi convertiți temporar în crypto la ATM și să scanați QR-ul de securitate primit. Nu închideți apelul până finalizăm procesul.",
+      "family": "OP-09",
+      "expected_signals_research": [
+        "crypto_payment_wallet_or_qr",
+        "remote_access_required_for_investment"
+      ],
+      "expected_offer_signals": [
+        "OFFER_HAS_CRYPTO_WALLET"
+      ],
+      "payment_method": "crypto_atm_qr",
+      "why_fraud": null,
+      "fixture_type": "real_paraphrased",
+      "confidence": "high",
+      "source_refs": [
+        "https://sigurantaonline.ro/uniti-impotriva-escrocheriilor/",
+        "https://consumer.ftc.gov/articles/what-know-about-cryptocurrency-scams"
+      ],
       "xfail_live": false
     }
   ]
