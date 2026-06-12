@@ -62,6 +62,16 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - policy id: `9868521767490194527`
   - display name: `SigurScan orchestrated poll latency > 8s`
   - condition: any logged poll-latency metric count greater than `0` over a `300s` alignment window.
+- Cloud Logging structured-error/request proof captured:
+  - controlled request: authenticated `GET /v1/scan/orchestrated/freeze-proof-missing-scan-1781272609`.
+  - client response: `HTTP 404`, `2.968071s`, JSON body `{"detail":"Scanarea nu a fost gasita sau a expirat."}`.
+  - Cloud Logging entry:
+    - timestamp: `2026-06-12T13:56:49.348815Z`
+    - revision: `sigurscan-api-00020-xvd`
+    - severity: `WARNING`
+    - method/status: `GET` / `404`
+    - server latency: `0.682251566s`
+    - user-agent: `SigurScan/1.0 Android OkHttp`
 - Authenticated smoke scan through official domain completed:
   - scan id: `orch_1781267052_627619ad`
   - poll 1: `SUSPECT`, `is_final=false`, `1.532s`
@@ -115,16 +125,14 @@ Status: in progress. This document is proof-led: an item is not green unless the
 
 - Cold-start test after 15 minutes idle has not been run.
 - Full URL-provider scan concurrency/load test has not been run; only text-only scan concurrency is proven.
-- Cloud Logging structured-error proof has not been captured.
 - Latency outlier root-cause is not fully closed: a prior live run had one `29s` poll. The latest 4-run probe and the post-`21a6943` probe did not reproduce it, and Cloud Run logs show sub-4s server-side poll latency for the latest scan, so this remains a watch item rather than a confirmed code defect.
 - Rollback has not been executed end-to-end; readiness is proven non-destructively.
 
 ### Immediate Fixes
 
-1. Capture Cloud Logging structured-error proof.
-2. Run cold-start proof after an idle window if we ever reduce `min-instances` back to `0`.
-3. Run a tiny URL-provider scan concurrency probe only when rate-limit budget allows.
-4. Execute rollback end-to-end only during a maintenance window or incident drill.
+1. Run cold-start proof after an idle window if we ever reduce `min-instances` back to `0`.
+2. Run a tiny URL-provider scan concurrency probe only when rate-limit budget allows.
+3. Execute rollback end-to-end only during a maintenance window or incident drill.
 
 ## Zone 2 - Cloudflare Official Domain
 
@@ -181,4 +189,4 @@ Status: in progress. This document is proof-led: an item is not green unless the
 
 Freeze is not complete yet.
 
-The backend is live and healthy on Cloud Run behind `api.sigurscan.com`, with provider smoke green, API auth active, invoice HMAC secret fallback removed, Android UA hardening deployed, reproducible min instances enabled, request-based CPU billing preserved, a Cloud Billing budget guard created, build log audited, latency alerting configured, rollback readiness proven, lightweight concurrency proven, and controlled text-only scan concurrency proven. The remaining Cloud Run freeze items are structured-error proof, optional cold-start proof if scale-to-zero returns, optional URL-provider concurrency, and an end-to-end rollback drill when we intentionally choose a maintenance window.
+The backend is live and healthy on Cloud Run behind `api.sigurscan.com`, with provider smoke green, API auth active, invoice HMAC secret fallback removed, Android UA hardening deployed, reproducible min instances enabled, request-based CPU billing preserved, a Cloud Billing budget guard created, build log audited, latency alerting configured, structured-error proof captured, rollback readiness proven, lightweight concurrency proven, and controlled text-only scan concurrency proven. The remaining Cloud Run freeze items are optional cold-start proof if scale-to-zero returns, optional URL-provider concurrency, and an end-to-end rollback drill when we intentionally choose a maintenance window.
