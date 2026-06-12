@@ -368,10 +368,9 @@ def get_reputation_cache_stats() -> Dict[str, Any]:
     if not ENABLE_URL_REPUTATION:
         return stats
 
-    if not path.exists():
-        return stats
-
     cache = _load_cache(path)
+    if not cache and not path.exists():
+        return stats
     if not isinstance(cache, dict):
         stats["load_error"] = "invalid_cache_payload"
         return stats

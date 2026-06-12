@@ -5955,6 +5955,39 @@ def test_local_reputation_cache_is_lru_capped(monkeypatch):
     assert set(pruned.keys()) == {middle_key, newest_key}
 
 
+def test_reputation_cache_stats_reads_remote_cache_without_local_file(monkeypatch, tmp_path):
+    now = int(time.time())
+    remote_key = "remote-cache-entry"
+    remote_cache = {
+        remote_key: {
+            "version": url_reputation.REPUTATION_CACHE_VERSION,
+            "verdict": "clean",
+            "expires_at": now + 300,
+            "sources": {
+                "google_web_risk": {
+                    "status": "clean",
+                    "consulted": True,
+                    "details": {"provider": "google_web_risk"},
+                }
+            },
+        }
+    }
+    missing_local_path = tmp_path / "missing-url-reputation-cache.json"
+
+    monkeypatch.setattr(url_reputation, "ENABLE_URL_REPUTATION", True)
+    monkeypatch.setattr(url_reputation, "REPUTATION_CACHE_PATH", missing_local_path)
+    monkeypatch.setattr(url_reputation, "_load_cache", lambda path: dict(remote_cache))
+
+    stats = url_reputation.get_reputation_cache_stats()
+
+    assert stats["exists"] is False
+    assert stats["loaded"] is True
+    assert stats["items"] == 1
+    assert stats["valid_items"] == 1
+    assert stats["verdict_counts"]["clean"] == 1
+    assert stats["source_stats"]["google_web_risk"]["consulted"] == 1
+
+
 def test_supabase_reputation_cache_uses_single_batch_upsert(monkeypatch):
     posted = []
 
