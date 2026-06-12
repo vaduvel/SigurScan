@@ -7097,7 +7097,7 @@ async def _run_orchestrated_offer_fast_lane(job: Dict[str, Any], request: Reques
     # PR6: web-confirm async pentru oferte — rulează DUPĂ primul verdict (nu îl
     # blochează). Marcat „pending" doar când are sens și providerul e configurat.
     web_claim_warranted = (
-        family_id not in ("OP-00", "OP-08")
+        family_id != "OP-00"
         or (claimed_brand and claimed_brand != "Nespecificat")
         or bool(fields and fields.platform_name)
     )
