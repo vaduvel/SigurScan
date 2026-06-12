@@ -125,7 +125,7 @@ def _normalize_atlas_family(raw: Any) -> Optional[Dict[str, Any]]:
     )
     asks_for = _coerce_str_list(raw.get("asks_for") or raw.get("requested_asset"))
 
-    return {
+    normalized = {
         "id": family_id,
         "title": str(raw.get("title") or family_name).strip(),
         "family": family_name,
@@ -140,6 +140,24 @@ def _normalize_atlas_family(raw: Any) -> Optional[Dict[str, Any]]:
         "sources": _dedupe_preserve_order(_coerce_str_list(raw.get("sources") or raw.get("source_ids"))),
         "examples": _dedupe_preserve_order(examples),
     }
+
+    # Preserve auditable knowledge metadata in evidence without turning the
+    # atlas into a second verdict engine. verdict_gate does not consume these
+    # fields unless they are explicitly mapped through the evidence contract.
+    for field in ("structured_signals", "verification_sources", "source_refs"):
+        value = raw.get(field)
+        if isinstance(value, list):
+            normalized[field] = [item for item in value if isinstance(item, dict)]
+
+    payment_risk = raw.get("payment_risk")
+    if isinstance(payment_risk, dict):
+        normalized["payment_risk"] = dict(payment_risk)
+
+    scan_rule_ids = raw.get("scan_rule_ids")
+    if isinstance(scan_rule_ids, list):
+        normalized["scan_rule_ids"] = _dedupe_preserve_order(_coerce_str_list(scan_rule_ids))
+
+    return normalized
 
 
 def _merge_map_of_lists(*items: Dict[str, List[str]]) -> Dict[str, List[str]]:

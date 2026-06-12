@@ -19,6 +19,14 @@ def _op_imp_examples() -> list[dict]:
     return payload["examples"]
 
 
+def _runtime_impersonation_seed() -> dict:
+    return json.loads(
+        (ROOT / "backend" / "data" / "scam_atlas_impersonation_seed.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+
 def test_impersonation_atlas_examples_are_runtime_covered():
     engine = ScamAtlasEngine()
 
@@ -48,6 +56,38 @@ def test_impersonation_runtime_seed_has_canonical_imp_block():
 
     for family_id in [f"IMP-{index:02d}" for index in range(1, 13)]:
         assert family_id in ids
+
+
+def test_impersonation_runtime_seed_keeps_structured_source_metadata_non_decisive():
+    seed = _runtime_impersonation_seed()
+
+    assert len(seed.get("scan_rules", [])) >= 18
+
+    for rule in seed.get("scan_rules", []):
+        assert "verdict_hint" not in rule
+
+    for family in seed["scam_families"]:
+        assert family.get("structured_signals")
+        assert family.get("verification_sources")
+        assert family.get("scan_rule_ids")
+
+        for signal in family["structured_signals"]:
+            assert "verdict" not in signal
+            assert signal.get("signal_slug")
+            assert signal.get("source_refs") is not None
+
+
+def test_impersonation_structured_metadata_reaches_semantic_evidence():
+    result = ScamAtlasEngine().analyze(
+        "ANAF: am identificat o neregularitate fiscală. Accesați linkul și plătiți în 24h.",
+        [],
+    )
+    family = result["evidence"]["scam_family"]
+
+    assert family["id"].startswith("IMP-")
+    assert family.get("structured_signals")
+    assert family.get("verification_sources")
+    assert family.get("scan_rule_ids")
 
 
 def test_impersonation_gap_cases_prefer_canonical_runtime_family():

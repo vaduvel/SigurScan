@@ -126,6 +126,23 @@ class TestOnrcSnapshot:
         meta = source_metadata("onrc")
         assert meta["configured"] is False
 
+    def test_metadata_exposes_honest_official_source_inventory(self):
+        situr = source_metadata("situr")
+        asf = source_metadata("asf")
+        bnr = source_metadata("bnr")
+
+        assert situr["official_source"] == "https://situr.gov.ro/portal/open-data"
+        assert situr["recommended_runtime"] == "snapshot"
+        assert situr["configured"] is False
+
+        assert asf["official_source"] == "https://www.asfromania.ro/ro/a/2818/registrul-a.s.f."
+        assert asf["recommended_runtime"] == "live/hybrid"
+        assert asf["configured"] is False
+
+        assert bnr["official_source"] == "https://www.bnr.ro/Registre-si-Liste-717.aspx"
+        assert bnr["recommended_runtime"] == "live/hybrid"
+        assert bnr["configured"] is False
+
 
 # ─────────────────────────────────────────────────────────────
 # Stubs oneste
