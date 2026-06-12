@@ -7,8 +7,8 @@ Status: proof-led, not marketing-led. Nothing is green unless there is a rerunna
 - Repo: `/Users/vaduvageorge/AndroidStudioProjects/SigurScan`
 - Branch: `main`
 - GitHub: `origin/main`
-- Current repo head before this proof update: `d9d452c`
-- Deployed Cloud Run code image: `d9d452c`
+- Current repo head before this proof update: `45b5663`
+- Deployed Cloud Run code image: `45b5663`
 - API domain: `https://api.sigurscan.com`
 - Cloud project id: `project-20f225c0-d756-4cba-864`
 - Cloud Run service: `sigurscan-api`, region `europe-west1`
@@ -33,10 +33,10 @@ Evidence:
 
 | Zone | Area | Status | Proof / Gap |
 | --- | --- | --- | --- |
-| 1 | Cloud Run runtime | Green for current release posture | Live service is healthy behind `api.sigurscan.com`, min instances is `1`, request-based CPU is preserved, budget + latency alert exist. Reproducible hash-locked container is deployed as revision `sigurscan-api-00023-58k` on code image `d9d452c`. Five concurrent text-only scans pass through both official and direct Run paths. Rollback to `00022-wj8` and restore to `00023-58k` were executed successfully. Optional: quota-bounded URL-provider concurrency; prior isolated client timeout remains a watch item. |
+| 1 | Cloud Run runtime | Green for current release posture | Live service is healthy behind `api.sigurscan.com`, min instances is `1`, request-based CPU is preserved, budget + latency alert exist. Reproducible hash-locked container is deployed as revision `sigurscan-api-00024-46n` on code image `45b5663`, digest `sha256:fb1dc18409350b592e3c946928b500dd90832b61b4201e8d6ff7b4e765dd6506`, traffic `100%`. Five concurrent text-only scans pass through both official and direct Run paths. Rollback to `00022-wj8` and restore to `00023-58k` were executed successfully before the latest cache-stats patch; rollback remains mechanically proven. Optional: quota-bounded URL-provider concurrency; prior isolated client timeout remains a watch item. |
 | 2 | Cloudflare/domain | Green for API edge posture | `https://api.sigurscan.com/health` is live through Cloudflare and Android UA is accepted. HTTP now redirects to HTTPS with `308`, TLS SAN covers `api.sigurscan.com`, `/v1/*` returns `no-store`, and unauthenticated API calls preserve backend `401`. Open: long-scan timeout proof and physical mobile-network proof. |
 | 3 | Supabase | Green for runtime DB path, Partial for full freeze | Remote migration list matches local migrations. Required tables exist, RLS is enabled, `anon`/`authenticated` have no direct grants on runtime tables, preview bucket `previews` is private PNG-only with 5MB limit, visual-only constraints exist, and a live scan wrote `orch_1781289050_c007425e` to `scan_jobs`. Open: backup/PITR dashboard proof and dedicated connection-pool pressure proof. |
-| 4 | Cache/providers | Partial Green | Provider smoke, single live URL-provider smoke, and preview cache paths have proof. URLhaus/Web Risk/urlscan/Mistral/Upstash secrets are wired in deploy script. Open: full provider load/concurrency intentionally not run to avoid quota burn. |
+| 4 | Cache/providers | Green for single-scan provider/cache posture, Partial for load | Provider smoke, single live URL-provider smoke, cache stats, and preview cache paths have proof. Runtime `/health` confirms urlscan, Web Risk, Phishing.Database, URLhaus, Gemini/Mistral explanation, offer claim verifier, and Upstash rate limit are configured. `/v1/reputation/cache/stats` now reads the Supabase-backed cache on Cloud Run after `45b5663`. Open: full provider load/concurrency intentionally not run to avoid quota burn; legacy expired cache rows remain as non-blocking cache hygiene. |
 | 5 | Android direct infra | Partial Green | Android unit tests + debug build pass with Android Studio JBR. Local config points to `https://api.sigurscan.com/`. API key interceptor sends `X-API-KEY` and stable Android UA. Emulator URL E2E and invoice image E2E are proven. Open: physical-device proof and post-UI-merge regression. |
 | 6 | Live feature flows | Partial Green | Backend tests cover text/url/email/offer/invoice/security/registry/legal paths. Live URL/domain smoke exists. Android emulator URL scan reaches final `SIGUR` with preview. Android emulator text-only offer/job scan reaches final non-safe `SUSPECT`. Android invoice image scan now reaches verified invoice state with issuer/CUI/IBAN/dates/totals and live API top-level `SIGUR` after CUI + finalization fixes. Open: email HTML hidden-link scan, PDF/image/QR import, and a fuller offer-with-URL/payment proof if required. |
 | 7 | Code consolidation | Partial Green | `main` is clean and has current invoice + offer + Cloud Run fixes. Backend full suite passes. Android build/tests pass. Open: do not delete old branches until Sonet UI and any wanted handoff deltas are explicitly resolved. |
@@ -54,6 +54,13 @@ Evidence:
   - Zero-cache Docker build: success.
   - Cloud Build: `8088b6e7-7662-43fb-936a-494baffbd5a2`, success, clean log.
   - Deployed digest: `sha256:0424d26d5eb06f0a73566c0d55964cb0f36fc8ec6180b060cfadc7a0cd735406`.
+- Cache/provider hardening after `45b5663`:
+  - Command: `python3 -m pytest backend/test_backend.py -q -k "reputation_cache_stats_reads_remote_cache_without_local_file or supabase_reputation_cache_uses_single_batch_upsert or local_reputation_cache_is_lru_capped"`
+  - Result: `3 passed`
+  - Full backend after patch: `665 passed, 1 warning`
+  - Cloud Build: `00da774a-512f-41d8-b345-1bd6ee1c9736`, success.
+  - Deployed revision: `sigurscan-api-00024-46n`, traffic `100%`.
+  - Deployed digest: `sha256:fb1dc18409350b592e3c946928b500dd90832b61b4201e8d6ff7b4e765dd6506`.
 - Android unit + debug build:
   - Command: `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew :app:testDebugUnitTest :app:assembleDebug`
   - Location: `/Users/vaduvageorge/AndroidStudioProjects/SigurScan`
@@ -70,6 +77,12 @@ Evidence:
   - Target: `https://api.sigurscan.com/v1/scan/orchestrated`
   - Input: benign DNSC official URL smoke with Android UA.
   - Result: POST `HTTP 200` in `1.103s`; provisional `SIGUR` in `4.772s`; final `SIGUR` in `11.057s`; preview `ready`.
+- Quota-safe live provider/cache smoke after `45b5663`:
+  - Target: `https://api.sigurscan.com`.
+  - Case: `live_emag_tracking_official`.
+  - Result: `SIGUR`, `status=complete`, `is_final=true`, provider gate reason `official_clean`.
+  - Timings: scan id `1.33s`, verdict `7.69s`, completion `9.03s`, preview report/screenshot `2.36s`.
+  - Cache stats: `loaded=true`, `items=66`, `valid_items=6`, `expired_items=60`, `invalid_items=436`; provider sources include Google Web Risk, Phishing.Database, and URLhaus.
 - Android emulator URL E2E:
   - Device: `emulator-5554`.
   - App package: `ro.sigurscan.app`.

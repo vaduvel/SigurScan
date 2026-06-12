@@ -7,8 +7,8 @@ Status: in progress. This document is proof-led: an item is not green unless the
 - Repository: `vaduvel/SigurScan`
 - Local repo: `/Users/vaduvageorge/AndroidStudioProjects/SigurScan`
 - Current branch: `main`
-- Verified code commit: `d9d452c`
-- Deployed code commit: `d9d452c`
+- Verified code commit: `45b5663`
+- Deployed code commit: `45b5663`
 - Documentation may advance past the deployed code commit with proof-only updates.
 - Cloud Run project: `project-20f225c0-d756-4cba-864`
 - Cloud Run service: `sigurscan-api`
@@ -21,10 +21,14 @@ Status: in progress. This document is proof-led: an item is not green unless the
 
 - Cloud Run service exists in `europe-west1`.
   Evidence: `gcloud run services describe sigurscan-api --project project-20f225c0-d756-4cba-864 --region europe-west1`.
-- Latest ready revision is `sigurscan-api-00023-58k`.
-- Traffic is `100%` to `sigurscan-api-00023-58k`.
-- Deployed image is `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:d9d452c`.
-- Deployed image digest is `sha256:0424d26d5eb06f0a73566c0d55964cb0f36fc8ec6180b060cfadc7a0cd735406`.
+- Latest ready revision is `sigurscan-api-00024-46n`.
+- Traffic is `100%` to `sigurscan-api-00024-46n`.
+- Deployed image is `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:45b5663`.
+- Deployed image digest is `sha256:fb1dc18409350b592e3c946928b500dd90832b61b4201e8d6ff7b4e765dd6506`.
+- Latest Cloud Build deployment proof:
+  - build id: `00da774a-512f-41d8-b345-1bd6ee1c9736`
+  - status: `SUCCESS`
+  - deployed revision: `sigurscan-api-00024-46n`
 - Cloud Build deployment proof:
   - build id: `8088b6e7-7662-43fb-936a-494baffbd5a2`
   - status: `SUCCESS`
@@ -51,6 +55,7 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - Cloud Run injects `INVOICE_CACHE_HMAC_KEY=invoice-cache-hmac-key:latest`.
   - Test proof: `test_invoice_cache_key_requires_env_secret` fails without env and passes with the test fixture env.
 - Health check returns `HTTP 200` through Cloudflare on `https://api.sigurscan.com/health`.
+  - Post-deploy health after `45b5663`: `HTTP 200`, `1.168s`; runtime reports `rate_limit_backend=upstash`, `api_key_required=true`.
   - Post-deploy health after `21a6943`: `HTTP 200`, `0.361590s`.
   - Post-deploy health after `17dcfc7`: `HTTP 200`, `0.336330s`.
   - Post-deploy health after `e55bc7b`: `HTTP 200`, `0.288110s`.
@@ -307,6 +312,50 @@ Status: in progress. This document is proof-led: an item is not green unless the
 - Backup / point-in-time recovery was not confirmed from the CLI. Needs dashboard or management API proof before the whole Zone 3 can be signed as fully green.
 - Dedicated Supabase connection-pool pressure test was not run. Existing five-scan Cloud Run concurrency did not expose a DB failure, but it is not a standalone pool exhaustion proof.
 
+## Zone 4 - Cache And Providers
+
+### Verified
+
+- Local provider/cache/orchestration regression suite passed:
+  - Command: `python3 -m pytest backend/test_anaf_cui.py backend/test_anaf_cui_offer.py backend/test_backend.py backend/test_invoice_orchestration.py backend/test_orchestrated_latency.py backend/test_preview_preseed_tool.py backend/test_tooling_defaults.py -q`
+  - Result: `266 passed, 1 warning`.
+- Security hardening suite passed:
+  - Command: `python3 -m pytest backend/test_security_hardening.py -q`
+  - Result: `18 passed, 1 warning`.
+- Remote reputation-cache stats bug was fixed in `45b5663`:
+  - Runtime now reads Supabase-backed cache stats even when the local cache file does not exist.
+  - Targeted proof: `python3 -m pytest backend/test_backend.py -q -k "reputation_cache_stats_reads_remote_cache_without_local_file or supabase_reputation_cache_uses_single_batch_upsert or local_reputation_cache_is_lru_capped"` -> `3 passed`.
+  - Combined hardening/default proof after patch: `python3 -m pytest backend/test_security_hardening.py backend/test_tooling_defaults.py -q` -> `20 passed, 1 warning`.
+  - Full backend suite after patch: `665 passed, 1 warning`.
+- Cloud Run revision `sigurscan-api-00024-46n` exposes provider configuration correctly through `/health`:
+  - `urlscan`: configured, visibility `unlisted`.
+  - `google_web_risk`: configured.
+  - `phishing_database`: configured.
+  - `urlhaus`: configured.
+  - `ai_explanation`: configured with Gemini and Mistral.
+  - `offer_claim_verifier`: configured with timeout `5.0`.
+- Live reputation-cache stats through `https://api.sigurscan.com/v1/reputation/cache/stats`:
+  - HTTP `200`, `1.188s`.
+  - `loaded=true`, `items=66`, `valid_items=6`, `expired_items=60`, `invalid_items=436`.
+  - verdict counts: `clean=64`, `malicious=1`, `suspicious=1`.
+  - source stats: Google Web Risk `66/66` consulted clean; Phishing.Database `66/66` consulted with `1` malicious; URLhaus `66/66` consulted with `1` malicious.
+- Supabase cache snapshot:
+  - `url_reputation_cache`: `502` rows, `6` valid.
+  - version `3`: `66` rows, `6` valid.
+  - version `2` legacy cache rows are all invalid/expired for current runtime and ignored by version/TTL checks.
+- Quota-safe live URL-provider smoke through official domain:
+  - case: `live_emag_tracking_official`.
+  - status: passed.
+  - final label: `SIGUR`, status `complete`, `is_final=true`, risk `low`.
+  - provider gate reason: `official_clean`.
+  - timings: scan id `1.33s`, verdict `7.69s`, preview report `2.36s`, screenshot `2.36s`, completion `9.03s`.
+  - provider summary keys included `ai_offer_web_check`, `google_web_risk`, `infra_domain_age`, `phishing_database`, `urlhaus`, and `urlscan`.
+
+### Not Yet Green
+
+- Full live URL-provider concurrency was intentionally not run to avoid burning provider quota.
+- Legacy reputation-cache rows remain in Supabase but are ignored by current version/TTL logic. Cleanup can be done later as cache hygiene, not as a verdict blocker.
+
 ## Zone 7 - Main Consolidation Snapshot
 
 ### Verified
@@ -319,8 +368,9 @@ Status: in progress. This document is proof-led: an item is not green unless the
 - `fa6a22c fix: map live CUI fallback company data`
 - `e55bc7b fix: preserve invoice fast-lane verdict`
 - `d9d452c build: make Cloud Run container reproducible`
-- `origin/main` includes deployed code commit `d9d452c`.
-- Cloud Run intentionally runs code image `d9d452c`.
+- `45b5663 fix: include remote reputation cache in stats`
+- `origin/main` includes deployed code commit `45b5663`.
+- Cloud Run intentionally runs code image `45b5663`.
 
 ### Not Yet Green
 
@@ -331,4 +381,4 @@ Status: in progress. This document is proof-led: an item is not green unless the
 
 Freeze is not complete yet.
 
-The backend is live and healthy on Cloud Run behind `api.sigurscan.com`, with provider smoke green, API auth active, invoice HMAC secret fallback removed, Android UA hardening deployed, a reproducible hash-locked container, min instances enabled, request-based CPU billing preserved, a Cloud Billing budget guard created, build log audited, latency alerting configured, structured-error proof captured, rollback executed and restored successfully, lightweight concurrency proven, controlled five-scan text-only concurrency proven, Android emulator URL E2E proven, and Android emulator invoice E2E verified after the CUI/finalization fixes. The remaining Cloud Run freeze items are optional cold-start proof if scale-to-zero returns and a deliberately quota-bounded URL-provider concurrency probe.
+The backend is live and healthy on Cloud Run behind `api.sigurscan.com`, with provider smoke green, API auth active, invoice HMAC secret fallback removed, Android UA hardening deployed, a reproducible hash-locked container, min instances enabled, request-based CPU billing preserved, a Cloud Billing budget guard created, build log audited, latency alerting configured, structured-error proof captured, rollback executed and restored successfully, lightweight concurrency proven, controlled five-scan text-only concurrency proven, remote reputation-cache stats fixed, Android emulator URL E2E proven, and Android emulator invoice E2E verified after the CUI/finalization fixes. The remaining Cloud Run freeze items are optional cold-start proof if scale-to-zero returns and a deliberately quota-bounded URL-provider concurrency probe.
