@@ -7,7 +7,7 @@ Status: proof-led, not marketing-led. Nothing is green unless there is a rerunna
 - Repo: `/Users/vaduvageorge/AndroidStudioProjects/SigurScan`
 - Branch: `main`
 - GitHub: `origin/main`
-- Current repo/proof head before this Zone 7 update: `7cb7651`
+- Current repo/proof head before this Zone 8 update: `b4f22e1`
 - Deployed Cloud Run code image: `4918162`
 - API domain: `https://api.sigurscan.com`
 - Cloud project id: `project-20f225c0-d756-4cba-864`
@@ -40,14 +40,14 @@ Evidence:
 
 | Zone | Area | Status | Proof / Gap |
 | --- | --- | --- | --- |
-| 1 | Cloud Run runtime | Green for current release posture | Live service is healthy behind `api.sigurscan.com`, min instances is `1`, request-based CPU is preserved, budget + latency alert exist. Reproducible hash-locked container is deployed as revision `sigurscan-api-00025-vg5` on code image `4918162`, digest `sha256:1951be05e620f71b74923f4d6460ab36f322767f98f14987e38ff20eea11d1c7`, traffic `100%`. Five concurrent text-only scans pass through both official and direct Run paths. Rollback to `00022-wj8` and restore to `00023-58k` were executed successfully before the latest cache-stats/PDF patches; rollback remains mechanically proven. Optional: quota-bounded URL-provider concurrency; prior isolated client timeout remains a watch item. |
+| 1 | Cloud Run runtime | Green for current release posture, watch on 8-way scan load | Live service is healthy behind `api.sigurscan.com`, min instances is `1`, request-based CPU is preserved, budget + latency + 5xx alert policies exist. Reproducible hash-locked container is deployed as revision `sigurscan-api-00025-vg5` on code image `4918162`, digest `sha256:1951be05e620f71b74923f4d6460ab36f322767f98f14987e38ff20eea11d1c7`, traffic `100%`. Runtime tuning now uses `containerConcurrency=2`, `maxScale=5`. Four concurrent text-only scans finalize with no `5xx`, max poll `6.049s`, max total `9.147s`. Eight concurrent text-only scans also finalize with no `5xx`, but max poll remains near threshold at `8.328s`, so capacity/latency stays a watch item. Rollback to `00022-wj8` and restore to `00023-58k` were executed successfully before the latest cache-stats/PDF patches; rollback remains mechanically proven. Optional: quota-bounded URL-provider concurrency. |
 | 2 | Cloudflare/domain | Green for API edge posture | `https://api.sigurscan.com/health` is live through Cloudflare and Android UA is accepted. HTTP now redirects to HTTPS with `308`, TLS SAN covers `api.sigurscan.com`, `/v1/*` returns `no-store`, and unauthenticated API calls preserve backend `401`. Open: long-scan timeout proof and physical mobile-network proof. |
 | 3 | Supabase | Green for runtime DB path, Partial for full freeze | Remote migration list matches local migrations. Required tables exist, RLS is enabled, `anon`/`authenticated` have no direct grants on runtime tables, preview bucket `previews` is private PNG-only with 5MB limit, visual-only constraints exist, and a live scan wrote `orch_1781289050_c007425e` to `scan_jobs`. Open: backup/PITR dashboard proof and dedicated connection-pool pressure proof. |
 | 4 | Cache/providers | Green for single-scan provider/cache posture, Partial for load | Provider smoke, single live URL-provider smoke, cache stats, and preview cache paths have proof. Live flows prove urlscan, Google Web Risk consultation, Phishing.Database, URLhaus, and offer-claim verifier behavior; `/v1/reputation/cache/stats` reads the Supabase-backed cache on Cloud Run after `45b5663`; deployed runtime is now `4918162`. Open: full provider load/concurrency intentionally not run to avoid quota burn; legacy expired cache rows remain as non-blocking cache hygiene. |
 | 5 | Android direct infra | Green for build/config, Partial for device proof | Debug and release local config point to `https://api.sigurscan.com/`; app API keys are configured without logging their values; direct provider keys are empty in generated BuildConfig; API key interceptor sends `X-API-KEY` and stable Android UA; `testDebugUnitTest`, `assembleDebug`, and `assembleRelease` pass; release APK is signed with SigurScan cert. Open: physical-device proof, mobile-network proof, upload-size proof, poor-network behavior, and post-UI-merge regression. AVD exists but did not boot into ADB during this continuation. |
 | 6 | Live feature flows | Green for backend/API live flows, Partial for full device/import coverage | Backend tests cover text/url/email/offer/invoice/security/registry/legal paths. Live provider smoke is `3/3`; live YOXO and eMAG tracking are `SIGUR`, and hard-provider controls are `PERICULOS` through Phishing.Database/urlscan. Email HTML hidden-link extraction and scan are proven live. PDF annotation-link extraction was fixed in `4918162` and proven live on Cloud Run. Android emulator URL scan reaches final `SIGUR` with preview. Android emulator text-only offer/job scan reaches final non-safe `SUSPECT`. Android invoice image scan reaches verified invoice state with issuer/CUI/IBAN/dates/totals and live API top-level `SIGUR` after CUI + finalization fixes. Open: QR import/camera, physical-device release, mobile-network proof, and fuller offer-with-URL/payment proof if required. |
 | 7 | Code consolidation | Green for current release consolidation, Partial for branch cleanup/UI | `main` is clean in the freeze worktree and has current invoice + offer + Cloud Run fixes. Backend full suite passes from the clean freeze worktree. Android unit/debug/release build passes from the clean freeze worktree. Branch audit is complete: DeepSeek/freeze-ready/privacy hardening are integrated; Fable/offer stage branches must not be merged raw because they would revert current `main`. Open: do not delete old branches until Sonet UI and any active `gate/unverified-verdict` work are explicitly resolved. |
-| 8 | Hardening/regression | Partial Green | Latency alert, budget, structured error proof, API key requirement, Android UA hardening, and freeze docs exist. Open: full live regression pack, Play-ready privacy/legal store checklist, and physical-device proof. |
+| 8 | Hardening/regression | Green for automated/runtime hardening, Partial for physical/store launch | Zone 8 targeted regression passed `231` tests. Provider-degrade regression passed `54` tests. Live log hygiene checked `300` Cloud Run log entries and found zero exact matches for the controlled marker, OTP, CNP, IBAN, or card value. Admin telemetry endpoints return live `200`; dashboard HTML returns `200`; telemetry summary reports `alerts_count=0` and urlscan pending-timeout rate `0.0`. Cloud Monitoring now has enabled latency and 5xx policies, but no notification channel is attached yet. Open: full URL-provider load pack, Play-ready privacy/legal store checklist, physical-device/mobile-network proof, and notification-channel setup. |
 
 ## Tests Run In This Audit
 
@@ -55,6 +55,14 @@ Evidence:
   - Command: `python3 -m pytest backend -q`
   - Location: `/Users/vaduvageorge/.config/superpowers/worktrees/SigurScan/freeze-main-2026-06-12`
   - Result after Zone 7 branch audit: `666 passed, 1 warning`
+- Zone 8 hardening regression:
+  - Command: `python3 -m pytest backend/test_offer_corpus_recall.py backend/test_family_classifier.py backend/test_scam_atlas_contract.py backend/test_scam_atlas_impersonation.py backend/test_impersonation_knowledge_builder.py backend/test_verdict_gate.py backend/test_offer_gate_combos.py backend/test_legal_layer.py backend/test_registry_verification.py backend/test_invoice_orchestration.py backend/test_invoice_endpoint.py backend/test_invoice_parser.py backend/test_invoice_readiness_gate.py backend/test_invoice_coherence.py backend/test_security_hardening.py backend/test_orchestrated_latency.py -q`
+  - Result: `231 passed, 1 warning`
+  - JUnit: `build/reports/freeze/zone8_regression_junit_2026-06-12.xml`
+- Zone 8 provider-degrade regression:
+  - Command: `python3 -m pytest backend/test_anaf_cui.py backend/test_anaf_cui_offer.py backend/test_offer_web_confirm.py backend/test_registry_verification.py backend/test_backend.py::test_gemini_explainer_handles_timeout_gracefully backend/test_backend.py::test_offer_claim_gemini_grounding_is_bounded_for_25_flash backend/test_backend.py::test_reputation_cache_refetches_when_configured_source_was_not_consulted -q`
+  - Result: `54 passed, 1 warning`
+  - JUnit: `build/reports/freeze/zone8_provider_degrade_junit_2026-06-12.xml`
 - Reproducible container contract:
   - Command: `python3 -m pytest backend/test_container_contract.py -q`
   - Result: `1 passed`
@@ -111,6 +119,37 @@ Evidence:
   - Email HTML extract report: `build/reports/freeze_zone6_email_html_extract_live_2026-06-12.json`, extracted one hidden/button CTA URL.
   - Email HTML scan report: `build/reports/freeze_zone6_email_html_hidden_link_live_2026-06-12.json`, result `SIGUR`, final URL `https://auth.emag.ro/user/login`, preview report/screenshot present.
   - PDF extraction report: `build/reports/freeze_zone6_pdf_extract_live_after_fix_2026-06-12.json`, result `HTTP 200`, extracted `https://dnsc.ro/`, `hidden_url_visibility=true`.
+- Zone 8 runtime/load hardening after final `containerConcurrency=2` tuning:
+  - Domain health: official API `HTTP 200` in `0.276s`; direct Run URL `HTTP 200` in `0.146s`; runtime reports `api_key_required=true`, `admin_api_configured=true`, `rate_limit_backend=upstash`.
+  - Single warm text-only scan: POST `1.188s`; provisional public verdict after first poll in roughly `2.5s` total; final `SUSPECT` in `7.131s`.
+  - 8 simultaneous text-only scans before final tuning: `8/8` finalized, no `5xx`, poll max `9.367s`, total max `16.244s`.
+  - 8 simultaneous text-only scans after `containerConcurrency=2`: `8/8` finalized, no `5xx`, poll max `8.328s`, total max `15.565s`.
+  - 4 simultaneous text-only scans after `containerConcurrency=2`: `4/4` finalized, no `5xx`, poll max `6.049s`, total max `9.147s`.
+  - Reports:
+    - `build/reports/freeze/zone8_domain_health_after_tuning_2026-06-12.json`
+    - `build/reports/freeze/zone8_live_single_warm_2026-06-12.json`
+    - `build/reports/freeze/zone8_live_concurrency_admin_2026-06-12.json`
+    - `build/reports/freeze/zone8_live_concurrency_after_concurrency2_2026-06-12.json`
+    - `build/reports/freeze/zone8_live_concurrency4_after_concurrency2_2026-06-12.json`
+- Zone 8 admin/log hygiene proof:
+  - Admin endpoints:
+    - `/v1/orchestration/telemetry`: `HTTP 200`, JSON.
+    - `/v1/orchestration/dashboard`: `HTTP 200`, HTML.
+    - `/v1/feedback/summary`: `HTTP 200`, JSON.
+    - `/v1/reputation/cache/stats`: `HTTP 200`, JSON.
+  - Telemetry summary: `alerts_count=0`, `urlscan.pending_timeout_events=0`, `urlscan.pending_timeout_rate=0.0`.
+  - Log hygiene: `300` Cloud Run log entries checked; controlled marker, OTP, CNP, IBAN, and card exact matches all `0`.
+  - Reports:
+    - `build/reports/freeze/zone8_admin_endpoints_live_2026-06-12.json`
+    - `build/reports/freeze/zone8_admin_telemetry_summary_2026-06-12.json`
+    - `build/reports/freeze/zone8_log_hygiene_probe_request_2026-06-12.json`
+    - `build/reports/freeze/zone8_cloud_run_log_hygiene_2026-06-12.json`
+- Zone 8 Cloud Monitoring alert proof:
+  - Policies enabled:
+    - `SigurScan orchestrated poll latency > 8s`
+    - `SigurScan Cloud Run 5xx errors > 0`
+  - Report: `build/reports/freeze/zone8_gcp_alert_policies_after_create_2026-06-12.json`
+  - Caveat: notification channels are not attached yet.
 - Android emulator URL E2E:
   - Device: `emulator-5554`.
   - App package: `ro.sigurscan.app`.
@@ -144,6 +183,7 @@ Evidence:
 
 1. Do not merge Fable/offer stage branches raw. If a specific missing feature is found later, cherry-pick or reimplement the minimal diff onto `main`.
 2. Keep `main` as the freeze base and treat the current physical `gate/unverified-verdict` checkout as separate active work.
-3. Run the remaining Android E2E flows: QR import/camera, physical-device release, mobile-network, and fuller offer-with-URL/payment if needed.
-4. Run full URL-provider concurrency only during a deliberate quota window, not during normal freeze checks.
-5. Keep old feature branches until the UI branch and active gate branch are fully accounted for; delete only after a named cleanup pass.
+3. Attach a real email notification channel to the two Cloud Monitoring policies before public launch.
+4. Run the remaining Android E2E flows: QR import/camera, physical-device release, mobile-network, and fuller offer-with-URL/payment if needed.
+5. Run full URL-provider concurrency only during a deliberate quota window, not during normal freeze checks.
+6. Keep old feature branches until the UI branch and active gate branch are fully accounted for; delete only after a named cleanup pass.

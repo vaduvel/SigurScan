@@ -42,7 +42,9 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - Cloud Build log for `8088b6e7-7662-43fb-936a-494baffbd5a2` contained no warning/error/failed tokens.
   - contract test: `backend/test_container_contract.py` passes.
 - Request timeout is `300s`.
-- Container concurrency is `40`.
+- Container concurrency is `2`.
+  - It was reduced during Zone 8 hardening from the earlier high-concurrency posture after live scan probes showed better request stability for the current monolith on Cloud Run.
+  - No code redeploy was required for this tuning; the deployed image remains `4918162`.
 - CPU/memory are `1 CPU` / `1Gi`.
 - Min instances is `1`; max instances is `5`.
 - CPU throttling is `true`, preserving request-based CPU billing rather than always-allocated CPU.
@@ -79,6 +81,13 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - policy id: `9868521767490194527`
   - display name: `SigurScan orchestrated poll latency > 8s`
   - condition: any logged poll-latency metric count greater than `0` over a `300s` alignment window.
+- Cloud Monitoring error-rate alert policy exists:
+  - display name: `SigurScan Cloud Run 5xx errors > 0`
+  - condition: any `5xx` response from Cloud Run service `sigurscan-api`.
+  - status: enabled.
+- Alert caveat:
+  - both alert policies are enabled, but no notification channel is attached yet.
+  - this is acceptable as proof of monitoring rules, but not sufficient as production paging/email alerting until a notification channel is added.
 - Cloud Logging structured-error/request proof captured:
   - controlled request: authenticated `GET /v1/scan/orchestrated/freeze-proof-missing-scan-1781272609`.
   - client response: `HTTP 404`, `2.968071s`, JSON body `{"detail":"Scanarea nu a fost gasita sau a expirat."}`.
@@ -192,18 +201,76 @@ Status: in progress. This document is proof-led: an item is not green unless the
     - poll 3: `HTTP 200`, `3.407s`, `SUSPECT`, `is_final=true`
   - Cloud Run request logs for `orch_1781269113_5074e703` show server-side GET latencies of `0.501767931s`, `0.517308680s`, and `3.180505344s`.
   - A previous local `urllib` poll timeout was not reproduced with `requests`; Cloud Run logs for that scan showed quick server responses. Treat remaining risk as edge/client-path observability, not a confirmed backend handler latency defect.
+- Zone 8 runtime hardening after container-concurrency tuning:
+  - Domain health after tuning:
+    - `https://api.sigurscan.com/health`: `HTTP 200`, `0.276s`.
+    - direct Cloud Run health: `HTTP 200`, `0.146s`.
+    - runtime config reports `api_key_required=true`, `admin_api_configured=true`, `rate_limit_backend=upstash`.
+    - report: `build/reports/freeze/zone8_domain_health_after_tuning_2026-06-12.json`.
+  - Single warm text-only scan:
+    - POST `1.188s`.
+    - provisional public verdict after first poll in roughly `2.5s` total.
+    - final `SUSPECT` in `7.131s` total.
+    - report: `build/reports/freeze/zone8_live_single_warm_2026-06-12.json`.
+  - 8 simultaneous text-only scans before final tuning:
+    - `8/8` finalized.
+    - no `5xx`.
+    - poll p50 `4.847s`, poll max `9.367s`.
+    - total p50 `15.725s`, total max `16.244s`.
+    - report: `build/reports/freeze/zone8_live_concurrency_admin_2026-06-12.json`.
+  - 8 simultaneous text-only scans after `containerConcurrency=2`:
+    - `8/8` finalized.
+    - no `5xx`.
+    - poll p50 `5.041s`, poll max `8.328s`.
+    - total p50 `14.849s`, total max `15.565s`.
+    - report: `build/reports/freeze/zone8_live_concurrency_after_concurrency2_2026-06-12.json`.
+  - 4 simultaneous text-only scans after `containerConcurrency=2`:
+    - `4/4` finalized.
+    - no `5xx`.
+    - poll p50 `3.283s`, poll max `6.049s`.
+    - total p50 `8.992s`, total max `9.147s`.
+    - report: `build/reports/freeze/zone8_live_concurrency4_after_concurrency2_2026-06-12.json`.
+  - Interpretation:
+    - normal single-user and 4-concurrent paths are within the current target posture.
+    - 8 simultaneous text-only scans are stable and complete, but remain a capacity watch item because max poll latency is near/above the `8s` alert threshold.
+- Zone 8 admin telemetry proof:
+  - `/v1/orchestration/telemetry`: `HTTP 200`, JSON response, keys include `alerts`, `by_event_type`, `by_stage`, `conflicts`, `polls_to_final`, `stage_latency_ms`, `time_to_final_ms`, and `urlscan`.
+  - `/v1/orchestration/dashboard`: `HTTP 200`, HTML dashboard response.
+  - `/v1/feedback/summary`: `HTTP 200`, JSON response with accuracy/precision/recall/f1 summary fields.
+  - `/v1/reputation/cache/stats`: `HTTP 200`, JSON response.
+  - telemetry summary: `alerts_count=0`, `urlscan.pending_timeout_events=0`, `urlscan.pending_timeout_rate=0.0`.
+  - reports:
+    - `build/reports/freeze/zone8_admin_endpoints_live_2026-06-12.json`
+    - `build/reports/freeze/zone8_admin_telemetry_summary_2026-06-12.json`
+- Zone 8 log hygiene proof:
+  - controlled live scan included a unique marker plus fake OTP, CNP, IBAN, and card-number values.
+  - `300` Cloud Run log entries were checked.
+  - exact sensitive matches found: `0` for marker, OTP, CNP, IBAN, and card number.
+  - request report: `build/reports/freeze/zone8_log_hygiene_probe_request_2026-06-12.json`.
+  - log report: `build/reports/freeze/zone8_cloud_run_log_hygiene_2026-06-12.json`.
+- Zone 8 regression/provider-degrade proof:
+  - targeted atlas/knowledge/gate/invoice/security/latency regression:
+    - command: `python3 -m pytest backend/test_offer_corpus_recall.py backend/test_family_classifier.py backend/test_scam_atlas_contract.py backend/test_scam_atlas_impersonation.py backend/test_impersonation_knowledge_builder.py backend/test_verdict_gate.py backend/test_offer_gate_combos.py backend/test_legal_layer.py backend/test_registry_verification.py backend/test_invoice_orchestration.py backend/test_invoice_endpoint.py backend/test_invoice_parser.py backend/test_invoice_readiness_gate.py backend/test_invoice_coherence.py backend/test_security_hardening.py backend/test_orchestrated_latency.py -q`
+    - result: `231 passed, 1 warning`.
+    - report: `build/reports/freeze/zone8_regression_junit_2026-06-12.xml`.
+  - provider degrade/error handling regression:
+    - command: `python3 -m pytest backend/test_anaf_cui.py backend/test_anaf_cui_offer.py backend/test_offer_web_confirm.py backend/test_registry_verification.py backend/test_backend.py::test_gemini_explainer_handles_timeout_gracefully backend/test_backend.py::test_offer_claim_gemini_grounding_is_bounded_for_25_flash backend/test_backend.py::test_reputation_cache_refetches_when_configured_source_was_not_consulted -q`
+    - result: `54 passed, 1 warning`.
+    - report: `build/reports/freeze/zone8_provider_degrade_junit_2026-06-12.xml`.
 
 ### Not Yet Green
 
 - Cold-start test after 15 minutes idle has not been run.
-- Full URL-provider scan concurrency/load test has not been run; only single URL-provider smoke and text-only scan concurrency are proven.
-- Latency outlier root-cause is not fully closed: a prior live run had one `29s` poll. The latest 4-run probe and the post-`21a6943` probe did not reproduce it, and Cloud Run logs show sub-4s server-side poll latency for the latest scan, so this remains a watch item rather than a confirmed code defect.
+- Full URL-provider scan concurrency/load test has not been run; only single URL-provider smoke and text-only scan concurrency are proven, deliberately avoiding quota burn.
+- Latency outlier root-cause is not fully closed: a prior live run had one `29s` poll. Latest single-user, 4-concurrent, and 8-concurrent probes did not produce `5xx`, but 8-concurrent text-only scans can still approach the `8s` poll alert threshold. This remains a capacity/observability watch item rather than a confirmed handler crash.
+- Cloud Monitoring policies exist and are enabled, but no notification channel is attached yet.
 
 ### Immediate Fixes
 
 1. Run cold-start proof after an idle window if we ever reduce `min-instances` back to `0`.
 2. Run a tiny URL-provider scan concurrency probe only when rate-limit budget allows.
-3. Keep the latency alert active and investigate any future poll over `8s` with its Cloud Run request log and edge path.
+3. Attach an email notification channel to the Cloud Monitoring policies before public launch.
+4. Keep the latency alert active and investigate any future poll over `8s` with its Cloud Run request log and edge path.
 
 ## Zone 2 - Cloudflare Official Domain
 
