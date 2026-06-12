@@ -48,6 +48,8 @@ _PAYMENT_CONTEXT = re.compile(
 
 
 def _sensitive(fields: "OfferFields", signals: List[str]) -> str:
+    if S.OFFER_REMOTE_ACCESS_REQUEST in signals:
+        return "remote"
     if S.OFFER_ID_DOCUMENT_REQUEST in signals:
         return "id_document"
     if S.OFFER_CARD_CVV_OTP_REQUEST in signals:
@@ -145,6 +147,7 @@ def _semantic_risk(
         or (coherence is not None and not coherence.all_ok)
         or S.OFFER_PRICE_URGENCY in signals
         or S.OFFER_PAYMENT_METHOD_HIGH_RISK in signals
+        or S.OFFER_GUARANTEED_PROFIT in signals
     )
     if medium:
         return "medium"

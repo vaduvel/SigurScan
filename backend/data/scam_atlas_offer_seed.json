@@ -1,6 +1,6 @@
 {
-  "version": "2026-06-11",
-  "source": "Atlas Oferta+Plata + EvidenceGate Partea II",
+  "version": "2026-06-12",
+  "source": "Atlas Oferta+Plata + EvidenceGate Partea II + cercetari fable_handoff 2026-06-12 (v3 OP-08/09)",
   "power_legend": {
     "decisiv": "determina aproape sigur frauda -> PERICULOS (de regula in combinatie)",
     "mediu": "indica suspiciune -> SUSPECT, necesita coroborare",
@@ -25,116 +25,555 @@
       "name": "Turism / agentii de turism false",
       "status": "complet",
       "signals": [
-        {"text": "IBAN pe persoana fizica pentru firma/agentie", "where": "factura/contract/instructiuni plata", "verify": "SANB nume titular vs operator; ANAF/ONRC", "power": "decisiv", "verdict": "periculos_in_combo"},
-        {"text": "Lipsa CUI/licenta pe factura", "where": "factura/contract", "verify": "ANAF v9; lista ANAT (snapshot)", "power": "mediu", "verdict": "suspect"},
-        {"text": "Domeniu email suspect / linkuri neoficiale", "where": "email", "verify": "analiza domeniu typosquat", "power": "mediu", "verdict": "suspect"},
-        {"text": "Pret sub piata + urgenta", "where": "oferta", "verify": "heuristic + context", "power": "mediu", "verdict": "suspect"},
-        {"text": "Plata in afara platformei", "where": "instructiuni plata", "verify": "politici platforma", "power": "decisiv", "verdict": "periculos_in_combo"}
+        {
+          "text": "IBAN pe persoana fizica pentru firma/agentie",
+          "where": "factura/contract/instructiuni plata",
+          "verify": "SANB nume titular vs operator; ANAF/ONRC",
+          "power": "decisiv",
+          "verdict": "periculos_in_combo"
+        },
+        {
+          "text": "Lipsa CUI/licenta pe factura",
+          "where": "factura/contract",
+          "verify": "ANAF v9; lista ANAT (snapshot)",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "Domeniu email suspect / linkuri neoficiale",
+          "where": "email",
+          "verify": "analiza domeniu typosquat",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "Pret sub piata + urgenta",
+          "where": "oferta",
+          "verify": "heuristic + context",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "Plata in afara platformei",
+          "where": "instructiuni plata",
+          "verify": "politici platforma",
+          "power": "decisiv",
+          "verdict": "periculos_in_combo"
+        }
       ],
-      "verification_sources": ["ANAT (situr.gov.ro/OpenData, snapshot)", "ANAF v9", "ONRC (data.gov.ro)", "SANB", "SITUR"],
-      "payment_risk": {"transfer_cont_personal": "mare", "revolut_fintech": "mare", "crypto": "extrem", "card_3ds_site_oficial": "scazut"}
+      "verification_sources": [
+        "ANAT (situr.gov.ro/OpenData, snapshot)",
+        "ANAF v9",
+        "ONRC (data.gov.ro)",
+        "SANB",
+        "SITUR"
+      ],
+      "payment_risk": {
+        "bank_transfer_to_person": "mare",
+        "revolut_personal": "mare",
+        "crypto_wallet": "extrem",
+        "card_3ds": "scazut"
+      }
     },
     {
       "code": "OP-02",
       "name": "Cazare scurta (Airbnb/Booking/VRBO/FB)",
       "status": "complet",
       "signals": [
-        {"text": "IBAN personal pentru chirie scurta / lipsa date firma", "where": "factura/proforma", "verify": "SANB; ANAF/ONRC", "power": "decisiv", "verdict": "periculos_in_combo"},
-        {"text": "Pret sub piata + avans mare de rezervare", "where": "oferta", "verify": "heuristic", "power": "mediu", "verdict": "suspect"},
-        {"text": "Cerere plata in afara platformei", "where": "mesaj/instructiuni", "verify": "canal oficial", "power": "decisiv", "verdict": "periculos_in_combo"},
-        {"text": "CUI inexistent/inactiv in contract", "where": "contract", "verify": "ANAF/ONRC", "power": "mediu", "verdict": "suspect"},
-        {"text": "Cod QR catre plata in cont personal", "where": "factura/confirmare", "verify": "QR decode -> IBAN", "power": "mediu", "verdict": "suspect_to_periculos"}
+        {
+          "text": "IBAN personal pentru chirie scurta / lipsa date firma",
+          "where": "factura/proforma",
+          "verify": "SANB; ANAF/ONRC",
+          "power": "decisiv",
+          "verdict": "periculos_in_combo"
+        },
+        {
+          "text": "Pret sub piata + avans mare de rezervare",
+          "where": "oferta",
+          "verify": "heuristic",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "Cerere plata in afara platformei",
+          "where": "mesaj/instructiuni",
+          "verify": "canal oficial",
+          "power": "decisiv",
+          "verdict": "periculos_in_combo"
+        },
+        {
+          "text": "CUI inexistent/inactiv in contract",
+          "where": "contract",
+          "verify": "ANAF/ONRC",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "Cod QR catre plata in cont personal",
+          "where": "factura/confirmare",
+          "verify": "QR decode -> IBAN",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos"
+        }
       ],
-      "verification_sources": ["Platforme oficiale (mesaje interne)", "ANAF/ONRC", "SANB", "sisteme recenzii"],
-      "payment_risk": {"transfer_revolut": "mare", "card_platforma_oficiala": "scazut"}
+      "verification_sources": [
+        "Platforme oficiale (mesaje interne)",
+        "ANAF/ONRC",
+        "SANB",
+        "sisteme recenzii"
+      ],
+      "payment_risk": {
+        "revolut_personal": "mare",
+        "card_3ds": "scazut"
+      }
     },
     {
       "code": "OP-03",
       "name": "Chirii termen lung",
       "status": "complet",
       "signals": [
-        {"text": "Contract neinregistrat la notar; date proprietar neverificabile", "where": "contract", "verify": "notar/Carte Funciara", "power": "mediu", "verdict": "suspect"},
-        {"text": "IBAN personal pentru garantie", "where": "proforma garantie", "verify": "SANB", "power": "decisiv", "verdict": "periculos_in_combo"},
-        {"text": "Nume firma vs CUI nepotrivit / firma inactiva", "where": "contract", "verify": "ANAF/ONRC", "power": "mediu", "verdict": "suspect"},
-        {"text": "Adresa reala dar nume proprietar care nu corespunde", "where": "contract", "verify": "Carte Funciara/ANCPI", "power": "mediu", "verdict": "suspect"},
-        {"text": "Pret prea mic + presiune avans urgent inainte de vizionare", "where": "oferta", "verify": "heuristic", "power": "mediu", "verdict": "suspect"}
+        {
+          "text": "Contract neinregistrat la notar; date proprietar neverificabile",
+          "where": "contract",
+          "verify": "notar/Carte Funciara",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "IBAN personal pentru garantie",
+          "where": "proforma garantie",
+          "verify": "SANB",
+          "power": "decisiv",
+          "verdict": "periculos_in_combo"
+        },
+        {
+          "text": "Nume firma vs CUI nepotrivit / firma inactiva",
+          "where": "contract",
+          "verify": "ANAF/ONRC",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "Adresa reala dar nume proprietar care nu corespunde",
+          "where": "contract",
+          "verify": "Carte Funciara/ANCPI",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "Pret prea mic + presiune avans urgent inainte de vizionare",
+          "where": "oferta",
+          "verify": "heuristic",
+          "power": "mediu",
+          "verdict": "suspect"
+        }
       ],
-      "verification_sources": ["ANAF/ONRC", "Carte Funciara/ANCPI (contra cost)", "SANB"],
-      "payment_risk": {"transfer_cont_personal": "mare", "numerar_automat": "mare", "agentie_escrow": "scazut"}
+      "verification_sources": [
+        "ANAF/ONRC",
+        "Carte Funciara/ANCPI (contra cost)",
+        "SANB"
+      ],
+      "payment_risk": {
+        "bank_transfer_to_person": "mare",
+        "topup_wallet": "mare",
+        "bank_transfer_to_company": "scazut"
+      }
     },
     {
       "code": "OP-04",
       "name": "Vanzare auto (inclusiv transport/import)",
       "status": "complet",
       "signals": [
-        {"text": "IBAN vs nume firma nepotrivit", "where": "proforma", "verify": "SANB; ANAF/ONRC", "power": "decisiv", "verdict": "periculos_in_combo"},
-        {"text": "Pret foarte mic + avans mare", "where": "oferta", "verify": "heuristic", "power": "mediu", "verdict": "suspect"},
-        {"text": "Refuz vizionare fizica", "where": "mesaj", "verify": "pattern text", "power": "mediu", "verdict": "suspect"},
-        {"text": "Acte incomplete (lipsa VIN / data prima inmatriculare)", "where": "acte", "verify": "RAR pe VIN", "power": "mediu", "verdict": "suspect"},
-        {"text": "Presiune (altii sunt interesati / plateste azi)", "where": "mesaj", "verify": "pattern text", "power": "mediu", "verdict": "suspect"},
-        {"text": "Cerere copie CI / date complete buletin", "where": "chat/contract", "verify": "regula hard - nimeni real nu cere", "power": "decisiv", "verdict": "periculos", "links_family": "OP-07"}
+        {
+          "text": "IBAN vs nume firma nepotrivit",
+          "where": "proforma",
+          "verify": "SANB; ANAF/ONRC",
+          "power": "decisiv",
+          "verdict": "periculos_in_combo"
+        },
+        {
+          "text": "Pret foarte mic + avans mare",
+          "where": "oferta",
+          "verify": "heuristic",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "Refuz vizionare fizica",
+          "where": "mesaj",
+          "verify": "pattern text",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "Acte incomplete (lipsa VIN / data prima inmatriculare)",
+          "where": "acte",
+          "verify": "RAR pe VIN",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "Presiune (altii sunt interesati / plateste azi)",
+          "where": "mesaj",
+          "verify": "pattern text",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "Cerere copie CI / date complete buletin",
+          "where": "chat/contract",
+          "verify": "regula hard - nimeni real nu cere",
+          "power": "decisiv",
+          "verdict": "periculos",
+          "links_family": "OP-07"
+        }
       ],
-      "verification_sources": ["RAR Istoric Vehicul (VIN)", "ONRC/ANAF", "SANB", "Biroul de Credit / ANAF SPV"],
-      "payment_risk": {"avans_transfer_revolut": "mare", "plata_la_livrare_dealer_autorizat": "scazut"}
+      "verification_sources": [
+        "RAR Istoric Vehicul (VIN)",
+        "ONRC/ANAF",
+        "SANB",
+        "Biroul de Credit / ANAF SPV"
+      ],
+      "payment_risk": {
+        "revolut_personal": "mare",
+        "bank_transfer_to_company": "scazut"
+      }
     },
     {
       "code": "OP-05",
       "name": "Bilete evenimente / vacanta gratuita",
       "status": "complet",
       "signals": [
-        {"text": "Vanzator cu profil nou, fara recenzii", "where": "profil", "verify": "reputatie", "power": "mediu", "verdict": "suspect"},
-        {"text": "IBAN personal (biletele oficiale: Eventim/iabilet/Ticketmaster)", "where": "proforma", "verify": "SANB; platforma oficiala", "power": "decisiv", "verdict": "periculos_in_combo"},
-        {"text": "Bilet ca print screen", "where": "imagine", "verify": "cod pe platforma oficiala", "power": "mediu", "verdict": "suspect"},
-        {"text": "Pret sub valoarea nominala", "where": "oferta", "verify": "heuristic", "power": "mediu", "verdict": "suspect"},
-        {"text": "Lipsa factura fiscala (doar proforma fara date firma)", "where": "document", "verify": "ANAF", "power": "mediu", "verdict": "suspect"}
+        {
+          "text": "Vanzator cu profil nou, fara recenzii",
+          "where": "profil",
+          "verify": "reputatie",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "IBAN personal (biletele oficiale: Eventim/iabilet/Ticketmaster)",
+          "where": "proforma",
+          "verify": "SANB; platforma oficiala",
+          "power": "decisiv",
+          "verdict": "periculos_in_combo"
+        },
+        {
+          "text": "Bilet ca print screen",
+          "where": "imagine",
+          "verify": "cod pe platforma oficiala",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "Pret sub valoarea nominala",
+          "where": "oferta",
+          "verify": "heuristic",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "Lipsa factura fiscala (doar proforma fara date firma)",
+          "where": "document",
+          "verify": "ANAF",
+          "power": "mediu",
+          "verdict": "suspect"
+        }
       ],
-      "verification_sources": ["Platforme ticketing oficiale", "ANPC", "DNSC"],
-      "payment_risk": {"transfer_revolut": "mare", "card_platforma_oficiala": "scazut"}
+      "verification_sources": [
+        "Platforme ticketing oficiale",
+        "ANPC",
+        "DNSC"
+      ],
+      "payment_risk": {
+        "revolut_personal": "mare",
+        "card_3ds": "scazut"
+      }
     },
     {
       "code": "OP-06",
       "name": "Marketplace general (OLX/FB Marketplace)",
       "status": "complet",
       "signals": [
-        {"text": "Solicitare CVV / cod 3D Secure", "where": "link/formular", "verify": "norme bancare - nimeni legitim nu cere", "power": "decisiv", "verdict": "periculos"},
-        {"text": "Domeniu non-olx.ro", "where": "link", "verify": "verificare domeniu", "power": "mediu", "verdict": "suspect"},
-        {"text": "Plata integrala in avans in cont personal", "where": "instructiuni", "verify": "SANB", "power": "mediu", "verdict": "suspect"},
-        {"text": "Factura cu CUI inexistent", "where": "factura", "verify": "ANAF/ONRC", "power": "mediu", "verdict": "suspect"},
-        {"text": "Mutarea discutiei pe WhatsApp", "where": "mesaj", "verify": "canal", "power": "mediu", "verdict": "suspect"}
+        {
+          "text": "Solicitare CVV / cod 3D Secure",
+          "where": "link/formular",
+          "verify": "norme bancare - nimeni legitim nu cere",
+          "power": "decisiv",
+          "verdict": "periculos"
+        },
+        {
+          "text": "Domeniu non-olx.ro",
+          "where": "link",
+          "verify": "verificare domeniu",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "Plata integrala in avans in cont personal",
+          "where": "instructiuni",
+          "verify": "SANB",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "Factura cu CUI inexistent",
+          "where": "factura",
+          "verify": "ANAF/ONRC",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "Mutarea discutiei pe WhatsApp",
+          "where": "mesaj",
+          "verify": "canal",
+          "power": "mediu",
+          "verdict": "suspect"
+        }
       ],
-      "verification_sources": ["OLX/Facebook (chat intern)", "ANAF/ONRC", "SANB"],
-      "payment_risk": {"card_prin_link_extern": "mare", "plata_la_livrare_ramburs": "scazut"}
+      "verification_sources": [
+        "OLX/Facebook (chat intern)",
+        "ANAF/ONRC",
+        "SANB"
+      ],
+      "payment_risk": {
+        "card_on_link": "mare",
+        "none": "scazut"
+      }
     },
     {
       "code": "OP-07",
       "name": "Furt de identitate -> financiar (IFN/credit)",
       "status": "sustinut",
       "signals": [
-        {"text": "Cerere copie CI / poza buletin / CNP pentru o simpla vanzare", "where": "chat/contract", "verify": "regula hard", "power": "decisiv", "verdict": "periculos"},
-        {"text": "Trimite poza buletinului ca sa pregatesc contractul + plata avans", "where": "chat", "verify": "pattern text", "power": "mediu", "verdict": "suspect"},
-        {"text": "Factura + desfasurator bancar fals generat dupa ce ai dat datele", "where": "document", "verify": "context", "power": "mediu", "verdict": "suspect"}
+        {
+          "text": "Cerere copie CI / poza buletin / CNP pentru o simpla vanzare",
+          "where": "chat/contract",
+          "verify": "regula hard",
+          "power": "decisiv",
+          "verdict": "periculos"
+        },
+        {
+          "text": "Trimite poza buletinului ca sa pregatesc contractul + plata avans",
+          "where": "chat",
+          "verify": "pattern text",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "Factura + desfasurator bancar fals generat dupa ce ai dat datele",
+          "where": "document",
+          "verify": "context",
+          "power": "mediu",
+          "verdict": "suspect"
+        }
       ],
-      "verification_sources": ["Biroul de Credit", "ANAF SPV", "DNSC/Politie/ANPC"],
+      "verification_sources": [
+        "Biroul de Credit",
+        "ANAF SPV",
+        "DNSC/Politie/ANPC"
+      ],
       "payment_risk": {}
     },
     {
       "code": "OP-08",
-      "name": "Joburi false / oferte de munca",
-      "status": "stub",
-      "note": "Fara playbook in corpusul actual. Trateaza ca OP-00 pana la completare. Nu inventa semnale.",
-      "signals": []
+      "name": "Oferte de muncă / joburi false",
+      "status": "sustinut",
+      "signals": [
+        {
+          "text": "Mesaj nesolicitat pe WhatsApp sau Telegram care oferă un „job part‑time” bine plătit (de ex. 1.000 lei/zi pentru a da like‑uri sau a viziona clipuri) şi invită victima să adauge un contact necunoscut.",
+          "where": [
+            "mesaj"
+          ],
+          "verify": "Caută pe site‑ul DNSC sau Poliţia Română avertizări despre mesaje cu oferte de muncă pe WhatsApp; compară numărul expeditorului cu contactele oficiale. Digi24 arată că Poliţia a descoperit astfel de înşelăciuni şi că în mesajele reale nu se cer date personale.",
+          "power": "decisiv",
+          "verdict": "periculos"
+        },
+        {
+          "text": "Ofertă care promite bani uşor pentru „taskuri” cu investiţie minimă: după câteva sarcini gratuite, victima trebuie să depună o sumă (ex. 100 USDT) pentru a continua sau a retrage câştigurile.",
+          "where": [
+            "instructiuni plata"
+          ],
+          "verify": "Consultă articole de investigare (Start‑up.ro) sau alerte ESET. Acestea descriu cum escrocherii cu taskuri cer depozite în USDT după 40 de sarcini şi că victimele nu mai retrag banii.",
+          "power": "decisiv",
+          "verdict": "periculos"
+        },
+        {
+          "text": "Recrutorul cere o „taxă de procesare”, „echipament” sau „training” înainte de angajare. Plata este solicitată în cont personal, criptomonedă sau alte metode nereversibile.",
+          "where": [
+            "factura"
+          ],
+          "verify": "ESET explică faptul că anunţurile false de angajare solicită avans pentru instruire sau echipament şi că plata în avans este un semnal clar de fraudă.",
+          "power": "decisiv",
+          "verdict": "periculos"
+        },
+        {
+          "text": "Interviu desfăşurat exclusiv pe WhatsApp/Telegram, fără adresă de e‑mail de companie şi cu adrese de Gmail sau Yahoo. Cer date personale (CNP, copii acte) înainte de ofertă.",
+          "where": [
+            "profil"
+          ],
+          "verify": "Hays România avertizează că un e‑mail generic şi lipsa unui interviu real sunt semnale că oferta nu este autentică. Ei nu cer niciodată plăţi şi folosesc doar adrese corporative.",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "„Job” care implică primirea de bani în contul personal şi transferul lor mai departe (reshipping/mula de bani).",
+          "where": [
+            "mesaj"
+          ],
+          "verify": "Hays România menţionează că cererile de a transfera bani pentru altcineva sau de a trimite bunuri sunt un semnal de activitate ilegală.",
+          "power": "mediu",
+          "verdict": "periculos_in_combo"
+        },
+        {
+          "text": "Salariu neobişnuit de mare pentru o muncă simplă, „garantat” fără experienţă şi cu program flexibil. Nu există descriere clară a companiei sau a responsabilităţilor.",
+          "where": [
+            "oferta"
+          ],
+          "verify": "Atât Hays România, cât şi Digi24 avertizează că promisiunea de câştig rapid şi salarii mari pentru efort minim este o tactică folosită de escroci.",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "Link din mesaj care redirecţionează către un site necunoscut unde ţi se cere să introduci date personale, să încarci buletinul sau să plăteşti cu cardul/crypto.",
+          "where": [
+            "link"
+          ],
+          "verify": "Digi24 şi DNSC avertizează să nu accesaţi linkuri primite de la numere necunoscute şi să nu furnizaţi date personale; verifică URL‑ul şi căută compania pe site‑uri oficiale.",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "Anunţuri de angajare generate cu AI care imită perfect CV‑ul candidatului; după interesare, ţi se oferă să‑ţi „îmbunătăţeşti” CV‑ul sau să plăteşti pentru un serviciu de procesare.",
+          "where": [
+            "mesaj"
+          ],
+          "verify": "ProTV a relatat un caz în care infractorii au folosit AI pentru a crea oferte personalizate şi au cerut bani pentru a îmbunătăţi CV‑ul.",
+          "power": "slab",
+          "verdict": "suspect_to_periculos"
+        }
+      ],
+      "verification_sources": [
+        "Alerte DNSC / Poliţia Română pentru job scams (verificare numere şi mesaje)",
+        "Registrul ONRC / ANAF pentru a verifica dacă firma este înregistrată şi activă",
+        "Căutare pe site‑ul companiei sau profilul LinkedIn al recrutorului",
+        "ESET şi publicaţii de securitate (ESET România) pentru scenarii de task scams"
+      ],
+      "payment_risk": {
+        "bank_transfer_to_person": "mare",
+        "crypto_wallet": "extrem",
+        "card_on_link": "mare",
+        "western_union_moneygram": "extrem"
+      },
+      "examples": [
+        "Bună! Suntem de la \"CERT‑RO HR department\". Îţi oferim un job part‑time: apreciezi postări pe social media şi câştigi 1.000 lei/zi! Adaugă acest număr pe WhatsApp ca să primeşti detaliile. Vom avea nevoie de numele tău complet şi un clip scurt pentru verificare.",
+        "După ce ai completat 40 de sarcini simple pe platforma noastră, ai acumulat 50 USDT. Pentru a trece la nivelul următor şi a retrage câştigurile, trebuie să depui 100 USDT în contul tău. Îţi vom dubla suma imediat!",
+        "Felicitări! Te‑am selectat pentru un post remote cu salariu de 4.000 EUR/lună. Trebuie doar să participi la un training plătit (150 EUR) şi să îţi achiziţionezi laptopul de lucru. Trimite taxa în contul ROxx BTRL **** pe numele Popescu A.",
+        "Bună ziua, sunt recrutorul Ana de la Hays Global. Am găsit profilul tău pe LinkedIn. Trimite-mi copia CNP‑ului şi datele bancare pentru a începe contractul. Vom semna online prin Gmail.",
+        "Salut! Avem un post de operator logistic. Vei primi colete acasă şi le vei reexpedia. Primeşti 200 lei/comandă. Eşti de acord? Trimite numărul de cont pentru plăţi şi CNP pentru contract.",
+        "E‑mail personalizat: ‘Ne extindem discret echipa editorială de tehnologie şi pieţe. CV‑ul tău corespunde perfect! Salariul propus: 7.000 £ pe lună. Trimite 50 £ pentru îmbunătăţirea CV‑ului ca să evidenţiem abilităţile de leadership’."
+      ]
     },
     {
       "code": "OP-09",
-      "name": "Investitii / crypto / profit garantat",
-      "status": "partial",
+      "name": "Investiții / crypto / profit garantat",
+      "status": "sustinut",
       "signals": [
-        {"text": "Promisiune profit rapid + cerere aplicatii acces la distanta", "where": "mesaj", "verify": "pattern text", "power": "decisiv", "verdict": "periculos"},
-        {"text": "Metoda irevocabila: crypto / wallet / QR crypto", "where": "instructiuni plata", "verify": "clasificator metoda plata", "power": "decisiv", "verdict": "periculos"},
-        {"text": "Investitie garantata fara sursa licentiata", "where": "oferta", "verify": "ASF SIIF", "power": "mediu", "verdict": "suspect"}
+        {
+          "text": "Promisiune de câştig rapid sau dublarea sumei într-un timp scurt, fără risc: „profit garantat 20% pe zi” sau „investiţie sigură în energie/crypto”.",
+          "where": [
+            "oferta"
+          ],
+          "verify": "Bugetul.ro citează ASF, care avertizează că nu există reţete de îmbogăţire rapidă şi că promisiunile de dublare a banilor sunt semnale de fraudă.",
+          "power": "decisiv",
+          "verdict": "periculos"
+        },
+        {
+          "text": "„Mentor/coach” pe grupuri WhatsApp/Telegram care oferă acces la o platformă de trading şi cere să introduci sume mici la început, apoi tot mai mari, cu obligaţia de a recruta alţi membri.",
+          "where": [
+            "mesaj"
+          ],
+          "verify": "ASF a avertizat că grupurile false folosesc roboţi şi mentori pentru a simula activitate. Membrii sunt încurajaţi să facă investiţii repetate şi să aducă alţi clienţi.",
+          "power": "decisiv",
+          "verdict": "periculos"
+        },
+        {
+          "text": "Site de investiţii care foloseşte imaginea unor personalităţi (politicieni, vedete) în reclame, cu testimoniale false şi link către o „platformă de trading” necunoscută.",
+          "where": [
+            "link"
+          ],
+          "verify": "ProTV şi DNSC arată că escrocii creează site‑uri care imită presa, folosesc deepfake cu celebrităţi şi includ testimoniale inexistente. Verifică URL‑ul exact şi compară cu domeniile oficiale.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos"
+        },
+        {
+          "text": "Solicitare de a instala aplicaţii de acces la distanţă (AnyDesk, TeamViewer, AirDroid) pentru a „ajuta” la tranzacţii. Consultantul cere datele cardului sau autentificarea în internet banking.",
+          "where": [
+            "mesaj"
+          ],
+          "verify": "Poliţia şi StartupCafe avertizează că escrocii se prezintă ca reprezentanţi ai companiilor Hidroelectrica sau Transgaz şi cer instalarea de aplicaţii remote pentru a controla conturile victimelor.",
+          "power": "decisiv",
+          "verdict": "periculos"
+        },
+        {
+          "text": "Cerinţa de a plăti taxe suplimentare (comisioane de retragere, taxe AML, impozite) pentru a accesa „profitul”. După plata taxelor, nu se primesc banii.",
+          "where": [
+            "factura"
+          ],
+          "verify": "ASF explică faptul că fraudatorii pretind comisioane fictive pentru a debloca fondurile şi nu virează niciodată câştigurile.",
+          "power": "decisiv",
+          "verdict": "periculos"
+        },
+        {
+          "text": "„Recuperare” după o fraudă: un pretins agent ASF/avocat promite să recupereze banii pierduţi în schimbul unei taxe; solicită plata în cont neoficial sau crypto.",
+          "where": [
+            "mesaj"
+          ],
+          "verify": "Investigaţii internaţionale arată că reţelele de call‑center folosesc astfel de recovery scams; Context.ro descrie cum victimele sunt abordate de noi escroci care cer bani pentru a recupera pierderile.",
+          "power": "mediu",
+          "verdict": "suspect_to_periculos"
+        },
+        {
+          "text": "Platformă de tranzacţionare care nu este listată în registrul ASF; datele firmei lipsesc sau CUI‑ul este inexistent.",
+          "where": [
+            "oferta"
+          ],
+          "verify": "Se poate verifica în Registrul public al Autorităţii de Supraveghere Financiară (ASF) dacă societatea e autorizată. ASF recomandă verificarea oricărui intermediar.",
+          "power": "mediu",
+          "verdict": "suspect"
+        },
+        {
+          "text": "Apel telefonic de pe un număr internaţional (de ex. +44) în care interlocutorul pretinde că reprezintă Hidroelectrica / Petrom şi oferă investiţii sigure cu profit de 10% pe lună; solicită depunerea de bani la un ATM de criptomonede.",
+          "where": [
+            "mesaj"
+          ],
+          "verify": "Poliţia a avertizat că escrocii folosesc numele unor companii mari şi contactează victimele de pe numere străine, cerând instalarea de aplicaţii remote şi depuneri la bancomate crypto.",
+          "power": "mediu",
+          "verdict": "periculos"
+        }
       ],
-      "verification_sources": ["ASF (registre/liste)", "DNSC"],
-      "payment_risk": {"crypto_wallet": "periculos"}
+      "verification_sources": [
+        "Registrul ASF – lista firmelor de investiţii şi brokerilor autorizaţi (public pe asfromania.ro)",
+        "Lista de avertismente ASF pentru entităţi neautorizate",
+        "Banca Naţională a României – registrul instituţiilor financiare nebancare (pentru a verifica IFN‑uri legitime)",
+        "Site‑uri oficiale ale companiilor (Hidroelectrica, Transgaz etc.) pentru confirmarea ofertelor",
+        "Serviciul de afişare a numelui beneficiar (SANB) pentru a verifica dacă IBAN‑ul corespunde deponentului"
+      ],
+      "payment_risk": {
+        "crypto_atm_qr": "extrem",
+        "bank_transfer_to_person": "mare",
+        "card_on_link": "mare",
+        "revolut_personal": "mare",
+        "bank_transfer_to_company": "scazut"
+      },
+      "examples": [
+        "Salut! Sunt mentorul tău de pe grupul VIP Profit. Pentru a începe, investeşte 500 RON într-o monedă recomandată (USDT). Vei primi 15% profit pe zi. Invita‑ţi prietenii şi câştigă comisioane suplimentare!",
+        "În urma investiţiei tale ai câştigat 4.000 USD! Pentru a retrage fondurile, trebuie să plăteşti taxa de 20% pentru procedurile AML şi impozitul de retragere. Depune 800 USD în acelaşi portofel crypto şi îţi deblocăm profitul imediat.",
+        "Vezi cum celebrul investitor X a transformat 250 de euro în 5.000 euro! Află secretul în articolul nostru exclusiv şi înscrie‑te pe platforma ProfitNow! Locurile sunt limitate!",
+        "Bună ziua! Sunt consultantul G. de la Hidroelectrica. Vă oferim posibilitatea de a investi direct în companie cu randament sigur de 12% lunar. Pentru a vă asista, instalaţi aplicaţia AnyDesk şi apoi mergeţi la un bancomat de criptomonede să depuneţi 5.000 RON.",
+        "Suntem Compania 'Recovery Invest'. Ştim că aţi fost înşelat pe platforma X. Putem recupera fondurile pierdute, dar trebuie să plătiţi o taxă de 5% pentru demararea procedurii. Vă rugăm să transferaţi suma în contul ROxx **** pe numele S.C. Recovery SRL.",
+        "Ne pare rău, dar nu poţi retrage profitul până nu confirmi identitatea. Trimite o copie a buletinului, un selfie şi codul 2FA de la platformă. Aceasta este o procedură obligatorie conform ASF."
+      ]
     }
   ]
 }
