@@ -455,6 +455,8 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - cadence: daily at `02:23 UTC` plus manual `workflow_dispatch`.
   - storage: private GitHub Actions artifact, `30` days retention.
   - verification: workflow runs `pg_restore --list` and uploads dump, schema, restore list, and checksum manifest.
+  - GitHub workflow status: `Supabase logical backup` is active, workflow id `295225984`.
+  - GitHub secret check: `SUPABASE_DB_URL` is not configured yet; current repo secrets visible by name are `SUPABASE_SERVICE_KEY` and `SUPABASE_URL` only.
   - current status: tooling exists, but Zone 3 remains Partial until GitHub secret `SUPABASE_DB_URL` is configured and the first workflow run succeeds.
 - Current database size is small:
   - total database size: `26 MB`.
