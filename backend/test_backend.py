@@ -8430,3 +8430,43 @@ class TestBug5InvoiceThroughGate:
         text = "Furnizor: SC GHOST SRL\nCUI: 99999999\nTotal: 5.000\nIBAN: DE89370400440532013000"
         label, _ = self._verdict(text, nope)
         assert label != "SIGUR"
+
+
+class TestBug7PriceIsNotWrongChannel:
+    """Bug#7 — offer_evidence_gate_mapper._channel: un preț (total prezent) NU e
+    dovadă de canal greșit. OP-03/OP-07 legit (cerere CI + preț, fără IBAN/cont
+    personal/plată off-platform) nu trebuie să dea PERICULOS doar pentru că
+    oferta menționează un preț."""
+
+    def test_price_alone_does_not_make_channel_unofficial(self):
+        from services.offer_parser import OfferFields
+        from services.offer_evidence_gate_mapper import _channel, _sensitive
+        from services import offer_signals as S
+
+        fields = OfferFields(raw_text="...")
+        fields.total = 50000.0
+        signals = [S.OFFER_ID_DOCUMENT_REQUEST]
+        sensitive = _sensitive(fields, signals)
+        channel = _channel(fields, signals, sensitive,
+                            "Apartament de vanzare, copie buletin pentru programare vizionare.")
+        assert channel == "unknown"
+
+    def test_op07_legit_id_request_with_price_is_not_periculos(self):
+        import asyncio
+        from services.invoice_orchestrator import scan_offer
+        text = (
+            "Apartament de vanzare, pret 50000 EUR, zona buna. "
+            "Pentru programarea vizionarii este nevoie de o copie a buletinului, "
+            "din motive de siguranta a agentiei."
+        )
+        out = asyncio.run(scan_offer(text))
+        assert out.gate["label"] != "PERICULOS"
+
+    def test_id_document_with_real_off_channel_payment_still_periculos(self):
+        # Garanție: cererea de CI + presiune de avans pe canal nesigur rămâne
+        # PERICULOS — fix-ul nu trebuie să atenueze cazurile reale.
+        import asyncio
+        from services.invoice_orchestrator import scan_offer
+        text = "Trimite o poză cu buletinul și CNP-ul ca să pregătesc contractul, plus avans"
+        out = asyncio.run(scan_offer(text))
+        assert out.gate["label"] == "PERICULOS"

@@ -72,10 +72,13 @@ def _channel(fields: "OfferFields", signals: List[str], sensitive: str, text: st
         return "whatsapp"
     if fields.platform_name in _OFFICIAL_PLATFORMS:
         return "platform"  # nu e în WRONG_CHANNELS
+    # Bug#7: un preț (fields.total) NU e dovadă de canal greșit — o ofertă
+    # legitimă (OP-03/OP-07) menționează aproape mereu un preț. Contextul de
+    # tranzacție trebuie să vină din canal/cont de plată concret, nu din simplul
+    # fapt că oferta are o sumă.
     has_context = bool(
         fields.iban
         or fields.payment_beneficiary
-        or fields.total is not None
         or S.OFFER_PAYMENT_METHOD_HIGH_RISK in signals
         or S.OFFER_PAYMENT_METHOD_CRITICAL in signals
         or (text and _PAYMENT_CONTEXT.search(text))
