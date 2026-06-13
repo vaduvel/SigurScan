@@ -470,8 +470,13 @@ def parse_invoice(
 
     # Amounts
     amounts = _parse_amounts(text)
-    subtotal = amounts["subtotal"][0] if amounts["subtotal"] else None
-    tva = amounts["tva"][0] if amounts["tva"] else None
+    # Bug#12: subtotal/tva foloseau primul element, total ultimul — pe facturi
+    # cu mai multe linii "Subtotal"/"TVA" (ex. un subtotal pe produse urmat de
+    # subtotalul real de sumar), valorile comparate de coerență veneau din
+    # rânduri diferite și nu se mai aliniau cu total. Ultimul element e cel
+    # din blocul de sumar final, alături de total.
+    subtotal = amounts["subtotal"][-1] if amounts["subtotal"] else None
+    tva = amounts["tva"][-1] if amounts["tva"] else None
     total = amounts["total"][-1] if amounts["total"] else None
     currency = _detect_currency(text)
 

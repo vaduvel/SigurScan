@@ -8504,3 +8504,26 @@ class TestBug11RomanianMonthNameDates:
         from services.invoice_parser import parse_invoice
         f = parse_invoice("Data emiterii: 01.06.2026\nScadenta: 5 august 2026\nTotal: 100 lei")
         assert f.scadenta == "2026-08-05"
+
+
+class TestBug12SummaryAmountsAlignment:
+    """Bug#12 — subtotal/tva luau primul element din listă, dar total lua
+    ultimul. Pe facturi cu mai multe linii "Subtotal" (ex. un subtotal pe
+    produse, urmat de subtotalul real de sumar), subtotal[0]/tva[0] nu mai
+    corespundeau cu total[-1], iar check_coherence raporta totals_match=False
+    pentru o factură de fapt coerentă."""
+
+    def test_subtotal_and_tva_align_with_final_total(self):
+        from services.invoice_parser import parse_invoice
+        from services.invoice_coherence import check_coherence
+        f = parse_invoice(
+            "Subtotal produse: 50,00 RON\n"
+            "Subtotal: 100,00 RON\n"
+            "TVA 19%: 19,00 RON\n"
+            "Total: 119,00 RON"
+        )
+        assert f.subtotal == 100.0
+        assert f.tva == 19.0
+        assert f.total == 119.0
+        coherence = check_coherence(f.subtotal, f.tva, f.total, f.data_emitere, f.scadenta)
+        assert coherence.totals_match is True
