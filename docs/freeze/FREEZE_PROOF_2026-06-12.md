@@ -45,6 +45,7 @@ Status: in progress. This document is proof-led: an item is not green unless the
 - Container concurrency is `2`.
   - It was reduced during Zone 8 hardening from the earlier high-concurrency posture after live scan probes showed better request stability for the current monolith on Cloud Run.
   - No code redeploy was required for this tuning; the deployed image remains `4918162`.
+  - Deploy script hardening after reconciliation now preserves this value with `CONCURRENCY="${CONCURRENCY:-2}"` and `--concurrency "$CONCURRENCY"`, so a future redeploy does not silently reset the service to `40`.
 - CPU/memory are `1 CPU` / `1Gi`.
 - Min instances is `1`; max instances is `5`.
 - CPU throttling is `true`, preserving request-based CPU billing rather than always-allocated CPU.
@@ -85,9 +86,13 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - display name: `SigurScan Cloud Run 5xx errors > 0`
   - condition: any `5xx` response from Cloud Run service `sigurscan-api`.
   - status: enabled.
-- Alert caveat:
-  - both alert policies are enabled, but no notification channel is attached yet.
-  - this is acceptable as proof of monitoring rules, but not sufficient as production paging/email alerting until a notification channel is added.
+- Alert notification channel is attached:
+  - channel id: `6336647364895454298`
+  - display name: `SigurScan freeze alerts`
+  - type: `email`
+  - status: enabled.
+  - secret hygiene: the email address was verified as configured but is recorded only as `SET`, never printed in the freeze proof.
+  - attached policies: `SigurScan Cloud Run 5xx errors > 0` and `SigurScan orchestrated poll latency > 8s`.
 - Cloud Logging structured-error/request proof captured:
   - controlled request: authenticated `GET /v1/scan/orchestrated/freeze-proof-missing-scan-1781272609`.
   - client response: `HTTP 404`, `2.968071s`, JSON body `{"detail":"Scanarea nu a fost gasita sau a expirat."}`.
@@ -233,6 +238,13 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - Interpretation:
     - normal single-user and 4-concurrent paths are within the current target posture.
     - 8 simultaneous text-only scans are stable and complete, but remain a capacity watch item because max poll latency is near/above the `8s` alert threshold.
+- Freeze QA reconciliation on `2026-06-13`:
+  - Command: `gcloud run services describe sigurscan-api --project project-20f225c0-d756-4cba-864 --region europe-west1 --format='value(spec.template.spec.containerConcurrency)'`.
+  - Result: `2`.
+  - Controlled text-only scan concurrency at exactly `N=2`, avoiding URL-provider quota:
+    - official domain: `2/2` finalized, `0` `5xx`, wall time `8.37s`, max poll latency `4.344s`, labels `SUSPECT`, `SUSPECT`.
+    - raw Cloud Run URL: `2/2` finalized, `0` `5xx`, wall time `7.398s`, max poll latency `4.36s`, labels `SUSPECT`, `SUSPECT`.
+  - Interpretation: the real runtime concurrency is `2`; older `5`/`8` scan probes remain historical stress probes, not the current reconciliation threshold.
 - Zone 8 admin telemetry proof:
   - `/v1/orchestration/telemetry`: `HTTP 200`, JSON response, keys include `alerts`, `by_event_type`, `by_stage`, `conflicts`, `polls_to_final`, `stage_latency_ms`, `time_to_final_ms`, and `urlscan`.
   - `/v1/orchestration/dashboard`: `HTTP 200`, HTML dashboard response.
@@ -248,6 +260,12 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - exact sensitive matches found: `0` for marker, OTP, CNP, IBAN, and card number.
   - request report: `build/reports/freeze/zone8_log_hygiene_probe_request_2026-06-12.json`.
   - log report: `build/reports/freeze/zone8_cloud_run_log_hygiene_2026-06-12.json`.
+- Additional local telemetry redaction hardening after `2026-06-13` reconciliation:
+  - `backend/services/telemetry.py` now applies a final recursive `redact_pii()` guard before scan/feedback payloads reach Supabase or JSONL persistence sinks.
+  - `backend/services/pii_redactor.py` now masks explicitly labeled Romanian CNP values.
+  - regression test injects email, phone, CNP, IBAN, card, OTP, and URL-query email into telemetry and verifies raw values are absent from both Supabase-bound payload and JSONL output.
+  - command: `python3 -m pytest -q backend/test_freeze_hardening.py`.
+  - current result before deployment: `4 passed`.
 - Zone 8 regression/provider-degrade proof:
   - targeted atlas/knowledge/gate/invoice/security/latency regression:
     - command: `python3 -m pytest backend/test_offer_corpus_recall.py backend/test_family_classifier.py backend/test_scam_atlas_contract.py backend/test_scam_atlas_impersonation.py backend/test_impersonation_knowledge_builder.py backend/test_verdict_gate.py backend/test_offer_gate_combos.py backend/test_legal_layer.py backend/test_registry_verification.py backend/test_invoice_orchestration.py backend/test_invoice_endpoint.py backend/test_invoice_parser.py backend/test_invoice_readiness_gate.py backend/test_invoice_coherence.py backend/test_security_hardening.py backend/test_orchestrated_latency.py -q`
@@ -257,20 +275,29 @@ Status: in progress. This document is proof-led: an item is not green unless the
     - command: `python3 -m pytest backend/test_anaf_cui.py backend/test_anaf_cui_offer.py backend/test_offer_web_confirm.py backend/test_registry_verification.py backend/test_backend.py::test_gemini_explainer_handles_timeout_gracefully backend/test_backend.py::test_offer_claim_gemini_grounding_is_bounded_for_25_flash backend/test_backend.py::test_reputation_cache_refetches_when_configured_source_was_not_consulted -q`
     - result: `54 passed, 1 warning`.
     - report: `build/reports/freeze/zone8_provider_degrade_junit_2026-06-12.xml`.
+- Cloud Monitoring notification-channel proof after reconciliation:
+  - channel id: `6336647364895454298`.
+  - channel type: email.
+  - status: enabled.
+  - attached to both `SigurScan Cloud Run 5xx errors > 0` and `SigurScan orchestrated poll latency > 8s`.
+- Controlled `5xx` stack-trace proof:
+  - status: `DEFERRED`.
+  - reason: no safe admin-only diagnostic crash route exists in the current public API, and adding one during freeze would create a new operational surface.
+  - existing structured-error proof covers controlled `404` logging, not stack traces for unexpected `5xx`.
+  - recommended follow-up: add a disabled-by-default, admin-key-gated diagnostics route only in a dedicated hardening PR, verify Cloud Logging stack trace, then disable/remove it.
 
 ### Not Yet Green
 
 - Cold-start test after 15 minutes idle has not been run.
 - Full URL-provider scan concurrency/load test has not been run; only single URL-provider smoke and text-only scan concurrency are proven, deliberately avoiding quota burn.
 - Latency outlier root-cause is not fully closed: a prior live run had one `29s` poll. Latest single-user, 4-concurrent, and 8-concurrent probes did not produce `5xx`, but 8-concurrent text-only scans can still approach the `8s` poll alert threshold. This remains a capacity/observability watch item rather than a confirmed handler crash.
-- Cloud Monitoring policies exist and are enabled, but no notification channel is attached yet.
+- Cloud Monitoring policies exist, are enabled, and now have an email notification channel attached.
 
 ### Immediate Fixes
 
 1. Run cold-start proof after an idle window if we ever reduce `min-instances` back to `0`.
 2. Run a tiny URL-provider scan concurrency probe only when rate-limit budget allows.
-3. Attach an email notification channel to the Cloud Monitoring policies before public launch.
-4. Keep the latency alert active and investigate any future poll over `8s` with its Cloud Run request log and edge path.
+3. Keep the latency alert active and investigate any future poll over `8s` with its Cloud Run request log and edge path.
 
 ## Zone 2 - Cloudflare Official Domain
 
@@ -289,14 +316,19 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - SAN contains `sigurscan.com`, `api.sigurscan.com`, and `*.api.sigurscan.com`.
 - Cloudflare Worker proxy version deployed:
   - worker: `sigurscan-api-proxy`.
-  - version id: `d5e812eb-baca-4b88-95af-595966e1613c`.
+  - previous version id: `d5e812eb-baca-4b88-95af-595966e1613c`.
+  - current HSTS hardening version id: `c2523aae-9215-4527-93aa-9a36b82cc491`.
   - route: `api.sigurscan.com`.
   - `workers/api-proxy` test suite: `5/5 passed`.
+- HSTS is present at the edge after Worker hardening:
+  - command: `curl -sD - -o /dev/null https://api.sigurscan.com/health`.
+  - result includes `strict-transport-security: max-age=31536000; includeSubDomains`.
 - Response headers show Cloudflare in the path:
   - `server: cloudflare`
   - `cf-cache-status: DYNAMIC`
   - `x-sigurscan-edge: cloudflare`
   - `cache-control: no-store`
+  - `strict-transport-security: max-age=31536000; includeSubDomains`
 - Official domain health body reports:
   - `rate_limit_enabled=true`
   - `rate_limit_backend=upstash`
@@ -312,11 +344,16 @@ Status: in progress. This document is proof-led: an item is not green unless the
     - `SigurScan/1.0 Android OkHttp`: `HTTP 200`, `0.184060s`
     - authenticated Android UA health: `HTTP 200`, `0.164287s`
   - This is a Cloudflare/WAF user-agent rule, not CORS. QA scripts and legitimate non-Android clients must send an app-like UA or be allowlisted intentionally.
-- `/v1/*` edge behavior after Worker deploy `d5e812eb-baca-4b88-95af-595966e1613c`:
+- `/v1/*` edge behavior after Worker deploy `d5e812eb-baca-4b88-95af-595966e1613c` and HSTS hardening `c2523aae-9215-4527-93aa-9a36b82cc491`:
   - unauthenticated `POST https://api.sigurscan.com/v1/scan/orchestrated` returns `HTTP 401` in `0.281984s`.
   - response includes `cache-control: no-store`.
   - response includes `x-sigurscan-edge: cloudflare`.
   - backend body is preserved: `{"detail":"Missing or invalid API key."}`.
+- Route parity check after HSTS hardening:
+  - `/health`: official `200`, raw Run `200`, same body hash.
+  - `/v1/scan/orchestrated` unauthenticated: official `401`, raw Run `401`, same body hash.
+  - `/v1/reputation/cache/stats` unauthenticated: official `401`, raw Run `401`, same body hash.
+  - `/v1/extract/pdf` unauthenticated: official `401`, raw Run `401`, same body hash.
 
 ### Not Yet Green
 
@@ -374,11 +411,28 @@ Status: in progress. This document is proof-led: an item is not green unless the
     - `expires_at > now()`.
     - `payload.result` present.
     - `payload.pipeline_stage=analysis_ready`.
+- Supabase runtime access is Data API / PostgREST based, not long-lived direct Postgres connections from the app process.
+  - code proof: runtime persistence uses `backend/services/supabase_store.py` with HTTP requests.
+  - pressure proof through admin telemetry endpoint with Android UA:
+    - official domain: `20` concurrent requests, `20/20 HTTP 200`, wall time `1.881s`, max latency `1.874s`.
+    - raw Cloud Run URL: `20` concurrent requests, `20/20 HTTP 200`, wall time `1.248s`, max latency `1.244s`.
+    - no DB exhaustion or `5xx` observed.
+- Backup/PITR status was checked through Supabase CLI:
+  - command: `supabase backups list --project-ref hslqboubacrdhatmqcky --output json`.
+  - result: `pitr_enabled=false`, `walg_enabled=true`, `backups=[]`, region `eu-west-1`.
+  - conclusion: PITR is not enabled, so Zone 3 remains Partial until a paid Supabase PITR/backup posture or an automated backup job is accepted.
+- Current database size is small:
+  - total database size: `26 MB`.
+  - largest tables: `scan_jobs` `11 MB`, `scan_events` `1872 kB`, `url_reputation_cache` `1680 kB`.
+- Local emergency backup fallback was created outside the repository:
+  - schema dump: `/Users/vaduvageorge/SigurScan_backups/supabase/supabase_hslqboubacrdhatmqcky_2026-06-13_09-21-23.sql.gz`, sha256 `0c24bc441aa15be3c5e75dc564494f21567cb4b8ed6180e7bd97bea90707a203`.
+  - data dump: `/Users/vaduvageorge/SigurScan_backups/supabase/supabase_hslqboubacrdhatmqcky_data_2026-06-13_09-23-00.sql.gz`, sha256 `a3e40e7e3572373efb659fc537b10e579d92be5472a17b9de9c2fcd99773651b`.
+  - these dumps are a stopgap only, not a substitute for PITR.
 
 ### Not Yet Green
 
-- Backup / point-in-time recovery was not confirmed from the CLI. Needs dashboard or management API proof before the whole Zone 3 can be signed as fully green.
-- Dedicated Supabase connection-pool pressure test was not run. Existing five-scan Cloud Run concurrency did not expose a DB failure, but it is not a standalone pool exhaustion proof.
+- Supabase PITR is explicitly not enabled (`pitr_enabled=false`).
+- Local dumps exist as a manual fallback, but there is no automated daily backup job yet.
 
 ## Zone 4 - Cache And Providers
 
@@ -417,6 +471,35 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - provider gate reason: `official_clean`.
   - timings: scan id `1.33s`, verdict `7.69s`, preview report `2.36s`, screenshot `2.36s`, completion `9.03s`.
   - provider summary keys included `ai_offer_web_check`, `google_web_risk`, `infra_domain_age`, `phishing_database`, `urlhaus`, and `urlscan`.
+- Redirect resolver freeze contract is covered by `backend/test_freeze_hardening.py`:
+  - max redirect hops: `20`.
+  - per-hop timeout: `4.0s`.
+  - redirect requests use `allow_redirects=false` and `stream=true`.
+  - HTML sniff cap: `32KB`.
+  - known shortener coverage includes `bit.ly`, `tiny.cc`, `t.postis.io`, and `lnkd.in`.
+  - live benign redirect proof: `https://httpbin.org/redirect-to?url=https%3A%2F%2Fexample.com` resolves to `https://example.com` with `redirect_count=1`.
+- WHOIS/RDAP/ROTLD/domain-risk proof:
+  - `google.com` RDAP age returned `10498` days with MX records present.
+  - `digi.ro` ROTLD/RDAP path returned age `9660` days with MX records present.
+  - direct ROTLD `whois.rotld.ro:43` proof for `digi.ro` returned `1868` bytes and contained `Registered On`.
+  - established-domain risk scoring produced `domain_established` with negative risk contribution.
+  - young/invalid synthetic domain risk produced `domain_very_young`, `invalid_ssl`, and `cert_very_young`.
+- Brand registry sweep:
+  - runtime sweep over `52` configured brand aliases matched `52/52`.
+  - failures: `[]`.
+- Provider error/degrade contract:
+  - fault-injected provider `error`, `unknown`, Google Web Risk `error`, and URLhaus `error` do not become `SIGUR`.
+  - expected result is `SUSPECT` with residual evidence unless a hard malicious provider is present.
+  - provider `pending` stays internal `PENDING` and does not become `SIGUR`.
+- Provider timeout/error table for the current stack:
+  - Google Web Risk: timeout `3.0s`; error/no match does not prove safety.
+  - Phishing.Database: timeout `4.0s`; error/no match does not prove safety.
+  - URLhaus: timeout `3.0s`; error/no match does not prove safety.
+  - urlscan: submit/get timeout `8.0s`, async pending timeout `120s`; missing preview is not a safe signal.
+  - RDAP/domain age: timeout `2.0s`; missing age is neutral/suspect, not safe.
+  - Mistral semantic pillar: timeout `3.0s`; timeout cannot lower risk.
+  - AI explanation: timeout `2.5s`; explanation is not a verdict provider.
+  - offer-claim web/Gemini path: timeout `5.0s`; failure is recorded as inconclusive/skipped, not safe.
 
 ### Not Yet Green
 

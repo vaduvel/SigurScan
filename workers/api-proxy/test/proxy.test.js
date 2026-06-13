@@ -5,6 +5,7 @@ import {
   buildHttpsRedirect,
   buildPublicResponse,
   buildUpstreamRequest,
+  STRICT_TRANSPORT_SECURITY,
 } from "../src/index.js";
 
 const ORIGIN = "https://sigurscan-api-tvszku44fq-ew.a.run.app";
@@ -16,6 +17,7 @@ test("redirects plain HTTP requests to the same HTTPS URL", () => {
   assert.equal(output.status, 308);
   assert.equal(output.headers.get("location"), "https://api.sigurscan.com/v1/scan/orchestrated?mode=full");
   assert.equal(output.headers.get("cache-control"), "no-store");
+  assert.equal(output.headers.get("strict-transport-security"), STRICT_TRANSPORT_SECURITY);
   assert.equal(output.headers.get("x-sigurscan-edge"), "cloudflare");
 });
 
@@ -58,6 +60,7 @@ test("marks responses as non-cacheable and rewrites origin redirects", () => {
   const output = buildPublicResponse(upstream, ORIGIN);
 
   assert.equal(output.headers.get("cache-control"), "no-store");
+  assert.equal(output.headers.get("strict-transport-security"), STRICT_TRANSPORT_SECURITY);
   assert.equal(output.headers.get("x-sigurscan-edge"), "cloudflare");
   assert.equal(output.headers.get("location"), "https://api.sigurscan.com/docs");
 });

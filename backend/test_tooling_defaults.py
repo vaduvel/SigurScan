@@ -4,6 +4,7 @@ from pathlib import Path
 
 
 BACKEND_DIR = Path(__file__).resolve().parent
+ROOT_DIR = BACKEND_DIR.parent
 PRODUCTION_API_BASE_URL = "https://api.sigurscan.com"
 
 
@@ -34,3 +35,11 @@ def test_preview_preseed_tool_defaults_to_sigurscan_api_domain():
     )
 
     assert module.DEFAULT_BASE_URL == PRODUCTION_API_BASE_URL
+
+
+def test_cloud_run_deploy_preserves_safe_concurrency_default():
+    script = (ROOT_DIR / "tools" / "deploy_cloud_run_backend.sh").read_text(encoding="utf-8")
+
+    assert 'CONCURRENCY="${CONCURRENCY:-2}"' in script
+    assert '--concurrency "$CONCURRENCY"' in script
+    assert "--concurrency 40" not in script

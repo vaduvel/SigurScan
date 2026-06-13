@@ -7,7 +7,7 @@ Status: proof-led, not marketing-led. Nothing is green unless there is a rerunna
 - Repo: `/Users/vaduvageorge/AndroidStudioProjects/SigurScan`
 - Branch: `main`
 - GitHub: `origin/main`
-- Current repo/proof head before this Zone 8 update: `b4f22e1`
+- Current repo/proof head before 2026-06-13 freeze reconciliation: `30f04e2`
 - Deployed Cloud Run code image: `4918162`
 - API domain: `https://api.sigurscan.com`
 - Cloud project id: `project-20f225c0-d756-4cba-864`
@@ -40,14 +40,14 @@ Evidence:
 
 | Zone | Area | Status | Proof / Gap |
 | --- | --- | --- | --- |
-| 1 | Cloud Run runtime | Green for current release posture, watch on 8-way scan load | Live service is healthy behind `api.sigurscan.com`, min instances is `1`, request-based CPU is preserved, budget + latency + 5xx alert policies exist. Reproducible hash-locked container is deployed as revision `sigurscan-api-00025-vg5` on code image `4918162`, digest `sha256:1951be05e620f71b74923f4d6460ab36f322767f98f14987e38ff20eea11d1c7`, traffic `100%`. Runtime tuning now uses `containerConcurrency=2`, `maxScale=5`. Four concurrent text-only scans finalize with no `5xx`, max poll `6.049s`, max total `9.147s`. Eight concurrent text-only scans also finalize with no `5xx`, but max poll remains near threshold at `8.328s`, so capacity/latency stays a watch item. Rollback to `00022-wj8` and restore to `00023-58k` were executed successfully before the latest cache-stats/PDF patches; rollback remains mechanically proven. Optional: quota-bounded URL-provider concurrency. |
-| 2 | Cloudflare/domain | Green for API edge posture | `https://api.sigurscan.com/health` is live through Cloudflare and Android UA is accepted. HTTP now redirects to HTTPS with `308`, TLS SAN covers `api.sigurscan.com`, `/v1/*` returns `no-store`, and unauthenticated API calls preserve backend `401`. Open: long-scan timeout proof and physical mobile-network proof. |
-| 3 | Supabase | Green for runtime DB path, Partial for full freeze | Remote migration list matches local migrations. Required tables exist, RLS is enabled, `anon`/`authenticated` have no direct grants on runtime tables, preview bucket `previews` is private PNG-only with 5MB limit, visual-only constraints exist, and a live scan wrote `orch_1781289050_c007425e` to `scan_jobs`. Open: backup/PITR dashboard proof and dedicated connection-pool pressure proof. |
-| 4 | Cache/providers | Green for single-scan provider/cache posture, Partial for load | Provider smoke, single live URL-provider smoke, cache stats, and preview cache paths have proof. Live flows prove urlscan, Google Web Risk consultation, Phishing.Database, URLhaus, and offer-claim verifier behavior; `/v1/reputation/cache/stats` reads the Supabase-backed cache on Cloud Run after `45b5663`; deployed runtime is now `4918162`. Open: full provider load/concurrency intentionally not run to avoid quota burn; legacy expired cache rows remain as non-blocking cache hygiene. |
+| 1 | Cloud Run runtime | Green for current release posture, watch on URL-provider load | Live service is healthy behind `api.sigurscan.com`, min instances is `1`, request-based CPU is preserved, budget + latency + 5xx alert policies exist and now have an email notification channel. Reproducible hash-locked container is deployed as revision `sigurscan-api-00025-vg5` on code image `4918162`, digest `sha256:1951be05e620f71b74923f4d6460ab36f322767f98f14987e38ff20eea11d1c7`, traffic `100%`. Runtime truth from `gcloud run services describe`: `containerConcurrency=2`, `maxScale=5`. Exact-N reconciliation on 2026-06-13 used `N=2` text-only scans with no URL-provider quota: official domain `2/2` finalized, `0` `5xx`, max poll `4.344s`; raw Run `2/2` finalized, `0` `5xx`, max poll `4.36s`. Older 4/8-scan probes remain historical stress probes, not the current concurrency threshold. Deploy script hardening now preserves `CONCURRENCY="${CONCURRENCY:-2}"`, so a future deploy will not reset the service to `40`. Optional: quota-bounded URL-provider concurrency. |
+| 2 | Cloudflare/domain | Green for API edge posture | `https://api.sigurscan.com/health` is live through Cloudflare and Android UA is accepted. HTTP redirects to HTTPS with `308`, TLS SAN covers `api.sigurscan.com`, `/v1/*` returns `no-store`, and unauthenticated API calls preserve backend `401`. HSTS is now present at the edge: `strict-transport-security: max-age=31536000; includeSubDomains`. Route parity official vs raw Run is proven for `/health`, `/v1/scan/orchestrated` unauthenticated, `/v1/reputation/cache/stats` unauthenticated, and `/v1/extract/pdf` unauthenticated. Open: long-scan timeout proof and physical mobile-network proof. |
+| 3 | Supabase | Green for runtime DB path, Partial for resilience | Remote migration list matches local migrations. Required tables exist, RLS is enabled, `anon`/`authenticated` have no direct grants on runtime tables, preview bucket `previews` is private PNG-only with 5MB limit, visual-only constraints exist, and a live scan wrote `orch_1781289050_c007425e` to `scan_jobs`. Runtime access is Data API/PostgREST, not long-lived direct DB connections; a 20-concurrent admin telemetry pressure check returned `20/20 HTTP 200` on both official and raw Run paths. Supabase CLI proof shows `pitr_enabled=false`, `walg_enabled=true`, `backups=[]`; database size is currently `26 MB`. Local schema/data emergency dumps exist outside the repo, but this remains Partial until PITR or an automated backup job exists. |
+| 4 | Cache/providers | Green for deterministic/provider contract, Partial for quota-heavy load | Provider smoke, single live URL-provider smoke, cache stats, and preview cache paths have proof. Live flows prove urlscan, Google Web Risk consultation, Phishing.Database, URLhaus, and offer-claim verifier behavior; `/v1/reputation/cache/stats` reads the Supabase-backed cache on Cloud Run after `45b5663`; deployed runtime is now `4918162`. 2026-06-13 reconciliation adds redirect resolver contract proof, benign live redirect proof, RDAP/ROTLD/MX/domain-risk proof, `52/52` brand registry sweep, provider fault-injection tests proving provider errors do not become `SIGUR`, and a provider timeout/error behavior table. Open: full provider load/concurrency intentionally not run to avoid quota burn; legacy expired cache rows remain as non-blocking cache hygiene. |
 | 5 | Android direct infra | Green for build/config, Partial for device proof | Debug and release local config point to `https://api.sigurscan.com/`; app API keys are configured without logging their values; direct provider keys are empty in generated BuildConfig; API key interceptor sends `X-API-KEY` and stable Android UA; `testDebugUnitTest`, `assembleDebug`, and `assembleRelease` pass; release APK is signed with SigurScan cert. Open: physical-device proof, mobile-network proof, upload-size proof, poor-network behavior, and post-UI-merge regression. AVD exists but did not boot into ADB during this continuation. |
 | 6 | Live feature flows | Green for backend/API live flows, Partial for full device/import coverage | Backend tests cover text/url/email/offer/invoice/security/registry/legal paths. Live provider smoke is `3/3`; live YOXO and eMAG tracking are `SIGUR`, and hard-provider controls are `PERICULOS` through Phishing.Database/urlscan. Email HTML hidden-link extraction and scan are proven live. PDF annotation-link extraction was fixed in `4918162` and proven live on Cloud Run. Android emulator URL scan reaches final `SIGUR` with preview. Android emulator text-only offer/job scan reaches final non-safe `SUSPECT`. Android invoice image scan reaches verified invoice state with issuer/CUI/IBAN/dates/totals and live API top-level `SIGUR` after CUI + finalization fixes. Open: QR import/camera, physical-device release, mobile-network proof, and fuller offer-with-URL/payment proof if required. |
 | 7 | Code consolidation | Green for current release consolidation, Partial for branch cleanup/UI | `main` is clean in the freeze worktree and has current invoice + offer + Cloud Run fixes. Backend full suite passes from the clean freeze worktree. Android unit/debug/release build passes from the clean freeze worktree. Branch audit is complete: DeepSeek/freeze-ready/privacy hardening are integrated; Fable/offer stage branches must not be merged raw because they would revert current `main`. Open: do not delete old branches until Sonet UI and any active `gate/unverified-verdict` work are explicitly resolved. |
-| 8 | Hardening/regression | Green for automated/runtime hardening, Partial for physical/store launch | Zone 8 targeted regression passed `231` tests. Provider-degrade regression passed `54` tests. Live log hygiene checked `300` Cloud Run log entries and found zero exact matches for the controlled marker, OTP, CNP, IBAN, or card value. Admin telemetry endpoints return live `200`; dashboard HTML returns `200`; telemetry summary reports `alerts_count=0` and urlscan pending-timeout rate `0.0`. Cloud Monitoring now has enabled latency and 5xx policies, but no notification channel is attached yet. Open: full URL-provider load pack, Play-ready privacy/legal store checklist, physical-device/mobile-network proof, and notification-channel setup. |
+| 8 | Hardening/regression | Green for automated/runtime hardening, Partial for physical/store launch | Zone 8 targeted regression passed `231` tests. Provider-degrade regression passed `54` tests. Offer corpus recall now covers OP-01..09 with `52 passed` and fixture distribution `OP-01..07=5 each`, `OP-08=8`, `OP-09=8`; signal recall is `26/29 = 90%`. Local freeze hardening tests add telemetry sink redaction for email, phone, CNP, IBAN, card, OTP, and URL-query email; `backend/test_freeze_hardening.py` passes `4/4` before deployment. Live log hygiene checked `300` Cloud Run log entries and found zero exact matches for the controlled marker, OTP, CNP, IBAN, or card value. Admin telemetry endpoints return live `200`; dashboard HTML returns `200`; telemetry summary reports `alerts_count=0` and urlscan pending-timeout rate `0.0`. Cloud Monitoring has enabled latency and 5xx policies with email channel `6336647364895454298` attached. Controlled 5xx stack-trace proof is deferred because no safe admin-only diagnostic crash route exists. Open: full URL-provider load pack, Play-ready privacy/legal store checklist, and physical-device/mobile-network proof. |
 
 ## Tests Run In This Audit
 
@@ -149,7 +149,33 @@ Evidence:
     - `SigurScan orchestrated poll latency > 8s`
     - `SigurScan Cloud Run 5xx errors > 0`
   - Report: `build/reports/freeze/zone8_gcp_alert_policies_after_create_2026-06-12.json`
-  - Caveat: notification channels are not attached yet.
+  - 2026-06-13 reconciliation attached notification channel `6336647364895454298` to both policies; the email address is recorded only as `SET`.
+- Freeze QA reconciliation hardening:
+  - Cloud Run concurrency truth:
+    - command: `gcloud run services describe sigurscan-api --project project-20f225c0-d756-4cba-864 --region europe-west1 --format='value(spec.template.spec.containerConcurrency)'`
+    - result: `2`
+  - Exact-N text-only scan proof:
+    - official domain: `2/2` finalized, `0` `5xx`, wall time `8.37s`, max poll `4.344s`
+    - raw Run: `2/2` finalized, `0` `5xx`, wall time `7.398s`, max poll `4.36s`
+  - HSTS edge proof:
+    - `curl -sD - -o /dev/null https://api.sigurscan.com/health` includes `strict-transport-security: max-age=31536000; includeSubDomains`
+    - Cloudflare Worker version: `c2523aae-9215-4527-93aa-9a36b82cc491`
+  - Route parity official vs raw Run:
+    - `/health`: `200` / `200`, same body hash
+    - `/v1/scan/orchestrated` unauthenticated: `401` / `401`, same body hash
+    - `/v1/reputation/cache/stats` unauthenticated: `401` / `401`, same body hash
+    - `/v1/extract/pdf` unauthenticated: `401` / `401`, same body hash
+  - Supabase pressure/PITR proof:
+    - 20 concurrent admin telemetry requests: official `20/20 HTTP 200`, raw Run `20/20 HTTP 200`
+    - `supabase backups list --project-ref hslqboubacrdhatmqcky --output json`: `pitr_enabled=false`, `walg_enabled=true`, `backups=[]`
+    - database size: `26 MB`
+    - local emergency dumps exist under `/Users/vaduvageorge/SigurScan_backups/supabase/`
+  - Provider/registry proof:
+    - redirect resolver freeze contract covered by `backend/test_freeze_hardening.py`
+    - live benign redirect resolved `httpbin.org` redirect to `https://example.com`
+    - RDAP/ROTLD/MX/domain-risk smoke passed for `google.com` and `digi.ro`
+    - brand registry sweep: `52/52` aliases matched
+    - provider error/degrade tests prove errors/pending states do not become `SIGUR`
 - Android emulator URL E2E:
   - Device: `emulator-5554`.
   - App package: `ro.sigurscan.app`.
@@ -183,7 +209,8 @@ Evidence:
 
 1. Do not merge Fable/offer stage branches raw. If a specific missing feature is found later, cherry-pick or reimplement the minimal diff onto `main`.
 2. Keep `main` as the freeze base and treat the current physical `gate/unverified-verdict` checkout as separate active work.
-3. Attach a real email notification channel to the two Cloud Monitoring policies before public launch.
+3. Decide backup posture: enable paid Supabase PITR/backups or add an automated daily dump to external storage. Local manual dumps are only a stopgap.
 4. Run the remaining Android E2E flows: QR import/camera, physical-device release, mobile-network, and fuller offer-with-URL/payment if needed.
 5. Run full URL-provider concurrency only during a deliberate quota window, not during normal freeze checks.
-6. Keep old feature branches until the UI branch and active gate branch are fully accounted for; delete only after a named cleanup pass.
+6. Add a temporary admin-only diagnostic route only if stack-trace proof is required; keep it disabled by default and remove/disable after proof.
+7. Keep old feature branches until the UI branch and active gate branch are fully accounted for; delete only after a named cleanup pass.
