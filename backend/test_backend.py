@@ -8527,3 +8527,29 @@ class TestBug12SummaryAmountsAlignment:
         assert f.total == 119.0
         coherence = check_coherence(f.subtotal, f.tva, f.total, f.data_emitere, f.scadenta)
         assert coherence.totals_match is True
+
+
+class TestBug13PendingVerdictMessage:
+    """Bug#13 — un verdict PENDING (sau lipsa verdict_block după o eroare de
+    evaluare) trebuie tradus într-un mesaj clar pentru utilizator, nu lăsat
+    fără reasons/safe_actions."""
+
+    def test_pending_label_has_clear_message(self):
+        import main as app_main
+        verdict_block = {"gate": {"label": "PENDING"}, "bundle": {}}
+        reasons, safe_actions = app_main._invoice_verdict_messages(verdict_block)
+        assert reasons == ["Scanarea nu are încă toate dovezile necesare pentru un verdict final."]
+        assert safe_actions == ["Așteaptă finalizarea verificărilor automate."]
+
+    def test_missing_verdict_block_defaults_to_pending_message(self):
+        import main as app_main
+        reasons, safe_actions = app_main._invoice_verdict_messages(None)
+        assert reasons == ["Scanarea nu are încă toate dovezile necesare pentru un verdict final."]
+        assert safe_actions == ["Așteaptă finalizarea verificărilor automate."]
+
+    def test_sigur_label_has_payment_message(self):
+        import main as app_main
+        verdict_block = {"gate": {"label": "SIGUR"}, "bundle": {}}
+        reasons, safe_actions = app_main._invoice_verdict_messages(verdict_block)
+        assert reasons == ["Datele facturii sunt coerente și corespund unui emitent cunoscut."]
+        assert safe_actions == ["Poți efectua plata dacă recunoști emitentul și suma."]
