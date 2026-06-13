@@ -8310,6 +8310,18 @@ class TestBug1RoAmountThousands:
                               data_emitere=None, scadenta=None)
         assert res.totals_match is True
 
+    def test_parse_invoice_extracts_full_thousands(self):
+        # End-to-end: regex-ul de extracție trebuie să captureze grupa de mii
+        # întreagă ("1.260" -> 1260), nu trunchiat ("1.26"). Înainte de fix
+        # AMOUNT_PATTERN limita zecimalele la \d{1,2} și pierdea cifra a treia.
+        from services.invoice_parser import parse_invoice
+        f = parse_invoice(
+            "Subtotal: 1.260\nTVA: 240\nTotal: 1.500\n"
+        )
+        assert f.subtotal == 1260.0
+        assert f.tva == 240.0
+        assert f.total == 1500.0
+
 
 class TestBug2OfficialCandidateUrls:
     """Bug#2 — fallback pagina oficiala (regresie: fara acolade literale)."""

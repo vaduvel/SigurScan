@@ -34,20 +34,26 @@ MONTHS = {
 }
 CURRENCY_SYMBOLS = {"€": "EUR", "$": "USD", "£": "GBP"}
 CURRENCY_PATTERN = re.compile(r"\b(RON|LEI|EUR|USD|GBP)\b|[€$£]", re.IGNORECASE)
+# Bug#1 (capătul end-to-end): un număr poate avea grupe de mii separate prin
+# punct/virgulă/spațiu (1.260 / 1 500 / 1,234,567) urmate opțional de 2 zecimale.
+# Vechiul `\d[\d\s]*(?:[.,]\d{1,2})?` trunchia "1.260" la "1.26" înainte ca
+# _parse_ro_amount să apuce să dezambiguizeze separatorul. Întâi forma cu grupe,
+# apoi forma simplă; _parse_ro_amount decide RO vs EN pe șirul complet.
+_AMOUNT_NUM = r"\d+(?:[.,\s]\d{3})+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?"
 AMOUNT_VALUE_PATTERN = re.compile(
-    r"(?:[€$£]\s*(\d[\d\s]*(?:[.,]\d{1,2})?))"
-    r"|(?:(\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:RON|LEI|lei|EUR|USD|GBP|€|\$|£))",
+    r"(?:[€$£]\s*(" + _AMOUNT_NUM + r"))"
+    r"|(?:(" + _AMOUNT_NUM + r")\s*(?:RON|LEI|lei|EUR|USD|GBP|€|\$|£))",
     re.IGNORECASE,
 )
 AMOUNT_PATTERN = re.compile(
     r"(?:Total|TVA|Tax|Subtotal|Amount due|Total due|Balance due|Suma|Valoare|Plata|De plata)\s*(?:factur[ai]|plat[iă]|)?[:\s]*"
-    r"(\d[\d\s]*(?:[.,]\d{1,2})?)",
+    r"(" + _AMOUNT_NUM + r")",
     re.IGNORECASE,
 )
 AMOUNT_WITH_TVA_RATE = re.compile(
-    r"(?:TVA|Tax).*?(\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:RON|LEI|lei|Eur|EUR|USD|GBP|€|\$|£)", re.IGNORECASE
+    r"(?:TVA|Tax).*?(" + _AMOUNT_NUM + r")\s*(?:RON|LEI|lei|Eur|EUR|USD|GBP|€|\$|£)", re.IGNORECASE
 )
-AMOUNT_FALLBACK = re.compile(r"(\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:RON|LEI|lei|Eur|EUR|USD|GBP|€|\$|£)")
+AMOUNT_FALLBACK = re.compile(r"(" + _AMOUNT_NUM + r")\s*(?:RON|LEI|lei|Eur|EUR|USD|GBP|€|\$|£)")
 DATE_PATTERN = re.compile(
     r"\b(0[1-9]|[12]\d|3[01])[./](0[1-9]|1[0-2])[./](20\d{2})\b"
 )
