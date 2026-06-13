@@ -10,6 +10,12 @@ Status: in progress. This document is proof-led: an item is not green unless the
 - Verified code commit: `fa1e75c`
 - Deployed code commit: `fa1e75c`
 - Documentation may advance past the deployed code commit with proof-only updates.
+- Pre-flight source HEAD before this proof-only documentation commit: `9c898b6`.
+- Freeze QA worktree used for the 2026-06-13 pre-flight: `/Users/vaduvageorge/.config/superpowers/worktrees/SigurScan/freeze-qa-2026-06-13`.
+- Delta from deployed code to the pre-flight source HEAD is non-runtime:
+  - command: `git diff --name-only fa1e75c..9c898b6`
+  - result: `.github/workflows/supabase-logical-backup.yml`, `backend/test_tooling_defaults.py`, `tools/supabase_logical_backup.sh`, `docs/freeze/FREEZE_PROOF_2026-06-12.md`, `docs/freeze/FREEZE_STATUS_MATRIX_2026-06-12.md`, `docs/operations/SUPABASE_LOGICAL_BACKUPS.md`
+  - interpretation: workflow/tooling/test/docs only; no API/runtime code is ahead of the deployed Cloud Run image.
 - Cloud Run project: `project-20f225c0-d756-4cba-864`
 - Cloud Run service: `sigurscan-api`
 - Cloud Run region: `europe-west1`
@@ -25,6 +31,12 @@ Status: in progress. This document is proof-led: an item is not green unless the
 - Traffic is `100%` to latest revision, currently `sigurscan-api-00029-gjg`.
 - Deployed image is `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:fa1e75c`.
 - Deployed image digest is `sha256:a6f9b7be332223e02e925ac4f0b3bafc3e4ca8d0b4534d667d92b3b2c1904b50`.
+- 2026-06-13 pre-flight runtime reconciliation:
+  - command: `gcloud run services describe sigurscan-api --project project-20f225c0-d756-4cba-864 --region europe-west1 --format=json(...)`
+  - image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:fa1e75c`
+  - latest ready revision: `sigurscan-api-00029-gjg`
+  - traffic: `100%` to latest revision.
+  - `containerConcurrency=2`, `minScale=1`, `maxScale=5`, `cpu-throttling=true`, `startup-cpu-boost=true`.
 - Current deploy-tooling hardening Cloud Build deployment proof:
   - build id: `2a7be3a5-9e12-45ae-aa49-4cc0f67beb41`
   - status: `SUCCESS`
@@ -287,6 +299,14 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - exact sensitive matches found: `0` for marker, OTP, CNP, IBAN, and card number.
   - request report: `build/reports/freeze/zone8_log_hygiene_probe_request_2026-06-12.json`.
   - log report: `build/reports/freeze/zone8_cloud_run_log_hygiene_2026-06-12.json`.
+- 2026-06-13 pre-flight live log hygiene proof:
+  - scan id: `orch_1781345367_80b7f443`.
+  - input: text-only/no URL, with controlled marker and PII-shaped values.
+  - POST: `HTTP 200`, `2.108s`.
+  - poll 1: `SUSPECT`, `status=scanning`, `result.is_final=false`, `4.736s`.
+  - poll 2: `SUSPECT`, `status=complete`, `result.is_final=true`, `4.519s`.
+  - Cloud Logging query requested the latest `500` entries for `sigurscan-api` in the relevant service window; `10` entries were returned/checked.
+  - exact matches found for marker, email, phone, CNP, IBAN, card, and OTP: `0`.
 - Additional local telemetry redaction hardening after `2026-06-13` reconciliation:
   - `backend/services/telemetry.py` now applies a final recursive `redact_pii()` guard before scan/feedback payloads reach Supabase or JSONL persistence sinks.
   - `backend/services/pii_redactor.py` now masks explicitly labeled Romanian CNP values.
@@ -294,6 +314,15 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - command: `python3 -m pytest -q backend/test_freeze_hardening.py`.
   - current result before deployment: `4 passed`.
 - Zone 8 regression/provider-degrade proof:
+  - 2026-06-13 targeted deterministic/security pre-flight:
+    - command: `python3 -m pytest backend/test_freeze_hardening.py backend/test_brand_registry.py backend/test_verdict_gate.py backend/test_security_hardening.py -q`
+    - result: `61 passed, 1 warning in 2.17s`.
+  - 2026-06-13 freeze hardening/redaction suite:
+    - command: `python3 -m pytest backend/test_freeze_hardening.py -q -s`
+    - result: `4 passed in 0.17s`.
+  - 2026-06-13 runtime brand registry sweep:
+    - command: custom Python sweep over `load_brand_registry()`.
+    - result: `brands=52`, `aliases_checked=94`, `failures=0`.
   - targeted atlas/knowledge/gate/invoice/security/latency regression:
     - command: `python3 -m pytest backend/test_offer_corpus_recall.py backend/test_family_classifier.py backend/test_scam_atlas_contract.py backend/test_scam_atlas_impersonation.py backend/test_impersonation_knowledge_builder.py backend/test_verdict_gate.py backend/test_offer_gate_combos.py backend/test_legal_layer.py backend/test_registry_verification.py backend/test_invoice_orchestration.py backend/test_invoice_endpoint.py backend/test_invoice_parser.py backend/test_invoice_readiness_gate.py backend/test_invoice_coherence.py backend/test_security_hardening.py backend/test_orchestrated_latency.py -q`
     - result: `231 passed, 1 warning`.
@@ -608,6 +637,11 @@ Status: in progress. This document is proof-led: an item is not green unless the
 - Full backend suite passed after the PDF annotation fix:
   - Command: `python3 -m pytest backend -q`
   - Result: `666 passed, 1 warning`.
+- 2026-06-13 pre-flight full backend suite from the clean freeze QA worktree:
+  - Location: `/Users/vaduvageorge/.config/superpowers/worktrees/SigurScan/freeze-qa-2026-06-13`
+  - Command: `python3 -m pytest backend -q`
+  - Result: `674 passed, 1 warning in 18.19s`.
+  - Warning class: `DeprecationWarning` from `google/genai`; non-blocking for freeze.
 - Quota-bounded live provider smoke through `https://api.sigurscan.com` passed:
   - report: `build/reports/freeze_zone6_live_provider_smoke_2026-06-12.json`
   - command: `backend/eval/live_provider_smoke_runner.py --base-url https://api.sigurscan.com --case live_yoxo_buyback --case live_emag_tracking_official --case live_google_webrisk_phishing_test`
@@ -697,12 +731,24 @@ Status: in progress. This document is proof-led: an item is not green unless the
 - Fresh backend verification from the clean worktree:
   - Command: `python3 -m pytest backend -q`
   - Result: `666 passed, 1 warning in 4.29s`.
+- 2026-06-13 pre-flight backend verification from the clean freeze QA worktree:
+  - Worktree: `/Users/vaduvageorge/.config/superpowers/worktrees/SigurScan/freeze-qa-2026-06-13`
+  - Command: `python3 -m pytest backend -q`
+  - Result: `674 passed, 1 warning in 18.19s`.
 - Fresh Android verification from the clean worktree:
   - Command: `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease`
   - Result: `BUILD SUCCESSFUL in 1m 2s`, `96 actionable tasks`.
+- 2026-06-13 pre-flight Android verification from the clean freeze QA worktree:
+  - Command: `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ANDROID_HOME="/Users/vaduvageorge/Library/Android/sdk" ANDROID_SDK_ROOT="/Users/vaduvageorge/Library/Android/sdk" ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease`
+  - Result: `BUILD SUCCESSFUL in 4m 59s`, `96 actionable tasks`.
+  - Release signing proof after copying only ignored local signing files into the isolated worktree for verification:
+    - APK: `app/build/outputs/apk/release/app-release.apk`, size `16M`.
+    - signer DN: `CN=SigurScan, OU=Mobile Security, O=SigurScan, L=Bucharest, ST=Bucharest, C=RO`.
+    - signer SHA-256 digest: `bfd7991c4a7d0c349ae41235f2c0b52d77962c5a9a6729aa3410c54840168b67`.
 - Physical checkout guard:
-  - `/Users/vaduvageorge/AndroidStudioProjects/SigurScan` is on local branch `gate/unverified-verdict` with uncommitted external work.
-  - Freeze work did not mutate that branch; all checks and doc edits were done in the isolated `main` worktree.
+  - 2026-06-13 check: `/Users/vaduvageorge/AndroidStudioProjects/SigurScan` is on `feature/osint-intel-pipeline`.
+  - No local `gate/unverified-verdict` worktree/branch was visible in `git worktree list` or local branch listing during this pre-flight check.
+  - Freeze work did not mutate the physical checkout; all checks and doc edits were done in isolated worktrees.
 
 ### Not Yet Green
 
