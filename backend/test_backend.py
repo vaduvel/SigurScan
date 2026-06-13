@@ -8309,3 +8309,13 @@ class TestBug1RoAmountThousands:
         res = check_coherence(subtotal=sub, tva=tva, total=total,
                               data_emitere=None, scadenta=None)
         assert res.totals_match is True
+
+
+class TestBug2OfficialCandidateUrls:
+    """Bug#2 — fallback pagina oficiala (regresie: fara acolade literale)."""
+
+    def test_no_literal_braces_and_has_root(self):
+        from services.offer_claim_verifier import _official_candidate_urls
+        urls = _official_candidate_urls(["enel.ro"], [])
+        assert "https://enel.ro/" in urls
+        assert not any("{" in u or "}" in u for u in urls)
