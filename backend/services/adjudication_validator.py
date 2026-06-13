@@ -1,7 +1,7 @@
 from typing import Any, Dict, Iterable, Optional, Set
 
 
-VALID_LABELS = {"SIGUR", "SUSPECT", "PERICULOS", "NECUNOSCUT"}
+VALID_LABELS = {"SAFE", "SUSPECT", "DANGEROUS", "UNVERIFIED", "NECUNOSCUT"}
 MALICIOUS_WORDS = {"malicious", "malware", "phishing", "dangerous", "blacklisted"}
 
 
@@ -102,11 +102,11 @@ def validate_and_guard(llm: Optional[Dict[str, Any]], evidence: Dict[str, Any]) 
     guarded["confidence"] = confidence
 
     if any_hard_provider_malicious(evidence):
-        guarded["label"] = "PERICULOS"
+        guarded["label"] = "DANGEROUS"
         guarded["motiv_ro"] = "Sursă semnalată ca malițioasă de un furnizor de securitate."
         return guarded
 
-    if label == "PERICULOS" and not has_threat_evidence(evidence):
+    if label == "DANGEROUS" and not has_threat_evidence(evidence):
         return None
 
     used = guarded.get("evidence_used") or []

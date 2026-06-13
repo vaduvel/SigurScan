@@ -245,7 +245,7 @@ def generate_fallback_explanation(text: str, rule_results: Dict[str, Any]) -> Di
     reasons = rule_results.get("reasons", [])
 
     if risk_level in ("CRITICAL", "HIGH"):
-        verdict_summary = f"Atenție! Acest mesaj este marcat ca fiind PERICULOS ({family})."
+        verdict_summary = f"Atenție! Acest mesaj este marcat ca fiind DANGEROUS ({family})."
         explanation = f"Analiza automată indică un risc ridicat. Mesajul pretinde că reprezintă brandul '{claimed_brand}', însă semnalele detectate sugerează o tentativă de înșelăciune (phishing). Atacatorii folosesc mesaje alarmante sau linkuri neoficiale pentru a vă induce în eroare."
     elif risk_level == "MEDIUM":
         verdict_summary = f"Atenție: Mesaj suspect ({family})."

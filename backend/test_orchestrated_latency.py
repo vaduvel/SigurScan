@@ -92,7 +92,7 @@ def test_first_poll_publishes_provisional_verdict_before_urlscan(monkeypatch):
 
     assert payload["status"] == "scanning"
     assert payload["result"] is not None
-    assert payload["result"]["user_risk_label"] == "SIGUR"
+    assert payload["result"]["user_risk_label"] == "SAFE"
     assert payload["result"]["is_final"] is False
     assert payload["pillars"]["urlscan"]["status"] == "pending"
     assert "preliminar" in payload["status_message"].lower()
@@ -158,7 +158,7 @@ def test_provisional_verdict_finalizes_after_clean_urlscan(monkeypatch):
 
     assert provisional["result"]["is_final"] is False
     assert final["status"] == "complete"
-    assert final["result"]["user_risk_label"] == "SIGUR"
+    assert final["result"]["user_risk_label"] == "SAFE"
     assert final["result"]["is_final"] is True
     assert final["result"]["evidence"]["provider_gate"]["urlscan_consulted"] is True
 
@@ -172,10 +172,10 @@ def test_late_malicious_urlscan_raises_provisional_safe_verdict(monkeypatch):
         _, provisional = _poll_orchestrated(client, start["scan_id"], count=1)
         _, upgraded = _poll_orchestrated(client, start["scan_id"], count=4)
 
-    assert provisional["result"]["user_risk_label"] == "SIGUR"
+    assert provisional["result"]["user_risk_label"] == "SAFE"
     assert provisional["result"]["is_final"] is False
     assert upgraded["status"] == "complete"
-    assert upgraded["result"]["user_risk_label"] == "PERICULOS"
+    assert upgraded["result"]["user_risk_label"] == "DANGEROUS"
     assert upgraded["result"]["risk_level"] == "high"
     assert upgraded["result"]["is_final"] is True
 

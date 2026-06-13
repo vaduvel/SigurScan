@@ -44,7 +44,7 @@ class TestCheckedFlagSemantics:
 
     @pytest.mark.asyncio
     async def test_checked_false_maps_to_unknown_identity_not_bad(self):
-        # checked=False → identity „unknown" (nu „unrelated") → nu poate produce PERICULOS solo
+        # checked=False → identity „unknown" (nu „unrelated") → nu poate produce DANGEROUS solo
         text = "SC X SRL\nCUI: 24387371\nIBAN: RO33RNCB1234567890123456"
         fields, entity = await _entity(text, _cui(checked=False, exists=False, denumire=None))
         readiness = evaluate_offer_readiness(fields)

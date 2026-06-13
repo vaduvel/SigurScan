@@ -148,7 +148,7 @@ def maybe_run_shadow_adjudication(
         "detected_family_id": gate.get("detected_family_id"),
         "detected_family": None,
         "claimed_brand": (evidence.get("brand") or {}).get("claimed") if isinstance(evidence.get("brand"), dict) else None,
-        "predicted_is_scam": str(gate.get("user_risk_label") or "").upper() == "PERICULOS",
+        "predicted_is_scam": str(gate.get("user_risk_label") or "").upper() == "DANGEROUS",
         "signal_ids": ["shadow:mistral_adjudicator"],
         "url_count": len(evidence.get("urls") or []),
         "urls": [],

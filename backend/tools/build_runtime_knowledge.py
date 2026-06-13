@@ -343,9 +343,9 @@ def _coerce_json_list(value) -> list:
 
 def _contract_label_to_is_scam(label: str | None) -> bool | None:
     normalized = str(label or "").strip().upper()
-    if normalized == "PERICULOS":
+    if normalized == "DANGEROUS":
         return True
-    if normalized == "SIGUR":
+    if normalized == "SAFE":
         return False
     return None
 
@@ -457,7 +457,7 @@ def build_contract_eval_records() -> list[dict]:
         test_id = str(case.get("id") or "").strip()
         sample_text = str(case.get("input") or "").strip()
         expected_label = str(case.get("label") or "").strip().upper()
-        if not test_id or not sample_text or expected_label not in {"SIGUR", "SUSPECT", "PERICULOS"}:
+        if not test_id or not sample_text or expected_label not in {"SAFE", "SUSPECT", "DANGEROUS"}:
             continue
         records.append(
             {

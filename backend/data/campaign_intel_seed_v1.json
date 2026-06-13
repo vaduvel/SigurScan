@@ -1,0 +1,164 @@
+{
+  "schema": "campaign_intel_seed_v1",
+  "generated_at": "2026-06-13T00:00:00Z",
+  "note": "Known scam campaign families for Romania 2025-2026. 'dangerous' intel requires human moderation before publication.",
+  "campaigns": [
+    {
+      "intel_id": "camp_ro_bnr_safe_2026w24",
+      "family": "IMP-02",
+      "skeleton": {
+        "claimed_identity": "Mugur Isarescu / BNR",
+        "ask": "depozit platforma investitii",
+        "channel": "meta_ads"
+      },
+      "iocs": {
+        "domain_hashes": [],
+        "display_redacted": ["romania-investition[.]info"]
+      },
+      "source": {
+        "kind": "official_alert",
+        "url": "https://www.dnsc.ro/alerta",
+        "published_at": "2026-06-10"
+      },
+      "evidence_quality": "high",
+      "status": "active",
+      "regions_hint": ["national"],
+      "moderation": {
+        "required_for": "dangerous",
+        "approved": true,
+        "approved_by": "seed",
+        "approved_at": "2026-06-13T00:00:00Z"
+      },
+      "created_at": 1778774400.0,
+      "last_seen_at": 1778860800.0
+    },
+    {
+      "intel_id": "camp_ro_banca_transilvania_otp_2026w24",
+      "family": "IMP-01",
+      "skeleton": {
+        "claimed_identity": "Banca Transilvania",
+        "ask": "cont sigur / transfer fonduri",
+        "channel": "sms"
+      },
+      "iocs": {
+        "domain_hashes": [],
+        "display_redacted": ["bt-confirma[.]xyz"]
+      },
+      "source": {
+        "kind": "trusted_flagger",
+        "url": "",
+        "published_at": "2026-06-08"
+      },
+      "evidence_quality": "medium",
+      "status": "active",
+      "regions_hint": ["national"],
+      "moderation": {},
+      "created_at": 1778601600.0,
+      "last_seen_at": 1778860800.0
+    },
+    {
+      "intel_id": "camp_ro_fan_courier_tax_2026w24",
+      "family": "IMP-03",
+      "skeleton": {
+        "claimed_identity": "FAN Courier",
+        "ask": "taxa vamala / card",
+        "channel": "sms"
+      },
+      "iocs": {
+        "domain_hashes": [],
+        "display_redacted": ["fan-livrare[.]xyz"]
+      },
+      "source": {
+        "kind": "press_context",
+        "url": "https://www.fancourier.ro/alerta-de-smishing/",
+        "published_at": "2026-06-05"
+      },
+      "evidence_quality": "high",
+      "status": "active",
+      "regions_hint": ["national"],
+      "moderation": {
+        "approved": true,
+        "approved_by": "seed",
+        "approved_at": "2026-06-13T00:00:00Z"
+      },
+      "created_at": 1778515200.0,
+      "last_seen_at": 1778860800.0
+    },
+    {
+      "intel_id": "camp_ro_olx_card_2026w24",
+      "family": "IMP-07",
+      "skeleton": {
+        "claimed_identity": "OLX",
+        "ask": "card pentru a primi bani",
+        "channel": "whatsapp"
+      },
+      "iocs": {
+        "domain_hashes": [],
+        "display_redacted": ["olx-anunt[.]xyz"]
+      },
+      "source": {
+        "kind": "public_self_asserted",
+        "url": "https://blog.olx.ro",
+        "published_at": "2026-06-01"
+      },
+      "evidence_quality": "high",
+      "status": "active",
+      "regions_hint": ["national"],
+      "moderation": {
+        "approved": true,
+        "approved_by": "seed",
+        "approved_at": "2026-06-13T00:00:00Z"
+      },
+      "created_at": 1778256000.0,
+      "last_seen_at": 1778860800.0
+    },
+    {
+      "intel_id": "camp_ro_whatsapp_takeover_2026w24",
+      "family": "IMP-05",
+      "skeleton": {
+        "claimed_identity": "prieten / cunostinta",
+        "ask": "cod WhatsApp / 2FA",
+        "channel": "whatsapp"
+      },
+      "iocs": {
+        "domain_hashes": [],
+        "display_redacted": []
+      },
+      "source": {
+        "kind": "press_context",
+        "url": "https://www.sigurantaonline.ro",
+        "published_at": "2026-05-28"
+      },
+      "evidence_quality": "medium",
+      "status": "active",
+      "regions_hint": ["national"],
+      "moderation": {},
+      "created_at": 1777996800.0,
+      "last_seen_at": 1778860800.0
+    },
+    {
+      "intel_id": "camp_ro_anaf_fake_iban_2026w24",
+      "family": "OP-01",
+      "skeleton": {
+        "claimed_identity": "ANAF / firma partenera",
+        "ask": "iban schimbat / plata in cont nou",
+        "channel": "email"
+      },
+      "iocs": {
+        "domain_hashes": [],
+        "display_redacted": ["anaf-facturi[.]ro"]
+      },
+      "source": {
+        "kind": "vendor_advisory",
+        "url": "",
+        "published_at": "2026-05-25"
+      },
+      "evidence_quality": "medium",
+      "status": "active",
+      "regions_hint": ["national"],
+      "moderation": {},
+      "created_at": 1777420800.0,
+      "last_seen_at": 1778860800.0
+    }
+  ]
+}

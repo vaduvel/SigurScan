@@ -386,9 +386,9 @@ class ScannerViewModelTest {
         assertFalse(functionBody.contains("""riskLevel = "low""""))
         assertFalse(functionBody.contains("""riskLevel = "medium""""))
         assertFalse(functionBody.contains("""riskLevel = "high""""))
-        assertFalse(functionBody.contains("PERICULOS"))
+        assertFalse(functionBody.contains("DANGEROUS"))
         assertFalse(functionBody.contains("SUSPECT"))
-        assertFalse(functionBody.contains("SIGUR"))
+        assertFalse(functionBody.contains("SAFE"))
     }
 
     @Test

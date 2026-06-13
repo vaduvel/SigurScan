@@ -34,7 +34,7 @@ async def test_fixture_blocking_recall(idx):
     if fx.get("xfail_live"):
         pytest.xfail("depinde de lookup live (registru)")
     result = await _scan(fx["text"])
-    assert result.gate["label"] != "SIGUR", f"fixture de frauda nu poate fi SIGUR: {fx['text'][:60]}"
+    assert result.gate["label"] != "SAFE", f"fixture de frauda nu poate fi SAFE: {fx['text'][:60]}"
     expected = fx["expected_offer_signals"]
     if expected:
         detected = set(result.signals)

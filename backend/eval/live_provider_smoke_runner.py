@@ -51,7 +51,7 @@ LIVE_SMOKE_CASES = [
             "si fara batai de cap. Afla cat valoreaza dispozitivul tau si incepe procesul chiar acum: "
             "buyback.yoxo.ro"
         ),
-        expected_labels=["SIGUR"],
+        expected_labels=["SAFE"],
     ),
     LiveSmokeCase(
         case_id="live_smyk_catalog",
@@ -60,19 +60,19 @@ LIVE_SMOKE_CASES = [
             "Rasfoieste catalogul de 1 iunie: https://smyk.ro/catalogul-ziua-copilului si vino in magazine "
             "sa alegi: jucarii, jocuri, haine si incaltaminte la super preturi."
         ),
-        expected_labels=["SIGUR", "SUSPECT"],
+        expected_labels=["SAFE", "SUSPECT"],
     ),
     LiveSmokeCase(
         case_id="live_emag_tracking_official",
         title="eMAG official tracking URL",
         text="Comanda ta eMAG #4471122 a fost expediata. Urmareste coletul: https://www.emag.ro/order/tracking",
-        expected_labels=["SIGUR", "SUSPECT"],
+        expected_labels=["SAFE", "SUSPECT"],
     ),
     LiveSmokeCase(
         case_id="live_google_webrisk_phishing_test",
         title="Google Web Risk phishing test URL",
         text=f"Verifica acest URL de test phishing: {DEFAULT_LIVE_MALICIOUS_URL}",
-        expected_labels=["PERICULOS"],
+        expected_labels=["DANGEROUS"],
     ),
     LiveSmokeCase(
         case_id="live_idroid_status",
@@ -81,7 +81,7 @@ LIVE_SMOKE_CASES = [
             "Dispozitivul dvs. (cod 8HXDX) nu a putut fi reparat. Informatii la 0371237475. "
             "https://idroid.ro/verificare-status Se percepe taxa de magazinaj la depasirea a 10 zile."
         ),
-        expected_labels=["SIGUR", "SUSPECT"],
+        expected_labels=["SAFE", "SUSPECT"],
     ),
 ]
 
@@ -122,7 +122,7 @@ def _load_cases_from_file(path: str) -> List[LiveSmokeCase]:
         if not text:
             continue
 
-        expected = item.get("expected_labels") or item.get("expected_user_action_range") or ["SIGUR", "SUSPECT", "PERICULOS"]
+        expected = item.get("expected_labels") or item.get("expected_user_action_range") or ["SAFE", "SUSPECT", "DANGEROUS"]
         max_seconds = int(item.get("max_seconds") or item.get("max_timeout_seconds") or 120)
         parsed.append(
             LiveSmokeCase(

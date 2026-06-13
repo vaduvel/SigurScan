@@ -91,9 +91,9 @@ def _row_text(row: Dict[str, Any]) -> str:
 
 def _coarse_label(row: Dict[str, Any]) -> str | None:
     label = str(row.get("expected_contract_label") or row.get("label") or "").strip().upper()
-    if label == "PERICULOS":
+    if label == "DANGEROUS":
         return "scam_like"
-    if label != "SIGUR":
+    if label != "SAFE":
         return None
 
     text = _strip_diacritics(_row_text(row)).lower()

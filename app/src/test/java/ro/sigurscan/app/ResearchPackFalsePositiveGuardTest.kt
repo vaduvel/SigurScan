@@ -60,7 +60,7 @@ class ResearchPackFalsePositiveGuardTest {
             }
         }
 
-        if (testCase.expectedVerdict == "SIGUR") {
+        if (testCase.expectedVerdict == "SAFE") {
             codes += EvidenceCode.OFFICIAL_DOMAIN_EXACT
         }
         if (testCase.sampleText.contains("<a", ignoreCase = true) || testCase.sampleText.contains("http", ignoreCase = true)) {
@@ -79,7 +79,7 @@ class ResearchPackFalsePositiveGuardTest {
         codes += EvidenceCode.NO_SENSITIVE_FORM
         codes += EvidenceCode.WEBRISK_NO_MATCH
         codes += EvidenceCode.URLSCAN_NO_CLASSIFICATION
-        if (testCase.expectedVerdict == "SIGUR" && codes.contains(EvidenceCode.PROMO_TEXT)) {
+        if (testCase.expectedVerdict == "SAFE" && codes.contains(EvidenceCode.PROMO_TEXT)) {
             codes += EvidenceCode.OFFER_CLAIM_CONFIRMED
         }
 

@@ -6,9 +6,9 @@ internal fun backendGateResult(response: ScanResponse): GateResult {
     }
 
     val action = when (response.userRiskLabel?.trim()?.uppercase()) {
-        "SIGUR" -> GateAction.CONTINUE_WITH_CAUTION
+        "SAFE" -> GateAction.CONTINUE_WITH_CAUTION
         "SUSPECT" -> GateAction.VERIFY_OFFICIAL
-        "PERICULOS" -> GateAction.DO_NOT_CONTINUE
+        "DANGEROUS" -> GateAction.DO_NOT_CONTINUE
         else -> GateAction.INSUFFICIENT_EVIDENCE
     }
     return GateResult(

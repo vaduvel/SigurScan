@@ -40,19 +40,19 @@ class TestScanOfferChain:
     @pytest.mark.asyncio
     async def test_crypto_payment_periculos(self):
         r = await _scan("Plateste avansul in crypto wallet pentru rezervare")
-        assert r.gate["label"] == "PERICULOS"
+        assert r.gate["label"] == "DANGEROUS"
 
     @pytest.mark.asyncio
     async def test_id_document_alone_is_not_periculos(self):
         # CI/CNP singur, fără context de plată/contract → SUSPECT, NU PERICULOS.
         r = await _scan("Trimite o poza cu buletinul tau")
-        assert r.gate["label"] != "PERICULOS"
+        assert r.gate["label"] != "DANGEROUS"
 
     @pytest.mark.asyncio
     async def test_id_document_with_payment_context_periculos(self):
         # CI/CNP + context (contract + avans/plată) → PERICULOS (combinație).
         r = await _scan("Trimite poza cu buletinul si CNP ca sa pregatesc contractul, plata avans")
-        assert r.gate["label"] == "PERICULOS"
+        assert r.gate["label"] == "DANGEROUS"
 
     @pytest.mark.asyncio
     async def test_verified_active_company_is_safe(self):
@@ -61,7 +61,7 @@ class TestScanOfferChain:
             "IBAN: RO33RNCB1234567890123456\nData: 01.06.2026\nScadenta: 15.06.2026"
         )
         r = await _scan(text, cui_result=_cui(exists=True, activ=True, denumire="ENEL ENERGIE SA"))
-        assert r.gate["label"] == "SIGUR"
+        assert r.gate["label"] == "SAFE"
 
     @pytest.mark.asyncio
     async def test_qr_payloads_threaded(self):

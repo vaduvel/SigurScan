@@ -8,9 +8,9 @@ Mapare (vocabular existent al gate-ului):
   providers       <- integritate document (IBAN/coerență); fără threat-intel web în PR2
   resolution      <- not_required (oferta nu cere rezolvare URL în PR2)
 
-Filosofia verdictului (neclintită): PERICULOS = COMBINAȚIE. Lipsă în registru =
-SUSPECT, nu auto-PERICULOS. CUI valid ≠ ofertă reală. ANAF checked=False = UNKNOWN
-(nu coboară la SIGUR, nu urcă la PERICULOS). Niciodată „100% safe". Determinist:
+Filosofia verdictului (neclintită): DANGEROUS = COMBINAȚIE. Lipsă în registru =
+SUSPECT, nu auto-DANGEROUS. CUI valid ≠ ofertă reală. ANAF checked=False = UNKNOWN
+(nu coboară la SAFE, nu urcă la DANGEROUS). Niciodată „100% safe". Determinist:
 aceleași fapte → același verdict.
 """
 from __future__ import annotations
@@ -38,8 +38,8 @@ _OFFICIAL_PLATFORMS = {
 _FAMILY_CONF_FLOOR = 0.35
 
 # Context de tranzacție (plată / contract / credit / rezervare). Fără el, o cerere
-# sensibilă (ex. CI/CNP singur) NU e pe canal greșit → rămâne SUSPECT, nu PERICULOS.
-# PERICULOS apare DOAR în combinație: sensibil hard + context (canal greșit).
+# sensibilă (ex. CI/CNP singur) NU e pe canal greșit → rămâne SUSPECT, nu DANGEROUS.
+# DANGEROUS apare DOAR în combinație: sensibil hard + context (canal greșit).
 _PAYMENT_CONTEXT = re.compile(
     r"\b(plat[ăaiț]|pl[ăa]te[șs]?t?e?|avans|transfer|factur|proform|contract|credit|"
     r"[îi]mprumut|rezervar|garan[țt]i|depozit|abonament|iban|cont(?:ul)?\b)",
@@ -111,7 +111,7 @@ def _registry_no_match_alert(
     registry_results: List[RegistryVerificationResult], entity: OfferEntityResult
 ) -> bool:
     """NO_MATCH dintr-un registru consultat, pentru o entitate care pretinde firmă,
-    NEconfirmată de ANAF. Doar contribuie la semantic_review; PERICULOS apare numai
+    NEconfirmată de ANAF. Doar contribuie la semantic_review; DANGEROUS apare numai
     în combinație (plată + canal riscant), prin reduce_verdict. Dacă ANAF (sursă
     live, mai puternică) a confirmat firma, un snapshot incomplet nu o subminează.
     """

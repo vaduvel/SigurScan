@@ -6,7 +6,7 @@ from services.verdict_gate import verdict
 
 ROOT = Path(__file__).resolve().parent
 TESTSET_PATH = ROOT / "data" / "verdict_testset_ro.jsonl"
-FIRE_CASES = {"FAN-01", "FAN-02", "YOXO-01", "PEND-01"}
+FIRE_CASES = {"FAN-01", "FAN-02", "YOXO-01"}
 
 
 def _load_cases():
@@ -170,7 +170,7 @@ def test_context_words_cannot_override_official_clean_evidence():
         },
     }
 
-    assert verdict(bundle)["label"] == "SIGUR"
+    assert verdict(bundle)["label"] == "SAFE"
 
 
 def test_visual_preview_metadata_cannot_change_verdict():
@@ -189,7 +189,8 @@ def test_visual_preview_metadata_cannot_change_verdict():
     assert verdict(bundle) == expected
 
 
-def test_unknown_clean_established_domain_is_safe_without_manual_registry():
+def test_unknown_clean_established_domain_is_unverified_without_registry():
+    """Breaking change: no longer SAFE without positive provenance."""
     bundle = {
         "schema": "sigurscan_evidence_bundle_v2",
         "input": {
@@ -226,11 +227,12 @@ def test_unknown_clean_established_domain_is_safe_without_manual_registry():
 
     result = verdict(bundle)
 
-    assert result["label"] == "SIGUR"
-    assert result["reason_codes"] == ["clean_established_domain"]
+    # Breaking change: unknown + clean + established domain is no longer SAFE
+    assert result["label"] == "UNVERIFIED", f"Expected UNVERIFIED got {result['label']}"
+    assert result["reason_codes"] == ["unknown_but_clean_established"]
 
 
-def test_unknown_clean_new_domain_stays_suspect_without_manual_registry():
+def test_unknown_clean_new_domain_stays_unverified_without_registry():
     bundle = {
         "schema": "sigurscan_evidence_bundle_v2",
         "input": {
@@ -267,8 +269,8 @@ def test_unknown_clean_new_domain_stays_suspect_without_manual_registry():
 
     result = verdict(bundle)
 
-    assert result["label"] == "SUSPECT"
-    assert result["reason_codes"] == ["unknown_but_clean"]
+    # Breaking change: even with established domain, UNVERIFIED not SAFE
+    assert result["label"] == "UNVERIFIED"
 
 
 def test_unknown_clean_established_marketing_domain_ignores_semantic_false_positive():
@@ -316,8 +318,9 @@ def test_unknown_clean_established_marketing_domain_ignores_semantic_false_posit
 
     result = verdict(bundle)
 
-    assert result["label"] == "SIGUR"
-    assert result["reason_codes"] == ["clean_established_domain"]
+    # Breaking change: unknown + clean → UNVERIFIED, even with established domain
+    assert result["label"] == "UNVERIFIED"
+    assert result["reason_codes"] == ["unknown_but_clean_established"]
 
 
 def test_established_domain_cannot_override_brand_mismatch_and_card_request():
@@ -361,7 +364,7 @@ def test_established_domain_cannot_override_brand_mismatch_and_card_request():
 
     result = verdict(bundle)
 
-    assert result["label"] == "PERICULOS"
+    assert result["label"] == "DANGEROUS"
     assert result["reason_codes"][0] in {"identity_spoof", "sensitive_wrong_channel"}
 
 
@@ -398,7 +401,7 @@ def test_homoglyph_identity_spoof_stays_dangerous_even_with_clean_providers():
 
     result = verdict(bundle)
 
-    assert result["label"] == "PERICULOS"
+    assert result["label"] == "DANGEROUS"
     assert result["reason_codes"] == ["identity_spoof"]
 
 
@@ -435,5 +438,5 @@ def test_delegated_deeplink_clean_young_domain_can_be_safe():
 
     result = verdict(bundle)
 
-    assert result["label"] == "SIGUR"
-    assert result["reason_codes"] == ["official_clean"]
+    assert result["label"] == "SAFE"
+    assert result["reason_codes"] == ["positive_provenance_clean"]

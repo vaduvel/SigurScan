@@ -218,7 +218,7 @@ class TestVerdictRules:
             "SC Firma Necunoscuta SRL ofera servicii",
             registry_results=[_registry(status=RegistryStatus.NO_MATCH)],
         )
-        assert out["gate"]["label"] != "PERICULOS"
+        assert out["gate"]["label"] != "DANGEROUS"
 
     @pytest.mark.asyncio
     async def test_match_solo_is_not_sigur(self):
@@ -226,7 +226,7 @@ class TestVerdictRules:
             "SC Firma SRL ofera servicii",
             registry_results=[_registry(status=RegistryStatus.MATCH, confidence=0.95, matched="FIRMA S.R.L.")],
         )
-        assert out["gate"]["label"] != "SIGUR"
+        assert out["gate"]["label"] != "SAFE"
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("status", [
@@ -240,7 +240,7 @@ class TestVerdictRules:
             "SC Firma SRL ofera servicii",
             registry_results=[_registry(status=status, checked=False, confidence=0.0)],
         )
-        assert out["gate"]["label"] != "SIGUR"
+        assert out["gate"]["label"] != "SAFE"
 
     @pytest.mark.asyncio
     async def test_no_match_plus_payment_escalates_via_gate(self):
@@ -252,17 +252,18 @@ class TestVerdictRules:
             cui_result=_cui(checked=False, exists=False, denumire=None),
             registry_results=[_registry(status=RegistryStatus.NO_MATCH)],
         )
-        assert out["gate"]["label"] == "PERICULOS"
+        assert out["gate"]["label"] == "DANGEROUS"
 
     @pytest.mark.asyncio
-    async def test_no_match_without_payment_stays_suspect(self):
+    async def test_no_match_without_payment_stays_unverified(self):
+        """Breaking change: registry unknown → UNVERIFIED, not SUSPECT."""
         text = "SC Ghost Travel SRL\nCUI: 99999999\nOferta speciala vacanta"
         out = await _verdict(
             text,
             cui_result=_cui(checked=False, exists=False, denumire=None),
             registry_results=[_registry(status=RegistryStatus.NO_MATCH)],
         )
-        assert out["gate"]["label"] == "SUSPECT"
+        assert out["gate"]["label"] == "UNVERIFIED"
 
     @pytest.mark.asyncio
     async def test_anaf_confirmed_not_undermined_by_registry_no_match(self):
@@ -277,7 +278,7 @@ class TestVerdictRules:
             cui_result=_cui(exists=True, activ=True, denumire="ENEL ENERGIE SA"),
             registry_results=[_registry(status=RegistryStatus.NO_MATCH)],
         )
-        assert out["gate"]["label"] == "SIGUR"
+        assert out["gate"]["label"] == "SAFE"
 
     @pytest.mark.asyncio
     async def test_registry_evidence_lands_in_bundle(self):

@@ -44,20 +44,20 @@ except Exception:  # pragma: no cover - optional local dependency
 
 
 ACTION_TO_USER_STATUS = {
-    "CONTINUE_WITH_CAUTION": "SIGUR",
-    "DO_NOT_CONTINUE": "PERICULOS",
-    "NO_ENTER_DATA": "PERICULOS",
-    "NO_REPLY": "PERICULOS",
+    "CONTINUE_WITH_CAUTION": "SAFE",
+    "DO_NOT_CONTINUE": "DANGEROUS",
+    "NO_ENTER_DATA": "DANGEROUS",
+    "NO_REPLY": "DANGEROUS",
     "VERIFY_OFFICIAL": "SUSPECT",
     "INSUFFICIENT_EVIDENCE": "SUSPECT",
 }
 
 SEVERITY_TO_USER_STATUS = {
-    "NEUTRAL": "SIGUR",
+    "NEUTRAL": "SAFE",
     "CAUTION": "SUSPECT",
     "UNKNOWN": "SUSPECT",
     "WARNING": "SUSPECT",
-    "DANGER": "PERICULOS",
+    "DANGER": "DANGEROUS",
 }
 
 
@@ -450,9 +450,9 @@ def _infer_offer_status(case: Dict[str, Any], expected_status: str, resolved_url
     if not resolved_urls:
         return "skipped"
     truth = case.get("groundTruthIsScam")
-    if truth is False or expected_status == "SIGUR":
+    if truth is False or expected_status == "SAFE":
         return "confirmed"
-    if truth is True or expected_status == "PERICULOS":
+    if truth is True or expected_status == "DANGEROUS":
         return "not_found"
     return "inconclusive"
 
@@ -474,10 +474,10 @@ def _expected_user_status(case: Dict[str, Any]) -> str:
 def _actual_user_status(analysis: Dict[str, Any]) -> str:
     risk_level = str(analysis.get("risk_level") or "").lower()
     if risk_level in {"critical", "dangerous", "high"}:
-        return "PERICULOS"
+        return "DANGEROUS"
     if risk_level in {"medium", "warning", "unknown", "pending"}:
         return "SUSPECT"
-    return "SIGUR"
+    return "SAFE"
 
 
 def _run_case(pack_root: Path, case: Dict[str, Any]) -> Dict[str, Any]:
@@ -565,15 +565,15 @@ def _build_metrics(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     false_positive_guards_failed = [
         row for row in failures
-        if row.get("ground_truth_is_scam") is False and row["actual_status"] == "PERICULOS"
+        if row.get("ground_truth_is_scam") is False and row["actual_status"] == "DANGEROUS"
     ]
     false_negatives = [
         row for row in failures
-        if row.get("ground_truth_is_scam") is True and row["actual_status"] != "PERICULOS"
+        if row.get("ground_truth_is_scam") is True and row["actual_status"] != "DANGEROUS"
     ]
-    dangerous_expected = [row for row in rows if row["expected_status"] == "PERICULOS"]
-    dangerous_predicted = [row for row in rows if row["actual_status"] == "PERICULOS"]
-    true_dangerous = [row for row in rows if row["expected_status"] == "PERICULOS" and row["actual_status"] == "PERICULOS"]
+    dangerous_expected = [row for row in rows if row["expected_status"] == "DANGEROUS"]
+    dangerous_predicted = [row for row in rows if row["actual_status"] == "DANGEROUS"]
+    true_dangerous = [row for row in rows if row["expected_status"] == "DANGEROUS" and row["actual_status"] == "DANGEROUS"]
     precision = len(true_dangerous) / len(dangerous_predicted) if dangerous_predicted else 0.0
     recall = len(true_dangerous) / len(dangerous_expected) if dangerous_expected else 0.0
     f1 = (2 * precision * recall / (precision + recall)) if precision + recall else 0.0
@@ -602,10 +602,10 @@ def run_pack(pack_root: Path, *, max_cases: Optional[int] = None) -> Dict[str, A
     return {
         "pack": str(pack_root),
         "mapping": {
-            "CONTINUE_WITH_CAUTION": "SIGUR",
-            "DO_NOT_CONTINUE": "PERICULOS",
-            "NO_ENTER_DATA": "PERICULOS",
-            "NO_REPLY": "PERICULOS",
+            "CONTINUE_WITH_CAUTION": "SAFE",
+            "DO_NOT_CONTINUE": "DANGEROUS",
+            "NO_ENTER_DATA": "DANGEROUS",
+            "NO_REPLY": "DANGEROUS",
             "VERIFY_OFFICIAL": "SUSPECT",
             "INSUFFICIENT_EVIDENCE": "SUSPECT",
         },

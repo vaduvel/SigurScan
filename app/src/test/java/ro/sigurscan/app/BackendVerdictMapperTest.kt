@@ -10,7 +10,7 @@ class BackendVerdictMapperTest {
     fun finalBackendLabelsRemainAuthoritativeOnAndroid() {
         assertEquals(
             GateAction.CONTINUE_WITH_CAUTION,
-            backendGateResult(scanResponse(label = "SIGUR", riskLevel = "low")).action
+            backendGateResult(scanResponse(label = "SAFE", riskLevel = "low")).action
         )
         assertEquals(
             GateAction.VERIFY_OFFICIAL,
@@ -18,14 +18,14 @@ class BackendVerdictMapperTest {
         )
         assertEquals(
             GateAction.DO_NOT_CONTINUE,
-            backendGateResult(scanResponse(label = "PERICULOS", riskLevel = "high")).action
+            backendGateResult(scanResponse(label = "DANGEROUS", riskLevel = "high")).action
         )
     }
 
     @Test
     fun nonFinalBackendResultNeverShowsAProvisionalVerdict() {
         val result = backendGateResult(
-            scanResponse(label = "SIGUR", riskLevel = "low", isFinal = false)
+            scanResponse(label = "SAFE", riskLevel = "low", isFinal = false)
         )
 
         assertEquals(GateAction.INSUFFICIENT_EVIDENCE, result.action)
@@ -55,7 +55,7 @@ class BackendVerdictMapperTest {
             OrchestratedScanResponse(
                 scanId = "orch-final",
                 status = "complete",
-                result = scanResponse(label = "PERICULOS", riskLevel = "high", isFinal = true)
+                result = scanResponse(label = "DANGEROUS", riskLevel = "high", isFinal = true)
             )
         )
 

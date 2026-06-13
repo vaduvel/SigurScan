@@ -122,9 +122,9 @@ class TestAsyncNonBlocking:
             monkeypatch, claim_payload=_claim("inconclusive", severity="high"), polls_after_result=3
         )
         assert first_risk == "medium"
-        assert payload["result"]["risk_level"] == "high"  # SUSPECT -> PERICULOS (doar în sus)
+        assert payload["result"]["risk_level"] == "high"  # SUSPECT -> DANGEROUS (doar în sus)
         gate = job["analysis"]["evidence"]["verdict_gate"]
-        assert gate["label"] == "PERICULOS"
+        assert gate["label"] == "DANGEROUS"
         assert gate["reason_codes"] == ["provider_malicious"]  # prin reduce_verdict, nu alt motor
 
     def test_without_gemini_key_skipped_no_enrichment(self, monkeypatch):

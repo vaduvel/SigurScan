@@ -3,21 +3,21 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 
-USER_LABELS = {"SIGUR", "SUSPECT", "PERICULOS"}
-INTERNAL_LABELS = USER_LABELS | {"PENDING"}
+INTERNAL_LABELS = {"DANGEROUS", "SUSPECT", "UNVERIFIED", "SAFE"}
+USER_LABELS = {"DANGEROUS", "SUSPECT", "UNVERIFIED", "SAFE"}
 
-# id_document = cerere CI/CNP/buletin/selfie (ruta ofertă, OP-07 furt de identitate).
-# Tratat ca cerere sensibilă hard: pe canal greșit -> PERICULOS, ca restul.
 HARD_SENSITIVE_REQUESTS = {"card", "otp", "password", "crypto", "remote", "id_document"}
 MONEY_OR_VALUE_REQUESTS = {"transfer"}
-WRONG_CHANNELS = {"reply", "whatsapp", "unofficial_site", "phone"}
+WRONG_CHANNELS = {"reply", "whatsapp", "unofficial_site", "phone", "sms"}
 BAD_IDENTITY = {"lookalike", "unrelated"}
-TRUSTED_IDENTITY = {"official", "delegated", "coherent"}
+TRUSTED_IDENTITY = {"official", "delegated", "coherent", "official_match"}
 PROVIDER_MALICIOUS = {"malicious", "phishing", "malware", "dangerous", "blacklisted"}
 PROVIDER_CLEAN = {"clean", "no_match", "safe"}
-PENDING_VALUES = {"pending", "running", "queued", "scanning"}
+PROVIDER_ERROR = {"error"}
+PROVIDER_PENDING = {"pending", "running", "queued", "scanning"}
 INCOMPLETE_RESOLUTION = {"failed", "partial", "pending", "unknown", ""}
 ESTABLISHED_DOMAIN_AGE_DAYS = 365
+CAMPAIGN_MATCH_HIGH_CONFIDENCE_THRESHOLD = 0.82
 
 
 def _section(bundle: Dict[str, Any], name: str) -> Dict[str, Any]:
@@ -33,27 +33,32 @@ def _bool(value: Any) -> bool:
     return bool(value) if value is not None else False
 
 
-def _result(label: str, reason_codes: List[str], *, confidence: int | None = None) -> Dict[str, Any]:
-    label = label if label in INTERNAL_LABELS else "SUSPECT"
+def _result(
+    label: str,
+    reason_codes: List[str],
+    *,
+    confidence: int | None = None,
+) -> Dict[str, Any]:
+    label = label if label in INTERNAL_LABELS else "UNVERIFIED"
     risk_level = {
-        "SIGUR": "low",
+        "SAFE": "low",
+        "UNVERIFIED": "info",
         "SUSPECT": "medium",
-        "PERICULOS": "high",
-        "PENDING": "pending",
+        "DANGEROUS": "high",
     }[label]
     risk_score = {
-        "SIGUR": 10,
+        "SAFE": 10,
+        "UNVERIFIED": 25,
         "SUSPECT": 55,
-        "PERICULOS": 90,
-        "PENDING": 0,
+        "DANGEROUS": 90,
     }[label]
     return {
         "label": label,
         "risk_level": risk_level,
         "risk_score": risk_score,
         "reason_codes": reason_codes,
-        "confidence": confidence if confidence is not None else (0 if label == "PENDING" else 80),
-        "is_final": label != "PENDING",
+        "confidence": confidence if confidence is not None else (60 if label == "UNVERIFIED" else 80),
+        "is_final": label != "UNVERIFIED",
     }
 
 
@@ -62,11 +67,9 @@ def _providers_verdict(providers: Dict[str, Any]) -> str:
     if value:
         return value
 
-    # Backward-compatible adapter for provider summaries that have per-source
-    # entries but no normalized aggregate verdict yet.
     saw_clean = False
     saw_pending = False
-    saw_unknown = False
+    saw_error = False
     for key, raw in providers.items():
         if key in {"hits", "completeness"} or not isinstance(raw, dict):
             continue
@@ -74,15 +77,18 @@ def _providers_verdict(providers: Dict[str, Any]) -> str:
         severity = _norm(raw.get("severity"))
         if source_status in PROVIDER_MALICIOUS or severity == "high":
             return "malicious"
-        if source_status in PENDING_VALUES:
+        if source_status in PROVIDER_PENDING:
             saw_pending = True
+        elif source_status in PROVIDER_ERROR:
+            saw_error = True
         elif source_status in PROVIDER_CLEAN:
             saw_clean = True
-        else:
-            saw_unknown = True
+
     if saw_pending:
         return "pending"
-    if saw_clean and not saw_unknown:
+    if saw_error and not saw_clean:
+        return "error"
+    if saw_clean and not saw_error:
         return "clean"
     return "unknown"
 
@@ -131,22 +137,69 @@ def _domain_is_young(identity: Dict[str, Any]) -> bool:
 
 def _has_impersonated_brand(identity: Dict[str, Any]) -> bool:
     status = _norm(identity.get("status"))
-    return status in {"lookalike", "unrelated"}
+    return status in {"lookalike", "unrelated", "mismatch"}
+
+
+def _has_positive_provenance(identity: Dict[str, Any], provenance: Dict[str, Any]) -> bool:
+    """SAFE requires positive provenance match.
+    
+    A message can prove it comes from the claimed entity via:
+    - TRUSTED_IDENTITY status (official/delegated/coherent/official_match) from BTR
+    - provenance.official_domain_match == True
+    - provenance.official_email_match == True
+    - provenance.official_shortcode_match == True
+    - provenance.official_phone_match == True
+    """
+    identity_status = _norm(identity.get("status"))
+    if identity_status in TRUSTED_IDENTITY:
+        return True
+    if _bool(provenance.get("official_domain_match")):
+        return True
+    if _bool(provenance.get("official_email_match")):
+        return True
+    if _bool(provenance.get("official_shortcode_match")):
+        return True
+    if _bool(provenance.get("official_phone_match")):
+        return True
+    return False
+
+
+def _campaign_match_high_enough(campaign: Dict[str, Any]) -> bool:
+    """Campaign fingerprint match solo -> max SUSPECT."""
+    status = _norm(campaign.get("status"))
+    if status != "match":
+        return False
+    try:
+        confidence = float(campaign.get("confidence") or 0.0)
+    except (TypeError, ValueError):
+        confidence = 0.0
+    return confidence >= CAMPAIGN_MATCH_HIGH_CONFIDENCE_THRESHOLD
+
+
+def _has_violated_never_asks(identity: Dict[str, Any]) -> List[str]:
+    return identity.get("violated_never_asks") or []
+
+
+def _has_violated_never_does(identity: Dict[str, Any]) -> List[str]:
+    return identity.get("violated_never_does") or []
 
 
 def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
-    """Pure SigurScan verdict reducer.
+    """EvidenceGate unic — 4 stări.
 
-    This function is deliberately boring: no network, no file I/O, no regex over
-    raw text, and no dependency on legacy scores. It only reads the normalized
-    Evidence Bundle v2 produced by the pillars.
+    Determinist, auditabil. AI/LLM/conversație = medium maximum, nu pot produce
+    singure DANGEROUS sau SAFE.
+
+    safe_requires: positive_provenance_match
+    default_when_no_signal: UNVERIFIED
     """
-
     resolution = _section(bundle, "resolution")
     providers = _section(bundle, "providers")
     identity = _section(bundle, "identity")
     request = _section(bundle, "request")
     semantic = _section(bundle, "semantic_review")
+    provenance = _section(bundle, "provenance")
+    campaign = _section(bundle, "campaign_match")
 
     provider_verdict = _providers_verdict(providers)
     identity_status = _norm(identity.get("status") or "unknown")
@@ -159,84 +212,104 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
     hard_sensitive = sensitive in HARD_SENSITIVE_REQUESTS
     value_sensitive = sensitive in MONEY_OR_VALUE_REQUESTS
     wrong_channel = channel in WRONG_CHANNELS
+    has_provenance = _has_positive_provenance(identity, provenance)
+    campaign_high = _campaign_match_high_enough(campaign)
+    violated_never_asks = _has_violated_never_asks(identity)
+    violated_never_does = _has_violated_never_does(identity)
+    provider_is_error = provider_verdict in PROVIDER_ERROR
 
-    # 1. Hard external evidence wins.
+    # ─── Rule 1: Hard external evidence wins ────────────────────────────────
     if provider_verdict in PROVIDER_MALICIOUS:
-        return _result("PERICULOS", ["provider_malicious"], confidence=95)
+        return _result("DANGEROUS", ["provider_malicious"], confidence=95)
 
-    # 2. Clear impersonation plus dangerous request or suspicious TLD.
-    if identity_status in BAD_IDENTITY and (tld_suspicious or hard_sensitive):
-        return _result("PERICULOS", ["identity_spoof"], confidence=90)
+    # ─── Rule 2: BTR mismatch + sensitive request ───────────────────────────
+    if identity_status in BAD_IDENTITY and (hard_sensitive or value_sensitive or tld_suspicious):
+        return _result("DANGEROUS", ["identity_spoof"], confidence=90)
 
-    # NOTE: rdap_inexistent is intentionally NOT a terminal rule. rdap.org
-    # returns 404 both for non-existent domains and for TLDs it cannot route
-    # (.ro/ROTLD is weakly federated), so a hard PERICULOS here would flag
-    # every legitimate .ro domain. It stays a weighted signal only
-    # (domain_risk_from_signals adds +60).
-
-    # 2b. Deterministic combo: young domain (<30d) + invalid SSL + impersonated
-    # brand → PERICULOS without any urlscan/LLM (FN=0 guard).
+    # ─── Rule 2b: Determinist combo ────────────────────────────────────────
     if (
         _domain_is_young(identity)
         and identity.get("ssl_invalid")
         and _has_impersonated_brand(identity)
     ):
-        return _result("PERICULOS", ["young_domain_invalid_ssl_impersonation"], confidence=92)
+        return _result(
+            "DANGEROUS",
+            ["young_domain_invalid_ssl_impersonation"],
+            confidence=92,
+        )
 
-    # 3. Sensitive credential/card/remote/crypto asks on wrong channels are hard
-    # danger. Money-transfer asks are contextual and need semantic severity.
+    # ─── Rule 2c: Person manifest "never_does" violated ────────────────────
+    if violated_never_does:
+        reason_codes = [f"never_does_violated:{v}" for v in violated_never_does]
+        return _result("DANGEROUS", reason_codes, confidence=94)
+
+    # ─── Rule 2d: BTR "never_asks" violated on wrong channel ───────────────
+    if violated_never_asks and wrong_channel:
+        reason_codes = [f"never_asks_violated:{v}" for v in violated_never_asks]
+        return _result("DANGEROUS", reason_codes, confidence=92)
+
+    # ─── Rule 2e: Whitelist violation in combo with sensitive ──────────────
+    # (whitelist official domain violated would come via identity_status mismatch)
+
+    # ─── Rule 3: Sensitive on wrong channel ─────────────────────────────────
     if hard_sensitive and wrong_channel:
-        return _result("PERICULOS", ["sensitive_wrong_channel"], confidence=90)
+        return _result("DANGEROUS", ["sensitive_wrong_channel"], confidence=90)
     if value_sensitive and wrong_channel and semantic_risk == "high":
-        return _result("PERICULOS", ["semantic_high_value_request"], confidence=88)
-    if identity_status in BAD_IDENTITY and value_sensitive and (semantic_risk == "high" or tld_suspicious):
-        return _result("PERICULOS", ["identity_spoof_value_request"], confidence=88)
+        return _result(
+            "DANGEROUS",
+            ["semantic_high_value_request"],
+            confidence=88,
+        )
+    if identity_status in BAD_IDENTITY and value_sensitive and (
+        semantic_risk == "high" or tld_suspicious
+    ):
+        return _result(
+            "DANGEROUS",
+            ["identity_spoof_value_request"],
+            confidence=88,
+        )
 
-    # 4. Missing required evidence is not guilt. It is internal pending.
+    # ─── Rule 4: Incomplete evidence → UNVERIFIED ──────────────────────────
     if (
         resolution_status in INCOMPLETE_RESOLUTION
-        or provider_verdict in PENDING_VALUES
+        or provider_verdict in PROVIDER_PENDING
         or semantic_status != "done"
         or not _required_completeness(bundle)
     ):
-        return _result("PENDING", ["insufficient_evidence"], confidence=0)
+        return _result("UNVERIFIED", ["insufficient_evidence"], confidence=0)
 
-    # 5. Golden false-positive guard: official/delegated + clean providers +
-    # no hard sensitive ask on wrong channel is safe. Context words cannot undo it.
+    # ─── Rule 5: Provider error blocks SAFE but allows SUSPECT ─────────────
+    # Moved after all DANGEROUS checks but before SAFE.
+    if provider_is_error:
+        return _result("UNVERIFIED", ["provider_error"], confidence=0)
+
+    # ─── Rule 6: Campaign fingerprint match solo → max SUSPECT ────────────
+    if campaign_high and not has_provenance:
+        return _result("SUSPECT", ["campaign_match_only"], confidence=68)
+
+    # ─── Rule 7: Semantic high + sensitive combo ───────────────────────────
+    if semantic_risk == "high" and (hard_sensitive or value_sensitive or identity_status in BAD_IDENTITY):
+        return _result("DANGEROUS", ["semantic_high_risk_match"], confidence=86)
+
+    # ─── Rule 8: SAFE via positive provenance ──────────────────────────────
+    # SAFE requires BTR match + zero sensitive + provider clean + URL final
     if (
-        identity_status in TRUSTED_IDENTITY
+        has_provenance
         and provider_verdict in PROVIDER_CLEAN
         and not (hard_sensitive and wrong_channel)
+        and not violated_never_asks
     ):
-        return _result("SIGUR", ["official_clean"], confidence=92)
+        return _result("SAFE", ["positive_provenance_clean"], confidence=92)
 
-    # Clean providers + an established destination domain + no sensitive ask is
-    # safe enough even when the brand is not in our manual registry. This is the
-    # general false-positive guard for legitimate small businesses and event
-    # campaigns such as hipo.ro.
-    if (
-        identity_status == "unknown"
-        and provider_verdict in PROVIDER_CLEAN
-        and sensitive == "none"
-        and not tld_suspicious
-        and _domain_is_established(identity)
-    ):
-        return _result("SIGUR", ["clean_established_domain"], confidence=86)
-
-    # Semantic similarity is a structured evidence pillar, not free-form text.
-    if semantic_risk == "high" and (hard_sensitive or value_sensitive or identity_status in BAD_IDENTITY):
-        return _result("PERICULOS", ["semantic_high_risk_match"], confidence=86)
-
-    # 6. Zero-day posture: unknown but clean and no sensitive ask stays suspect-low,
-    # not safe and not red-alert.
+    # ─── Rule 9: Unknown provenance + clean → UNVERIFIED (NOT SAFE) ───────
     if identity_status == "unknown" and provider_verdict in PROVIDER_CLEAN and sensitive == "none":
-        return _result("SUSPECT", ["unknown_but_clean"], confidence=62)
+        if _domain_is_established(identity) and not tld_suspicious:
+            return _result("UNVERIFIED", ["unknown_but_clean_established"], confidence=0)
+        return _result("UNVERIFIED", ["unknown_but_clean"], confidence=0)
 
-    # Value transfer without decisive technical/provider evidence is suspicious,
-    # not automatically dangerous. This preserves the product posture for small
-    # merchants/charity/family cases while still warning the user.
-    if value_sensitive:
+    # ─── Rule 10: Value transfer without decisive evidence → SUSPECT ───────
+    if value_sensitive and not has_provenance:
         return _result("SUSPECT", ["value_request_needs_verification"], confidence=70)
 
-    # 7. Residual uncertainty.
-    return _result("SUSPECT", ["residual"], confidence=65)
+    # ─── Rule 11: Residual ────────────────────────────────────────────────
+    return _result("UNVERIFIED", ["residual"], confidence=60)

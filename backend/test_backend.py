@@ -1236,10 +1236,10 @@ def test_provider_gate_keeps_official_destination_partial_until_all_pillars_comp
 
     result = _apply_provider_gate_verdict(analysis, resolved_urls)
 
-    assert result["risk_level"] == "pending"
-    assert result["risk_score"] == 0
+    assert result["risk_level"] == "info"
+    assert result["risk_score"] == 25
     assert result["detected_family_id"] == "provider-gate-pending"
-    assert result["evidence"]["verdict_gate"]["label"] == "PENDING"
+    assert result["evidence"]["verdict_gate"]["label"] == "UNVERIFIED"
     assert result["evidence"]["provider_gate"]["consulted_count"] == 2
     assert result["evidence"]["provider_gate"]["official_destination"] is True
     assert result["evidence"]["provider_gate"]["urlscan_consulted"] is False
@@ -1317,7 +1317,7 @@ def test_provider_gate_marks_clean_first_party_domain_claim_as_low_risk():
     )
 
     assert result["risk_level"] == "low"
-    assert result["evidence"]["verdict_gate"]["label"] == "SIGUR"
+    assert result["evidence"]["verdict_gate"]["label"] == "SAFE"
     assert result["evidence"]["decision_bundle"]["identity"]["status"] == "coherent"
 
 
@@ -1359,7 +1359,7 @@ def test_provider_gate_does_not_trust_brand_like_compound_domain_claim():
         raw_text="FAN Courier: coletul are taxa de livrare. Reprogrameaza la https://fancurier-relivrare.com/plata",
     )
 
-    assert result["evidence"]["verdict_gate"]["label"] != "SIGUR"
+    assert result["evidence"]["verdict_gate"]["label"] != "SAFE"
     assert result["evidence"]["decision_bundle"]["identity"]["status"] == "unknown"
 
 
@@ -1401,7 +1401,7 @@ def test_provider_gate_marks_clean_shortener_to_named_first_party_domain_as_low_
         raw_text="La Cetelem ai chiar azi un credit cu dobanda fixa. Intra pe bit.ly/38EsUAf",
     )
 
-    assert result["evidence"]["verdict_gate"]["label"] == "SIGUR"
+    assert result["evidence"]["verdict_gate"]["label"] == "SAFE"
     assert result["evidence"]["decision_bundle"]["identity"]["status"] == "coherent"
 
 
@@ -1447,7 +1447,7 @@ def test_provider_gate_exposes_established_domain_as_positive_context():
 
     identity = result["evidence"]["decision_bundle"]["identity"]
     summary = result["evidence"]["external_intel_summary"]
-    assert result["evidence"]["verdict_gate"]["label"] == "SIGUR"
+    assert result["evidence"]["verdict_gate"]["label"] == "SAFE"
     assert identity["status"] == "coherent"
     assert identity["domain_age_days"] == 2400
     assert identity["domain_reputation"] == "established"
@@ -1490,7 +1490,7 @@ def test_provider_gate_banking_safety_warning_with_phone_and_otp_is_not_high_ris
     decision_bundle = result["evidence"]["decision_bundle"]
     assert provider_gate["direct_sensitive_request"] is False
     assert decision_bundle["request"]["sensitive"] == "none"
-    assert result["evidence"]["verdict_gate"]["label"] in {"SIGUR", "SUSPECT"}
+    assert result["evidence"]["verdict_gate"]["label"] in {"SAFE", "SUSPECT", "UNVERIFIED"}
 
 
 def test_provider_gate_multi_url_official_lure_does_not_mask_phishing_link():
@@ -1561,7 +1561,7 @@ def test_provider_gate_multi_url_official_lure_does_not_mask_phishing_link():
     result = _apply_provider_gate_verdict(analysis, resolved_urls, raw_text=text, pillars=pillars)
 
     assert result["risk_level"] == "high"
-    assert result["evidence"]["verdict_gate"]["label"] == "PERICULOS"
+    assert result["evidence"]["verdict_gate"]["label"] == "DANGEROUS"
     assert result["evidence"]["decision_bundle"]["identity"]["status"] in {"lookalike", "unrelated"}
     assert result["evidence"]["provider_gate"]["official_destination"] is False
 
@@ -1606,7 +1606,7 @@ def test_provider_gate_does_not_mark_new_first_party_domain_as_low_risk():
         raw_text="Promo Helpnet: inscrie-te pe promohelpnet.ro/campanie",
     )
 
-    assert result["evidence"]["verdict_gate"]["label"] == "SUSPECT"
+    assert result["evidence"]["verdict_gate"]["label"] == "UNVERIFIED"
     assert result["evidence"]["decision_bundle"]["identity"]["status"] == "unknown"
 
 
@@ -1648,7 +1648,7 @@ def test_provider_gate_does_not_mark_url_only_unknown_clean_domain_as_low_risk()
         raw_text="Inscrie-te aici: https://www.hipo.ro/ADT_TM",
     )
 
-    assert result["evidence"]["verdict_gate"]["label"] == "SUSPECT"
+    assert result["evidence"]["verdict_gate"]["label"] == "UNVERIFIED"
     assert result["evidence"]["decision_bundle"]["identity"]["status"] == "unknown"
 
 
@@ -2882,7 +2882,7 @@ def test_orchestrated_status_stays_complete_when_final_verdict_exists_and_previe
         "resolved_urls": [{"final_url": "https://example.com"}],
         "primary_final_url": "https://example.com",
         "analysis": {},
-        "result": {"is_final": True, "user_risk_label": "SIGUR"},
+        "result": {"is_final": True, "user_risk_label": "SAFE"},
         "urlscan": {"status": "pending", "uuid": "urlscan-1"},
         "preview": {"final_url": "https://example.com", "report_url": None, "screenshot_url": None},
         "orchestration_metrics": {"poll_count": 1, "stage_sequence": [], "stage_durations_ms": {}},
@@ -3337,13 +3337,13 @@ def test_orchestrated_text_scan_completes_safe_after_urlscan_preview(monkeypatch
     assert payload["status"] == "complete"
     assert payload["pillars"]["urlscan"]["status"] == "ok"
     assert payload["preview"]["screenshot_url"]
-    assert payload["result"]["user_risk_label"] == "SIGUR"
+    assert payload["result"]["user_risk_label"] == "SAFE"
     assert payload["result"]["risk_level"] == "low"
     assert payload["result"]["is_final"] is True
     assert payload["result"]["evidence"]["provider_gate"]["urlscan_consulted"] is True
 
 
-def test_orchestrated_text_only_required_timeout_returns_final_suspect(monkeypatch):
+def test_orchestrated_text_only_required_timeout_returns_no_final_when_unverified(monkeypatch):
     job = {
         "scan_id": "orch_text_only_timeout",
         "created_at": int(time.time()) - app_main.ORCHESTRATED_REQUIRED_PILLAR_TIMEOUT_SECONDS - 1,
@@ -3368,15 +3368,9 @@ def test_orchestrated_text_only_required_timeout_returns_final_suspect(monkeypat
         timed_out = app_main._mark_required_pillars_timeout(job)
         refreshed = asyncio.run(app_main._finalize_orchestrated_job_if_ready(timed_out, None))
 
+    # Gate returns UNVERIFIED, orchestrator pops result to keep polling
+    assert "result" not in refreshed
     assert refreshed["pipeline_stage"] == "done"
-    pillars = app_main._build_orchestrated_pillars(refreshed)
-    assert pillars["semantic_review"]["status"] == "ok"
-    assert refreshed["result"]["user_risk_label"] == "SUSPECT"
-    assert refreshed["result"]["risk_level"] == "medium"
-    assert refreshed["result"]["is_final"] is True
-    gate = refreshed["result"]["evidence"]["verdict_gate"]
-    assert gate["label"] == "SUSPECT"
-    assert gate["reason_codes"] == ["residual"]
 
 
 def test_orchestrated_invoice_finalize_preserves_specialized_invoice_verdict(monkeypatch):
@@ -3391,7 +3385,7 @@ def test_orchestrated_invoice_finalize_preserves_specialized_invoice_verdict(mon
         "evidence_hash": "sha256:test-invoice",
     }
     gate = {
-        "label": "SIGUR",
+        "label": "SAFE",
         "risk_level": "low",
         "risk_score": 10,
         "reason_codes": ["official_clean"],
@@ -3424,7 +3418,7 @@ def test_orchestrated_invoice_finalize_preserves_specialized_invoice_verdict(mon
                 "source_channel": "android_native",
                 "decision_bundle": invoice_bundle,
                 "verdict_gate": gate,
-                "provider_gate": {"label": "SIGUR", "detected_family_id": "invoice"},
+                "provider_gate": {"label": "SAFE", "detected_family_id": "invoice"},
                 "semantic_review": invoice_bundle["semantic_review"],
             },
         },
@@ -3439,8 +3433,8 @@ def test_orchestrated_invoice_finalize_preserves_specialized_invoice_verdict(mon
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
         refreshed = asyncio.run(app_main._finalize_orchestrated_job_if_ready(job, None))
 
-    assert refreshed["analysis"]["evidence"]["verdict_gate"]["label"] == "SIGUR"
-    assert refreshed["result"]["user_risk_label"] == "SIGUR"
+    assert refreshed["analysis"]["evidence"]["verdict_gate"]["label"] == "SAFE"
+    assert refreshed["result"]["user_risk_label"] == "SAFE"
     assert refreshed["result"]["risk_level"] == "low"
     assert refreshed["result"]["is_final"] is True
 
@@ -3472,7 +3466,7 @@ def test_orchestrated_scan_finalizes_when_urlscan_report_exists_but_screenshot_i
     assert payload["status"] == "complete"
     assert "preview" in payload["status_message"].lower()
     assert payload["pillars"]["urlscan"]["status"] == "ok"
-    assert payload["result"]["user_risk_label"] == "SIGUR"
+    assert payload["result"]["user_risk_label"] == "SAFE"
     assert payload["result"]["risk_level"] == "low"
     assert payload["result"]["is_final"] is True
     assert payload["preview"]["screenshot_url"] is None
@@ -3511,7 +3505,7 @@ def test_orchestrated_clean_verdict_submits_preview_before_complete(monkeypatch)
     assert payload["preview"]["report_url"] == "https://urlscan.io/result/urlscan-yoxo-1/"
     assert payload["preview"]["screenshot_url"] is None
     assert with_preview["status"] == "complete"
-    assert with_preview["result"]["user_risk_label"] == "SIGUR"
+    assert with_preview["result"]["user_risk_label"] == "SAFE"
     assert with_preview["pillars"]["urlscan"]["status"] == "error"
     assert with_preview["preview"]["report_url"] == "https://urlscan.io/result/urlscan-yoxo-1/"
     assert with_preview["preview"]["screenshot_url"] is None
@@ -3549,12 +3543,12 @@ def test_orchestrated_urlscan_late_risk_upgrades_provisional_safe_verdict(monkey
     assert provisional["pillars"]["urlscan"]["status"] == "pending"
     assert provisional["preview"]["report_url"] == "https://urlscan.io/result/urlscan-yoxo-1/"
     assert preview_pending["status"] == "complete"
-    assert preview_pending["result"]["user_risk_label"] == "PERICULOS"
+    assert preview_pending["result"]["user_risk_label"] == "DANGEROUS"
     assert preview_pending["pillars"]["urlscan"]["status"] == "ok"
     assert preview_pending["preview"]["report_url"] == "https://urlscan.io/result/urlscan-yoxo-1/"
     assert upgraded["status"] == "complete"
     assert upgraded["pillars"]["urlscan"]["status"] == "ok"
-    assert upgraded["result"]["user_risk_label"] == "PERICULOS"
+    assert upgraded["result"]["user_risk_label"] == "DANGEROUS"
     assert upgraded["result"]["risk_level"] == "high"
     assert upgraded["result"]["is_final"] is True
     assert upgraded["result"]["evidence"]["provider_gate"]["urlscan_consulted"] is True
@@ -3593,7 +3587,7 @@ def test_orchestrated_scan_keeps_clean_verdict_when_urlscan_screenshot_times_out
     assert "captura" in payload["pillars"]["urlscan"]["details"].lower()
     assert payload["preview"]["status"] in {"pending", "unavailable"}
     assert payload["preview"]["reason"] in {"urlscan_screenshot_pending", "urlscan_screenshot_timeout", "urlscan_timeout"}
-    assert payload["result"]["user_risk_label"] == "SIGUR"
+    assert payload["result"]["user_risk_label"] == "SAFE"
     assert payload["result"]["risk_level"] == "low"
     assert payload["result"]["is_final"] is True
 
@@ -3673,7 +3667,7 @@ def test_orchestrated_urlscan_result_poll_does_not_probe_screenshot_same_request
             "screenshot_url": None,
         },
         "extra_fields": {},
-        "result": {"is_final": True, "user_risk_label": "SIGUR", "risk_level": "low"},
+        "result": {"is_final": True, "user_risk_label": "SAFE", "risk_level": "low"},
         "orchestration_metrics": {"poll_count": 0, "stage_sequence": [], "stage_durations_ms": {}},
     }
 
@@ -3773,7 +3767,7 @@ def test_orchestrated_urlscan_result_preserves_ready_fast_preview_until_screensh
             "fast_cache_hit": True,
         },
         "extra_fields": {},
-        "result": {"is_final": True, "user_risk_label": "SIGUR", "risk_level": "low"},
+        "result": {"is_final": True, "user_risk_label": "SAFE", "risk_level": "low"},
         "orchestration_metrics": {"poll_count": 0, "stage_sequence": [], "stage_durations_ms": {}},
     }
 
@@ -4640,7 +4634,7 @@ def test_orchestrated_urlscan_final_url_can_downgrade_stale_structural_danger(mo
         },
         "result": {
             "is_final": True,
-            "user_risk_label": "PERICULOS",
+            "user_risk_label": "DANGEROUS",
             "risk_level": "high",
             "detected_family_id": "provider-gate-decisive-structural-danger",
         },
@@ -4663,7 +4657,7 @@ def test_orchestrated_urlscan_final_url_can_downgrade_stale_structural_danger(mo
         asyncio.run(app_main._finalize_orchestrated_job_if_ready(job, None))
 
     assert job["result"]["is_final"] is True
-    assert job["result"]["user_risk_label"] == "SIGUR"
+    assert job["result"]["user_risk_label"] == "SAFE"
     assert job["result"]["risk_level"] == "low"
     assert job["result"]["detected_family_id"] == "provider-gate-official-clean"
     assert job["result"]["evidence"]["provider_gate"]["official_destination"] is True
@@ -4910,7 +4904,7 @@ def test_shadow_adjudication_payload_summarizes_disagreements_and_feedback(monke
                 "evidence_hash": "sha256:a",
                 "gate": {"label": "SUSPECT", "risk_level": "medium", "risk_score": 50},
                 "shadow": {
-                    "label": "PERICULOS",
+                    "label": "DANGEROUS",
                     "confidence": 0.84,
                     "motiv_ro": "Cere date pe domeniu neoficial.",
                 },
@@ -4996,7 +4990,7 @@ def test_shadow_adjudication_dashboard_renders_minimal_html(monkeypatch):
                         {
                             "scan_id": "scan_a",
                             "gate_label": "SUSPECT",
-                            "shadow_label": "PERICULOS",
+                            "shadow_label": "DANGEROUS",
                             "confidence": 0.84,
                             "reason": "Cere date.",
                         }
@@ -5523,7 +5517,7 @@ def test_orchestrated_yoxo_weak_phishing_database_and_urlscan_prevented_finalize
     assert payload["pillars"]["phishing_database"]["status"] == "ok"
     assert payload["pillars"]["urlscan"]["status"] in {"ok", "not_required"}
     assert payload["preview"]["screenshot_url"] is None
-    assert payload["result"]["user_risk_label"] == "SIGUR"
+    assert payload["result"]["user_risk_label"] == "SAFE"
     assert payload["result"]["risk_level"] == "low"
     assert payload["result"]["detected_family_id"] == "provider-gate-official-clean"
     assert payload["result"]["evidence"]["provider_gate"]["detected_family_id"] == "provider-gate-official-clean"
@@ -5558,7 +5552,7 @@ def test_orchestrated_fan_payment_scam_finalizes_dangerous_when_urlscan_rejects_
     assert payload["pillars"]["phishing_database"]["status"] == "ok"
     assert payload["pillars"]["urlscan"]["status"] == "error"
     assert payload["preview"]["screenshot_url"] is None
-    assert payload["result"]["user_risk_label"] == "PERICULOS"
+    assert payload["result"]["user_risk_label"] == "DANGEROUS"
     assert payload["result"]["risk_level"] == "high"
     assert payload["result"]["detected_family_id"] in {"F04", "IMP-03"}
     assert payload["result"]["evidence"]["provider_gate"]["detected_family_id"] == "provider-gate-decisive-structural-danger"
@@ -5596,19 +5590,19 @@ def test_orchestrated_hard_malicious_provider_finalizes_even_when_urlscan_reject
     assert payload["pillars"]["phishing_database"]["status"] == "ok"
     assert payload["pillars"]["urlscan"]["status"] == "error"
     assert payload["pillars"]["claim_verifier"]["status"] == "not_required"
-    assert payload["result"]["user_risk_label"] == "PERICULOS"
+    assert payload["result"]["user_risk_label"] == "DANGEROUS"
     assert payload["result"]["risk_level"] == "high"
     assert payload["result"]["detected_family_id"] == "provider-gate-bad-provider"
     assert payload["result"]["evidence"]["provider_gate"]["urlscan_consulted"] is False
 
 
 def test_user_risk_level_labels():
-    assert _user_risk_level_label("critical") == "PERICULOS"
-    assert _user_risk_level_label("high") == "PERICULOS"
+    assert _user_risk_level_label("critical") == "DANGEROUS"
+    assert _user_risk_level_label("high") == "DANGEROUS"
     assert _user_risk_level_label("medium") == "SUSPECT"
-    assert _user_risk_level_label("safe") == "SIGUR"
+    assert _user_risk_level_label("safe") == "SAFE"
     assert _user_risk_level_label("suspect") == "SUSPECT"
-    assert _user_risk_level_label("dangerous") == "PERICULOS"
+    assert _user_risk_level_label("dangerous") == "DANGEROUS"
 
 
 def test_user_facing_status_text_and_recommendation():
@@ -5636,7 +5630,7 @@ def test_build_scan_response_exposes_non_technical_status():
     assert payload["user_risk_level"] == "dangerous"
     assert payload["user_risk_text"] == "Periculos"
     assert payload["user_recommended_action"]
-    assert payload["user_risk_label"] == "PERICULOS"
+    assert payload["user_risk_label"] == "DANGEROUS"
 
 
 def test_privacy_policy_is_public_and_discloses_user_initiated_scans(monkeypatch):
@@ -7302,7 +7296,7 @@ def test_evidence_bundle_is_stable_and_privacy_safe():
             "success": True,
         }
     ]
-    scan_payload = {"risk_level": "low", "risk_score": 10, "user_risk_label": "SIGUR"}
+    scan_payload = {"risk_level": "low", "risk_score": 10, "user_risk_label": "SAFE"}
 
     first = build_evidence_bundle(
         input_type="text",
@@ -7334,7 +7328,7 @@ def test_adjudication_validator_rejects_invented_danger():
         "gate": {"detected_family_id": "provider-gate-official-clean"},
     }
     llm = {
-        "label": "PERICULOS",
+        "label": "DANGEROUS",
         "confidence": 0.91,
         "motiv_ro": "Pare periculos.",
         "evidence_used": ["providers.google_web_risk", "brand.official_destination"],
@@ -7352,7 +7346,7 @@ def test_adjudication_validator_enforces_hard_provider_floor():
         "gate": {"detected_family_id": "provider-gate-bad-provider"},
     }
     llm = {
-        "label": "SIGUR",
+        "label": "SAFE",
         "confidence": 0.7,
         "motiv_ro": "Pare ok.",
         "evidence_used": ["providers.urlscan"],
@@ -7360,12 +7354,12 @@ def test_adjudication_validator_enforces_hard_provider_floor():
 
     guarded = validate_and_guard(llm, evidence)
     assert guarded is not None
-    assert guarded["label"] == "PERICULOS"
+    assert guarded["label"] == "DANGEROUS"
 
 
 def test_shadow_adjudicator_only_targets_ambiguous_cases():
-    safe = {"gate": {"user_risk_label": "SIGUR", "detected_family_id": "provider-gate-official-clean"}}
-    dangerous = {"gate": {"user_risk_label": "PERICULOS", "detected_family_id": "provider-gate-bad-provider"}}
+    safe = {"gate": {"user_risk_label": "SAFE", "detected_family_id": "provider-gate-official-clean"}}
+    dangerous = {"gate": {"user_risk_label": "DANGEROUS", "detected_family_id": "provider-gate-bad-provider"}}
     suspect = {"gate": {"user_risk_label": "SUSPECT", "detected_family_id": "provider-gate-unofficial-inconclusive"}}
 
     assert is_ambiguous(safe) is False
@@ -8245,7 +8239,7 @@ def test_gemini_explainer_error_does_not_block_verdict():
     }
 
     result = verdict_gate.verdict(bundle)
-    assert result["label"] in {"SIGUR", "SUSPECT", "PERICULOS", "PENDING"}
+    assert result["label"] in {"SAFE", "SUSPECT", "DANGEROUS", "UNVERIFIED"}
     # Fallback explanation should work independently
     fallback = generate_fallback_explanation("test", {"risk_level": "low", "claimed_brand": "Test"})
     assert "verdict_summary" in fallback

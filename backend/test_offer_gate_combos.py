@@ -51,35 +51,35 @@ class TestPericulosCombos:
     @pytest.mark.asyncio
     async def test_crypto_payment(self):
         out = await _run("Plătește avansul în crypto wallet USDT pentru rezervare")
-        assert out["gate"]["label"] == "PERICULOS"
+        assert out["gate"]["label"] == "DANGEROUS"
 
     @pytest.mark.asyncio
     async def test_card_cvv_off_platform(self):
         out = await _run("Hai pe WhatsApp; introdu datele cardului și codul CVV ca să primești banii")
-        assert out["gate"]["label"] == "PERICULOS"
+        assert out["gate"]["label"] == "DANGEROUS"
 
     @pytest.mark.asyncio
     async def test_id_document_request(self):
         out = await _run("Trimite o poză cu buletinul și CNP-ul ca să pregătesc contractul, plus avans")
-        assert out["gate"]["label"] == "PERICULOS"
+        assert out["gate"]["label"] == "DANGEROUS"
 
     @pytest.mark.asyncio
     async def test_cui_inexistent_claims_company_payment(self):
         text = "SC Ghost Travel SRL\nCUI: 99999999\nPlătește avans în contul IBAN RO33RNCB1234567890123456"
         out = await _run(text, cui_result=_cui(exists=False, denumire=None))
-        assert out["gate"]["label"] == "PERICULOS"
+        assert out["gate"]["label"] == "DANGEROUS"
 
     @pytest.mark.asyncio
     async def test_brand_impersonation_payment(self):
         text = "ENEL ENERGIE SA\nFactura restanta\nCUI: 11111111\nPlateste in contul IBAN RO33RNCB1234567890123456"
         out = await _run(text, cui_result=_cui(exists=True, activ=True, denumire="FIRMA ALEATOARE SRL"))
-        assert out["gate"]["label"] == "PERICULOS"
+        assert out["gate"]["label"] == "DANGEROUS"
 
     @pytest.mark.asyncio
     async def test_iban_invalid_payment_urgency(self):
         text = "Oferta doar azi! Plateste acum avans in contul IBAN RO00RNCB1234567890123456"
         out = await _run(text)
-        assert out["gate"]["label"] == "PERICULOS"
+        assert out["gate"]["label"] == "DANGEROUS"
 
     @pytest.mark.asyncio
     async def test_job_offer_with_upfront_activation_fee_periculos(self):
@@ -90,7 +90,7 @@ class TestPericulosCombos:
             "si sa trimiteti dovada pe Telegram @Frank24495."
         )
         out = await _run(text)
-        assert out["gate"]["label"] == "PERICULOS"
+        assert out["gate"]["label"] == "DANGEROUS"
 
 
 class TestSuspectNotPericulos:
@@ -104,12 +104,12 @@ class TestSuspectNotPericulos:
     @pytest.mark.asyncio
     async def test_benign_no_payment_is_suspect_or_safe_not_danger(self):
         out = await _run("Buna, vand o canapea, detalii in privat")
-        assert out["gate"]["label"] != "PERICULOS"
+        assert out["gate"]["label"] != "DANGEROUS"
 
     @pytest.mark.asyncio
     async def test_only_urgency_price_is_not_periculos(self):
         out = await _run("Super oferta, pret redus doar azi, grabeste-te!")
-        assert out["gate"]["label"] != "PERICULOS"
+        assert out["gate"]["label"] != "DANGEROUS"
 
 
 class TestSafe:
@@ -120,7 +120,7 @@ class TestSafe:
             "IBAN: RO33RNCB1234567890123456\nData: 01.06.2026\nScadenta: 15.06.2026"
         )
         out = await _run(text, cui_result=_cui(exists=True, activ=True, denumire="ENEL ENERGIE SA"))
-        assert out["gate"]["label"] == "SIGUR"
+        assert out["gate"]["label"] == "SAFE"
 
 
 class TestDeterminism:

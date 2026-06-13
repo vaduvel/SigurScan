@@ -415,7 +415,7 @@ def build_impersonation_knowledge(seed: dict, research: dict) -> dict:
     safe_fixture_texts = {
         str(fixture.get("input_text") or "").strip()
         for fixture in research["fixtures"]
-        if fixture.get("expected_final_verdict") == "SIGUR"
+        if fixture.get("expected_final_verdict") == "SAFE"
     }
     families = {
         _family_id(family): family

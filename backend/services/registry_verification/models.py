@@ -2,7 +2,7 @@
 
 Aceste obiecte sunt DOVEZI structurate, nu verdicte. Singurul judecător rămâne
 verdict_gate.reduce_verdict. Niciun status de aici nu are voie să fie interpretat
-direct ca SIGUR/PERICULOS.
+direct ca SAFE/DANGEROUS.
 """
 from __future__ import annotations
 

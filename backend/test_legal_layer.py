@@ -155,7 +155,7 @@ class TestVerdictNeverChanges:
         ids = [c["id"] for c in analysis["legal"]["cards"]]
         assert "law-instrumente-plata-311" in ids
         # Verdictul vine tot din verdict_gate (neatins de stratul legal).
-        assert analysis["evidence"]["verdict_gate"]["label"] in {"SIGUR", "SUSPECT", "PERICULOS"}
+        assert analysis["evidence"]["verdict_gate"]["label"] in {"SAFE", "SUSPECT", "DANGEROUS"}
         assert analysis["risk_level"] == analysis["evidence"]["verdict_gate"]["risk_level"]
 
     def test_result_legal_is_the_client_contract_key(self):

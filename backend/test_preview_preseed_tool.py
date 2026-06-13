@@ -75,7 +75,7 @@ class _FakeClientPreviewAfterSubmit:
                     "report_url": "https://urlscan.io/result/fan-new/",
                     "screenshot_url": "https://backend/v1/sandbox/urlscan/fan-new/screenshot",
                 },
-                "result": {"user_risk_label": "SIGUR"},
+                "result": {"user_risk_label": "SAFE"},
             }
         )
 
@@ -103,7 +103,7 @@ class _FakeClientCompleteBeforeCacheSaved:
                         "report_url": "https://urlscan.io/result/orange/",
                         "screenshot_url": "https://backend/v1/sandbox/urlscan/orange/screenshot",
                     },
-                    "result": {"user_risk_label": "SIGUR"},
+                    "result": {"user_risk_label": "SAFE"},
                 }
             )
         return _FakeResponse(
@@ -116,7 +116,7 @@ class _FakeClientCompleteBeforeCacheSaved:
                     "report_url": "https://urlscan.io/result/orange/",
                     "screenshot_url": "https://backend/v1/sandbox/urlscan/orange/screenshot",
                 },
-                "result": {"user_risk_label": "SIGUR"},
+                "result": {"user_risk_label": "SAFE"},
             }
         )
 
@@ -145,7 +145,7 @@ class _FakeClientTimeoutThenCacheSaved:
                     "report_url": "https://urlscan.io/result/anaf/",
                     "screenshot_url": "https://backend/v1/sandbox/urlscan/anaf/screenshot",
                 },
-                "result": {"user_risk_label": "SIGUR"},
+                "result": {"user_risk_label": "SAFE"},
             }
         )
 

@@ -45,7 +45,7 @@
           "fake_state_document_legal_threat"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -87,7 +87,7 @@
           "spv_anaf_link_nonofficial"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -129,7 +129,7 @@
           "state_asks_card_otp_or_cnp"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -169,7 +169,7 @@
           "state_asks_card_otp_or_cnp"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -211,7 +211,7 @@
           "state_asks_card_otp_or_cnp"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -352,10 +352,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -385,10 +385,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -428,7 +428,7 @@
           "bank_asks_otp_pin_cvv_password"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -468,7 +468,7 @@
           "bank_remote_access_request"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -510,7 +510,7 @@
           "revolut_or_fintech_login_link"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -550,7 +550,7 @@
           "revolut_or_fintech_login_link"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -590,7 +590,7 @@
           "revolut_or_fintech_login_link"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -731,10 +731,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -764,10 +764,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -809,7 +809,7 @@
           "courier_whatsapp_code"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -851,7 +851,7 @@
           "courier_lookalike_domain"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -891,7 +891,7 @@
           "parcel_address_locker_update"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -933,7 +933,7 @@
           "parcel_address_locker_update"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -975,7 +975,7 @@
           "parcel_address_locker_update"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -1118,10 +1118,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -1151,10 +1151,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -1194,7 +1194,7 @@
           "techsupport_remote_access"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -1236,7 +1236,7 @@
           "techsupport_giftcard_crypto_payment"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -1276,7 +1276,7 @@
           "fake_antivirus_download"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -1316,7 +1316,7 @@
           "fake_antivirus_download"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -1358,7 +1358,7 @@
           "fake_antivirus_download"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -1499,10 +1499,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -1532,10 +1532,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -1573,7 +1573,7 @@
           "family_emergency_accident"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -1611,7 +1611,7 @@
           "whatsapp_code_from_contact"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -1651,7 +1651,7 @@
           "petition_or_vote_hook"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -1689,7 +1689,7 @@
           "petition_or_vote_hook"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -1727,7 +1727,7 @@
           "petition_or_vote_hook"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -1860,10 +1860,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -1891,10 +1891,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -1932,7 +1932,7 @@
           "bec_replyto_domain_mismatch"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -1970,7 +1970,7 @@
           "ceo_confidential_payment"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -2008,7 +2008,7 @@
           "invoice_same_vendor_different_iban"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -2046,7 +2046,7 @@
           "invoice_same_vendor_different_iban"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -2084,7 +2084,7 @@
           "invoice_same_vendor_different_iban"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -2217,10 +2217,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -2248,10 +2248,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -2292,7 +2292,7 @@
           "hidroelectrica_or_public_company_investment"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -2331,7 +2331,7 @@
           "unlicensed_platform_asf_alert"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -2370,7 +2370,7 @@
           "investment_remote_access_crypto"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -2409,7 +2409,7 @@
           "investment_remote_access_crypto"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -2448,7 +2448,7 @@
           "investment_remote_access_crypto"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -2549,10 +2549,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -2581,10 +2581,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -2613,10 +2613,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -2657,7 +2657,7 @@
           "marketplace_fake_escrow_courier"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -2696,7 +2696,7 @@
           "marketplace_full_advance_personal"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -2735,7 +2735,7 @@
           "marketplace_otp_delivery_confirm"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -2774,7 +2774,7 @@
           "marketplace_otp_delivery_confirm"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -2815,7 +2815,7 @@
           "marketplace_otp_delivery_confirm"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -2916,10 +2916,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -2948,10 +2948,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -2980,10 +2980,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -3024,7 +3024,7 @@
           "retail_lookalike_giveaway_domain"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -3063,7 +3063,7 @@
           "subscription_trap_prize"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -3102,7 +3102,7 @@
           "survey_reward_personal_data"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -3141,7 +3141,7 @@
           "survey_reward_personal_data"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -3180,7 +3180,7 @@
           "survey_reward_personal_data"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -3281,10 +3281,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -3313,10 +3313,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -3345,10 +3345,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -3386,7 +3386,7 @@
           "charity_crypto_giftcard"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -3424,7 +3424,7 @@
           "urgent_emotional_no_entity"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -3462,7 +3462,7 @@
           "reused_images_charity"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -3500,7 +3500,7 @@
           "reused_images_charity"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -3538,7 +3538,7 @@
           "reused_images_charity"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -3636,10 +3636,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -3667,10 +3667,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -3698,10 +3698,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -3739,7 +3739,7 @@
           "romance_refuses_video_meet"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -3777,7 +3777,7 @@
           "romance_giftcard_crypto"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -3815,7 +3815,7 @@
           "romance_package_customs_fee"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -3853,7 +3853,7 @@
           "romance_package_customs_fee"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -3891,7 +3891,7 @@
           "romance_package_customs_fee"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -3989,10 +3989,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -4020,10 +4020,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -4051,10 +4051,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -4092,7 +4092,7 @@
           "fake_international_police_pdf"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -4130,7 +4130,7 @@
           "legal_threat_giftcard"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -4168,7 +4168,7 @@
           "fear_keep_secret_pressure"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -4206,7 +4206,7 @@
           "fear_keep_secret_pressure"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -4244,7 +4244,7 @@
           "fear_keep_secret_pressure"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "High-risk impersonation with sensitive request/wrong channel/payment pressure; deterministic combo should escalate."
     },
     {
@@ -4342,10 +4342,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -4373,10 +4373,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -4404,10 +4404,10 @@
       },
       "expected_semantic_review": {
         "risk_class": "none",
-        "max_solo": "SIGUR",
+        "max_solo": "SAFE",
         "reason_codes": []
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "False-positive guard: official/established context, clean providers, no sensitive request, no wrong-channel payment."
     },
     {
@@ -4449,7 +4449,7 @@
           "BRAND_MISMATCH"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "Institutie de stat + cerere card + domeniu neoficial cu hit provider."
     },
     {
@@ -4485,7 +4485,7 @@
           "PHONE_SPOOFING_PATTERN"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "Regula este hard: safe account in numele bancii/politiei."
     },
     {
@@ -4525,7 +4525,7 @@
           "MALICIOUS_URL"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "Tipar documentat oficial de FAN."
     },
     {
@@ -4564,7 +4564,7 @@
           "REMOTE_ACCESS"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "Pop-up + numar de telefon + remote access = hard dangerous."
     },
     {
@@ -4595,7 +4595,7 @@
           "URGENT_TRANSFER"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "Urgenta emotionala + numar nou + cerere de bani."
     },
     {
@@ -4631,7 +4631,7 @@
           "PROCESS_BYPASS"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "Schimbare IBAN + confidentialitate + urgenta."
     },
     {
@@ -4670,7 +4670,7 @@
           "BRAND_MISMATCH"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "BNR a avertizat explicit asupra acestui tipar."
     },
     {
@@ -4709,7 +4709,7 @@
           "ASK_CARD"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "OLX spune explicit ca nu furnizeaza asemenea linkuri."
     },
     {
@@ -4748,7 +4748,7 @@
           "BRAND_MISMATCH"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "Premiu improbabil + taxa mica + domeniu neoficial."
     },
     {
@@ -4787,7 +4787,7 @@
           "EMOTIONAL_PRESSURE"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "Urgenta emotionala + canal neverificat + cont personal."
     },
     {
@@ -4824,7 +4824,7 @@
           "FAKE_PARCEL_FEE"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "Tipar romance scam + bani + identitate."
     },
     {
@@ -4864,7 +4864,7 @@
           "LEGAL_THREAT"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "Autoritate + bitcoin + termen scurt."
     },
     {
@@ -4904,7 +4904,7 @@
           "MALICIOUS_URL"
         ]
       },
-      "expected_final_verdict": "PERICULOS",
+      "expected_final_verdict": "DANGEROUS",
       "why": "Electrica a documentat explicit tiparul si canalul legitim 1874."
     },
     {
@@ -5025,7 +5025,7 @@
           "LEGIT_SECURITY_MESSAGE"
         ]
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "Mesaj de securitate legitim, fara cerere de a divulga codul."
     },
     {
@@ -5058,7 +5058,7 @@
           "NO_SENSITIVE_REQUEST"
         ]
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "Domeniu oficial si mesaj fara cerere sensibila."
     },
     {
@@ -5091,7 +5091,7 @@
           "NO_SENSITIVE_REQUEST"
         ]
       },
-      "expected_final_verdict": "SIGUR",
+      "expected_final_verdict": "SAFE",
       "why": "Link oficial, fara card/OTP si compatibil cu canalele comunicate public."
     }
   ]

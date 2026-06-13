@@ -58,6 +58,10 @@ from services.tier1_classifier import Tier1Classifier
 from services.gemini_explainer import generate_ai_explanation, generate_fallback_explanation
 from services.evidence_bundle import build_evidence_bundle
 from services.verdict_gate import verdict as reduce_verdict
+from services.brand_truth_registry import BrandTruthRegistry
+from services.campaign_intel import CampaignStore
+from services.urechea_ingester import UrecheaIngester
+from services.cfx_engine import CfxStore, extract_fingerprint, CampaignFingerprint, FingerprintMatch
 from services.mistral_shadow_adjudicator import maybe_run_shadow_adjudication
 from services.offer_claim_verifier import verify_offer_claim
 from services.url_reputation import get_reputation_cache_stats, get_reputation_for_urls
@@ -377,8 +381,13 @@ async def security_guard(request: Request, call_next):
 
     return await call_next(request)
 
-# Initialize engine
+# Initialize engine, registries, and OSINT pipeline
 engine = ScamAtlasEngine()
+brand_truth_registry = BrandTruthRegistry()
+campaign_store = CampaignStore()
+urechea_ingester = UrecheaIngester(campaign_store)
+cfx_store = CfxStore()
+cfx_store.seed_from_campaigns(campaign_store.all())
 tier1_classifier = Tier1Classifier.load_default()
 
 # Regular expression to extract URLs from text
@@ -3128,6 +3137,89 @@ def _enrich_local_semantic_review(redacted_text: str, analysis: Dict[str, Any]) 
     )
 
 
+def _detect_person_never_does_violations(
+    raw_text: str, effective_channel: str,
+    result: Any, violated_never_does: list,
+) -> None:
+    if not result.manifest_id or effective_channel in ("official", "official_website", "official_app"):
+        return
+    manifest = brand_truth_registry.get(result.manifest_id)
+    if not manifest or manifest.type != "person":
+        return
+    text_lower = (raw_text or "").lower()
+    _never_does_content_signals = {
+        "investment_endorsement": ["investiții", "investitii", "oportunitate", "randament", "profit", "castig", "depozit", "dividend"],
+        "investment_recommendation": ["recomand", "sfat", "sugerez", "personal", "exclusiv"],
+        "crypto_promotion": ["crypto", "bitcoin", "btc", "ethereum", "coin", "token"],
+    }
+    for claim, signals in _never_does_content_signals.items():
+        if claim not in manifest.never_does:
+            continue
+        for signal in signals:
+            if signal in text_lower:
+                if claim not in violated_never_does:
+                    violated_never_does.append(claim)
+                break
+
+
+def _enrich_with_btr_provenance(
+    analysis: Dict[str, Any],
+    claimed_brand: str,
+    raw_text: str,
+    resolved_urls: List[Dict[str, Any]],
+) -> None:
+    evidence = analysis.setdefault("evidence", {})
+    if evidence.get("provenance"):
+        return
+    first_url = _first_final_url(resolved_urls)
+    observed_domain = None
+    if first_url:
+        try:
+            parsed = urllib.parse.urlparse(first_url)
+            observed_domain = parsed.hostname
+        except Exception:
+            pass
+    official_destination = _official_destination_confirmed(resolved_urls, claimed_brand)
+    sensitive = _request_sensitivity_from_signals(
+        raw_text=raw_text,
+        brand_warning=evidence.get("brand_warning") or {"triggered": False, "matched_assets": []},
+        direct_sensitive_request=evidence.get("direct_sensitive_request") or False,
+        sensitive_url_path=_has_sensitive_url_path(resolved_urls),
+        official_destination=official_destination,
+        resolved_urls=resolved_urls,
+    )
+    effective_channel = "official" if official_destination else str(evidence.get("source_channel") or "unknown")
+    sensitive_asks = []
+    if sensitive and sensitive != "none":
+        sensitive_asks.append(sensitive)
+    result = brand_truth_registry.provenance_check(
+        claimed_brand=claimed_brand if claimed_brand != "Nespecificat" else None,
+        observed_channel=effective_channel,
+        observed_domain=observed_domain,
+        observed_phone_e164=None,
+        sensitive_asks=sensitive_asks,
+        payment_method=None,
+        final_url=first_url,
+    )
+    violated_never_does = list(result.violated_never_does)
+    _detect_person_never_does_violations(raw_text, effective_channel, result, violated_never_does)
+    evidence["provenance"] = {
+        "official_domain_match": result.official_match,
+        "manifest_id": result.manifest_id,
+        "manifest_version": brand_truth_registry.version,
+        "provenance": result.provenance,
+        "identity_status": result.identity_status,
+        "violated_never_asks": result.violated_never_asks,
+        "violated_never_does": violated_never_does,
+        "evidence_power": result.evidence_power,
+        "reason_codes": result.reason_codes,
+    }
+    if result.violated_never_asks:
+        analysis["violated_never_asks"] = result.violated_never_asks
+    if violated_never_does:
+        analysis["violated_never_does"] = violated_never_does
+
+
 def _build_decision_evidence_bundle(
     analysis: Dict[str, Any],
     resolved_urls: List[Dict[str, Any]],
@@ -3179,6 +3271,18 @@ def _build_decision_evidence_bundle(
         official_destination=official_destination,
         provider_verdict=str(provider_section.get("verdict") or "unknown"),
     )
+    provenance_proto = evidence.get("provenance") if isinstance(evidence.get("provenance"), dict) else {}
+    if provenance_proto.get("violated_never_asks"):
+        identity_section["violated_never_asks"] = provenance_proto["violated_never_asks"]
+    if provenance_proto.get("violated_never_does"):
+        identity_section["violated_never_does"] = provenance_proto["violated_never_does"]
+    provenance_section = {
+        "official_domain_match": provenance_proto.get("official_domain_match", False),
+        "manifest_id": provenance_proto.get("manifest_id"),
+        "manifest_version": provenance_proto.get("manifest_version", brand_truth_registry.version),
+        "provenance": provenance_proto.get("provenance", "unknown"),
+        "evidence_power": provenance_proto.get("evidence_power", "none"),
+    }
     resolution_status = "resolved" if first_url else ("failed" if has_urls else "not_required")
     bundle = {
         "schema": "sigurscan_evidence_bundle_v2",
@@ -3198,6 +3302,7 @@ def _build_decision_evidence_bundle(
             "channel": request_channel,
             "completeness": True,
         },
+        "provenance": provenance_section,
         "context": {
             "urgency": bool(re.search(r"\b(urgent|azi|acum|24\s*de\s*ore|ultima|expir[ăa])\b", str(raw_text or ""), re.IGNORECASE)),
             "passive_payment": bool(re.search(r"\b(plata abonamentului|se va efectua automat plata|factur[ăa])\b", str(raw_text or ""), re.IGNORECASE)),
@@ -3232,7 +3337,7 @@ def _apply_decision_contract_result(
     evidence["decision_bundle"] = decision_bundle
     evidence["verdict_gate"] = gate_result
 
-    label = str(gate_result.get("label") or "PENDING").upper()
+    label = str(gate_result.get("label") or "UNVERIFIED").upper()
     family_id_by_reason = {
         "provider_malicious": "provider-gate-bad-provider",
         "identity_spoof": "provider-gate-decisive-structural-danger",
@@ -3240,19 +3345,26 @@ def _apply_decision_contract_result(
         "sensitive_wrong_channel": "provider-gate-sensitive-wrong-channel",
         "semantic_high_value_request": "provider-gate-semantic-high-risk",
         "semantic_high_risk_match": "provider-gate-semantic-high-risk",
-        "official_clean": "provider-gate-official-clean",
+        "positive_provenance_clean": "provider-gate-official-clean",
         "unknown_but_clean": "provider-gate-unofficial-inconclusive",
+        "unknown_but_clean_established": "provider-gate-unofficial-inconclusive",
         "value_request_needs_verification": "provider-gate-value-request-review",
         "insufficient_evidence": "provider-gate-pending",
+        "provider_error": "provider-gate-pending",
+        "campaign_match_only": "provider-gate-campaign-match",
+        "never_does_violated": "provider-gate-decisive-structural-danger",
+        "never_asks_violated": "provider-gate-decisive-structural-danger",
+        "young_domain_invalid_ssl_impersonation": "provider-gate-decisive-structural-danger",
+        "residual": "provider-gate-residual",
     }
     reason_codes = list(gate_result.get("reason_codes") or [])
     primary_reason = reason_codes[0] if reason_codes else "residual"
     gate_family_id = family_id_by_reason.get(primary_reason, "provider-gate-residual")
     gate_family_name = {
-        "SIGUR": "Destinație oficială verificată",
+        "SAFE": "Destinație verificată cu proveniență",
         "SUSPECT": "Verificare necesară",
-        "PERICULOS": "Risc confirmat",
-        "PENDING": "Scanare în curs",
+        "DANGEROUS": "Risc confirmat",
+        "UNVERIFIED": "Fără dovadă de proveniență",
     }.get(label, "Verificare necesară")
     provider_gate["detected_family_id"] = gate_family_id
     provider_gate["detected_family"] = gate_family_name
@@ -3260,7 +3372,7 @@ def _apply_decision_contract_result(
     semantic_review = decision_bundle.get("semantic_review") if isinstance(decision_bundle.get("semantic_review"), dict) else {}
     matched_family = str(semantic_review.get("matched_family") or "").strip()
     scam_family = evidence.get("scam_family") if isinstance(evidence.get("scam_family"), dict) else {}
-    if matched_family and not (label == "SIGUR" and primary_reason == "official_clean"):
+    if matched_family and not (label == "SAFE" and primary_reason == "positive_provenance_clean"):
         family_id = matched_family
         family_name = str(scam_family.get("family") or matched_family).strip()
     else:
@@ -3268,10 +3380,10 @@ def _apply_decision_contract_result(
         family_name = gate_family_name
 
     reasons = {
-        "SIGUR": ["Linkul ajunge pe o destinație oficială/delegată, providerii sunt curați și nu există cerere sensibilă pe canal greșit."],
+        "SAFE": ["Proveniența pozitivă confirmată, providerii curați, fără cereri sensibile."],
         "SUSPECT": ["Nu avem dovezi suficiente pentru a marca mesajul ca sigur; verifică pe canalul oficial înainte de acțiune."],
-        "PERICULOS": ["Dovezile din piloni indică risc ridicat: nu continua și nu introduce date."],
-        "PENDING": ["Scanarea nu are încă toate dovezile necesare pentru un verdict final."],
+        "DANGEROUS": ["Dovezile indică risc ridicat: nu continua și nu introduce date."],
+        "UNVERIFIED": ["Scanarea nu a găsit semnale de risc dar nici proveniență pozitivă."],
     }.get(label, ["Verifică pe canalul oficial înainte de acțiune."])
 
     analysis["risk_level"] = gate_result.get("risk_level")
@@ -3281,12 +3393,12 @@ def _apply_decision_contract_result(
     analysis["reasons"] = reasons
     analysis["safe_actions"] = (
         ["Poți continua cu prudență doar dacă recunoști contextul și nu ți se cer date sensibile."]
-        if label == "SIGUR"
+        if label == "SAFE"
         else ["Verifică mesajul în aplicația/site-ul oficial, nu din linkul primit."]
         if label == "SUSPECT"
         else ["Nu apăsa linkul.", "Nu introduce date.", "Raportează/șterge mesajul."]
-        if label == "PERICULOS"
-        else ["Așteaptă finalizarea scanării."]
+        if label == "DANGEROUS"
+        else ["Fii atent: lipsa semnalelor de risc nu înseamnă că e sigur."]
     )
     return analysis
 
@@ -3353,6 +3465,8 @@ def _apply_provider_gate_verdict(
         "direct_sensitive_request": direct_sensitive_request,
         "sensitive_url_path": sensitive_url_path,
     }
+
+    _enrich_with_btr_provenance(analysis, claimed_brand, raw_text, resolved_urls)
 
     decision_bundle = _build_decision_evidence_bundle(
         analysis,
@@ -3753,9 +3867,9 @@ def _build_orchestration_telemetry_payload(
 
 def _label_to_shadow_prediction(label: Any) -> Optional[bool]:
     normalized = str(label or "").strip().upper()
-    if normalized == "PERICULOS":
+    if normalized == "DANGEROUS":
         return True
-    if normalized in {"SIGUR", "SUSPECT", "NECUNOSCUT"}:
+    if normalized in {"SAFE", "SUSPECT", "UNVERIFIED", "NECUNOSCUT"}:
         return False
     return None
 
@@ -4039,9 +4153,10 @@ def _user_risk_level_label(risk_level: str) -> str:
         user_level = _normalize_user_facing_risk_level(normalized)
 
     return {
-        "dangerous": "PERICULOS",
+        "dangerous": "DANGEROUS",
         "suspect": "SUSPECT",
-        "safe": "SIGUR",
+        "safe": "SAFE",
+        "unverified": "UNVERIFIED",
     }.get(user_level, "NECUNOSCUT")
 
 
@@ -6135,7 +6250,7 @@ def _orchestrated_can_finalize_result(job: Dict[str, Any], pillars: Dict[str, Di
 def _orchestrated_result_is_final(job: Dict[str, Any], analysis: Dict[str, Any]) -> bool:
     evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
     gate = evidence.get("verdict_gate") if isinstance(evidence.get("verdict_gate"), dict) else {}
-    return str(gate.get("label") or "").upper() in {"SIGUR", "SUSPECT", "PERICULOS"}
+    return str(gate.get("label") or "").upper() in {"SAFE", "SUSPECT", "DANGEROUS"}
 
 
 async def _finalize_orchestrated_job_if_ready(job: Dict[str, Any], request: Request) -> Dict[str, Any]:
@@ -6172,7 +6287,7 @@ async def _finalize_orchestrated_job_if_ready(job: Dict[str, Any], request: Requ
         )
     evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
     gate = evidence.get("verdict_gate") if isinstance(evidence.get("verdict_gate"), dict) else {}
-    if str(gate.get("label") or "").upper() == "PENDING":
+    if str(gate.get("label") or "").upper() == "UNVERIFIED":
         if existing_result and existing_result.get("is_final", True) is not False:
             _emit_orchestrated_telemetry("orchestrated_verdict_pending_preserved_final", job)
             return job
@@ -6931,18 +7046,18 @@ async def _run_orchestrated_invoice_fast_lane(job: Dict[str, Any], request: Requ
     evidence["verdict_gate"] = gate_result
     evidence["semantic_review"] = semantic_section
 
-    label = str(gate_result.get("label") or "PENDING").upper()
+    label = str(gate_result.get("label") or "UNVERIFIED").upper()
     reasons = {
-        "SIGUR": ["Datele facturii sunt coerente și corespund unui emitent cunoscut."],
+        "SAFE": ["Datele facturii sunt coerente și corespund unui emitent cunoscut."],
         "SUSPECT": ["Nu avem dovezi suficiente pentru a confirma factura ca sigură; verifică pe canalul oficial."],
-        "PERICULOS": ["Dovezile indică risc ridicat: nu efectua plata și nu furniza date."],
-        "PENDING": ["Scanarea nu are încă toate dovezile necesare pentru un verdict final."],
+        "DANGEROUS": ["Dovezile indică risc ridicat: nu efectua plata și nu furniza date."],
+        "UNVERIFIED": ["Scanarea nu a găsit semnale de risc dar nici proveniență pozitivă."],
     }.get(label, ["Verifică pe canalul oficial înainte de plată."])
     safe_actions = {
-        "SIGUR": ["Poți efectua plata dacă recunoști emitentul și suma."],
+        "SAFE": ["Poți efectua plata dacă recunoști emitentul și suma."],
         "SUSPECT": ["Verifică factura în aplicația/site-ul emitentului, nu din linkul din document."],
-        "PERICULOS": ["Nu plăti.", "Nu introduce date personale sau bancare.", "Raportează incidentul."],
-        "PENDING": ["Așteaptă finalizarea verificărilor automate."],
+        "DANGEROUS": ["Nu plăti.", "Nu introduce date personale sau bancare.", "Raportează incidentul."],
+        "UNVERIFIED": ["Fără proveniență confirmată; acționează cu prudență."],
     }.get(label, ["Așteaptă finalizarea scanării."])
 
     analysis["risk_level"] = gate_result.get("risk_level")
@@ -7008,25 +7123,25 @@ async def _run_orchestrated_offer_fast_lane(job: Dict[str, Any], request: Reques
         warnings = ["Nu am putut analiza oferta."]
         offer_signals = []
 
-    label = str(gate_result.get("label") or "PENDING").upper()
+    label = str(gate_result.get("label") or "UNVERIFIED").upper()
     reasons = {
-        "SIGUR": ["Nu am găsit semnale clare de fraudă."],
+        "SAFE": ["Nu am găsit semnale clare de fraudă."],
         "SUSPECT": ["Verifică pe canalul oficial înainte să plătești."],
-        "PERICULOS": ["Nu plăti. Datele ofertei nu se aliniază sau metoda de plată e riscantă."],
-        "PENDING": ["Scanarea nu are încă toate dovezile necesare pentru un verdict final."],
+        "DANGEROUS": ["Nu plăti. Datele ofertei nu se aliniază sau metoda de plată e riscantă."],
+        "UNVERIFIED": ["Scanarea nu a găsit semnale de risc dar nici proveniență pozitivă."],
     }.get(label, ["Verifică pe canalul oficial înainte de plată."])
     safe_actions = {
-        "SIGUR": ["Poți continua dacă recunoști vânzătorul și datele de plată."],
+        "SAFE": ["Poți continua dacă recunoști vânzătorul și datele de plată."],
         "SUSPECT": [
             "Verifică emitentul pe canalul oficial, nu din linkul din ofertă.",
             "Nu trimite avans înainte de a confirma.",
         ],
-        "PERICULOS": [
+        "DANGEROUS": [
             "Nu plăti.",
             "Nu trimite copie după buletin/CI sau date de card.",
             "Raportează la DNSC (1911).",
         ],
-        "PENDING": ["Așteaptă finalizarea verificărilor automate."],
+        "UNVERIFIED": ["Fără proveniență confirmată; acționează cu prudență."],
     }.get(label, ["Așteaptă finalizarea scanării."])
 
     offer_fields_payload = {
@@ -7111,7 +7226,7 @@ async def _run_orchestrated_offer_fast_lane(job: Dict[str, Any], request: Reques
     return job
 
 
-_VERDICT_SEVERITY_RANK = {"SIGUR": 0, "SUSPECT": 1, "PERICULOS": 2}
+_VERDICT_SEVERITY_RANK = {"SAFE": 0, "UNVERIFIED": 1, "SUSPECT": 2, "DANGEROUS": 3}
 
 
 async def _run_offer_web_claim_enrichment(job: Dict[str, Any]) -> Dict[str, Any]:
@@ -8132,6 +8247,157 @@ async def scan_invoice_endpoint(
         "ocr_warning": ocr_warning,
     }
     return response
+
+
+class ProvenanceRequest(BaseModel):
+    claimed_brand: Optional[str] = None
+    observed_channel: str = "unknown"
+    observed_domain: Optional[str] = None
+    observed_phone_e164: Optional[str] = None
+    sensitive_asks: List[str] = []
+    payment_method: Optional[str] = None
+    final_url: Optional[str] = None
+
+
+@app.post("/v1/verify/provenance")
+async def verify_provenance(payload: ProvenanceRequest):
+    result = brand_truth_registry.provenance_check(
+        claimed_brand=payload.claimed_brand,
+        observed_channel=payload.observed_channel,
+        observed_domain=payload.observed_domain,
+        observed_phone_e164=payload.observed_phone_e164,
+        sensitive_asks=payload.sensitive_asks,
+        payment_method=payload.payment_method,
+        final_url=payload.final_url,
+    )
+    return {
+        "manifest_id": result.manifest_id,
+        "provenance": result.provenance,
+        "identity_status": result.identity_status,
+        "official_match": result.official_match,
+        "violated_never_asks": result.violated_never_asks,
+        "violated_never_does": result.violated_never_does,
+        "safe_requires_failed": result.safe_requires_failed,
+        "evidence_power": result.evidence_power,
+        "reason_codes": result.reason_codes,
+        "max_effect": result.max_effect,
+        "btr_version": brand_truth_registry.version,
+    }
+
+
+class IntelIngestRequest(BaseModel):
+    title: str
+    body: str
+    source_url: str = ""
+    source_kind: str = "press_context"
+    claimed_identity: Optional[str] = None
+    evidence_quality: str = "medium"
+    regions_hint: Optional[List[str]] = None
+
+
+class IntelModerateRequest(BaseModel):
+    intel_id: str
+    action: str
+    approved_by: Optional[str] = None
+
+
+class CampaignMatchRequest(BaseModel):
+    text: str
+    channel: str = "sms"
+    claimed_identity: Optional[str] = None
+    urls: Optional[List[str]] = None
+
+
+@app.post("/v1/intel/ingest")
+async def ingest_intel(payload: IntelIngestRequest):
+    regions = payload.regions_hint or ["national"]
+    result = urechea_ingester.ingest_raw(
+        title=payload.title,
+        body=payload.body,
+        source_url=payload.source_url,
+        source_kind=payload.source_kind,
+        claimed_identity=payload.claimed_identity,
+        evidence_quality=payload.evidence_quality,
+        regions_hint=regions,
+    )
+    return result.to_dict()
+
+
+@app.post("/v1/intel/moderate")
+async def moderate_intel(payload: IntelModerateRequest):
+    if payload.action not in ("approve", "reject"):
+        raise HTTPException(status_code=400, detail="actiunea trebuie sa fie 'approve' sau 'reject'")
+    if payload.action == "approve":
+        ok = urechea_ingester.approve_intel(payload.intel_id, payload.approved_by or "moderator")
+    else:
+        ok = urechea_ingester.reject_intel(payload.intel_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Intel ID negasit")
+    return {"status": "ok"}
+
+
+@app.get("/v1/campaign/active")
+async def active_campaigns(since: Optional[float] = None):
+    now = time.time()
+    since_ts = since if since is not None else (now - 7 * 86400)
+    results = campaign_store.active(since=since_ts)
+    return {
+        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
+        "btr_version": brand_truth_registry.version,
+        "count": len(results),
+        "campaigns": [r.to_dict() for r in results],
+    }
+
+
+@app.get("/v1/campaign/families")
+async def campaign_families():
+    from services.campaign_intel import FAMILY_TAXONOMY
+    return {"families": FAMILY_TAXONOMY}
+
+
+@app.post("/v1/campaign/match")
+async def match_campaign(payload: CampaignMatchRequest):
+    fp = extract_fingerprint(
+        payload.text,
+        channel=payload.channel,
+        claimed_identity=payload.claimed_identity,
+        urls=payload.urls,
+    )
+    matches = cfx_store.match(fp)
+    matched_any = any(m.matched for m in matches)
+    best = matches[0] if matches else None
+    return {
+        "fingerprint_id": fp.fingerprint_id,
+        "fingerprint": fp.to_dict(),
+        "matches": [
+            {
+                "fingerprint_id": m.fingerprint_id,
+                "arc_family": m.arc_family,
+                "similarity": round(m.similarity, 4),
+                "matched": m.matched,
+            }
+            for m in matches[:10]
+        ],
+        "match_count": len(matches),
+        "best_similarity": round(best.similarity, 4) if best else 0.0,
+        "matched": matched_any,
+    }
+
+
+@app.get("/v1/intel/moderation-queue")
+async def moderation_queue():
+    return {
+        "count": len(urechea_ingester.moderation_queue),
+        "items": [i.to_dict() for i in urechea_ingester.moderation_queue],
+    }
+
+
+@app.get("/v1/intel/sources")
+async def intel_sources():
+    sources = []
+    for name, src in urechea_ingester.sources.items():
+        sources.append({"name": name, "kind": src.kind, "enabled": src.enabled, "fetch_strategy": src.fetch_strategy})
+    return {"sources": sources}
 
 
 @app.post("/v1/feedback")
