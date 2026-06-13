@@ -5,7 +5,10 @@ from dataclasses import dataclass, field
 from typing import List
 
 CUI_PATTERN = re.compile(r"(?:CUI|CIF|RO)\s*[:\s]*(\d{2,10})\b", re.IGNORECASE)
-IBAN_PATTERN = re.compile(r"RO\d{2}[A-Z0-9]{20,24}", re.IGNORECASE)
+# Bug#9: IBAN-ul RO are lungime fixă de 24 caractere (RO + 2 cifre de control +
+# 20 alfanumerice). {20,24} permitea 24-28 caractere total, capturând text de
+# după IBAN ca parte din el.
+IBAN_PATTERN = re.compile(r"RO\d{2}[A-Z0-9]{20}", re.IGNORECASE)
 MONTHS = {
     "january": "01",
     "jan": "01",
@@ -417,9 +420,9 @@ def parse_invoice(
     if not text:
         return InvoiceFields(raw_text="")
 
-    # CUI
+    # CUI — group(1) e cifrele propriu-zise; group(0) include prefixul CUI/CIF/RO.
     cui_match = CUI_PATTERN.search(text)
-    cui = _normalize_cui(cui_match.group(0)) if cui_match else None
+    cui = _normalize_cui(cui_match.group(1)) if cui_match else None
 
     # IBAN
     iban_match = IBAN_PATTERN.search(text)

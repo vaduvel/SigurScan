@@ -8470,3 +8470,21 @@ class TestBug7PriceIsNotWrongChannel:
         text = "Trimite o poză cu buletinul și CNP-ul ca să pregătesc contractul, plus avans"
         out = asyncio.run(scan_offer(text))
         assert out.gate["label"] == "PERICULOS"
+
+
+class TestBug9CuiIbanRegex:
+    """Bug#9 — CUI_PATTERN/IBAN_PATTERN: extracție folosea group(0) (include
+    prefixul CUI/CIF/RO) și IBAN-ul RO permitea 20-24 caractere după RO+2 cifre
+    de control (lungime totală 24-28), capturând caractere din afara IBAN-ului.
+    IBAN RO are lungime fixă de 24."""
+
+    def test_iban_extracts_exactly_24_chars(self):
+        from services.invoice_parser import parse_invoice
+        f = parse_invoice("Plata in contul IBAN RO33RNCB1234567890123456EXTRATEXT urmeaza.")
+        assert f.iban == "RO33RNCB1234567890123456"
+        assert len(f.iban) == 24
+
+    def test_cui_extraction_is_digits_only_from_value_group(self):
+        from services.invoice_parser import parse_invoice
+        f = parse_invoice("CIF RO24387371\nTotal: 100 lei")
+        assert f.cui == "24387371"
