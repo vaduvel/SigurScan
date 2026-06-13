@@ -59,6 +59,8 @@ def test_supabase_logical_backup_workflow_is_scheduled_and_private_artifact():
 
     assert "workflow_dispatch:" in workflow
     assert "cron:" in workflow
+    assert "postgresql-client-17" in workflow
+    assert "/usr/lib/postgresql/17/bin" in workflow
     assert "SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}" in workflow
     assert "tools/supabase_logical_backup.sh" in workflow
     assert "actions/upload-artifact@v4" in workflow
