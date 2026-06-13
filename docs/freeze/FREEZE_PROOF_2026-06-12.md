@@ -456,8 +456,18 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - storage: private GitHub Actions artifact, `30` days retention.
   - verification: workflow runs `pg_restore --list` and uploads dump, schema, restore list, and checksum manifest.
   - GitHub workflow status: `Supabase logical backup` is active, workflow id `295225984`.
-  - GitHub secret check: `SUPABASE_DB_URL` is not configured yet; current repo secrets visible by name are `SUPABASE_SERVICE_KEY` and `SUPABASE_URL` only.
-  - current status: tooling exists, but Zone 3 remains Partial until GitHub secret `SUPABASE_DB_URL` is configured and the first workflow run succeeds.
+  - GitHub secret check after setup: repo secret names include `SUPABASE_DB_URL`, `SUPABASE_SERVICE_KEY`, and `SUPABASE_URL`; secret values were not printed.
+  - first manual run before client fix: `27462368679`, failed correctly because GitHub runner installed `pg_dump 16.14` while Supabase runs Postgres `17.6`.
+  - hardening fix: workflow now installs `postgresql-client-17` and adds `/usr/lib/postgresql/17/bin` to `GITHUB_PATH`; test proof `python3 -m pytest backend/test_tooling_defaults.py -q` returned `6 passed`.
+  - accepted manual run: `27462542127`, event `workflow_dispatch`, head `main` at `cdad5f97cb258ab4c242776ad48e4b24edda6d92`, conclusion `success`.
+  - accepted run URL: `https://github.com/vaduvel/SigurScan/actions/runs/27462542127`.
+  - accepted artifact: `supabase-logical-backup-27462542127`, artifact id `7609394930`, final size `1994250` bytes, artifact zip sha256 `6a9f5205c7584df00b5d8fe160091090335bcdb1634931cf983d154a60af79b5`.
+  - workflow used `pg_dump (PostgreSQL) 17.10`.
+  - produced dump: `hslqboubacrdhatmqcky_20260613T091114Z.dump`, `2206537` bytes, sha256 `fefdb881bdaf191bb0b2dda55f7c93f795b227d3cf61ceb0b16f9afe82a722db`.
+  - produced schema: `hslqboubacrdhatmqcky_20260613T091114Z_schema.sql.gz`, `27728` bytes, sha256 `5d583b87f29a5327878cfb908c37765097ba48e044c834a94855ef4366ef5b66`.
+  - produced restore list: `hslqboubacrdhatmqcky_20260613T091114Z_restore.list`, `38436` bytes, sha256 `24a6354a887b067d1edf27ac158d903124700a527f8f925834100dad54a3ac2c`.
+  - workflow verification: `pg_restore --list passed`; local artifact checksum verification also returned `sha256_ok=True` for dump, schema, and restore list.
+  - limitation accepted: this is an automated daily logical backup, not PITR, and does not include Supabase Storage objects.
 - Current database size is small:
   - total database size: `26 MB`.
   - largest tables: `scan_jobs` `11 MB`, `scan_events` `1872 kB`, `url_reputation_cache` `1680 kB`.
@@ -466,10 +476,10 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - data dump: `/Users/vaduvageorge/SigurScan_backups/supabase/supabase_hslqboubacrdhatmqcky_data_2026-06-13_09-23-00.sql.gz`, sha256 `a3e40e7e3572373efb659fc537b10e579d92be5472a17b9de9c2fcd99773651b`.
   - these dumps are a stopgap only, not a substitute for PITR.
 
-### Not Yet Green
+### Remaining Limitations
 
 - Supabase PITR is explicitly not enabled (`pitr_enabled=false`).
-- Local dumps exist as a manual fallback, and automated daily logical backup tooling now exists. First successful GitHub Actions artifact is still required before this becomes accepted backup proof.
+- Accepted resilience posture for this freeze phase is automated daily logical backup via private GitHub Actions artifact retention, plus local emergency dumps as a manual fallback. This protects against full data loss better than no backup, but it is not point-in-time recovery.
 
 ## Zone 4 - Cache And Providers
 

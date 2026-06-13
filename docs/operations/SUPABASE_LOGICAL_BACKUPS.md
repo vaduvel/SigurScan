@@ -123,12 +123,13 @@ Never restore directly over production during a drill.
 
 ## Freeze Acceptance
 
-Zone 3 stays Partial until all of these are true:
+Accepted for the current no-PITR freeze posture on 2026-06-13:
 
 - `SUPABASE_DB_URL` is configured as a GitHub Actions secret.
-- Manual workflow run succeeds.
-- Artifact contains dump, schema, restore list, and manifest.
+- Manual workflow run `27462542127` succeeded on `main` commit `cdad5f97cb258ab4c242776ad48e4b24edda6d92`.
+- Artifact `supabase-logical-backup-27462542127` contains dump, schema, restore list, and manifest.
+- The workflow installed `pg_dump (PostgreSQL) 17.10`, matching the Supabase Postgres 17 major version.
 - `pg_restore --list` was executed by the workflow and passed.
+- Local checksum verification against the downloaded artifact returned `sha256_ok=True` for dump, schema, and restore list.
 
-After that, this posture can be marked as automated daily logical backup
-accepted, while still noting that PITR remains disabled.
+This posture is accepted as automated daily logical backup while still noting that PITR remains disabled.
