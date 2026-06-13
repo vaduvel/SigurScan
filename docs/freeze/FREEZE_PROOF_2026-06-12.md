@@ -7,8 +7,8 @@ Status: in progress. This document is proof-led: an item is not green unless the
 - Repository: `vaduvel/SigurScan`
 - Local repo: `/Users/vaduvageorge/AndroidStudioProjects/SigurScan`
 - Current branch: `main`
-- Verified code commit: `4918162`
-- Deployed code commit: `4918162`
+- Verified code commit: `f1701e5`
+- Deployed code commit: `f1701e5`
 - Documentation may advance past the deployed code commit with proof-only updates.
 - Cloud Run project: `project-20f225c0-d756-4cba-864`
 - Cloud Run service: `sigurscan-api`
@@ -21,11 +21,16 @@ Status: in progress. This document is proof-led: an item is not green unless the
 
 - Cloud Run service exists in `europe-west1`.
   Evidence: `gcloud run services describe sigurscan-api --project project-20f225c0-d756-4cba-864 --region europe-west1`.
-- Latest ready revision is `sigurscan-api-00025-vg5`.
-- Traffic is `100%` to `sigurscan-api-00025-vg5`.
-- Deployed image is `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:4918162`.
-- Deployed image digest is `sha256:1951be05e620f71b74923f4d6460ab36f322767f98f14987e38ff20eea11d1c7`.
-- Latest Cloud Build deployment proof:
+- Latest ready revision is `sigurscan-api-00028-v69`.
+- Traffic is `100%` to latest revision, currently `sigurscan-api-00028-v69`.
+- Deployed image is `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:f1701e5`.
+- Deployed image digest is `sha256:eceb214bfa027fdf7308a98673128e32e35dc967a2bad93b757b53dbbbdfdea2`.
+- Current freeze reconciliation Cloud Build deployment proof:
+  - build id: `a4b00a6e-3fb4-4e1c-bae0-4060e5858f80`
+  - status: `SUCCESS`
+  - deployed revision: `sigurscan-api-00028-v69`
+  - note: after deploy, traffic was explicitly routed with `gcloud run services update-traffic sigurscan-api --to-latest` because the service had been pinned to an older revision.
+- Previous PDF-fix Cloud Build deployment proof:
   - build id: `c87c4cb2-c160-4abc-95a5-624a611eeb16`
   - status: `SUCCESS`
   - deployed revision: `sigurscan-api-00025-vg5`
@@ -44,8 +49,9 @@ Status: in progress. This document is proof-led: an item is not green unless the
 - Request timeout is `300s`.
 - Container concurrency is `2`.
   - It was reduced during Zone 8 hardening from the earlier high-concurrency posture after live scan probes showed better request stability for the current monolith on Cloud Run.
-  - No code redeploy was required for this tuning; the deployed image remains `4918162`.
+  - The current deployed image is `f1701e5`; the earlier no-redeploy tuning note applied before the freeze reconciliation image was deployed.
   - Deploy script hardening after reconciliation now preserves this value with `CONCURRENCY="${CONCURRENCY:-2}"` and `--concurrency "$CONCURRENCY"`, so a future redeploy does not silently reset the service to `40`.
+  - Deploy script hardening after `f1701e5` also runs `gcloud run services update-traffic "$SERVICE_NAME" --to-latest`, so a future deploy cannot silently build a healthy revision while live traffic remains pinned to an older revision.
 - CPU/memory are `1 CPU` / `1Gi`.
 - Min instances is `1`; max instances is `5`.
 - CPU throttling is `true`, preserving request-based CPU billing rather than always-allocated CPU.
@@ -58,6 +64,7 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - Cloud Run injects `INVOICE_CACHE_HMAC_KEY=invoice-cache-hmac-key:latest`.
   - Test proof: `test_invoice_cache_key_requires_env_secret` fails without env and passes with the test fixture env.
 - Health check returns `HTTP 200` through Cloudflare on `https://api.sigurscan.com/health`.
+  - Post-deploy health after `f1701e5`: `HTTP 200`, `0.271734s`.
   - Post-deploy health after `4918162`: `HTTP 200`, `0.442909s`.
   - Post-deploy health after `45b5663`: `HTTP 200`, `1.168s`; runtime reports `rate_limit_backend=upstash`, `api_key_required=true`.
   - Post-deploy health after `21a6943`: `HTTP 200`, `0.361590s`.
@@ -104,6 +111,13 @@ Status: in progress. This document is proof-led: an item is not green unless the
     - server latency: `0.682251566s`
     - user-agent: `SigurScan/1.0 Android OkHttp`
 - Authenticated smoke scan through official domain completed:
+  - scan id: `orch_1781336207_ebef4de5`
+  - input: text-only freeze check, no URL, so no URL-provider quota was consumed.
+  - POST: `HTTP 200`, `1.390s`
+  - poll 1: `SUSPECT`, `1.109s`
+  - poll 2: `SUSPECT`, status `complete`, `4.229s`
+  - wall time: `8.140s`, max poll latency `4.229s`.
+- Previous authenticated smoke scan through official domain:
   - scan id: `orch_1781267052_627619ad`
   - poll 1: `SUSPECT`, `is_final=false`, `1.532s`
   - poll 2: `SUSPECT`, `is_final=true`, `4.262s`
@@ -619,8 +633,9 @@ Status: in progress. This document is proof-led: an item is not green unless the
 - `d9d452c build: make Cloud Run container reproducible`
 - `45b5663 fix: include remote reputation cache in stats`
 - `4918162 fix: keep PDF annotation links when OCR is empty`
-- `origin/main` includes deployed code commit `4918162`.
-- Cloud Run intentionally runs code image `4918162`.
+- `f1701e5 chore: reconcile freeze hardening proof`
+- `origin/main` includes deployed code commit `f1701e5`.
+- Cloud Run intentionally runs code image `f1701e5` as revision `sigurscan-api-00028-v69`, with `100%` traffic routed to latest.
 - Branch audit was run from isolated worktree `/Users/vaduvageorge/.config/superpowers/worktrees/SigurScan/freeze-main-2026-06-12` at `7cb7651`.
 - Integrated/ancestor branches:
   - `origin/feature/deepseek-invoice-freeze-handoff-2026-06-12`
@@ -664,4 +679,4 @@ Status: in progress. This document is proof-led: an item is not green unless the
 
 Freeze is not complete yet.
 
-The backend is live and healthy on Cloud Run behind `api.sigurscan.com`, with provider smoke green, API auth active, invoice HMAC secret fallback removed, Android UA hardening deployed, a reproducible hash-locked container, min instances enabled, request-based CPU billing preserved, a Cloud Billing budget guard created, build log audited, latency alerting configured, structured-error proof captured, rollback executed and restored successfully, lightweight concurrency proven, controlled five-scan text-only concurrency proven, remote reputation-cache stats fixed, Android emulator URL E2E proven, Android emulator invoice E2E verified after the CUI/finalization fixes, email HTML hidden-link extraction/scan proven live, and PDF annotation-link extraction fixed and proven live on deployed commit `4918162`. The remaining Cloud Run freeze items are optional cold-start proof if scale-to-zero returns and a deliberately quota-bounded URL-provider concurrency probe.
+The backend is live and healthy on Cloud Run behind `api.sigurscan.com`, with provider smoke green, API auth active, invoice HMAC secret fallback removed, Android UA hardening deployed, a reproducible hash-locked container, min instances enabled, request-based CPU billing preserved, a Cloud Billing budget guard created, build log audited, latency alerting configured, structured-error proof captured, rollback executed and restored successfully, lightweight concurrency proven, controlled five-scan text-only concurrency proven, remote reputation-cache stats fixed, Android emulator URL E2E proven, Android emulator invoice E2E verified after the CUI/finalization fixes, email HTML hidden-link extraction/scan proven live, PDF annotation-link extraction fixed and proven live, and freeze reconciliation deployed on code image `f1701e5`. The remaining Cloud Run freeze items are optional cold-start proof if scale-to-zero returns and a deliberately quota-bounded URL-provider concurrency probe.

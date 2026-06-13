@@ -43,3 +43,10 @@ def test_cloud_run_deploy_preserves_safe_concurrency_default():
     assert 'CONCURRENCY="${CONCURRENCY:-2}"' in script
     assert '--concurrency "$CONCURRENCY"' in script
     assert "--concurrency 40" not in script
+
+
+def test_cloud_run_deploy_routes_traffic_to_latest_revision():
+    script = (ROOT_DIR / "tools" / "deploy_cloud_run_backend.sh").read_text(encoding="utf-8")
+
+    assert "gcloud run services update-traffic" in script
+    assert '--to-latest' in script

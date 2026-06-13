@@ -82,4 +82,9 @@ gcloud run deploy "$SERVICE_NAME" \
   --set-env-vars "$ENV_VARS" \
   --set-secrets "$SECRETS"
 
+gcloud run services update-traffic "$SERVICE_NAME" \
+  --project "$PROJECT_ID" \
+  --region "$REGION" \
+  --to-latest
+
 echo "Cloud Run deployment finished."
