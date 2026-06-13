@@ -8308,6 +8308,15 @@ class CampaignMatchRequest(BaseModel):
     urls: Optional[List[str]] = None
 
 
+class OneTapReportRequest(BaseModel):
+    # PR-5: doar ținta REDACTATĂ ajunge la server (fără PII brut).
+    target_type: str = "url"          # phone|iban|domain|url|email
+    target_redacted: str = "[redactat]"
+    family: Optional[str] = None
+    verdict: str = "SUSPECT"
+    redacted_summary: Optional[str] = None
+
+
 @app.post("/v1/intel/ingest")
 async def ingest_intel(payload: IntelIngestRequest):
     regions = payload.regions_hint or ["national"]
@@ -8347,6 +8356,42 @@ async def active_campaigns(since: Optional[float] = None):
         "count": len(results),
         "campaigns": [r.to_dict() for r in results],
     }
+
+
+@app.get("/v1/radar/hot-iocs")
+async def radar_hot_iocs(since: Optional[float] = None):
+    """PR-5 — Radarul: payload sincronizat de device pentru CallScreening offline.
+    Campanii active + reputație numere pe buckets (zero număr brut server-side).
+    """
+    from services.radar_hot_cache import build_hot_cache
+
+    reports: List[Dict[str, Any]] = []
+    if supabase_store.is_supabase_enabled():
+        try:
+            rows = supabase_store._get_json(
+                "community_reports",
+                {"select": "hash,report_count,family,risk_level", "limit": "500",
+                 "order": "report_count.desc"},
+            )
+            reports = rows if isinstance(rows, list) else []
+        except Exception:
+            reports = []
+    return build_hot_cache(campaign_store, reports=reports, since=since)
+
+
+@app.post("/v1/report")
+async def one_tap_report(payload: OneTapReportRequest):
+    """PR-5 — raport 1-tap precompletat (DNSC/1911, PNRISC, ANPC, bancă).
+    Pregătește pachetul; userul trimite. Fără PII brut, doar ținta redactată.
+    """
+    from services.report_builder import build_report_package
+
+    return build_report_package(
+        target={"type": payload.target_type, "value_redacted": payload.target_redacted},
+        family=payload.family or "UNKNOWN",
+        verdict=payload.verdict or "SUSPECT",
+        redacted_summary=payload.redacted_summary,
+    )
 
 
 @app.get("/v1/campaign/families")
