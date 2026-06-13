@@ -8488,3 +8488,19 @@ class TestBug9CuiIbanRegex:
         from services.invoice_parser import parse_invoice
         f = parse_invoice("CIF RO24387371\nTotal: 100 lei")
         assert f.cui == "24387371"
+
+
+class TestBug11RomanianMonthNameDates:
+    """Bug#11 — facturile RO scriu data ca „15 ianuarie 2026" (zi lună an, nume
+    de lună în română). MONTH_DATE_PATTERN recunoștea doar nume englezești în
+    ordinea „Month day, year", deci datele RO nu erau extrase deloc."""
+
+    def test_ro_month_name_date_emitere(self):
+        from services.invoice_parser import parse_invoice
+        f = parse_invoice("Data emiterii: 15 ianuarie 2026\nTotal: 100 lei")
+        assert f.data_emitere == "2026-01-15"
+
+    def test_ro_month_name_date_scadenta(self):
+        from services.invoice_parser import parse_invoice
+        f = parse_invoice("Data emiterii: 01.06.2026\nScadenta: 5 august 2026\nTotal: 100 lei")
+        assert f.scadenta == "2026-08-05"

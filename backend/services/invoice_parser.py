@@ -67,6 +67,17 @@ MONTH_DATE_PATTERN = re.compile(
     r")\s+([0-3]?\d),\s*(20\d{2})\b",
     re.IGNORECASE,
 )
+# Bug#11: facturile RO scriu data ca „15 ianuarie 2026" (zi, lună în română, an)
+# — ordine inversă față de formatul englezesc „January 15, 2026" și fără virgulă.
+RO_MONTHS = {
+    "ianuarie": "01", "februarie": "02", "martie": "03", "aprilie": "04",
+    "mai": "05", "iunie": "06", "iulie": "07", "august": "08",
+    "septembrie": "09", "octombrie": "10", "noiembrie": "11", "decembrie": "12",
+}
+RO_MONTH_DATE_PATTERN = re.compile(
+    r"\b([0-3]?\d)\s+(" + "|".join(RO_MONTHS.keys()) + r")\s+(20\d{2})\b",
+    re.IGNORECASE,
+)
 SCADENTA_LABEL = re.compile(r"scaden[ţt][aă]|\bdue date\b|\bdate due\b|\bpayment due\b", re.IGNORECASE)
 ISSUE_DATE_LABEL = re.compile(r"\bdata\b|\bdate of issue\b|\bissued on\b|\binvoice date\b", re.IGNORECASE)
 TOTAL_LABEL = re.compile(r"\btotal\b(?!\s*(?:tva|net))|\bamount due\b|\bbalance due\b|\btotal due\b", re.IGNORECASE)
@@ -311,6 +322,8 @@ def _dates_from_line(line: str) -> list[str]:
         dates.append((match.start(), _normalize_date(match.group(0))))
     for match in MONTH_DATE_PATTERN.finditer(line):
         dates.append((match.start(), _normalize_month_date(match.group(0))))
+    for match in RO_MONTH_DATE_PATTERN.finditer(line):
+        dates.append((match.start(), _normalize_ro_month_date(match.group(0))))
     return [date for _, date in sorted(dates, key=lambda item: item[0])]
 
 
@@ -345,12 +358,24 @@ def _normalize_month_date(raw: str) -> str:
     return f"{year}-{month}-{day:02d}"
 
 
+def _normalize_ro_month_date(raw: str) -> str:
+    match = RO_MONTH_DATE_PATTERN.search(raw)
+    if not match:
+        return raw
+    day = int(match.group(1))
+    month = RO_MONTHS[match.group(2).lower()]
+    year = match.group(3)
+    return f"{year}-{month}-{day:02d}"
+
+
 def _extract_dates(text: str) -> list[str]:
     dates: list[tuple[int, str]] = []
     for match in DATE_PATTERN.finditer(text):
         dates.append((match.start(), _normalize_date(match.group(0))))
     for match in MONTH_DATE_PATTERN.finditer(text):
         dates.append((match.start(), _normalize_month_date(match.group(0))))
+    for match in RO_MONTH_DATE_PATTERN.finditer(text):
+        dates.append((match.start(), _normalize_ro_month_date(match.group(0))))
     return [date for _, date in sorted(dates, key=lambda item: item[0])]
 
 
