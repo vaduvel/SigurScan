@@ -8263,3 +8263,320 @@ if __name__ == "__main__":
     test_scam_atlas_engine()
     test_advanced_scam_detection_modules()
     print("=== All tests completed successfully! ===")
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# fix/scan-pipeline-hardening-2026-06-13 — teste pentru bug-urile de audit
+# ════════════════════════════════════════════════════════════════════════════
+
+class TestBug1RoAmountThousands:
+    """Bug#1 — separator de mii RO (punct) vs zecimal EN."""
+
+    def test_ro_thousands_dot(self):
+        from services.invoice_parser import _parse_ro_amount
+        assert _parse_ro_amount("1.500") == 1500.0
+        assert _parse_ro_amount("2.000") == 2000.0
+        assert _parse_ro_amount("12.500") == 12500.0
+
+    def test_ro_thousands_and_decimal(self):
+        from services.invoice_parser import _parse_ro_amount
+        assert _parse_ro_amount("1.260,50") == 1260.50
+        assert _parse_ro_amount("2.000,00") == 2000.00
+
+    def test_en_format(self):
+        from services.invoice_parser import _parse_ro_amount
+        assert _parse_ro_amount("1,500.00") == 1500.00
+
+    def test_plain_and_decimal(self):
+        from services.invoice_parser import _parse_ro_amount
+        assert _parse_ro_amount("240") == 240.0
+        assert _parse_ro_amount("12,50") == 12.50
+        assert _parse_ro_amount("119.99") == 119.99
+        assert _parse_ro_amount("1.5") == 1.5
+
+    def test_legit_ro_invoice_totals_match(self):
+        from services.invoice_parser import _parse_ro_amount
+        from services.invoice_coherence import check_coherence
+        sub = _parse_ro_amount("1.260")
+        tva = _parse_ro_amount("240")
+        total = _parse_ro_amount("1.500")
+        assert (sub, tva, total) == (1260.0, 240.0, 1500.0)
+        res = check_coherence(subtotal=sub, tva=tva, total=total,
+                              data_emitere=None, scadenta=None)
+        assert res.totals_match is True
+
+    def test_parse_invoice_extracts_full_thousands(self):
+        # End-to-end: regex-ul de extracție trebuie să captureze grupa de mii
+        # întreagă ("1.260" -> 1260), nu trunchiat ("1.26"). Înainte de fix
+        # AMOUNT_PATTERN limita zecimalele la \d{1,2} și pierdea cifra a treia.
+        from services.invoice_parser import parse_invoice
+        f = parse_invoice(
+            "Subtotal: 1.260\nTVA: 240\nTotal: 1.500\n"
+        )
+        assert f.subtotal == 1260.0
+        assert f.tva == 240.0
+        assert f.total == 1500.0
+
+
+class TestBug2OfficialCandidateUrls:
+    """Bug#2 — fallback pagina oficiala (regresie: fara acolade literale)."""
+
+    def test_no_literal_braces_and_has_root(self):
+        from services.offer_claim_verifier import _official_candidate_urls
+        urls = _official_candidate_urls(["enel.ro"], [])
+        assert "https://enel.ro/" in urls
+        assert not any("{" in u or "}" in u for u in urls)
+
+
+class TestBug3AnafCachePoisoning:
+    """Bug#3 — nu cacha rezultate ANAF cu checked=False (otravire 12h)."""
+
+    def _clear(self):
+        from services import invoice_orchestrator as io
+        io._cui_cache.clear()
+        io._verdict_cache.clear()
+
+    def test_anaf_down_not_cached(self):
+        import asyncio
+        from unittest.mock import patch, AsyncMock
+        from services import invoice_orchestrator as io
+        from services.anaf_cui import CuiResult
+        self._clear()
+        down = CuiResult(exists=False, checked=False, denumire=None, activ=False,
+                         data_inactivare=None, platitor_tva=False, enrolled_efactura=False, raw=None)
+        text = "Furnizor: SC X SRL\nCUI: 12345678\nIBAN: RO33RNCB1234567890123456\nTotal: 100 lei"
+        with patch("services.invoice_orchestrator.check_cui", new_callable=AsyncMock) as m:
+            m.return_value = down
+            asyncio.run(io.scan_invoice(text))
+        assert io._get_cached_cui("12345678") is None  # ANAF down nu otraveste cache-ul
+
+    def test_anaf_ok_is_cached(self):
+        import asyncio
+        from unittest.mock import patch, AsyncMock
+        from services import invoice_orchestrator as io
+        from services.anaf_cui import CuiResult
+        self._clear()
+        ok = CuiResult(exists=True, checked=True, denumire="SC X SRL", activ=True,
+                       data_inactivare=None, platitor_tva=True, enrolled_efactura=False, raw=None)
+        text = "Furnizor: SC X SRL\nCUI: 87654321\nIBAN: RO33RNCB1234567890123456\nTotal: 100 lei"
+        with patch("services.invoice_orchestrator.check_cui", new_callable=AsyncMock) as m:
+            m.return_value = ok
+            asyncio.run(io.scan_invoice(text))
+        assert io._get_cached_cui("87654321") is not None  # rezultat valid se cacheaza
+
+
+class TestBug4AnafDownNotInexistent:
+    """Bug#4 — ANAF indisponibil (checked=False) NU inseamna CUI inexistent."""
+
+    def _scan(self, cui_result):
+        import asyncio
+        from unittest.mock import patch, AsyncMock
+        from services import invoice_orchestrator as io
+        io._cui_cache.clear(); io._verdict_cache.clear()
+        text = "Furnizor: SC X SRL\nCUI: 24681012\nIBAN: RO33RNCB1234567890123456\nTotal: 100 lei"
+        with patch("services.invoice_orchestrator.check_cui", new_callable=AsyncMock) as m:
+            m.return_value = cui_result
+            return asyncio.run(io.scan_invoice(text))
+
+    def test_down_does_not_say_inexistent(self):
+        from services.anaf_cui import CuiResult
+        down = CuiResult(exists=False, checked=False, denumire=None, activ=False,
+                         data_inactivare=None, platitor_tva=False, enrolled_efactura=False, raw=None)
+        w = " ".join(self._scan(down).warnings).lower()
+        assert "not found" not in w and "inexistent" not in w
+        assert "indisponibil" in w or "nu am putut verifica" in w
+
+    def test_inexistent_says_inexistent(self):
+        from services.anaf_cui import CuiResult
+        nope = CuiResult(exists=False, checked=True, denumire=None, activ=False,
+                         data_inactivare=None, platitor_tva=False, enrolled_efactura=False, raw=None)
+        w = " ".join(self._scan(nope).warnings).lower()
+        assert "inexistent" in w or "not found" in w
+
+
+class TestBug5InvoiceThroughGate:
+    """Bug#5 — ruta factură produce label coerent prin verdict_gate (Decizia A)."""
+
+    def _verdict(self, text, cui_result):
+        import asyncio
+        from unittest.mock import patch, AsyncMock
+        from services import invoice_orchestrator as io
+        io._cui_cache.clear(); io._verdict_cache.clear()
+        with patch("services.invoice_orchestrator.check_cui", new_callable=AsyncMock) as m:
+            m.return_value = cui_result
+            result = asyncio.run(io.scan_invoice(text))
+        out = io.evaluate_invoice_verdict(result, redacted_text=text)
+        return out["gate"]["label"], out
+
+    def test_clean_legit_invoice_is_safe(self):
+        from services.anaf_cui import CuiResult
+        ok = CuiResult(exists=True, checked=True, denumire="ENEL ENERGIE SA", activ=True,
+                       data_inactivare=None, platitor_tva=True, enrolled_efactura=False, raw=None)
+        text = ("Furnizor: ENEL ENERGIE SA\nCUI: 24387371\nSubtotal: 1.260\nTVA: 240\n"
+                "Total: 1.500\nIBAN: RO33RNCB1234567890123456\nData: 01.06.2026\nScadenta: 15.06.2026")
+        label, out = self._verdict(text, ok)
+        assert label == "SAFE"
+        assert "evidence_hash" in out["bundle"]
+
+    def test_cui_inexistent_is_not_safe(self):
+        from services.anaf_cui import CuiResult
+        nope = CuiResult(exists=False, checked=True, denumire=None, activ=False,
+                         data_inactivare=None, platitor_tva=False, enrolled_efactura=False, raw=None)
+        text = "Furnizor: SC GHOST SRL\nCUI: 99999999\nTotal: 5.000\nIBAN: DE89370400440532013000"
+        label, _ = self._verdict(text, nope)
+        assert label != "SAFE"
+
+
+class TestBug7PriceIsNotWrongChannel:
+    """Bug#7 — offer_evidence_gate_mapper._channel: un preț (total prezent) NU e
+    dovadă de canal greșit. OP-03/OP-07 legit (cerere CI + preț, fără IBAN/cont
+    personal/plată off-platform) nu trebuie să dea DANGEROUS doar pentru că
+    oferta menționează un preț."""
+
+    def test_price_alone_does_not_make_channel_unofficial(self):
+        from services.offer_parser import OfferFields
+        from services.offer_evidence_gate_mapper import _channel, _sensitive
+        from services import offer_signals as S
+
+        fields = OfferFields(raw_text="...")
+        fields.total = 50000.0
+        signals = [S.OFFER_ID_DOCUMENT_REQUEST]
+        sensitive = _sensitive(fields, signals)
+        channel = _channel(fields, signals, sensitive,
+                            "Apartament de vanzare, copie buletin pentru programare vizionare.")
+        assert channel == "unknown"
+
+    def test_op07_legit_id_request_with_price_is_not_dangerous(self):
+        import asyncio
+        from services.invoice_orchestrator import scan_offer
+        text = (
+            "Apartament de vanzare, pret 50000 EUR, zona buna. "
+            "Pentru programarea vizionarii este nevoie de o copie a buletinului, "
+            "din motive de siguranta a agentiei."
+        )
+        out = asyncio.run(scan_offer(text))
+        assert out.gate["label"] != "DANGEROUS"
+
+    def test_id_document_with_real_off_channel_payment_still_dangerous(self):
+        # Garanție: cererea de CI + presiune de avans pe canal nesigur rămâne
+        # DANGEROUS — fix-ul nu trebuie să atenueze cazurile reale.
+        import asyncio
+        from services.invoice_orchestrator import scan_offer
+        text = "Trimite o poză cu buletinul și CNP-ul ca să pregătesc contractul, plus avans"
+        out = asyncio.run(scan_offer(text))
+        assert out.gate["label"] == "DANGEROUS"
+
+
+class TestBug9CuiIbanRegex:
+    """Bug#9 — CUI_PATTERN/IBAN_PATTERN: extracție folosea group(0) (include
+    prefixul CUI/CIF/RO) și IBAN-ul RO permitea 20-24 caractere după RO+2 cifre
+    de control (lungime totală 24-28), capturând caractere din afara IBAN-ului.
+    IBAN RO are lungime fixă de 24."""
+
+    def test_iban_extracts_exactly_24_chars(self):
+        from services.invoice_parser import parse_invoice
+        f = parse_invoice("Plata in contul IBAN RO33RNCB1234567890123456EXTRATEXT urmeaza.")
+        assert f.iban == "RO33RNCB1234567890123456"
+        assert len(f.iban) == 24
+
+    def test_cui_extraction_is_digits_only_from_value_group(self):
+        from services.invoice_parser import parse_invoice
+        f = parse_invoice("CIF RO24387371\nTotal: 100 lei")
+        assert f.cui == "24387371"
+
+
+class TestBug11RomanianMonthNameDates:
+    """Bug#11 — facturile RO scriu data ca „15 ianuarie 2026" (zi lună an, nume
+    de lună în română). MONTH_DATE_PATTERN recunoștea doar nume englezești în
+    ordinea „Month day, year", deci datele RO nu erau extrase deloc."""
+
+    def test_ro_month_name_date_emitere(self):
+        from services.invoice_parser import parse_invoice
+        f = parse_invoice("Data emiterii: 15 ianuarie 2026\nTotal: 100 lei")
+        assert f.data_emitere == "2026-01-15"
+
+    def test_ro_month_name_date_scadenta(self):
+        from services.invoice_parser import parse_invoice
+        f = parse_invoice("Data emiterii: 01.06.2026\nScadenta: 5 august 2026\nTotal: 100 lei")
+        assert f.scadenta == "2026-08-05"
+
+
+class TestBug12SummaryAmountsAlignment:
+    """Bug#12 — subtotal/tva luau primul element din listă, dar total lua
+    ultimul. Pe facturi cu mai multe linii "Subtotal" (ex. un subtotal pe
+    produse, urmat de subtotalul real de sumar), subtotal[0]/tva[0] nu mai
+    corespundeau cu total[-1], iar check_coherence raporta totals_match=False
+    pentru o factură de fapt coerentă."""
+
+    def test_subtotal_and_tva_align_with_final_total(self):
+        from services.invoice_parser import parse_invoice
+        from services.invoice_coherence import check_coherence
+        f = parse_invoice(
+            "Subtotal produse: 50,00 RON\n"
+            "Subtotal: 100,00 RON\n"
+            "TVA 19%: 19,00 RON\n"
+            "Total: 119,00 RON"
+        )
+        assert f.subtotal == 100.0
+        assert f.tva == 19.0
+        assert f.total == 119.0
+        coherence = check_coherence(f.subtotal, f.tva, f.total, f.data_emitere, f.scadenta)
+        assert coherence.totals_match is True
+
+
+class TestBug13PendingVerdictMessage:
+    """Bug#13 — un verdict PENDING (sau lipsa verdict_block după o eroare de
+    evaluare) trebuie tradus într-un mesaj clar pentru utilizator, nu lăsat
+    fără reasons/safe_actions."""
+
+    def test_pending_label_has_clear_message(self):
+        import main as app_main
+        verdict_block = {"gate": {"label": "PENDING"}, "bundle": {}}
+        reasons, safe_actions = app_main._invoice_verdict_messages(verdict_block)
+        assert reasons == ["Scanarea nu are încă toate dovezile necesare pentru un verdict final."]
+        assert safe_actions == ["Așteaptă finalizarea verificărilor automate."]
+
+    def test_missing_verdict_block_defaults_to_pending_message(self):
+        import main as app_main
+        reasons, safe_actions = app_main._invoice_verdict_messages(None)
+        assert reasons == ["Scanarea nu are încă toate dovezile necesare pentru un verdict final."]
+        assert safe_actions == ["Așteaptă finalizarea verificărilor automate."]
+
+    def test_safe_label_has_payment_message(self):
+        import main as app_main
+        verdict_block = {"gate": {"label": "SAFE"}, "bundle": {}}
+        reasons, safe_actions = app_main._invoice_verdict_messages(verdict_block)
+        assert reasons == ["Datele facturii sunt coerente și corespund unui emitent cunoscut."]
+        assert safe_actions == ["Poți efectua plata dacă recunoști emitentul și suma."]
+
+
+class TestBug14AnafDedicatedExecutor:
+    """Bug#14 — apelurile blocante ANAF/lista-firme.info rulau pe executorul
+    implicit al loop-ului (run_in_executor(None, ...)), shared cu restul
+    aplicației. Un ANAF lent/picat putea ocupa toate thread-urile executorului
+    implicit. Trebuie să folosească un ThreadPoolExecutor dedicat, mărginit."""
+
+    def test_dedicated_executor_exists_and_is_bounded(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from services import anaf_cui
+        assert isinstance(anaf_cui._ANAF_EXECUTOR, ThreadPoolExecutor)
+        assert anaf_cui._ANAF_EXECUTOR._max_workers <= 8
+
+    def test_call_anaf_api_uses_dedicated_executor(self):
+        import asyncio
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from services import anaf_cui
+
+        fake_response = MagicMock(status_code=404)
+        fake_loop = MagicMock()
+        fake_loop.run_in_executor = AsyncMock(return_value=fake_response)
+
+        async def _run():
+            with patch.object(anaf_cui.asyncio, "get_running_loop", return_value=fake_loop):
+                return await anaf_cui._call_anaf_api(12345678, "2026-06-13")
+
+        result = asyncio.run(_run())
+        assert result is None
+        used_executor = fake_loop.run_in_executor.call_args[0][0]
+        assert used_executor is anaf_cui._ANAF_EXECUTOR
+        assert used_executor is not None

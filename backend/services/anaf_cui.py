@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Dict
@@ -14,6 +15,12 @@ ANAF_TIMEOUT_SECONDS = 4.0
 # Fallback: lista-firme.info (public, rate-limited).
 LISTA_FIRME_URL = "https://lista-firme.info/api/v1/info"
 LISTA_FIRME_TIMEOUT_SECONDS = 3.0
+
+# Bug#14: apelurile blocante către ANAF/lista-firme.info rulau pe executorul
+# implicit al loop-ului (shared cu restul aplicației). Un ANAF lent/picat
+# putea ocupa toate thread-urile executorului implicit și bloca alte operații
+# async (ex. OCR) care depind de el. Folosim un executor dedicat, mărginit.
+_ANAF_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="anaf-cui")
 
 _INACTIVE_COMPANY_MARKERS = (
     "inactiv",
@@ -88,7 +95,7 @@ async def _call_anaf_api(cui_int: int, ref_date: str) -> CuiResult | None:
         )
 
     try:
-        response = await loop.run_in_executor(None, _request)
+        response = await loop.run_in_executor(_ANAF_EXECUTOR, _request)
         if response.status_code != 200:
             return None
         data = response.json()
@@ -148,7 +155,7 @@ async def _call_lista_firme_fallback(cui_digits: str) -> CuiResult | None:
         return requests.get(url, timeout=LISTA_FIRME_TIMEOUT_SECONDS, headers={"Accept": "application/json"})
 
     try:
-        response = await loop.run_in_executor(None, _request)
+        response = await loop.run_in_executor(_ANAF_EXECUTOR, _request)
         if response.status_code != 200:
             return None
         data = response.json()

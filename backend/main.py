@@ -8141,6 +8141,26 @@ async def scan_pdf(
     )
 
 
+def _invoice_verdict_messages(verdict_block: Optional[Dict[str, Any]]) -> tuple[List[str], List[str]]:
+    """Translate canonical verdict_gate labels into invoice-specific user copy."""
+    label = str((verdict_block or {}).get("gate", {}).get("label") or "PENDING").upper()
+    reasons = {
+        "SAFE": ["Datele facturii sunt coerente și corespund unui emitent cunoscut."],
+        "SUSPECT": ["Nu avem dovezi suficiente pentru a confirma factura ca sigură; verifică pe canalul oficial."],
+        "DANGEROUS": ["Dovezile indică risc ridicat: nu efectua plata și nu furniza date."],
+        "UNVERIFIED": ["Scanarea nu a găsit semnale de risc, dar nici proveniență pozitivă suficientă."],
+        "PENDING": ["Scanarea nu are încă toate dovezile necesare pentru un verdict final."],
+    }.get(label, ["Verifică pe canalul oficial înainte de plată."])
+    safe_actions = {
+        "SAFE": ["Poți efectua plata dacă recunoști emitentul și suma."],
+        "SUSPECT": ["Verifică factura în aplicația/site-ul emitentului, nu din linkul din document."],
+        "DANGEROUS": ["Nu plăti.", "Nu introduce date personale sau bancare.", "Raportează incidentul."],
+        "UNVERIFIED": ["Confirmă factura pe canalul oficial înainte de plată."],
+        "PENDING": ["Așteaptă finalizarea verificărilor automate."],
+    }.get(label, ["Așteaptă finalizarea scanării."])
+    return reasons, safe_actions
+
+
 @app.post("/v1/scan/invoice")
 async def scan_invoice_endpoint(
     image_file: Optional[UploadFile] = File(None),
@@ -8207,6 +8227,26 @@ async def scan_invoice_endpoint(
     extracted_urls = _dedupe_preserve_order(pdf_annotation_urls + extract_urls(ocr_text))
     result = await scan_invoice(ocr_text, links=extracted_urls)
 
+    # Bug#5 (Decizia A): ruta factură nu producea niciun verdict — întorcea doar
+    # fapte. Trecem faptele printr-un Evidence Bundle v2 și prin gate-ul unic
+    # (reduce_verdict) ca să iasă un label canonic (SAFE/SUSPECT/DANGEROUS/UNVERIFIED/PENDING).
+    verdict_block = None
+    if not result.error:
+        from services.invoice_orchestrator import evaluate_invoice_verdict
+        try:
+            verdict_block = evaluate_invoice_verdict(result, redacted_text=ocr_text)
+        except Exception:
+            verdict_block = None
+
+    # Bug#13: fără un mesaj clar, un verdict PENDING (sau absența lui din cauza
+    # unei erori la evaluare) ajungea la utilizator fără explicație — doar
+    # label-ul intern sau null. Mapăm label-ul (inclusiv PENDING) la mesaje
+    # explicite, ca în ruta orchestrată de facturi.
+    verdict_reasons: Optional[List[str]] = None
+    verdict_safe_actions: Optional[List[str]] = None
+    if not result.error:
+        verdict_reasons, verdict_safe_actions = _invoice_verdict_messages(verdict_block)
+
     response = {
         "source_type": source_type,
         "fields": {
@@ -8250,6 +8290,10 @@ async def scan_invoice_endpoint(
         } if result.brand_match else None,
         "anaf": result.anaf_cui_check,
         "warnings": result.warnings,
+        "verdict": verdict_block["gate"] if verdict_block else None,
+        "evidence_bundle": verdict_block["bundle"] if verdict_block else None,
+        "reasons": verdict_reasons,
+        "safe_actions": verdict_safe_actions,
         "error": result.error,
         "ocr_warning": ocr_warning,
     }
