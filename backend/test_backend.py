@@ -8319,3 +8319,69 @@ class TestBug2OfficialCandidateUrls:
         urls = _official_candidate_urls(["enel.ro"], [])
         assert "https://enel.ro/" in urls
         assert not any("{" in u or "}" in u for u in urls)
+
+
+class TestBug3AnafCachePoisoning:
+    """Bug#3 — nu cacha rezultate ANAF cu checked=False (otravire 12h)."""
+
+    def _clear(self):
+        from services import invoice_orchestrator as io
+        io._cui_cache.clear()
+        io._verdict_cache.clear()
+
+    def test_anaf_down_not_cached(self):
+        import asyncio
+        from unittest.mock import patch, AsyncMock
+        from services import invoice_orchestrator as io
+        from services.anaf_cui import CuiResult
+        self._clear()
+        down = CuiResult(exists=False, checked=False, denumire=None, activ=False,
+                         data_inactivare=None, platitor_tva=False, enrolled_efactura=False, raw=None)
+        text = "Furnizor: SC X SRL\nCUI: 12345678\nIBAN: RO33RNCB1234567890123456\nTotal: 100 lei"
+        with patch("services.invoice_orchestrator.check_cui", new_callable=AsyncMock) as m:
+            m.return_value = down
+            asyncio.run(io.scan_invoice(text))
+        assert io._get_cached_cui("12345678") is None  # ANAF down nu otraveste cache-ul
+
+    def test_anaf_ok_is_cached(self):
+        import asyncio
+        from unittest.mock import patch, AsyncMock
+        from services import invoice_orchestrator as io
+        from services.anaf_cui import CuiResult
+        self._clear()
+        ok = CuiResult(exists=True, checked=True, denumire="SC X SRL", activ=True,
+                       data_inactivare=None, platitor_tva=True, enrolled_efactura=False, raw=None)
+        text = "Furnizor: SC X SRL\nCUI: 87654321\nIBAN: RO33RNCB1234567890123456\nTotal: 100 lei"
+        with patch("services.invoice_orchestrator.check_cui", new_callable=AsyncMock) as m:
+            m.return_value = ok
+            asyncio.run(io.scan_invoice(text))
+        assert io._get_cached_cui("87654321") is not None  # rezultat valid se cacheaza
+
+
+class TestBug4AnafDownNotInexistent:
+    """Bug#4 — ANAF indisponibil (checked=False) NU inseamna CUI inexistent."""
+
+    def _scan(self, cui_result):
+        import asyncio
+        from unittest.mock import patch, AsyncMock
+        from services import invoice_orchestrator as io
+        io._cui_cache.clear(); io._verdict_cache.clear()
+        text = "Furnizor: SC X SRL\nCUI: 24681012\nIBAN: RO33RNCB1234567890123456\nTotal: 100 lei"
+        with patch("services.invoice_orchestrator.check_cui", new_callable=AsyncMock) as m:
+            m.return_value = cui_result
+            return asyncio.run(io.scan_invoice(text))
+
+    def test_down_does_not_say_inexistent(self):
+        from services.anaf_cui import CuiResult
+        down = CuiResult(exists=False, checked=False, denumire=None, activ=False,
+                         data_inactivare=None, platitor_tva=False, enrolled_efactura=False, raw=None)
+        w = " ".join(self._scan(down).warnings).lower()
+        assert "not found" not in w and "inexistent" not in w
+        assert "indisponibil" in w or "nu am putut verifica" in w
+
+    def test_inexistent_says_inexistent(self):
+        from services.anaf_cui import CuiResult
+        nope = CuiResult(exists=False, checked=True, denumire=None, activ=False,
+                         data_inactivare=None, platitor_tva=False, enrolled_efactura=False, raw=None)
+        w = " ".join(self._scan(nope).warnings).lower()
+        assert "inexistent" in w or "not found" in w

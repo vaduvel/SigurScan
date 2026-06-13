@@ -165,10 +165,18 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
                 "activ": raw_cui_check.activ,
                 "platitor_tva": raw_cui_check.platitor_tva,
             }
-            _set_cached_cui(fields.cui, cui_check)
+            # Bug#3: cacheaza DOAR rezultate verificate. checked=False (ANAF
+            # indisponibil) NU se cacheaza, ca sa nu otraveasca verdictul 12h.
+            if cui_check.get("checked"):
+                _set_cached_cui(fields.cui, cui_check)
         anaf_check = cui_check
-        if not cui_check["exists"]:
-            warnings.append(f"CUI {fields.cui} not found in ANAF registry")
+        # Bug#4: distinge "ANAF indisponibil" de "CUI inexistent".
+        if not cui_check.get("checked"):
+            warnings.append(
+                f"Nu am putut verifica CUI {fields.cui} la ANAF acum (serviciul indisponibil)"
+            )
+        elif not cui_check["exists"]:
+            warnings.append(f"CUI {fields.cui} inexistent în registrul ANAF (not found)")
         elif not cui_check["activ"]:
             warnings.append(f"Company {cui_check['denumire']} is inactive")
 
