@@ -3,8 +3,8 @@
 Repo: `vaduvel/SigurScan`
 Branch verificat: `feature/osint-intel-pipeline`
 Main remote: `origin/main` este aliniat cu branch-ul verificat; commit-urile ulterioare deployului pot fi doar documentatie/status.
-Production Cloud Run: `sigurscan-api-00047-q5m`
-Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:3183000`
+Production Cloud Run: `sigurscan-api-00049-hq8`
+Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:b7a0f68`
 
 ## Rezumat Brutal
 
@@ -16,7 +16,7 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 - Android PR-7 are acum BTR sync local, motor on-device de provenienta pe semnale locale si actiune UI pentru verificarea locala a ultimului scan impotriva BTR. Nu citeste automat SMS-uri.
 - Android PR-8 afiseaza `action_plan` si are flow post-incident pentru impacts reale (`shared_card`, `paid_transfer` etc.).
 - Android PR-9/PR-10 audio este blocat explicit prin policy pana exista model ASR on-device, consimtamant, disclosure si QA real-device.
-- Productia ruleaza imaginea backend taguita `3183000`. Commit-urile de documentatie/status de dupa deploy nu schimba codul backend din container.
+- Productia ruleaza imaginea backend taguita `b7a0f68`.
 
 ## Verificari Rulate
 
@@ -34,6 +34,8 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
   - `/v1/scan/orchestrated` cu `input_type=text` pentru FAN fake `fan-livrare.xyz`: `DANGEROUS`, score `90`, final URL nerezolvabil explicat.
 - Backend full test: `INVOICE_CACHE_HMAC_KEY=testkey PRIVACY_SAFE_MODE=false pytest -q`
   - rezultat final dupa merge cu `origin/main`: `914 passed, 1 warning`
+- Backend full test dupa fail-safe `urlz.fr`: `INVOICE_CACHE_HMAC_KEY=testkey PRIVACY_SAFE_MODE=false /opt/homebrew/bin/python3 -m pytest backend -q`
+  - rezultat: `915 passed, 1 warning`
 - Android JVM + build: `JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew testDebugUnitTest assembleDebug`
   - rezultat: `BUILD SUCCESSFUL`
 - Android feature tests adaugate:
@@ -97,10 +99,11 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
   - Backend targeted BTR/Radar/PR-8: `73 passed, 1 warning`
   - Backend targeted BTR channel fix: `48 passed, 1 warning`
 - Cloud Run live:
-  - revision: `sigurscan-api-00047-q5m`
+  - revision: `sigurscan-api-00049-hq8`
   - traffic: `100%`
-  - image: `:3183000`
+  - image: `:b7a0f68`
   - concurrency: `2`
+  - env check: `ENABLE_DNS_REPUTATION` prezent pe revizia live
 - Domeniu oficial `https://api.sigurscan.com`:
   - `/health`: OK
   - `/v1/radar/hot-iocs`: OK
@@ -138,7 +141,8 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
   - status: `complete`
   - preview reason: `final_url_unresolved`
   - `infra_dns`: `suspicious / registrar_suspended`
-  - observatie: user label ramas `UNVERIFIED/info`, nu `SUSPECT`
+  - verdict live dupa `b7a0f68`: `SUSPECT`, risk `medium`, score `55`
+  - gate reason: `final_url_unresolved_dns_suspicious_shortener`
 
 ## PR / Moat Matrix
 
@@ -153,7 +157,7 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 | PR-7 | Inbox provenance contract / BTR sync | Da ca endpoint | Da ca foundation + UI local check | `/v1/btr/sync` live OK cu User-Agent Android; Android consuma endpointul, stocheaza local si are engine on-device pe semnale locale. UI Radar poate rula verificarea locala a ultimului scan. Nu citeste automat SMS-uri |
 | PR-8 | Plan de actiune post-incident | Da | Da pentru flow de rezultat | `/v1/legal/action-plan` live OK; Android trimite impacts reale selectate si randeaza planul; planul apare in smoke emulator FAN fake |
 | PR-8/9 integ | `action_plan` in orchestrator + audio reference | Partial backend | Partial pentru action_plan, nu audio | Orchestratorul trimite `action_plan`; Android il afiseaza. Nu exista audio reference/on-device audio |
-| Extra | DNS reputation | Da | Da indirect prin scan response | `infra_dns` live OK; flag Cloud Run activ |
+| Extra | DNS reputation | Da | Da indirect prin scan response | `infra_dns` live OK; flag Cloud Run activ si pastrat in scriptul de deploy |
 | PR-9/PR-10 | Android on-device: ASR/Vosk, banda inline, captura difuzor | Nu ca ASR complet | UI readiness + gated sigur | `AudioSafetyPolicy` + UI readiness blocheaza capture by default. Nu exista inca model ASR local si QA real-device |
 
 ## Gap-uri Care Nu Trebuie Numite Complete
@@ -186,9 +190,10 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
    - Manifestul este acoperit de `ShareIntentManifestTest`, inclusiv interdictia `RECORD_AUDIO`.
    - Android are card readiness pentru consimtamant/disclosure/model/feature flag; nu cere permisiune microfon si nu porneste captura falsa.
 
-5. Gate/UX pentru `urlz.fr/rZrw` merita decis explicit.
-   - Tehnic scanarea se inchide corect, preview explica `final_url_unresolved`, DNS detecteaza `registrar_suspended`.
-   - User-facing label este `UNVERIFIED/info`; daca produsul vrea fail-safe mai vizibil, regula trebuie ajustata la `SUSPECT` pentru shortener + final unresolved + DNS suspended.
+5. Gate/UX pentru `urlz.fr/rZrw` este rezolvat live pentru cazul shortener + final URL nerezolvabil + DNS suspendat.
+   - Scanarea se inchide corect, preview explica `final_url_unresolved`, DNS detecteaza `registrar_suspended`.
+   - User-facing label live este `SUSPECT/medium`, cu gate reason `final_url_unresolved_dns_suspicious_shortener`.
+   - Regula nu este generala pentru orice NXDOMAIN: testul `test_orchestrated_plain_unresolved_final_url_remains_final_unverified` pastreaza un domeniu simplu nerezolvabil ca `UNVERIFIED/info`.
 
 6. Release public auth ramane limitat pana la Play Integrity/backend-issued token.
    - APK/AAB nu contin provider/admin/service secrets dupa auditul `tools/audit_android_release_secrets.py`.
