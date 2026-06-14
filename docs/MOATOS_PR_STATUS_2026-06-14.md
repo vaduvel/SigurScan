@@ -2,8 +2,8 @@
 
 Repo: `vaduvel/SigurScan`
 Branch verificat: `feature/osint-intel-pipeline`
-Production Cloud Run: `sigurscan-api-00045-s5b`
-Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:e4a0f82`
+Production Cloud Run: `sigurscan-api-00046-n7q`
+Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:0609a98`
 
 ## Rezumat Brutal
 
@@ -43,15 +43,16 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
   - `ActionPlanRequestTest`
   - `AudioSafetyPolicyTest`
 - Verificari locale dupa conectarea raportului oficial si BTR YOXO:
-  - Backend full final: `902 passed, 1 warning`
+  - Backend full final dupa merge cu `origin/main`: `914 passed, 1 warning`
   - Android full JVM: `BUILD SUCCESSFUL`
   - Android `assembleDebug`: `BUILD SUCCESSFUL`
   - Backend targeted BTR/Radar/PR-8: `73 passed, 1 warning`
   - Backend targeted BTR channel fix: `48 passed, 1 warning`
 - Cloud Run live:
-  - revision: `sigurscan-api-00045-s5b`
+  - revision: `sigurscan-api-00046-n7q`
   - traffic: `100%`
-  - image: `:e4a0f82`
+  - image: `:0609a98`
+  - concurrency: `2`
 - Domeniu oficial `https://api.sigurscan.com`:
   - `/health`: OK
   - `/v1/radar/hot-iocs`: OK
