@@ -4363,6 +4363,105 @@ def test_best_preview_cache_uses_fast_image_when_urlscan_cache_is_report_only(mo
     assert updated["preview"]["report_url"] == "https://urlscan.io/result/report-only-1/"
 
 
+def test_best_preview_cache_prefers_fast_image_over_ready_urlscan_screenshot(monkeypatch):
+    final_url = "https://reconditionate.yoxo.ro/"
+    urlscan_cached = {
+        "uuid": "urlscan-ready-1",
+        "status": "finished",
+        "final_url": final_url,
+        "submitted_url": final_url,
+        "report_url": "https://urlscan.io/result/urlscan-ready-1/",
+        "screenshot_url": "https://urlscan.io/screenshots/urlscan-ready-1.png",
+        "screenshot_ready": True,
+        "verdict": "No malicious classification",
+        "severity": "low",
+        "expires_at": int(time.time()) + 3600,
+    }
+    fast_cached = {
+        "url_hash": app_main._urlscan_preview_cache_key(final_url),
+        "final_url": final_url,
+        "screenshot_path": "https://signed.example/yoxo-reconditionate.png",
+        "reachable": True,
+        "status": "ready",
+        "visual_only": True,
+        "verdict_role": "none",
+        "expires_at": int(time.time()) + 3600,
+    }
+    job = {
+        "preview": {},
+        "urlscan": {"status": "queued"},
+        "analysis": {"evidence": {"external_intel_summary": {}}},
+        "orchestration_metrics": {"poll_count": 0, "stage_sequence": [], "stage_durations_ms": {}},
+    }
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "_load_urlscan_preview_cache", lambda value: dict(urlscan_cached))
+        patched.setattr(app_main, "_load_fast_preview_cache", lambda value: dict(fast_cached))
+        updated = app_main._apply_best_preview_cache_hit(job, final_url)
+
+    assert updated["urlscan"]["report_url"] == "https://urlscan.io/result/urlscan-ready-1/"
+    assert updated["analysis"]["evidence"]["external_intel_summary"]["urlscan"]["status"] == "clean"
+    assert updated["preview"]["status"] == "ready"
+    assert updated["preview"]["source"] == "precapture_worker"
+    assert updated["preview"]["image_url"] == "https://signed.example/yoxo-reconditionate.png"
+    assert updated["preview"]["report_url"] == "https://urlscan.io/result/urlscan-ready-1/"
+
+
+def test_orchestrated_ready_urlscan_cache_prefers_ready_fast_preview(monkeypatch):
+    final_url = "https://reconditionate.yoxo.ro/"
+    urlscan_cached = {
+        "uuid": "cached-ready-urlscan",
+        "status": "finished",
+        "submitted_url": final_url,
+        "final_url": final_url,
+        "report_url": "https://urlscan.io/result/cached-ready-urlscan/",
+        "screenshot_url": "https://urlscan.io/screenshots/cached-ready-urlscan.png",
+        "screenshot_ready": True,
+        "verdict": "No malicious classification",
+        "severity": "low",
+        "expires_at": int(time.time()) + 3600,
+    }
+    fast_preview = {
+        "url_hash": app_main._urlscan_preview_cache_key(final_url),
+        "final_url": final_url,
+        "screenshot_path": "https://signed.example/yoxo-reconditionate.png",
+        "reachable": True,
+        "status": "ready",
+        "visual_only": True,
+        "verdict_role": "none",
+        "expires_at": int(time.time()) + 3600,
+    }
+    job = {
+        "scan_id": "orch_ready_urlscan_and_fast_preview",
+        "created_at": int(time.time()),
+        "pipeline_stage": "analysis_ready",
+        "primary_final_url": final_url,
+        "resolved_urls": [{"url": final_url, "final_url": final_url}],
+        "urlscan": {"status": "queued"},
+        "preview": {},
+        "analysis": {"evidence": {"external_intel_summary": {}}},
+        "orchestration_metrics": {"poll_count": 0, "stage_sequence": [], "stage_durations_ms": {}},
+    }
+
+    async def fail_submit(*args, **kwargs):
+        raise AssertionError("Cached urlscan report must prevent duplicate submission.")
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "_load_urlscan_preview_cache", lambda value: dict(urlscan_cached))
+        patched.setattr(app_main, "_load_fast_preview_cache", lambda value: dict(fast_preview))
+        patched.setattr(app_main, "_submit_orchestrated_urlscan", fail_submit)
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main._submit_orchestrated_urlscan_preview_once(job, None))
+
+    assert refreshed["pipeline_stage"] == "urlscan_submitted"
+    assert refreshed["urlscan"]["report_url"] == "https://urlscan.io/result/cached-ready-urlscan/"
+    assert refreshed["preview"]["status"] == "ready"
+    assert refreshed["preview"]["source"] == "precapture_worker"
+    assert refreshed["preview"]["image_url"] == "https://signed.example/yoxo-reconditionate.png"
+    assert refreshed["preview"]["report_url"] == "https://urlscan.io/result/cached-ready-urlscan/"
+
+
 def test_orchestrated_fast_lane_attaches_cached_preview_before_submit_stage(monkeypatch):
     job = {
         "scan_id": "orch_fast_lane_cache_hit",

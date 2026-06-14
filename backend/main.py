@@ -5301,13 +5301,17 @@ def _apply_fast_preview_cache_hit(job: Dict[str, Any], cached: Dict[str, Any]) -
 def _apply_best_preview_cache_hit(job: Dict[str, Any], final_url: Any) -> Dict[str, Any]:
     if not final_url:
         return job
+    cached_fast = _load_fast_preview_cache(final_url)
     cached_urlscan = _load_urlscan_preview_cache(final_url)
     if cached_urlscan:
         job = _apply_urlscan_preview_cache_hit(job, cached_urlscan)
+        if cached_fast:
+            return _apply_fast_preview_cache_hit(job, cached_fast)
         preview = job.get("preview") if isinstance(job.get("preview"), dict) else {}
-        if preview.get("status") == "ready" and (preview.get("image_url") or preview.get("screenshot_url")):
+        if preview.get("status") == "ready" and (
+            preview.get("image_url") or preview.get("screenshot_url")
+        ):
             return job
-    cached_fast = _load_fast_preview_cache(final_url)
     if cached_fast:
         return _apply_fast_preview_cache_hit(job, cached_fast)
     return job
@@ -6557,21 +6561,18 @@ async def _submit_orchestrated_urlscan_preview_once(job: Dict[str, Any], request
     urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
     urlscan_status = str(urlscan_state.get("status") or "").strip().lower()
     if primary_final_url and urlscan_status in {"queued", "", "skipped"}:
+        cached_fast_preview = _load_fast_preview_cache(primary_final_url)
         cached_preview = _load_urlscan_preview_cache(primary_final_url)
         if cached_preview:
             job = _apply_urlscan_preview_cache_hit(job, cached_preview)
-            preview = job.get("preview") if isinstance(job.get("preview"), dict) else {}
-            if preview.get("status") != "ready" or not (preview.get("image_url") or preview.get("screenshot_url")):
-                cached_fast_preview = _load_fast_preview_cache(primary_final_url)
-                if cached_fast_preview:
-                    job = _apply_fast_preview_cache_hit(job, cached_fast_preview)
-                    _emit_orchestrated_telemetry("orchestrated_fast_preview_cache_hit", job)
+            if cached_fast_preview:
+                job = _apply_fast_preview_cache_hit(job, cached_fast_preview)
+                _emit_orchestrated_telemetry("orchestrated_fast_preview_cache_hit", job)
             _set_orchestrated_stage(job, "urlscan_submitted")
             job = _persist_orchestrated_job(job)
             _emit_orchestrated_telemetry("orchestrated_urlscan_preview_cache_hit", job)
             return job
 
-        cached_fast_preview = _load_fast_preview_cache(primary_final_url)
         if cached_fast_preview:
             job = _apply_fast_preview_cache_hit(job, cached_fast_preview)
             _emit_orchestrated_telemetry("orchestrated_fast_preview_cache_hit", job)
