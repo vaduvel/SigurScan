@@ -12,7 +12,7 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 - Supabase PR-6 tables sunt aplicate live si citibile prin REST.
 - DNS reputation este activ live (`ENABLE_DNS_REPUTATION=true`) si apare in scanari reale ca `infra_dns`.
 - PR-6 Cercul are acum write-through plus read-fallback din Supabase; testat live cu link creat inainte de deploy.
-- Android PR-5 are acum hot-cache client, cache offline, CallScreeningService, UI pentru sync/rol OS si flow de raport oficial 1-tap (`/v1/report`). Flow-ul scan + raport oficial a fost validat pe emulator API 36; CallScreening nu a fost inca validat cu rolul OS activat.
+- Android PR-5 are acum hot-cache client, cache offline, CallScreeningService, UI pentru sync/rol OS, audit local fara numar brut si flow de raport oficial 1-tap (`/v1/report`). Flow-ul scan + raport oficial a fost validat pe emulator API 36; CallScreening a fost validat pe emulator cu rol OS activ si apel GSM simulat.
 - Android PR-7 are acum BTR sync local si motor on-device de provenienta pe semnale locale. Nu citeste automat SMS-uri.
 - Android PR-8 afiseaza `action_plan` si are flow post-incident pentru impacts reale (`shared_card`, `paid_transfer` etc.).
 - Android PR-9/PR-10 audio este blocat explicit prin policy pana exista model ASR on-device, consimtamant, disclosure si QA real-device.
@@ -43,6 +43,16 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
   - `CircleGuardianContractTest`
   - `ActionPlanRequestTest`
   - `AudioSafetyPolicyTest`
+- Android CallScreening targeted dupa audit local:
+  - `JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew testDebugUnitTest --tests 'ro.sigurscan.app.RadarHotCacheTest'`
+  - rezultat: `BUILD SUCCESSFUL`
+  - `JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew assembleDebug`
+  - rezultat: `BUILD SUCCESSFUL`
+- Android full final dupa audit CallScreening si policy docs:
+  - `git diff --check`: OK
+  - `JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew testDebugUnitTest assembleDebug`
+  - rezultat: `BUILD SUCCESSFUL`
+  - observatii: doar warning-uri Kotlin existente/deprecated Compose icons/clipboard/lifecycle; fara test sau build failure
 - Verificari locale dupa conectarea raportului oficial si BTR YOXO:
   - Backend full final dupa merge cu `origin/main`: `914 passed, 1 warning`
   - Android full JVM: `BUILD SUCCESSFUL`
@@ -69,6 +79,12 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
   - Scan Android `https://fan-livrare.xyz/`: UI `PERICULOS`, verdict final, mesaj `Nu apasa linkul`, preview indisponibil cu motiv clar `Destinatia finala nu poate fi incarcata/verificata`.
   - Android PR-8: plan de actiune vizibil in rezultat, inclusiv `Raportare: DNSC, PNRISC / Poliția Română` si impacts reale selectabile.
   - Android PR-5 raport 1-tap: buton `Pregătește raport oficial` a populat cardul `Raport oficial pregătit` cu `DNSC`, `PNRISC / Poliția Română`, subiecte si mesaje precompletate.
+  - Android PR-5 CallScreening:
+    - `cmd role get-role-holders android.app.role.CALL_SCREENING`: `ro.sigurscan.app`
+    - Telecom: `SCREENING_BOUND` si `SCREENING_COMPLETED` pentru `ro.sigurscan.app/.SigurScanCallScreeningService`
+    - apel GSM simulat catre numar din hot-cache: decizie `WARN`, `SKIP_RINGING (Silent ringing requested)`
+    - audit local salvat: `action=WARN`, `reason=reported_number_bucket_test`, `family=qa_call_screening`, fara numar brut
+    - UI Radar afiseaza `Ultimul apel verificat local: warn · reported_number_bucket_test`
 - Live scan YOXO:
   - verdict: `SAFE`
   - score: `10`
@@ -91,7 +107,7 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 | PR | Moat / functie | Backend live | Android live | Evidence |
 | --- | --- | --- | --- | --- |
 | PR-0..PR-4 | verdict gate, BTR, provenance, Urechea, CFX | Da, verificat targetat | Da pentru flow-ul principal de scanare | `114 passed` backend targetat; Android targetat `BUILD SUCCESSFUL`; `/v1/verify/provenance`, `/v1/urechea/status`, `/v1/campaign/match` live OK; scan live eMAG/YOXO SAFE si FAN fake DANGEROUS; emulator YOXO `SIGUR` si FAN fake `PERICULOS` |
-| PR-5 | Radar hot-cache | Da | Partial real | `/v1/radar/hot-iocs` live OK; Android are cache offline, CallScreeningService si UI sync/rol. Lipseste QA device cu rol CallScreening activ |
+| PR-5 | Radar hot-cache | Da | Da pe emulator API 36; necesita inca telefon real pentru carrier QA | `/v1/radar/hot-iocs` live OK; Android are cache offline, CallScreeningService, UI sync/rol si audit local fara numar brut; rol `CALL_SCREENING` activat pe emulator; apel GSM simulat a produs `WARN` si `SKIP_RINGING` |
 | PR-5 | Raport 1-tap | Da | Da pe emulator | `/v1/report` live OK; Android are endpoint typed, buton in rezultat de risc si card cu canale DNSC/PNRISC; validat pe emulator prin FAN fake |
 | PR-6 | Cercul out-of-band | Da | Da, UI Android dedicat in Radar | `/v1/circle/pair`, `/ping`, `/respond`, `/revoke` live OK; Android are pair/ping/respond/revoke fara continut brut |
 | PR-6 persist | Supabase durable state | Da | N/A | `circle_links`, `verification_pings`, `guardian_second_opinion` live OK; read-fallback adaugat in `4ba2b9b` |
@@ -104,15 +120,18 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 
 ## Gap-uri Care Nu Trebuie Numite Complete
 
-1. Android CallScreening pentru PR-5 este implementat ca foundation, dar nu este inca validat pe device real.
+1. Android CallScreening pentru PR-5 este validat pe emulator cu rol OS si apel GSM simulat, dar nu este inca validat pe telefon fizic cu apel de carrier.
    - Exista service in manifest.
    - Exista cerere `ROLE_CALL_SCREENING`.
    - Serviciul foloseste hot-cache offline, fara network in `onScreenCall`.
-   - Lipseste test pe telefon/emulator cu rolul activat si apel simulat/real.
+   - Serviciul salveaza audit local minim (`action`, `reason`, `family`, timestamp), fara numar brut.
+   - Pe emulator API 36: `SCREENING_BOUND`, `SCREENING_COMPLETED`, `SKIP_RINGING` pentru numar raportat.
+   - Lipseste test pe telefon real cu apel real/carrier.
 
 2. Android BTR sync / Inbox PR-7 este foundation, nu citire automata SMS.
    - Backend-ul ofera `/v1/btr/sync`.
    - App-ul are client Retrofit, store local si engine on-device.
+   - Manifestul Android nu cere `READ_SMS`; nu exista citire automata inbox/SMS.
    - Lipseste integrarea cu un flux real de inbox/SMS dupa decizia de produs si permisiuni.
 
 3. Android PR-8 Action Plan este functional in ecranul de rezultat.
@@ -123,6 +142,7 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 4. PR-9/PR-10 Android audio nu este implementat ca ASR, dar este blocat matur si vizibil in UI.
    - Nu exista Vosk/ASR/captura difuzor in productie.
    - `AudioSafetyPolicy` blocheaza capture fara feature flag, consimtamant, disclosure si model.
+   - Manifestul Android nu cere `RECORD_AUDIO`; nu exista captura audio ascunsa.
    - Android are card readiness pentru consimtamant/disclosure/model/feature flag; nu cere permisiune microfon si nu porneste captura falsa.
 
 5. Gate/UX pentru `urlz.fr/rZrw` merita decis explicit.
@@ -144,7 +164,7 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 - Android afiseaza planul de actiune preventiv PR-8 cand backend-ul il include in scan response.
 - Android poate sincroniza Radar hot-cache si BTR de pe domeniul oficial.
 - Android poate cere pachet de raportare oficiala 1-tap pentru verdicturi de risc, fara continut brut.
-- Android are CallScreeningService offline-first; nu face network in timpul apelului.
+- Android are CallScreeningService offline-first; nu face network in timpul apelului, este validat pe emulator cu rol OS activ si apel GSM simulat.
 - Android are UI Cercul/Guardian in Radar: pair, ping, raspuns, revocare si second opinion metadata/redacted.
 - Android poate cere plan post-incident personalizat pe impacts reale.
 - Android audio capture este blocat by default prin policy testat si readiness UI.

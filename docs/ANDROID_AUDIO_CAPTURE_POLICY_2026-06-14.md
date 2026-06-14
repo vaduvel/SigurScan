@@ -14,5 +14,6 @@ Current state:
 - Audio capture is blocked by `AudioSafetyPolicy` by default.
 - No Vosk/ASR production model is bundled.
 - No hidden call recording is implemented.
+- The Android manifest does not request `android.permission.RECORD_AUDIO`.
+- The current UI is a readiness gate, not an audio capture feature.
 - PR-9/PR-10 remain gated until the above requirements are implemented and verified.
-

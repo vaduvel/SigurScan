@@ -401,6 +401,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     var radarHotCache by mutableStateOf<RadarHotCacheSnapshot?>(null)
     var radarHotCacheLoading by mutableStateOf(false)
     var radarHotCacheStatus by mutableStateOf<String?>(null)
+    var radarScreeningAudit by mutableStateOf<RadarScreeningAudit?>(null)
     var btrSyncSnapshot by mutableStateOf<BtrSyncSnapshot?>(null)
     var btrSyncLoading by mutableStateOf(false)
     var btrSyncStatus by mutableStateOf<String?>(null)
@@ -478,6 +479,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     private var stagedEvidenceChannel: String? = null
     private val resultCache = Collections.synchronizedMap(LinkedHashMap<String, CachedAssessmentRecord>())
     private val radarHotCacheStore by lazy { RadarHotCacheStore.fromContext(application) }
+    private val radarScreeningAuditStore by lazy { RadarScreeningAuditStore.fromContext(application) }
     private val btrSyncStore by lazy { BtrSyncStore.fromContext(application) }
 
     private val api: SigurScanApi by lazy {
@@ -522,6 +524,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             withContext(Dispatchers.Main) {
                 applyPersistedStartupState(persisted)
                 radarHotCache = radarHotCacheStore.load()
+                radarScreeningAudit = radarScreeningAuditStore.load()
                 btrSyncSnapshot = btrSyncStore.load()
                 circleSnapshot = loadCircleProtectionSnapshot()
                 refreshAudioReadiness()
@@ -620,6 +623,10 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 radarHotCacheLoading = false
             }
         }
+    }
+
+    fun refreshRadarScreeningAudit() {
+        radarScreeningAudit = radarScreeningAuditStore.load()
     }
 
     fun syncBtrManifests() {

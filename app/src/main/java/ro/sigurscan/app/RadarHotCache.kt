@@ -36,6 +36,24 @@ enum class RadarCallAction {
     WARN
 }
 
+data class RadarScreeningAudit(
+    val checkedAtEpochMillis: Long,
+    val action: RadarCallAction,
+    val reason: String,
+    val family: String? = null
+) {
+    companion object {
+        fun fromDecision(decision: RadarCallDecision, checkedAtEpochMillis: Long = System.currentTimeMillis()): RadarScreeningAudit {
+            return RadarScreeningAudit(
+                checkedAtEpochMillis = checkedAtEpochMillis,
+                action = decision.action,
+                reason = decision.reason,
+                family = decision.family
+            )
+        }
+    }
+}
+
 object PhoneNumberHasher {
     fun normalizePhoneNumber(raw: String?): String {
         val value = raw.orEmpty().trim()
@@ -106,6 +124,34 @@ object RadarCallDecider {
         }
 
         return RadarCallDecision(action = RadarCallAction.ALLOW, reason = "no_radar_hit")
+    }
+}
+
+class RadarScreeningAuditStore(
+    private val prefs: SharedPreferences,
+    private val gson: Gson = Gson()
+) {
+    fun save(audit: RadarScreeningAudit) {
+        prefs.edit().putString(PREF_KEY, gson.toJson(audit)).apply()
+    }
+
+    fun load(): RadarScreeningAudit? {
+        val raw = prefs.getString(PREF_KEY, null) ?: return null
+        return runCatching {
+            gson.fromJson<RadarScreeningAudit>(
+                raw,
+                object : TypeToken<RadarScreeningAudit>() {}.type
+            )
+        }.getOrNull()
+    }
+
+    companion object {
+        private const val PREF_NAME = "sigurscan_radar_screening_audit"
+        private const val PREF_KEY = "last_screening_v1"
+
+        fun fromContext(context: Context): RadarScreeningAuditStore {
+            return RadarScreeningAuditStore(context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE))
+        }
     }
 }
 

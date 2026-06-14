@@ -2,6 +2,7 @@ package ro.sigurscan.app
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -91,5 +92,23 @@ class RadarHotCacheTest {
 
         assertEquals(RadarCallAction.ALLOW, RadarCallDecider.decide("0721123456", expired, nowMillis = 180_000L).action)
         assertEquals(RadarCallAction.ALLOW, RadarCallDecider.decide("0721123456", null, nowMillis = 2_000L).action)
+    }
+
+    @Test
+    fun screeningAuditKeepsDecisionButNoRawPhoneNumber() {
+        val decision = RadarCallDecision(
+            action = RadarCallAction.WARN,
+            reason = "campaign_hash_prefix_match",
+            family = "CONV_BANK_SAFE_ACCOUNT",
+            silenceCall = true
+        )
+
+        val audit = RadarScreeningAudit.fromDecision(decision, checkedAtEpochMillis = 42L)
+
+        assertEquals(42L, audit.checkedAtEpochMillis)
+        assertEquals(RadarCallAction.WARN, audit.action)
+        assertEquals("campaign_hash_prefix_match", audit.reason)
+        assertEquals("CONV_BANK_SAFE_ACCOUNT", audit.family)
+        assertNull(RadarScreeningAudit::class.java.declaredFields.firstOrNull { it.name.contains("phone", ignoreCase = true) })
     }
 }

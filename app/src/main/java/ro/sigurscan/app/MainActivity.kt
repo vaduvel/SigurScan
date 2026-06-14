@@ -824,9 +824,11 @@ fun RadarTab(viewModel: ScannerViewModel) {
 
         RadarCallProtectionCard(
             cache = viewModel.radarHotCache,
+            audit = viewModel.radarScreeningAudit,
             loading = viewModel.radarHotCacheLoading,
             status = viewModel.radarHotCacheStatus,
             onSync = { viewModel.syncRadarHotCache() },
+            onRefreshAudit = { viewModel.refreshRadarScreeningAudit() },
             onEnableRole = { requestCallScreeningRole(context) }
         )
         Spacer(modifier = Modifier.height(16.dp))
@@ -1347,9 +1349,11 @@ private fun ReadinessRow(label: String, ok: Boolean) {
 @Composable
 private fun RadarCallProtectionCard(
     cache: RadarHotCacheSnapshot?,
+    audit: RadarScreeningAudit?,
     loading: Boolean,
     status: String?,
     onSync: () -> Unit,
+    onRefreshAudit: () -> Unit,
     onEnableRole: () -> Unit
 ) {
     val expired = cache?.isExpired() ?: true
@@ -1379,6 +1383,18 @@ private fun RadarCallProtectionCard(
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(it, color = SigurColors.TextSecondary, fontSize = 11.sp, lineHeight = 15.sp)
             }
+            audit?.let {
+                Spacer(modifier = Modifier.height(8.dp))
+                val checkedAt = remember(it.checkedAtEpochMillis) {
+                    SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(it.checkedAtEpochMillis))
+                }
+                Text(
+                    "Ultimul apel verificat local: ${it.action.name.lowercase(Locale.getDefault())} · ${it.reason} · $checkedAt",
+                    color = SigurColors.TextMuted,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp
+                )
+            }
             Spacer(modifier = Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 Button(
@@ -1392,6 +1408,17 @@ private fun RadarCallProtectionCard(
                     Icon(Icons.Default.Refresh, contentDescription = null, tint = SigurColors.Brand, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(if (loading) "Sync..." else "Sincronizează", color = SigurColors.Brand, fontSize = 11.sp)
+                }
+                Button(
+                    onClick = onRefreshAudit,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = SigurColors.BackgroundSurface),
+                    border = BorderStroke(1.dp, SigurColors.GlassBorder),
+                    shape = DSPillShape
+                ) {
+                    Icon(Icons.Default.History, contentDescription = null, tint = SigurColors.TextPrimary, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Ultimul apel", color = SigurColors.TextPrimary, fontSize = 11.sp)
                 }
                 Button(
                     onClick = onEnableRole,
