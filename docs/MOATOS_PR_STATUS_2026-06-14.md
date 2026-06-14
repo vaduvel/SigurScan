@@ -18,13 +18,17 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 ## Verificari Rulate
 
 - Backend full test: `INVOICE_CACHE_HMAC_KEY=testkey PRIVACY_SAFE_MODE=false pytest -q`
-  - rezultat: `895 passed, 1 warning`
+  - rezultat: `898 passed, 1 warning`
 - Android JVM + build: `JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew testDebugUnitTest assembleDebug`
   - rezultat: `BUILD SUCCESSFUL`
 - Cloud Run live:
-  - revision: `sigurscan-api-00042-jsz`
+  - revision: `sigurscan-api-00043-qq7`
   - traffic: `100%`
-  - image: `:4ba2b9b`
+  - image: `:3231eeb`
+- Domeniu oficial `https://api.sigurscan.com`:
+  - `/health`: OK
+  - `/v1/radar/hot-iocs`: OK
+  - POST `/v1/scan/orchestrated` cu YOXO: `SAFE`, score `10`, preview `ready`
 - Live scan YOXO:
   - verdict: `SAFE`
   - score: `10`
