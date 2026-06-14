@@ -17,9 +17,11 @@ from dataclasses import dataclass
 from typing import Callable, List, Optional, Tuple
 from urllib.parse import urlparse
 
-# Resolvere publice (DoH JSON). Cel „security" blochează domenii malware/phishing.
+# Resolvere publice (DoH JSON). Cele „security" blochează domenii malware/phishing.
 _NORMAL_RESOLVER = "https://cloudflare-dns.com/dns-query"
+_GOOGLE_NORMAL_RESOLVER = "https://dns.google/resolve"
 _SECURITY_RESOLVER = "https://security.cloudflare-dns.com/dns-query"
+_QUAD9_SECURITY_RESOLVER = "https://dns.quad9.net/dns-query"
 
 # IP-uri „sentinelă" cu care unele resolvere de securitate semnalează un bloc.
 _BLOCK_SENTINEL_IPS = {"0.0.0.0", "::"}
@@ -34,9 +36,17 @@ _NOERROR = 0
 
 @dataclass
 class DnsReputation:
-    status: str           # blocked | suspended | nxdomain | resolves | unknown
+    status: str           # blocked | security_disagreement | suspended | nxdomain | resolves | unknown
     reason_codes: List[str]
     severity: str         # high | medium | low
+
+
+def _security_resolver_blocks(status: int, ips: List[str]) -> bool:
+    return (
+        status == _NXDOMAIN
+        or (status == _NOERROR and not ips)
+        or any(ip in _BLOCK_SENTINEL_IPS for ip in (ips or []))
+    )
 
 
 def classify_dns(
@@ -46,17 +56,23 @@ def classify_dns(
     security_status: int,
     security_ips: List[str],
     ns_hosts: List[str],
+    security_results: Optional[List[Tuple[str, int, List[str]]]] = None,
 ) -> DnsReputation:
     """Pur: clasifică pe baza răspunsurilor DNS deja obținute."""
     ns_blob = " ".join(str(h).lower() for h in (ns_hosts or []))
     suspended = any(marker in ns_blob for marker in _SUSPENSION_NS_MARKERS)
 
     normal_resolves = normal_status == _NOERROR and bool(normal_ips)
-    security_blocks = (
-        security_status == _NXDOMAIN
-        or (security_status == _NOERROR and not security_ips)
-        or any(ip in _BLOCK_SENTINEL_IPS for ip in (security_ips or []))
-    )
+    security_blocks = _security_resolver_blocks(security_status, security_ips)
+
+    if security_results is not None and normal_resolves:
+        block_count = sum(
+            1 for _, status, ips in security_results if _security_resolver_blocks(status, ips)
+        )
+        if block_count >= 2:
+            return DnsReputation("blocked", ["security_dns_blocked"], "high")
+        if block_count > 0:
+            return DnsReputation("security_disagreement", ["security_dns_disagreement"], "medium")
 
     # 1) Bloc autoritar: rezolvă normal, dar DNS-ul de securitate îl refuză.
     if normal_resolves and security_blocks:
@@ -102,6 +118,18 @@ def dns_infra_entry(rep: DnsReputation) -> Optional[dict]:
             "consulted": True,
             "details": "Domeniul nu rezolvă (NXDOMAIN) — posibil luat jos; semnal ponderat.",
         }
+    if rep.status == "security_disagreement":
+        return {
+            "status": "suspicious", "verdict": "security_dns_disagreement", "severity": "medium",
+            "consulted": True,
+            "details": "Un resolver DNS de securitate blocheaza domeniul, dar consensul nu este suficient pentru verdict terminal.",
+        }
+    if rep.status == "resolves":
+        return {
+            "status": "clean", "verdict": "resolves", "severity": "low",
+            "consulted": True,
+            "details": "Domeniul rezolva pe DNS public si nu exista consens de blocare la resolverele de securitate.",
+        }
     return None
 
 
@@ -137,6 +165,13 @@ def _default_doh_get(resolver: str, name: str, qtype: str, timeout: float) -> Tu
 DohGet = Callable[[str, str, str, float], Tuple[int, List[str]]]
 
 
+def _safe_doh_get(doh_get: DohGet, resolver: str, name: str, qtype: str, timeout: float) -> Tuple[int, List[str]]:
+    try:
+        return doh_get(resolver, name, qtype, timeout)
+    except Exception:
+        return 2, []
+
+
 def check_dns_reputation(
     domain: str,
     *,
@@ -147,11 +182,17 @@ def check_dns_reputation(
     host = domain_from_url(domain)
     if not host:
         return DnsReputation("unknown", [], "low")
-    normal_status, normal_ips = doh_get(_NORMAL_RESOLVER, host, "A", timeout)
-    security_status, security_ips = doh_get(_SECURITY_RESOLVER, host, "A", timeout)
-    _, ns_hosts = doh_get(_NORMAL_RESOLVER, host, "NS", timeout)
+    normal_status, normal_ips = _safe_doh_get(doh_get, _NORMAL_RESOLVER, host, "A", timeout)
+    _safe_doh_get(doh_get, _GOOGLE_NORMAL_RESOLVER, host, "A", timeout)
+    security_status, security_ips = _safe_doh_get(doh_get, _SECURITY_RESOLVER, host, "A", timeout)
+    quad9_status, quad9_ips = _safe_doh_get(doh_get, _QUAD9_SECURITY_RESOLVER, host, "A", timeout)
+    _, ns_hosts = _safe_doh_get(doh_get, _NORMAL_RESOLVER, host, "NS", timeout)
     return classify_dns(
         normal_status=normal_status, normal_ips=normal_ips,
         security_status=security_status, security_ips=security_ips,
         ns_hosts=ns_hosts,
+        security_results=[
+            ("cloudflare_security", security_status, security_ips),
+            ("quad9", quad9_status, quad9_ips),
+        ],
     )

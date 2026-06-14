@@ -3289,6 +3289,7 @@ def _build_decision_evidence_bundle(
         "evidence_power": provenance_proto.get("evidence_power", "none"),
     }
     resolution_status = "resolved" if first_url else ("failed" if has_urls else "not_required")
+    community_data = evidence.get("community") if isinstance(evidence.get("community"), dict) else None
     bundle = {
         "schema": "sigurscan_evidence_bundle_v2",
         "input": {
@@ -3315,6 +3316,8 @@ def _build_decision_evidence_bundle(
         },
         "semantic_review": semantic_review,
     }
+    if community_data:
+        bundle["community"] = community_data
     canonical = json.dumps(bundle, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     bundle["evidence_hash"] = "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
     return bundle
@@ -4176,6 +4179,8 @@ def _normalize_user_facing_risk_level(risk_level: Optional[str]) -> str:
         return "suspect"
     if normalized in {"low", "safe"}:
         return "safe"
+    if normalized in {"info", "unverified"}:
+        return "unverified"
     return "unknown"
 
 
@@ -6053,6 +6058,80 @@ def _first_final_url(resolved_urls: List[Dict[str, Any]]) -> Optional[str]:
     return None
 
 
+_FINAL_URL_UNRESOLVED_ERROR_MARKERS = (
+    "nameresolutionerror",
+    "failed to resolve",
+    "temporary failure in name resolution",
+    "nodename nor servname",
+    "nxdomain",
+)
+
+
+def _final_url_unresolved_entry(job: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
+    analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
+    evidence = analysis.get("evidence") if isinstance(analysis.get("evidence"), dict) else {}
+    summary = evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {}
+    infra_dns = summary.get("infra_dns") if isinstance(summary.get("infra_dns"), dict) else {}
+    infra_verdict = str(infra_dns.get("verdict") or "").strip().lower()
+    dns_infra_unresolved = infra_verdict in {"nxdomain", "registrar_suspended"}
+
+    for entry in resolved_urls:
+        if not isinstance(entry, dict) or entry.get("success") is not False:
+            continue
+        final_url = entry.get("final_url") or entry.get("url") or entry.get("original_url")
+        if not isinstance(final_url, str) or not final_url.strip():
+            continue
+        redirect_chain = entry.get("redirect_chain") if isinstance(entry.get("redirect_chain"), list) else []
+        chain_text = " ".join(
+            str(item.get("status_code") or item.get("error") or item.get("error_message") or "")
+            for item in redirect_chain
+            if isinstance(item, dict)
+        )
+        error_text = " ".join(
+            str(value or "")
+            for value in (
+                entry.get("error"),
+                entry.get("error_message"),
+                entry.get("failure_reason"),
+                chain_text,
+            )
+        ).lower()
+        if dns_infra_unresolved or any(marker in error_text for marker in _FINAL_URL_UNRESOLVED_ERROR_MARKERS):
+            return entry
+    return None
+
+
+def _preview_for_final_url_unresolved(job: Dict[str, Any], preview: Dict[str, Any]) -> Dict[str, Any]:
+    entry = _final_url_unresolved_entry(job)
+    if not entry:
+        return preview
+    final_url = (
+        entry.get("final_url")
+        or entry.get("url")
+        or entry.get("original_url")
+        or job.get("primary_final_url")
+        or preview.get("final_url")
+    )
+    patched = dict(preview)
+    patched.update(
+        {
+            "status": "unavailable",
+            "source": "redirect_resolver",
+            "image_url": None,
+            "screenshot_url": None,
+            "report_url": None,
+            "reason": "final_url_unresolved",
+            "final_url": final_url,
+            "details": (
+                "Destinatia finala nu poate fi incarcata/verificata. "
+                "Nu continua fara verificare oficiala."
+            ),
+        }
+    )
+    return patched
+
+
 def _select_primary_resolved_url(resolved_urls: List[Dict[str, Any]], analysis: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if not resolved_urls:
         return None
@@ -6228,11 +6307,13 @@ def _urlscan_preview_cache_entry_from_job(job: Dict[str, Any]) -> Optional[Dict[
 
 def _orchestrated_status_payload(job: Dict[str, Any]) -> Dict[str, Any]:
     pillars = _build_orchestrated_pillars(job)
-    preview = job.get("preview") if isinstance(job.get("preview"), dict) else {}
+    raw_preview = job.get("preview") if isinstance(job.get("preview"), dict) else {}
+    preview = _preview_for_final_url_unresolved(job, raw_preview)
     result = job.get("result") if isinstance(job.get("result"), dict) else None
     metrics = _orchestrated_metrics(job)
     result_is_final = result is not None and result.get("is_final", True) is not False
-    enhancement_done = _urlscan_enhancement_done(job)
+    final_url_unresolved = preview.get("reason") == "final_url_unresolved"
+    enhancement_done = _urlscan_enhancement_done(job) or final_url_unresolved
     if result_is_final:
         status = "complete"
     elif _has_required_pillar_error(pillars):
@@ -6244,6 +6325,9 @@ def _orchestrated_status_payload(job: Dict[str, Any]) -> Dict[str, Any]:
         "scan_id": job["scan_id"],
         "status": status,
         "status_message": (
+            "Scanarea este finalizata. Destinatia finala nu poate fi incarcata/verificata; nu continua fara verificare oficiala."
+            if status == "complete" and final_url_unresolved
+            else
             "Scanarea este finalizata."
             if status == "complete" and enhancement_done
             else "Verdictul este finalizat. Preview-ul securizat se poate actualiza separat."
@@ -6286,7 +6370,18 @@ def _orchestrated_can_finalize_result(job: Dict[str, Any], pillars: Dict[str, Di
 def _orchestrated_result_is_final(job: Dict[str, Any], analysis: Dict[str, Any]) -> bool:
     evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
     gate = evidence.get("verdict_gate") if isinstance(evidence.get("verdict_gate"), dict) else {}
-    return str(gate.get("label") or "").upper() in {"SAFE", "SUSPECT", "DANGEROUS"}
+    if _final_url_unresolved_entry(job):
+        return True
+    label = str(gate.get("label") or "").upper()
+    if label in {"SAFE", "SUSPECT", "DANGEROUS"}:
+        return True
+    if label != "UNVERIFIED":
+        return False
+    has_url_context = bool(job.get("urls")) or bool(job.get("resolved_urls"))
+    if not has_url_context:
+        return False
+    reason_codes = {str(item).strip() for item in gate.get("reason_codes") or []}
+    return not (reason_codes & {"insufficient_evidence", "provider_error"})
 
 
 async def _finalize_orchestrated_job_if_ready(job: Dict[str, Any], request: Request) -> Dict[str, Any]:
@@ -6323,7 +6418,7 @@ async def _finalize_orchestrated_job_if_ready(job: Dict[str, Any], request: Requ
         )
     evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
     gate = evidence.get("verdict_gate") if isinstance(evidence.get("verdict_gate"), dict) else {}
-    if str(gate.get("label") or "").upper() == "UNVERIFIED":
+    if str(gate.get("label") or "").upper() == "UNVERIFIED" and not _orchestrated_result_is_final(job, analysis):
         if existing_result and existing_result.get("is_final", True) is not False:
             _emit_orchestrated_telemetry("orchestrated_verdict_pending_preserved_final", job)
             return job

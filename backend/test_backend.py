@@ -2897,6 +2897,64 @@ def test_orchestrated_status_stays_complete_when_final_verdict_exists_and_previe
     assert terminal["status"] == "complete"
 
 
+def test_orchestrated_status_marks_preview_unavailable_when_final_url_unresolved():
+    job = {
+        "scan_id": "orch_final_url_unresolved",
+        "status": "scanning",
+        "pipeline_stage": "done",
+        "urls": ["https://urlz.fr/rZrw"],
+        "resolved_urls": [
+            {
+                "success": False,
+                "original_url": "https://urlz.fr/rZrw",
+                "final_url": "https://flixsou.site/streaming/watch.php",
+                "final_hostname": "flixsou.site",
+                "final_registered_domain": "flixsou.site",
+                "error_message": "NameResolutionError: Failed to resolve 'flixsou.site'",
+                "redirect_chain": [
+                    {"url": "https://urlz.fr/rZrw", "status_code": "302"},
+                    {"url": "https://flixsou.site/streaming/watch.php", "status_code": "ERROR"},
+                ],
+            }
+        ],
+        "primary_final_url": "https://flixsou.site/streaming/watch.php",
+        "analysis": {
+            "evidence": {
+                "external_intel_summary": {
+                    "google_web_risk": {"status": "clean", "consulted": True},
+                    "phishing_database": {"status": "clean", "consulted": True},
+                    "urlhaus": {"status": "clean", "consulted": True},
+                    "infra_dns": {
+                        "status": "suspicious",
+                        "verdict": "nxdomain",
+                        "severity": "medium",
+                        "consulted": True,
+                    },
+                }
+            }
+        },
+        "result": {"is_final": True, "user_risk_label": "UNVERIFIED", "risk_level": "info"},
+        "urlscan": {"status": "pending", "uuid": "urlscan-unresolved"},
+        "preview": {
+            "status": "pending",
+            "reason": "urlscan_pending",
+            "final_url": "https://flixsou.site/streaming/watch.php",
+            "report_url": None,
+            "screenshot_url": None,
+        },
+        "orchestration_metrics": {"poll_count": 3, "stage_sequence": [], "stage_durations_ms": {}},
+    }
+
+    payload = app_main._orchestrated_status_payload(job)
+
+    assert payload["status"] == "complete"
+    assert payload["preview"]["status"] == "unavailable"
+    assert payload["preview"]["reason"] == "final_url_unresolved"
+    assert payload["preview"]["final_url"] == "https://flixsou.site/streaming/watch.php"
+    assert "finala" in payload["preview"]["details"].lower()
+    assert "Preview-ul securizat se poate actualiza" not in payload["status_message"]
+
+
 def test_urlscan_finished_without_screenshot_is_not_enhancement_done():
     job = {
         "urls": ["https://example.com"],
@@ -3371,6 +3429,180 @@ def test_orchestrated_text_only_required_timeout_returns_no_final_when_unverifie
     # Gate returns UNVERIFIED, orchestrator pops result to keep polling
     assert "result" not in refreshed
     assert refreshed["pipeline_stage"] == "done"
+
+
+def test_orchestrated_final_url_unresolved_publishes_final_unverified(monkeypatch):
+    job = {
+        "scan_id": "orch_final_url_unresolved_finalize",
+        "created_at": int(time.time()),
+        "pipeline_stage": "done",
+        "status": "scanning",
+        "input_type": "url",
+        "source_channel": "android_native",
+        "urls": ["https://urlz.fr/rZrw"],
+        "redacted_text": "https://urlz.fr/rZrw",
+        "resolved_urls": [
+            {
+                "success": False,
+                "original_url": "https://urlz.fr/rZrw",
+                "url": "https://urlz.fr/rZrw",
+                "final_url": "https://flixsou.site/streaming/watch.php",
+                "hostname": "urlz.fr",
+                "final_hostname": "flixsou.site",
+                "registered_domain": "urlz.fr",
+                "final_registered_domain": "flixsou.site",
+                "error_message": "NameResolutionError: Failed to resolve 'flixsou.site'",
+                "redirect_chain": [
+                    {"url": "https://urlz.fr/rZrw", "status_code": "302"},
+                    {"url": "https://flixsou.site/streaming/watch.php", "status_code": "ERROR"},
+                ],
+            }
+        ],
+        "primary_final_url": "https://flixsou.site/streaming/watch.php",
+        "analysis": {
+            "risk_score": 25,
+            "risk_level": "info",
+            "detected_family": "Fara dovada de provenienta",
+            "detected_family_id": "provider-gate-unofficial-inconclusive",
+            "claimed_brand": "Nespecificat",
+            "reasons": ["Scanarea nu a gasit semnale de risc dar nici provenienta pozitiva."],
+            "safe_actions": ["Fii atent: lipsa semnalelor de risc nu inseamna ca e sigur."],
+            "evidence": {
+                "semantic_review": {
+                    "status": "done",
+                    "risk_class": "low",
+                    "completeness": True,
+                },
+                "offer_claim_verification": {"status": "skipped"},
+                "external_intel_summary": {
+                    "google_web_risk": {"status": "clean", "verdict": "clean", "consulted": True},
+                    "phishing_database": {"status": "clean", "verdict": "clean", "consulted": True},
+                    "urlhaus": {"status": "clean", "verdict": "clean", "consulted": True},
+                    "infra_dns": {
+                        "status": "suspicious",
+                        "verdict": "registrar_suspended",
+                        "severity": "medium",
+                        "consulted": True,
+                    },
+                },
+            },
+        },
+        "urlscan": {
+            "status": "error",
+            "details": "urlscan.io submission failed: HTTP 400: DNS Error - Could not resolve domain",
+        },
+        "preview": {
+            "status": "pending",
+            "source": "urlscan",
+            "reason": "urlscan_pending",
+            "final_url": "https://flixsou.site/streaming/watch.php",
+        },
+        "claim_verifier_required": False,
+        "skip_cloud_ai_explanation": True,
+        "extra_fields": {},
+        "orchestration_metrics": {"poll_count": 0, "stage_sequence": [], "stage_durations_ms": {}},
+    }
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main._finalize_orchestrated_job_if_ready(job, None))
+
+    assert refreshed["result"]["user_risk_label"] == "UNVERIFIED"
+    assert refreshed["result"]["is_final"] is True
+    payload = app_main._orchestrated_status_payload(refreshed)
+    assert payload["status"] == "complete"
+    assert payload["preview"]["reason"] == "final_url_unresolved"
+
+
+def test_orchestrated_known_official_clean_established_url_publishes_final_safe(monkeypatch):
+    job = {
+        "scan_id": "orch_unknown_clean_established_finalize",
+        "created_at": int(time.time()),
+        "pipeline_stage": "done",
+        "status": "scanning",
+        "input_type": "url",
+        "source_channel": "android_native",
+        "urls": ["https://smyk.ro/catalogul-ziua-copilului"],
+        "redacted_text": "https://smyk.ro/catalogul-ziua-copilului",
+        "resolved_urls": [
+            {
+                "success": True,
+                "url": "https://smyk.ro/catalogul-ziua-copilului",
+                "final_url": "https://smyk.ro/catalogul-ziua-copilului",
+                "hostname": "smyk.ro",
+                "final_hostname": "smyk.ro",
+                "registered_domain": "smyk.ro",
+                "final_registered_domain": "smyk.ro",
+                "domain_age_days": 2700,
+            }
+        ],
+        "primary_final_url": "https://smyk.ro/catalogul-ziua-copilului",
+        "analysis": {
+            "risk_score": 25,
+            "risk_level": "info",
+            "detected_family": "Fara dovada de provenienta",
+            "detected_family_id": "provider-gate-unofficial-inconclusive",
+            "claimed_brand": "Nespecificat",
+            "reasons": ["Scanarea nu a gasit semnale de risc dar nici provenienta pozitiva."],
+            "safe_actions": ["Fii atent: lipsa semnalelor de risc nu inseamna ca e sigur."],
+            "evidence": {
+                "semantic_review": {
+                    "status": "done",
+                    "risk_class": "low",
+                    "completeness": True,
+                },
+                "offer_claim_verification": {"status": "skipped"},
+                "external_intel_summary": {
+                    "google_web_risk": {"status": "clean", "verdict": "clean", "consulted": True},
+                    "phishing_database": {"status": "clean", "verdict": "clean", "consulted": True},
+                    "urlhaus": {"status": "clean", "verdict": "clean", "consulted": True},
+                    "urlscan": {
+                        "status": "clean",
+                        "verdict": "No malicious classification",
+                        "consulted": True,
+                    },
+                    "infra_domain_age": {
+                        "status": "clean",
+                        "verdict": "established_domain",
+                        "severity": "low",
+                        "consulted": True,
+                    },
+                },
+            },
+        },
+        "urlscan": {
+            "status": "finished",
+            "uuid": "urlscan-smyk",
+            "screenshot_ready": True,
+            "verdict": "No malicious classification",
+        },
+        "preview": {
+            "status": "ready",
+            "source": "urlscan",
+            "reason": None,
+            "final_url": "https://smyk.ro/catalogul-ziua-copilului",
+            "report_url": "https://urlscan.io/result/urlscan-smyk/",
+            "screenshot_url": "https://api.sigurscan.com/v1/sandbox/urlscan/urlscan-smyk/screenshot",
+        },
+        "claim_verifier_required": False,
+        "skip_cloud_ai_explanation": True,
+        "extra_fields": {},
+        "orchestration_metrics": {"poll_count": 0, "stage_sequence": [], "stage_durations_ms": {}},
+    }
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main._finalize_orchestrated_job_if_ready(job, None))
+
+    assert refreshed["analysis"]["evidence"]["verdict_gate"]["reason_codes"] == ["positive_provenance_clean"]
+    assert refreshed["analysis"]["evidence"]["decision_bundle"]["identity"]["status"] == "official"
+    assert refreshed["result"]["user_risk_label"] == "SAFE"
+    assert refreshed["result"]["is_final"] is True
+    assert app_main._orchestrated_status_payload(refreshed)["status"] == "complete"
 
 
 def test_orchestrated_invoice_finalize_preserves_specialized_invoice_verdict(monkeypatch):

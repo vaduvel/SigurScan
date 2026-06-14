@@ -71,6 +71,8 @@ const supabase = supabaseEnabled
     })
   : null;
 
+let localManifestWriteQueue = Promise.resolve();
+
 const stats = {
   totalEmailsParsed: 0,
   totalRawUrlsFound: 0,
@@ -560,11 +562,15 @@ async function uploadOrWrite(row, screenshotBuffer, outDir, bucket, table) {
     await fs.writeFile(path.join(outDir, row.screenshot_path), screenshotBuffer);
   }
   const manifestPath = path.join(outDir, 'manifest.json');
-  const existing = await loadLocalManifest(outDir);
-  const idx = existing.findIndex(r => r.url_hash === row.url_hash);
-  if (idx >= 0) existing[idx] = row;
-  else existing.push(row);
-  await fs.writeFile(manifestPath, JSON.stringify(existing, null, 2));
+  const writeManifest = async () => {
+    const existing = await loadLocalManifest(outDir);
+    const idx = existing.findIndex(r => r.url_hash === row.url_hash);
+    if (idx >= 0) existing[idx] = row;
+    else existing.push(row);
+    await fs.writeFile(manifestPath, JSON.stringify(existing, null, 2));
+  };
+  localManifestWriteQueue = localManifestWriteQueue.then(writeManifest, writeManifest);
+  await localManifestWriteQueue;
 }
 
 async function cleanupExpiredSupabaseCache(bucket, table) {

@@ -9,10 +9,12 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "test": "npm run test:privacy && npm run test:hardening",
+    "test": "npm run test:privacy && npm run test:hardening && npm run test:knowledge-seed",
     "install-browsers": "playwright install --with-deps chromium",
     "test:privacy": "node scripts/verify-privacy-guard.mjs",
     "test:hardening": "node scripts/verify-capture-hardening.mjs",
+    "test:knowledge-seed": "node scripts/verify-knowledge-seed.mjs",
+    "audit:knowledge-seed": "node scripts/audit-knowledge-seed.mjs",
     "dry-run": "node src/index.js --email-source ./samples/official_preview_targets.ro.json --out-dir ./output/dry --dry-run",
     "sample:local": "node src/index.js --email-source ./samples/official_preview_targets.ro.json --out-dir ./output/official --concurrency 1 --nav-timeout-seconds 20",
     "sample:supabase": "node src/index.js --email-source ./samples/official_preview_targets.ro.json --out-dir ./output/official --concurrency 1 --nav-timeout-seconds 20"

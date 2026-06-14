@@ -59,7 +59,7 @@ async def check_rdap(domain: str, timeout: Optional[float] = None) -> Dict[str, 
     timeout = timeout if timeout is not None else RDAP_TIMEOUT_SECONDS
     url = f"https://rdap.org/domain/{domain}"
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
             r = await client.get(url, headers={"Accept": "application/rdap+json"})
     except (httpx.TimeoutException, httpx.HTTPError):
         return {"age_days": None, "reason": "timeout"}

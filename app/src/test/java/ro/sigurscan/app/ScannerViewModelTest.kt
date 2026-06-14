@@ -51,6 +51,26 @@ class ScannerViewModelTest {
     }
 
     @Test
+    fun finalUrlUnresolvedPreviewMessageOverridesGenericFinalScanCopy() {
+        val preview = OrchestratedPreview(
+            finalUrl = "https://flixsou.site/streaming/watch.php",
+            status = "unavailable",
+            reason = "final_url_unresolved",
+            details = "Destinatia finala nu poate fi incarcata/verificata. Nu continua fara verificare oficiala."
+        )
+
+        val message = orchestratedScanServerInfo(
+            statusMessage = "Scanarea este finalizata.",
+            preview = preview,
+            isFinal = true
+        )
+
+        assertTrue(message.contains("Destinatia finala"))
+        assertTrue(message.contains("Nu continua"))
+        assertFalse(message.contains("Scanarea completă a fost finalizată."))
+    }
+
+    @Test
     fun resultCacheKeyNormalizesWhitespaceAndUrls() {
         val first = scanResultCacheKey(
             rawInput = "  Verifică   oferta aici: example.com/path  ",

@@ -19,6 +19,40 @@ from services.dns_reputation import (
 
 
 class TestClassifier:
+    def test_single_security_resolver_block_without_consensus_is_weighted(self):
+        rep = classify_dns(
+            normal_status=0,
+            normal_ips=["1.2.3.4"],
+            security_status=3,
+            security_ips=[],
+            ns_hosts=["ns1.example.com"],
+            security_results=[
+                ("cloudflare_security", 3, []),
+                ("quad9", 0, ["1.2.3.4"]),
+            ],
+        )
+
+        assert rep.status == "security_disagreement"
+        assert rep.severity == "medium"
+        assert dns_summary_entry(rep) is None
+        assert dns_infra_entry(rep)["verdict"] == "security_dns_disagreement"
+
+    def test_multiple_security_resolvers_block_is_hard(self):
+        rep = classify_dns(
+            normal_status=0,
+            normal_ips=["1.2.3.4"],
+            security_status=3,
+            security_ips=[],
+            ns_hosts=["ns1.example.com"],
+            security_results=[
+                ("cloudflare_security", 3, []),
+                ("quad9", 3, []),
+            ],
+        )
+
+        assert rep.status == "blocked"
+        assert dns_summary_entry(rep)["status"] == "malicious"
+
     def test_blocked_when_security_refuses_but_normal_resolves(self):
         rep = classify_dns(normal_status=0, normal_ips=["1.2.3.4"],
                            security_status=3, security_ips=[], ns_hosts=["ns1.example.com"])
@@ -64,11 +98,14 @@ class TestMappers:
         assert entry["severity"] == "high"
         assert entry["consulted"] is True
 
-    def test_resolves_has_no_hard_entry(self):
+    def test_resolves_has_clean_infra_entry(self):
         rep = classify_dns(normal_status=0, normal_ips=["1.2.3.4"],
                            security_status=0, security_ips=["1.2.3.4"], ns_hosts=[])
         assert dns_summary_entry(rep) is None
-        assert dns_infra_entry(rep) is None
+        infra = dns_infra_entry(rep)
+        assert infra["status"] == "clean"
+        assert infra["verdict"] == "resolves"
+        assert infra["consulted"] is True
 
     def test_suspended_is_weighted_medium_not_terminal(self):
         rep = classify_dns(normal_status=3, normal_ips=[], security_status=3,
@@ -80,12 +117,12 @@ class TestMappers:
 
 
 class TestNetworkWrapperInjectable:
-    def test_uses_injected_doh_and_classifies(self):
+    def test_uses_injected_doh_and_classifies_consensus_block(self):
         calls = []
 
         def fake_doh(resolver, name, qtype, timeout):
             calls.append((resolver, qtype))
-            if "security" in resolver and qtype == "A":
+            if ("security" in resolver or "quad9" in resolver) and qtype == "A":
                 return 3, []                 # security blochează
             if qtype == "A":
                 return 0, ["1.2.3.4"]         # normal rezolvă
@@ -96,6 +133,44 @@ class TestNetworkWrapperInjectable:
         rep = check_dns_reputation("flixsou.site", doh_get=fake_doh)
         assert rep.status == "blocked"
         assert calls  # a fost folosit doh-ul injectat, fără rețea reală
+
+    def test_network_wrapper_uses_multiple_resolvers_for_consensus(self):
+        calls = []
+
+        def fake_doh(resolver, name, qtype, timeout):
+            calls.append((resolver, qtype))
+            if "security" in resolver and qtype == "A":
+                return 3, []
+            if "quad9" in resolver and qtype == "A":
+                return 0, ["1.2.3.4"]
+            if qtype == "A":
+                return 0, ["1.2.3.4"]
+            if qtype == "NS":
+                return 0, ["ns1.example.com"]
+            return 0, []
+
+        rep = check_dns_reputation("flixsou.site", doh_get=fake_doh)
+        resolvers = {resolver for resolver, _ in calls}
+        assert any("dns.google" in resolver for resolver in resolvers)
+        assert any("quad9" in resolver for resolver in resolvers)
+        assert rep.status == "security_disagreement"
+
+    def test_network_wrapper_treats_resolver_timeout_as_unknown_not_exception(self):
+        def fake_doh(resolver, name, qtype, timeout):
+            if "quad9" in resolver and qtype == "A":
+                raise TimeoutError("quad9 timeout")
+            if "security" in resolver and qtype == "A":
+                return 3, []
+            if qtype == "A":
+                return 0, ["1.2.3.4"]
+            if qtype == "NS":
+                return 0, ["ns1.example.com"]
+            return 2, []
+
+        rep = check_dns_reputation("flixsou.site", doh_get=fake_doh)
+
+        assert rep.status == "security_disagreement"
+        assert rep.severity == "medium"
 
     def test_empty_domain_is_unknown(self):
         rep = check_dns_reputation("", doh_get=lambda *a, **k: (0, []))

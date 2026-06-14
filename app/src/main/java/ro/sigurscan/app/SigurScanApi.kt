@@ -105,6 +105,10 @@ data class OrchestratedPillarState(
 )
 
 data class OrchestratedPreview(
+    val status: String? = null,
+    val source: String? = null,
+    val reason: String? = null,
+    val details: String? = null,
     @SerializedName("screenshot_url") val screenshotUrl: String? = null,
     @SerializedName("report_url") val reportUrl: String? = null,
     @SerializedName("final_url") val finalUrl: String? = null

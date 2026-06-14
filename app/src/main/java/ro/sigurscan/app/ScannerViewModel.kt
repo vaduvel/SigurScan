@@ -184,6 +184,25 @@ internal fun orchestratedPollDelayMillis(response: OrchestratedScanResponse): Lo
     }
 }
 
+internal fun orchestratedScanServerInfo(
+    statusMessage: String?,
+    preview: OrchestratedPreview?,
+    isFinal: Boolean
+): String {
+    val previewReason = preview?.reason?.trim()?.lowercase(Locale.US)
+    val previewDetails = preview?.details?.trim().orEmpty()
+    if (previewReason == "final_url_unresolved") {
+        return previewDetails.ifBlank {
+            "Destinatia finala nu poate fi incarcata/verificata. Nu continua fara verificare oficiala."
+        }
+    }
+    return if (!isFinal) {
+        statusMessage ?: "Avem un verdict provizoriu. Continuăm verificarea preview-ului securizat."
+    } else {
+        "Scanarea completă a fost finalizată."
+    }
+}
+
 internal const val RESULT_CACHE_TTL_MILLIS = 12L * 60L * 60L * 1000L
 
 internal fun normalizedScanResultCacheMaterial(
@@ -1144,6 +1163,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         rawInput: String,
         urls: List<String>,
         preview: OrchestratedPreview? = null,
+        orchestratedStatusMessage: String? = null,
         providerStates: Map<ProviderId, ProviderState> = emptyMap()
     ): OfflineAssessment {
         val evidence = response.evidence
@@ -1186,11 +1206,11 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             safeActions = response.safeActions ?: emptyList(),
             keyDangers = response.keyDangers ?: emptyList(),
             originalText = rawInput,
-            serverInfo = if (response.isFinal == false) {
-                "Avem un verdict provizoriu. Continuăm verificarea preview-ului securizat."
-            } else {
-                "Scanarea completă a fost finalizată."
-            },
+            serverInfo = orchestratedScanServerInfo(
+                statusMessage = orchestratedStatusMessage,
+                preview = preview,
+                isFinal = response.isFinal != false
+            ),
             redirectChain = chain,
             finalUrl = visualEvidenceUrl.takeIf { it.isNotBlank() },
             offerAnalysis = response.offerAnalysis,
@@ -1307,6 +1327,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 rawInput = rawInput,
                 urls = urls,
                 preview = preview,
+                orchestratedStatusMessage = response.statusMessage,
                 providerStates = providerStates
             )
         } ?: buildPendingAssessmentFromOrchestratedResponse(response, rawInput, urls)

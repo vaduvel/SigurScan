@@ -38,7 +38,7 @@ jobs:
           cache-dependency-path: workers/precapture/package-lock.json
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:privacy
+      - run: npm test
       - name: Run official seed capture
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
