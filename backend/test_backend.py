@@ -2312,6 +2312,18 @@ def test_scam_atlas_yoxo_onelink_surface_domain_is_not_brand_mismatch():
     assert "șantaj digital" not in " ".join(result["reasons"]).lower()
 
 
+def test_scam_atlas_transport_handles_malformed_url_port():
+    engine = ScamAtlasEngine()
+
+    penalty, reasons, evidence = engine.check_transport_and_dns_risk(
+        [{"final_url": "https://example.com: https://bad.test/path"}]
+    )
+
+    assert penalty == 0
+    assert reasons == []
+    assert evidence == {}
+
+
 def test_scan_text_legacy_endpoint_starts_orchestrated_without_final_verdict(monkeypatch):
     client = TestClient(app_main.app)
     text = (
@@ -6409,6 +6421,26 @@ def test_phishing_database_clean_when_not_listed(monkeypatch):
 
     result = url_reputation._fetch_phishing_database(["https://apps.apple.com/example"])
     key = url_reputation._url_hash("https://apps.apple.com/example")
+
+    assert result[key]["status"] == "clean"
+    assert result[key]["details"]["status"] == "not_listed"
+
+
+def test_phishing_database_handles_malformed_url_port(monkeypatch):
+    malformed_url = "https://example.com: https://bad.test/path"
+    key = url_reputation._url_hash(malformed_url)
+    monkeypatch.setattr(
+        url_reputation,
+        "_load_phishing_database_feeds",
+        lambda: {
+            "loaded_at": int(time.time()),
+            "domains": {"bad.test"},
+            "links": {"https://bad.test/path"},
+            "error": None,
+        },
+    )
+
+    result = url_reputation._fetch_phishing_database([malformed_url])
 
     assert result[key]["status"] == "clean"
     assert result[key]["details"]["status"] == "not_listed"

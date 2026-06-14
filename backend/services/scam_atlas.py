@@ -833,7 +833,10 @@ class ScamAtlasEngine:
             reg_domain = (url_info.get("final_registered_domain") or "").lower()
             is_allowed_url = self._is_context_allowed_domain(reg_domain, hostname=hostname, claimed_brand=claimed_brand)
             scheme = (parsed.scheme or "").lower()
-            port = parsed.port
+            try:
+                port = parsed.port
+            except ValueError:
+                port = None
             final_scheme = "http" if scheme == "http" else scheme
 
             if not hostname:

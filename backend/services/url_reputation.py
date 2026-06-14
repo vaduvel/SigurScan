@@ -574,8 +574,12 @@ def _canonical_url_variants(url: str) -> set[str]:
         return {url.strip().lower()}
     hostname = (parsed.hostname or "").lower()
     netloc = hostname
-    if parsed.port:
-        netloc = f"{hostname}:{parsed.port}"
+    try:
+        port = parsed.port
+    except ValueError:
+        port = None
+    if port:
+        netloc = f"{hostname}:{port}"
     path = parsed.path or "/"
     normalized = urlunparse((parsed.scheme.lower(), netloc, path, "", parsed.query, "")).lower()
     variants = {normalized}
