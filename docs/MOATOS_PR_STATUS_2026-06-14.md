@@ -3,8 +3,8 @@
 Repo: `vaduvel/SigurScan`
 Branch verificat: `feature/osint-intel-pipeline`
 Main remote: `origin/main` este aliniat cu branch-ul verificat; commit-urile ulterioare deployului pot fi doar documentatie/status.
-Production Cloud Run: `sigurscan-api-00050-lkc`
-Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:92c65de`
+Production Cloud Run: `sigurscan-api-00052-l97`
+Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:4645422`
 
 ## Rezumat Brutal
 
@@ -17,7 +17,7 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 - Android PR-8 afiseaza `action_plan` si are flow post-incident pentru impacts reale (`shared_card`, `paid_transfer` etc.).
 - Android PR-9/PR-10 audio are acum engine local de verdict din semnale audio/vishing redactate, dar captura/ASR ramane blocata explicit prin policy pana exista model ASR on-device, consimtamant, disclosure si QA real-device.
 - Play Integrity are wiring testat cap-coada pana la limita credențialelor: backend poate minta access token din service account JSON, emite nonce distribuit Upstash si il consuma atomic single-use, iar Android cere nonce-ul, foloseste Play Integrity SDK si ataseaza `X-Play-Integrity-Token` numai pe POST-urile protejate. Live ramane `off` pana la secret + build Play semnat + monitor pass rate.
-- Productia ruleaza imaginea backend taguita `92c65de`.
+- Productia ruleaza imaginea backend taguita `4645422`.
 
 ## Verificari Rulate
 
@@ -39,6 +39,8 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
   - rezultat: `915 passed, 1 warning`
 - Backend full test dupa Play Integrity OAuth wiring: `INVOICE_CACHE_HMAC_KEY=testkey PRIVACY_SAFE_MODE=false /opt/homebrew/bin/python3 -m pytest backend -q`
   - rezultat: `916 passed, 1 warning`
+- Backend full test dupa hardening Radar/community reports: `INVOICE_CACHE_HMAC_KEY=testkey PRIVACY_SAFE_MODE=false /opt/homebrew/bin/python3 -m pytest backend -q`
+  - rezultat: `926 passed, 1 warning`
 - Android JVM + build: `JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew testDebugUnitTest assembleDebug`
   - rezultat: `BUILD SUCCESSFUL`
 - Android feature tests adaugate:
@@ -113,6 +115,9 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
   - `strings app-release.apk | rg "SUPABASE|URLSCAN_API_KEY|VIRUSTOTAL_API_KEY|GOOGLE_SAFE|GOOGLE_WEB_RISK_API_KEY|ro.nudaclick|com.example.myapplication|BEGIN PRIVATE KEY|AIza|eyJhbGci"`: no matches
   - `python3 tools/audit_android_release_secrets.py app/build/outputs/apk/release/app-release.apk`: provider/admin/service secrets `embedded=false`; client API key warning prezent
   - `python3 tools/audit_android_release_secrets.py app/build/outputs/bundle/release/app-release.aab`: provider/admin/service secrets `embedded=false`; client API key warning prezent
+- Android full dupa hardening Radar/community reports:
+  - `./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease bundleRelease`
+  - rezultat: `BUILD SUCCESSFUL`
 - Android emulator QA PR-7 local check (`Medium_Phone_API_36.1`):
   - APK debug curent instalat cu `./gradlew installDebug`
   - scan Android `YOXO Shop oferte pe https://www.yoxo.ro/`: UI `SIGUR`, `Verificări complete`, preview securizat, final domain `yoxo.ro`
@@ -128,9 +133,9 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
   - Backend targeted BTR/Radar/PR-8: `73 passed, 1 warning`
   - Backend targeted BTR channel fix: `48 passed, 1 warning`
 - Cloud Run live:
-  - revision: `sigurscan-api-00050-lkc`
+  - revision: `sigurscan-api-00052-l97`
   - traffic: `100%`
-  - image: `:92c65de`
+  - image: `:4645422`
   - concurrency: `2`
   - env check: `ENABLE_DNS_REPUTATION` prezent pe revizia live
   - health dupa Play Integrity wiring deploy: `HTTP 200`, `api_key_required=true`, `rate_limit_backend=upstash`, `admin_api_configured=true`, `play_integrity_mode=off`
@@ -270,6 +275,10 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 - Android normalizeaza si hash-uieste exact numarul pentru rapoarte phone-only; URL/text raman rapoarte comunitare, dar nu pot influenta CallScreening.
 - Backend respinge hash-uri non-SHA-256 si tipuri necunoscute.
 - Supabase migration `20260614194000_harden_community_report_targets.sql` este aplicata live: datele invalide au fost sterse, `target_type` exista, iar constrangerile hash/target sunt active.
+- Live pe `api.sigurscan.com`: hash invalid respins cu HTTP 400; raport URL acceptat dar absent din Radar; raport phone sintetic prezent temporar in Radar.
+- MobAI/emulator: dupa sync, apelul GSM sintetic a produs `WARN`, `SCREENING_COMPLETED` si `SKIP_RINGING`; UI a afisat auditul local. Datele QA au fost apoi sterse, iar live + Android au revenit la `0 numere raportate`.
+- Live provider smoke dupa deploy `4645422`: `5/5 passed`, `0 failed`.
+- Evidence: `docs/evidence/android_radar_phone_contract_warn_2026-06-14.png`.
 
 ## Ce E Production-Grade Acum
 
