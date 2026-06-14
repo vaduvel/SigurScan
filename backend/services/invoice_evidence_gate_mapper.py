@@ -14,6 +14,14 @@ from typing import Any, Dict, Optional, Tuple
 
 from services.verdict_gate import verdict as reduce_verdict
 
+# Canale de intake NEOFICIALE: o factură sosită așa nu poate fi SIGUR doar din
+# conținut (provenanță neconfirmată). Doar PREVINE fals-SAFE — nu creează DANGEROUS.
+_UNTRUSTED_INTAKE = {"whatsapp", "sms", "social_dm", "messenger", "telegram", "unknown"}
+
+
+def _intake_trusted(source_channel: Optional[str]) -> bool:
+    return str(source_channel or "").strip().lower() not in _UNTRUSTED_INTAKE
+
 
 def _provider_section(result) -> Dict[str, Any]:
     anaf = result.anaf_cui_check if result else None
@@ -55,7 +63,7 @@ def _provider_section(result) -> Dict[str, Any]:
     return section
 
 
-def build_invoice_bundle(result, redacted_text: str = "") -> Dict[str, Any]:
+def build_invoice_bundle(result, redacted_text: str = "", source_channel: Optional[str] = None) -> Dict[str, Any]:
     """Construiește bundle-ul v2 din pilonii facturii. Pur (fără rețea)."""
     brand_match = result.brand_match if result else None
     fields = result.fields if result else None
@@ -103,6 +111,13 @@ def build_invoice_bundle(result, redacted_text: str = "") -> Dict[str, Any]:
     else:
         identity_status = "unknown"
         identity_reason = "Brand nedeclarat"
+
+    # Channel provenance: o factură sosită pe canal neoficial (WhatsApp/SMS) NU poate
+    # fi SIGUR doar din conținut → coboară „official" la „unknown" (blochează SAFE,
+    # NU creează DANGEROUS). Nu atinge identitățile rele (lookalike rămâne lookalike).
+    if not _intake_trusted(source_channel) and identity_status == "official":
+        identity_status = "unknown"
+        identity_reason = "Canal neoficial (WhatsApp/SMS) — proveniență neconfirmată"
 
     identity_section = {
         "status": identity_status,
@@ -159,7 +174,7 @@ def build_invoice_bundle(result, redacted_text: str = "") -> Dict[str, Any]:
     return bundle
 
 
-def evaluate_invoice_verdict(result, redacted_text: str = "") -> Tuple[Dict[str, Any], Dict[str, Any]]:
+def evaluate_invoice_verdict(result, redacted_text: str = "", source_channel: Optional[str] = None) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """Fuziune → ACELAȘI verdict_gate. Întoarce (bundle, gate_result)."""
-    bundle = build_invoice_bundle(result, redacted_text)
+    bundle = build_invoice_bundle(result, redacted_text, source_channel=source_channel)
     return bundle, reduce_verdict(bundle)

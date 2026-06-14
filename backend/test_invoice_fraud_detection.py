@@ -285,3 +285,50 @@ class TestVendorMemory:
         # factură cu IBAN străin (semnal de fraudă) → NU se memorează
         await scan_invoice("Furnizor SC X SRL CUI RO12345678\nIBAN DE89370400440532013000\nTotal 100 mai")
         assert vm.known_ibans_for_cui("RO12345678") == set()
+
+
+class TestChannelProvenance:
+    """Pilon C — factura pe canal neoficial (WhatsApp/SMS) NU poate fi SIGUR.
+    Doar PREVINE fals-SAFE (coboară «official»→«unknown»), nu creează DANGEROUS."""
+
+    def _official_result(self):
+        from types import SimpleNamespace
+        bm = SimpleNamespace(cui_matches=True, iban_matches=True,
+                             impersonation_risk=False, domain_matches=True)
+        return SimpleNamespace(
+            brand_match=bm, brand="ppc", fraud_flags=[], fields=None,
+            readiness=SimpleNamespace(blocks_safe_verdict=False),
+            coherence=SimpleNamespace(all_ok=True, totals_match=True, dates_plausible=True),
+            anaf_cui_check={"checked": True, "exists": True, "activ": True},
+            iban_valid=SimpleNamespace(valid_structure=True),
+        )
+
+    def test_canal_oficial_pastreaza_official(self):
+        from services.invoice_evidence_gate_mapper import build_invoice_bundle
+        b = build_invoice_bundle(self._official_result(), "", source_channel="android_native")
+        assert b["identity"]["status"] == "official"
+
+    def test_whatsapp_coboara_la_unknown(self):
+        from services.invoice_evidence_gate_mapper import build_invoice_bundle
+        b = build_invoice_bundle(self._official_result(), "", source_channel="whatsapp")
+        assert b["identity"]["status"] == "unknown"
+
+    def test_whatsapp_nu_mai_da_safe(self):
+        from services.invoice_evidence_gate_mapper import evaluate_invoice_verdict
+        _, gate_official = evaluate_invoice_verdict(self._official_result(), "", source_channel="android_native")
+        _, gate_whatsapp = evaluate_invoice_verdict(self._official_result(), "", source_channel="whatsapp")
+        assert gate_official["label"] == "SAFE"
+        assert gate_whatsapp["label"] != "SAFE"
+
+    def test_lookalike_ramane_lookalike_pe_whatsapp(self):
+        # Canalul neoficial NU spală o identitate rea (nu creează nici, nu șterge).
+        from types import SimpleNamespace
+        from services.invoice_evidence_gate_mapper import build_invoice_bundle
+        bm = SimpleNamespace(cui_matches=False, iban_matches=True,
+                             impersonation_risk=True, domain_matches=False)
+        r = SimpleNamespace(brand_match=bm, brand="ppc", fraud_flags=[], fields=None,
+                            readiness=SimpleNamespace(blocks_safe_verdict=False),
+                            coherence=SimpleNamespace(all_ok=True, totals_match=True, dates_plausible=True),
+                            anaf_cui_check=None, iban_valid=None)
+        b = build_invoice_bundle(r, "", source_channel="whatsapp")
+        assert b["identity"]["status"] == "lookalike"

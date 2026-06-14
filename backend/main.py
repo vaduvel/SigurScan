@@ -7152,7 +7152,8 @@ async def _run_orchestrated_invoice_fast_lane(job: Dict[str, Any], request: Requ
     # Fuziunea pilonilor facturii -> ACELASI verdict_gate, prin mapper-ul dedicat
     # (simetric cu offer_evidence_gate_mapper). Toate sectiunile de bundle stau acolo.
     from services.invoice_evidence_gate_mapper import evaluate_invoice_verdict
-    bundle, gate_result = evaluate_invoice_verdict(result, redacted_text)
+    bundle, gate_result = evaluate_invoice_verdict(
+        result, redacted_text, source_channel=job.get("source_channel"))
     semantic_section = bundle.get("semantic_review", {})
 
     # Build analysis dict compatible with the existing contract.
