@@ -4000,13 +4000,12 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             try {
                 val current = assessment ?: return@launch
-                val hash = MessageDigest.getInstance("SHA-256")
-                    .digest(current.originalText.toByteArray(StandardCharsets.UTF_8))
-                    .joinToString("") { "%02x".format(it) }
+                val target = communityReportTarget(current)
                 val report = CommunityReport(
-                    hash = hash,
+                    hash = target.hash,
                     riskLevel = current.riskLevel,
-                    family = current.family
+                    family = current.family,
+                    targetType = target.targetType
                 )
                 api.sendCommunityReport(report)
                 cyberScore += 20

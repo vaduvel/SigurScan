@@ -8895,7 +8895,7 @@ async def radar_hot_iocs(since: Optional[float] = None):
         try:
             rows = supabase_store._get_json(
                 "community_reports",
-                {"select": "hash,report_count,family,risk_level", "limit": "500",
+                {"select": "hash,target_type,report_count,family,risk_level", "limit": "500",
                  "order": "report_count.desc"},
             )
             reports = rows if isinstance(rows, list) else []
@@ -9930,6 +9930,7 @@ class CommunityReportRequest(BaseModel):
     risk_level: str
     family: Optional[str] = None
     source: str = "ios"
+    target_type: str = "unknown"
     timestamp: Optional[str] = None
 
 
@@ -9941,12 +9942,22 @@ class PushRegisterRequest(BaseModel):
 
 @app.post("/v1/community/report")
 def community_report(payload: CommunityReportRequest):
+    normalized_hash = payload.hash.strip().lower()
+    normalized_target_type = payload.target_type.strip().lower()
+    if not re.fullmatch(r"[0-9a-f]{64}", normalized_hash):
+        raise HTTPException(status_code=400, detail="hash must be a SHA-256 hex digest.")
+    if normalized_target_type not in {"phone", "url", "text", "email", "iban", "unknown"}:
+        raise HTTPException(status_code=400, detail="invalid target_type.")
+
     has_supabase = supabase_store.is_supabase_enabled()
     if not has_supabase:
         return {"status": "ok", "note": "supabase not configured, report stored locally"}
 
     try:
-        existing = supabase_store._get_json("community_reports", {"hash": f"eq.{payload.hash}"})
+        existing = supabase_store._get_json(
+            "community_reports",
+            {"hash": f"eq.{normalized_hash}", "target_type": f"eq.{normalized_target_type}"},
+        )
         if existing:
             row_id = existing[0]["id"]
             requests.patch(
@@ -9960,10 +9971,11 @@ def community_report(payload: CommunityReportRequest):
             )
         else:
             supabase_store._post_json("community_reports", {
-                "hash": payload.hash,
+                "hash": normalized_hash,
                 "risk_level": payload.risk_level,
                 "family": payload.family,
                 "source": payload.source,
+                "target_type": normalized_target_type,
             })
     except Exception:
         pass

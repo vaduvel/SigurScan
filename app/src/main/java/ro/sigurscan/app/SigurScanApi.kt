@@ -402,7 +402,8 @@ data class CommunityReport(
     val hash: String,
     @SerialName("risk_level") @SerializedName("risk_level") val riskLevel: String,
     val family: String? = null,
-    @SerialName("source") @SerializedName("source") val source: String = "android"
+    @SerialName("source") @SerializedName("source") val source: String = "android",
+    @SerialName("target_type") @SerializedName("target_type") val targetType: String = "unknown"
 )
 
 data class InvoiceFieldsResponse(

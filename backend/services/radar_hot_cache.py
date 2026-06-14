@@ -14,10 +14,12 @@ Reguli de aur:
 from __future__ import annotations
 
 import os
+import re
 import time
 from typing import Any, Dict, List, Optional
 
 HOT_CACHE_TTL_MINUTES = int(os.getenv("RADAR_HOT_CACHE_TTL_MINUTES", "60"))
+_SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$", re.IGNORECASE)
 
 # Avertismente RO per arc-family (text scurt, acționabil, fără jargon).
 _FAMILY_WARNINGS: Dict[str, Dict[str, str]] = {
@@ -111,8 +113,10 @@ def build_hot_cache(
 
     number_reputation: List[Dict[str, Any]] = []
     for r in reports or []:
-        phone_hash = r.get("hash")
-        if not phone_hash:
+        if str(r.get("target_type") or "").strip().lower() != "phone":
+            continue
+        phone_hash = str(r.get("hash") or "").strip().lower()
+        if not _SHA256_HEX_RE.fullmatch(phone_hash):
             continue
         number_reputation.append(
             {

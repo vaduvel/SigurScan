@@ -90,23 +90,57 @@ class TestHotCacheShape:
 
 
 class TestNumberReputationPrivacy:
+    def test_invalid_or_test_hashes_are_excluded(self):
+        reports = [
+            {"hash": "test123", "target_type": "phone", "report_count": 3, "family": "test"},
+            {"hash": "abc123", "target_type": "phone", "report_count": 2, "family": "test"},
+            {"hash": "+40722123456", "target_type": "phone", "report_count": 9, "family": "raw_phone"},
+            {"hash": "a" * 64, "target_type": "phone", "report_count": 5, "family": "valid"},
+        ]
+
+        out = build_hot_cache(_store_with(), reports=reports)
+
+        assert out["number_reputation"] == [
+            {
+                "phone_hash": "a" * 64,
+                "status": "reported",
+                "family": "valid",
+                "bucket_count": "5-24",
+            }
+        ]
+
+    def test_only_phone_reports_feed_call_screening_reputation(self):
+        reports = [
+            {"hash": "a" * 64, "target_type": "url", "report_count": 9},
+            {"hash": "b" * 64, "target_type": "text", "report_count": 9},
+            {"hash": "c" * 64, "target_type": "unknown", "report_count": 9},
+            {"hash": "d" * 64, "target_type": "phone", "report_count": 9},
+        ]
+
+        out = build_hot_cache(_store_with(), reports=reports)
+
+        assert [item["phone_hash"] for item in out["number_reputation"]] == ["d" * 64]
+
     def test_buckets_and_no_raw_phone(self):
         store = _store_with()
         reports = [
-            {"hash": "hmac_aaa", "report_count": 7, "family": "IMP-02"},
-            {"hash": "hmac_bbb", "report_count": 1, "family": "IMP-02"},
+            {"hash": "a" * 64, "target_type": "phone", "report_count": 7, "family": "IMP-02"},
+            {"hash": "b" * 64, "target_type": "phone", "report_count": 1, "family": "IMP-02"},
         ]
         out = build_hot_cache(store, reports=reports)
         rep = {r["phone_hash"]: r for r in out["number_reputation"]}
-        assert rep["hmac_aaa"]["bucket_count"] == "5-24"
-        assert rep["hmac_bbb"]["bucket_count"] == "1-4"
+        assert rep["a" * 64]["bucket_count"] == "5-24"
+        assert rep["b" * 64]["bucket_count"] == "1-4"
         # zero număr brut: payload-ul nu conține cifre de telefon RO (07...)
         import json
         blob = json.dumps(out)
         assert "+407" not in blob and "07" not in rep  # doar hash-uri
 
     def test_status_reported(self):
-        out = build_hot_cache(_store_with(), reports=[{"hash": "h1", "report_count": 3}])
+        out = build_hot_cache(
+            _store_with(),
+            reports=[{"hash": "c" * 64, "target_type": "phone", "report_count": 3}],
+        )
         assert out["number_reputation"][0]["status"] == "reported"
 
 
@@ -158,6 +192,23 @@ class TestReportBuilder:
 
 
 class TestEndpoints:
+    def test_community_report_rejects_invalid_hash_or_target_type(self):
+        from fastapi.testclient import TestClient
+        import main as app_main
+
+        client = TestClient(app_main.app)
+        invalid_hash = client.post(
+            "/v1/community/report",
+            json={"hash": "test123", "risk_level": "high", "target_type": "phone"},
+        )
+        invalid_type = client.post(
+            "/v1/community/report",
+            json={"hash": "a" * 64, "risk_level": "high", "target_type": "call_audio"},
+        )
+
+        assert invalid_hash.status_code == 400
+        assert invalid_type.status_code == 400
+
     def test_hot_iocs_endpoint(self):
         from fastapi.testclient import TestClient
         import main as app_main

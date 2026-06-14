@@ -262,6 +262,15 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 - PR-7: BTR sync are versiune si 17/17 manifeste.
 - PR-8: action plan produce pasi urgenti si raport cu minimum doua canale.
 
+## Radar Community Report Contract Hardening
+
+- QA MobAI pe emulator Android 16 a descoperit ca Radar live exporta `test123` si `abc123` drept hash-uri de numere; acestea erau date de test Supabase si nu puteau corespunde unui SHA-256 real.
+- Auditul a gasit si nealinierea de contract: Android raporta hash-ul textului scanat, iar Radar il interpreta drept hash de telefon.
+- Contractul nou pastreaza `target_type` pentru fiecare raport comunitar; numai `target_type=phone` poate intra in `number_reputation`.
+- Android normalizeaza si hash-uieste exact numarul pentru rapoarte phone-only; URL/text raman rapoarte comunitare, dar nu pot influenta CallScreening.
+- Backend respinge hash-uri non-SHA-256 si tipuri necunoscute.
+- Supabase migration `20260614194000_harden_community_report_targets.sql` este aplicata live: datele invalide au fost sterse, `target_type` exista, iar constrangerile hash/target sunt active.
+
 ## Ce E Production-Grade Acum
 
 - Backend scan pipeline nu mai ramane blocat la provider errors cunoscute.
