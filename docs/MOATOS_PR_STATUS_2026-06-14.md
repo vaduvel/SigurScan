@@ -2,8 +2,8 @@
 
 Repo: `vaduvel/SigurScan`
 Branch verificat: `feature/osint-intel-pipeline`
-Production Cloud Run: `sigurscan-api-00042-jsz`
-Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:4ba2b9b`
+Production Cloud Run: `sigurscan-api-00043-qq7`
+Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:3231eeb`
 
 ## Rezumat Brutal
 
@@ -30,6 +30,11 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
   - score: `10`
   - `infra_dns`: `clean / resolves`
   - preview: `ready`
+- Live scan mesaj bancar periculos:
+  - verdict: `DANGEROUS`
+  - score: `90`
+  - `action_plan`: prezent, 2 pasi
+  - `infra_dns`: `suspicious / nxdomain`
 - Live scan `https://urlz.fr/rZrw` dupa activare DNS:
   - status: `complete`
   - preview reason: `final_url_unresolved`
