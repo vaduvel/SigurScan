@@ -8509,6 +8509,37 @@ async def btr_sync(client_version: Optional[str] = None):
     return btr_sync_payload(brand_truth_registry, client_version=client_version)
 
 
+# ─── PR-8 — Jurist Dinamic Lvl 2 (M6): plan de acțiune post-incident ─────────
+class LegalActionPlanRequest(BaseModel):
+    verdict: str = "SUSPECT"
+    family: Optional[str] = None
+    impacts: Optional[List[str]] = None  # shared_card|shared_otp|shared_credentials|
+                                         # shared_id_document|installed_remote_access|
+                                         # paid_transfer|paid_crypto|clicked_link|none
+    target_type: Optional[str] = None
+    target_redacted: Optional[str] = None
+    document_type: Optional[str] = None
+
+
+@app.post("/v1/legal/action-plan")
+async def legal_action_plan(payload: LegalActionPlanRequest):
+    """PR-8 — TriageScreen: pași de remediere ordonați pe urgență + raport + carduri
+    legale verbatim. NU schimbă verdictul; pașii sunt operaționali, articolele vin din KB."""
+    from services.legal_action_plan import build_action_plan
+
+    target = None
+    if payload.target_type or payload.target_redacted:
+        target = {"type": payload.target_type or "unknown",
+                  "value_redacted": payload.target_redacted or "[redactat]"}
+    return build_action_plan(
+        verdict=payload.verdict,
+        family=payload.family,
+        impacts=payload.impacts,
+        target=target,
+        document_type=payload.document_type,
+    )
+
+
 @app.get("/v1/campaign/families")
 async def campaign_families():
     from services.campaign_intel import FAMILY_TAXONOMY
