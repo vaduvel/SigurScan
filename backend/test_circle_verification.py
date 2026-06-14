@@ -283,3 +283,79 @@ class TestSupabasePersistenceWiring:
             "case_id": "sc_9", "protected_id": "u_g", "guardian_id": "u_s",
             "redacted_summary": {"family": "IMP-02"}})
         assert seen.get("op", {}).get("case_id") == "sc_9"
+
+    def test_ping_rehydrates_circle_link_from_supabase(self, monkeypatch):
+        import main as app_main
+        monkeypatch.setattr(app_main, "_circle_store", CircleStore())
+        monkeypatch.setattr(app_main.supabase_store, "load_circle_link", lambda link_id: {
+            "link_id": link_id,
+            "protected_user_id": "u_g",
+            "verifier_user_id": "u_s",
+            "consent": "explicit",
+            "revocable": True,
+            "active": True,
+            "created_at": 1,
+            "revoked_at": None,
+        })
+        saved = {}
+        monkeypatch.setattr(app_main.supabase_store, "save_verification_ping",
+                            lambda ping: saved.setdefault("ping", ping))
+
+        r = self._client().post("/v1/circle/ping", json={
+            "link_id": "cl_persisted", "claim": "caller_claims_to_be_verifier"})
+
+        assert r.status_code == 200
+        assert r.json()["link_id"] == "cl_persisted"
+        assert saved.get("ping", {}).get("link_id") == "cl_persisted"
+
+    def test_respond_rehydrates_ping_from_supabase(self, monkeypatch):
+        import main as app_main
+        monkeypatch.setattr(app_main, "_circle_store", CircleStore())
+        monkeypatch.setattr(app_main.supabase_store, "load_verification_ping", lambda ping_id: {
+            "ping_id": ping_id,
+            "link_id": "cl_persisted",
+            "claim": "caller_claims_to_be_verifier",
+            "payload_class": "metadata_only",
+            "default_on_timeout": "PRECAUTIE",
+            "latency_target_s": 10,
+            "status": "pending",
+            "verifier_response": None,
+            "created_at": 1,
+            "resolved_at": None,
+        })
+        updated = {}
+        monkeypatch.setattr(app_main.supabase_store, "update_verification_ping",
+                            lambda ping_id, response, status: updated.setdefault(
+                                "row", {"ping_id": ping_id, "response": response, "status": status}))
+
+        r = self._client().post("/v1/circle/respond", json={
+            "ping_id": "vp_persisted", "response": "its_me"})
+
+        assert r.status_code == 200
+        assert r.json()["status"] == "CONFIRMED"
+        assert updated.get("row") == {
+            "ping_id": "vp_persisted", "response": "its_me", "status": "resolved"}
+
+    def test_revoke_rehydrates_circle_link_from_supabase(self, monkeypatch):
+        import main as app_main
+        monkeypatch.setattr(app_main, "_circle_store", CircleStore())
+        monkeypatch.setattr(app_main.supabase_store, "load_circle_link", lambda link_id: {
+            "link_id": link_id,
+            "protected_user_id": "u_g",
+            "verifier_user_id": "u_s",
+            "consent": "explicit",
+            "revocable": True,
+            "active": True,
+            "created_at": 1,
+            "revoked_at": None,
+        })
+        revoked = {}
+        monkeypatch.setattr(app_main.supabase_store, "mark_circle_link_revoked",
+                            lambda link_id: revoked.setdefault("id", link_id))
+
+        r = self._client().post("/v1/circle/revoke", json={
+            "link_id": "cl_persisted", "by_user": "u_g"})
+
+        assert r.status_code == 200
+        assert r.json()["active"] is False
+        assert revoked.get("id") == "cl_persisted"

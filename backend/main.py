@@ -8782,7 +8782,11 @@ async def one_tap_report(payload: OneTapReportRequest):
 # ─── PR-6 — Cercul (out-of-band verification) + Guardian second opinion ──────
 # §6: protocol semnat, NU trece prin verdict_gate. Privacy: ping metadata-only,
 # second-opinion default metadata_only, revocare doar de protejat.
-from services.circle_verification import circle_store as _circle_store
+from services.circle_verification import (
+    CircleLink,
+    VerificationPing,
+    circle_store as _circle_store,
+)
 
 
 class CirclePairRequest(BaseModel):
@@ -8836,7 +8840,16 @@ async def circle_ping(payload: CirclePingRequest):
     try:
         ping = _circle_store.create_ping(payload.link_id, claim=payload.claim)
     except KeyError:
-        raise HTTPException(status_code=404, detail="circle link not found")
+        persisted = supabase_store.load_circle_link(payload.link_id)
+        if not persisted:
+            raise HTTPException(status_code=404, detail="circle link not found")
+        _circle_store.remember_link(CircleLink(**persisted))
+        try:
+            ping = _circle_store.create_ping(payload.link_id, claim=payload.claim)
+        except KeyError:
+            raise HTTPException(status_code=404, detail="circle link not found")
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc))
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     supabase_store.save_verification_ping(ping.to_dict())  # best-effort
@@ -8852,7 +8865,14 @@ async def circle_respond(payload: CircleRespondRequest):
         else:
             result = _circle_store.respond(payload.ping_id, payload.response)
     except KeyError:
-        raise HTTPException(status_code=404, detail="verification ping not found")
+        persisted = supabase_store.load_verification_ping(payload.ping_id)
+        if not persisted:
+            raise HTTPException(status_code=404, detail="verification ping not found")
+        _circle_store.remember_ping(VerificationPing(**persisted))
+        if payload.response == "timeout":
+            result = _circle_store.resolve_timeout(payload.ping_id)
+        else:
+            result = _circle_store.respond(payload.ping_id, payload.response)
     saved_ping = _circle_store.get_ping(payload.ping_id)
     if saved_ping is not None:
         supabase_store.update_verification_ping(  # best-effort
@@ -8866,7 +8886,16 @@ async def circle_revoke(payload: CircleRevokeRequest):
     try:
         _circle_store.revoke(payload.link_id, by_user=payload.by_user)
     except KeyError:
-        raise HTTPException(status_code=404, detail="circle link not found")
+        persisted = supabase_store.load_circle_link(payload.link_id)
+        if not persisted:
+            raise HTTPException(status_code=404, detail="circle link not found")
+        _circle_store.remember_link(CircleLink(**persisted))
+        try:
+            _circle_store.revoke(payload.link_id, by_user=payload.by_user)
+        except KeyError:
+            raise HTTPException(status_code=404, detail="circle link not found")
+        except PermissionError as exc:
+            raise HTTPException(status_code=403, detail=str(exc))
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
     supabase_store.mark_circle_link_revoked(payload.link_id)  # best-effort

@@ -137,6 +137,10 @@ class CircleStore:
     def get_link(self, link_id: str) -> Optional[CircleLink]:
         return self._links.get(link_id)
 
+    def remember_link(self, link: CircleLink) -> CircleLink:
+        self._links[link.link_id] = link
+        return link
+
     def revoke(self, link_id: str, *, by_user: str) -> bool:
         link = self._links.get(link_id)
         if link is None:
@@ -165,6 +169,10 @@ class CircleStore:
 
     def get_ping(self, ping_id: str) -> Optional[VerificationPing]:
         return self._pings.get(ping_id)
+
+    def remember_ping(self, ping: VerificationPing) -> VerificationPing:
+        self._pings[ping.ping_id] = ping
+        return ping
 
     def respond(self, ping_id: str, response: str) -> Dict[str, Any]:
         ping = self._pings.get(ping_id)

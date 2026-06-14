@@ -448,6 +448,30 @@ def save_circle_link(link: Dict[str, Any]) -> None:
     _post_json("circle_links", row, "resolution=merge-duplicates,return=minimal")
 
 
+def load_circle_link(link_id: str) -> Optional[Dict[str, Any]]:
+    if not link_id:
+        return None
+    rows = _get_json(
+        "circle_links",
+        {"select": "*", "link_id": f"eq.{link_id}", "limit": "1"},
+    )
+    if not rows:
+        return None
+    row = dict(rows[0])
+    created_ts = _iso_to_ts(row.get("created_at"))
+    revoked_ts = _iso_to_ts(row.get("revoked_at"))
+    return {
+        "link_id": row.get("link_id"),
+        "protected_user_id": row.get("protected_user_id"),
+        "verifier_user_id": row.get("verifier_user_id"),
+        "consent": row.get("consent") or "explicit",
+        "revocable": bool(row.get("revocable", True)),
+        "active": bool(row.get("active", True)),
+        "created_at": created_ts or int(time.time()),
+        "revoked_at": revoked_ts,
+    }
+
+
 def mark_circle_link_revoked(link_id: str) -> None:
     if not link_id:
         return
@@ -471,6 +495,32 @@ def save_verification_ping(ping: Dict[str, Any]) -> None:
         "status": ping.get("status") or "pending",
     }
     _post_json("verification_pings", row, "resolution=merge-duplicates,return=minimal")
+
+
+def load_verification_ping(ping_id: str) -> Optional[Dict[str, Any]]:
+    if not ping_id:
+        return None
+    rows = _get_json(
+        "verification_pings",
+        {"select": "*", "ping_id": f"eq.{ping_id}", "limit": "1"},
+    )
+    if not rows:
+        return None
+    row = dict(rows[0])
+    created_ts = _iso_to_ts(row.get("created_at"))
+    resolved_ts = _iso_to_ts(row.get("resolved_at"))
+    return {
+        "ping_id": row.get("ping_id"),
+        "link_id": row.get("link_id"),
+        "claim": row.get("claim") or "caller_claims_to_be_verifier",
+        "payload_class": row.get("payload_class") or "metadata_only",
+        "default_on_timeout": row.get("default_on_timeout") or "PRECAUTIE",
+        "latency_target_s": int(row.get("latency_target_s") or 10),
+        "status": row.get("status") or "pending",
+        "verifier_response": row.get("verifier_response"),
+        "created_at": created_ts or int(time.time()),
+        "resolved_at": resolved_ts,
+    }
 
 
 def update_verification_ping(ping_id: str, response: str, status: str = "resolved") -> None:
