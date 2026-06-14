@@ -1,0 +1,52 @@
+name: Urechea RSS ingest
+
+on:
+  workflow_dispatch:
+    inputs:
+      sources:
+        description: "Comma-separated source names to run, empty for all enabled sources"
+        required: false
+        default: ""
+  schedule:
+    - cron: "17 */6 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r backend/requirements.txt
+
+      - name: Run bounded RSS ingest
+        working-directory: backend
+        run: |
+          if [ -n "${{ github.event.inputs.sources }}" ]; then
+            python -m services.urechea_rss_worker "${{ github.event.inputs.sources }}" | tee urechea-rss-result.json
+          else
+            python -m services.urechea_rss_worker | tee urechea-rss-result.json
+          fi
+
+      - name: Upload ingest result
+        uses: actions/upload-artifact@v4
+        with:
+          name: urechea-rss-result
+          path: backend/urechea-rss-result.json
+          if-no-files-found: error

@@ -165,10 +165,18 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
                 "activ": raw_cui_check.activ,
                 "platitor_tva": raw_cui_check.platitor_tva,
             }
-            _set_cached_cui(fields.cui, cui_check)
+            # Bug#3: cacheaza DOAR rezultate verificate. checked=False (ANAF
+            # indisponibil) NU se cacheaza, ca sa nu otraveasca verdictul 12h.
+            if cui_check.get("checked"):
+                _set_cached_cui(fields.cui, cui_check)
         anaf_check = cui_check
-        if not cui_check["exists"]:
-            warnings.append(f"CUI {fields.cui} not found in ANAF registry")
+        # Bug#4: distinge "ANAF indisponibil" de "CUI inexistent".
+        if not cui_check.get("checked"):
+            warnings.append(
+                f"Nu am putut verifica CUI {fields.cui} la ANAF acum (serviciul indisponibil)"
+            )
+        elif not cui_check["exists"]:
+            warnings.append(f"CUI {fields.cui} inexistent în registrul ANAF (not found)")
         elif not cui_check["activ"]:
             warnings.append(f"Company {cui_check['denumire']} is inactive")
 
@@ -262,3 +270,129 @@ async def scan_offer(
         warnings=list(entity.warnings),
         registry=registry_results,
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Bug#5 — ruta factură prin verdict_gate (Decizia A).
+# Maparea InvoiceScanResult -> Evidence Bundle v2 + reduce_verdict. Sursă unică
+# de adevăr, refolosită de /v1/scan/invoice ȘI de fast-lane-ul orchestrat.
+# ─────────────────────────────────────────────────────────────────────────────
+def build_invoice_evidence_bundle(result: "InvoiceScanResult", redacted_text: str = "") -> dict:
+    import hashlib
+    import json
+    import re
+
+    anaf = result.anaf_cui_check
+    iban_result = result.iban_valid
+    coherence = result.coherence
+    brand_match = result.brand_match
+    readiness = result.readiness
+    readiness_blocks_safe = bool(readiness and readiness.blocks_safe_verdict)
+    impersonation_risk = bool(brand_match and brand_match.impersonation_risk)
+    cui_matches = bool(brand_match and brand_match.cui_matches)
+    iban_matches = bool(brand_match and brand_match.iban_matches)
+    claimed_brand = result.brand or "Nespecificat"
+
+    anaf_status = "clean"
+    anaf_reasons: list = []
+    if anaf:
+        if anaf.get("checked") is False:
+            anaf_status = "unknown"
+            anaf_reasons.append("ANAF temporar indisponibil")
+        elif not anaf.get("exists"):
+            anaf_status = "unknown"
+            anaf_reasons.append("CUI negăsit în registru")
+        elif not anaf.get("activ"):
+            anaf_status = "malicious"
+            anaf_reasons.append("Firmă inactivă")
+
+    iban_status = "clean"
+    iban_reasons: list = []
+    if iban_result and not iban_result.valid_structure:
+        iban_status = "suspicious"
+        iban_reasons.append("IBAN invalid MOD-97")
+
+    coherence_status = "clean"
+    coherence_reasons: list = []
+    if coherence:
+        if not coherence.totals_match:
+            coherence_status = "suspicious"
+            coherence_reasons.append("Totalul nu corespunde cu subtotal+TVA")
+        if not coherence.dates_plausible:
+            coherence_status = "suspicious"
+            coherence_reasons.append("Date incoerente (scadența înaintea emiterii)")
+
+    provider_section = {
+        "verdict": "malicious" if anaf_status == "malicious" else "suspicious" if "suspicious" in (iban_status, coherence_status) else "clean",
+        "anaf": {"status": anaf_status, "verdict": anaf_status, "reasons": anaf_reasons, "completeness": anaf is not None},
+        "iban": {"status": iban_status, "verdict": iban_status, "reasons": iban_reasons, "completeness": iban_result is not None},
+        "coherence": {"status": coherence_status, "verdict": coherence_status, "reasons": coherence_reasons, "completeness": coherence is not None},
+    }
+    if anaf_reasons:
+        provider_section.setdefault("reasons", []).extend(anaf_reasons)
+
+    if impersonation_risk:
+        identity_status = "lookalike"
+        identity_reason = "CUI/IBAN nealiniat cu brandul declarat"
+    elif cui_matches and iban_matches:
+        identity_status = "official"
+        identity_reason = "Brand confirmat prin CUI și IBAN"
+    elif claimed_brand != "Nespecificat":
+        identity_status = "unknown"
+        identity_reason = "Brand declarat dar neverificat complet"
+    else:
+        identity_status = "unknown"
+        identity_reason = "Brand nedeclarat"
+
+    identity_section = {
+        "status": identity_status,
+        "claimed_brand": claimed_brand,
+        "domain_reputation": "established" if (brand_match and brand_match.domain_matches) else "unknown",
+        "reason": identity_reason,
+        "completeness": brand_match is not None,
+    }
+
+    request_section = {"sensitive": "transfer", "channel": "invoice", "completeness": True}
+
+    semantic_risk = "low"
+    semantic_reasons: list = []
+    if impersonation_risk:
+        semantic_risk = "high"
+        semantic_reasons.append("Impersonation risk detected")
+    if readiness_blocks_safe:
+        semantic_risk = "medium"
+        semantic_reasons.append("Date insuficiente")
+    if coherence and not coherence.all_ok:
+        semantic_reasons.append("Document incoherent")
+    semantic_section = {
+        "status": "done",
+        "risk_class": semantic_risk,
+        "reasons": semantic_reasons,
+        "completeness": readiness is not None,
+    }
+
+    bundle = {
+        "schema": "sigurscan_evidence_bundle_v2",
+        "input": {"type": "invoice", "redacted_text": str(redacted_text or "")[:4000]},
+        "resolution": {"status": "not_required", "completeness": True},
+        "providers": provider_section,
+        "identity": identity_section,
+        "request": request_section,
+        "semantic_review": semantic_section,
+        "context": {
+            "urgency": bool(re.search(r"\b(urgent|azi|acum|24\s*de\s*ore|ultima|expir[ăa])\b", str(redacted_text or ""), re.IGNORECASE)),
+            "passive_payment": bool(re.search(r"\b(plata abonamentului|se va efectua automat plata|factur[ăa])\b", str(redacted_text or ""), re.IGNORECASE)),
+            "apk_or_remote_mention": False,
+        },
+    }
+    canonical = json.dumps(bundle, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    bundle["evidence_hash"] = "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return bundle
+
+
+def evaluate_invoice_verdict(result: "InvoiceScanResult", redacted_text: str = "") -> dict:
+    """Factură -> bundle v2 -> reduce_verdict (gate unic). {bundle, gate}."""
+    from services.verdict_gate import verdict as reduce_verdict
+
+    bundle = build_invoice_evidence_bundle(result, redacted_text)
+    return {"bundle": bundle, "gate": reduce_verdict(bundle)}

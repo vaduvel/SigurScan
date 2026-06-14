@@ -23,6 +23,13 @@ PHONE_REGEX = re.compile(
     r'(?:\+40|0040|40)?[ -|\.]?[0-9]{3}[ -|\.]?[0-9]{3}[ -|\.]?[0-9]{3,4}\b|\b07[0-9]{2}[ -|\.]?[0-9]{3}[ -|\.]?[0-9]{3}\b'
 )
 
+# Romanian CNP is 13 digits, usually introduced by the CNP keyword. Keep this
+# keyword-scoped so ordinary order IDs are not masked as identity data.
+CNP_REGEX = re.compile(
+    r'\b(CNP|cod\s+numeric\s+personal)\s*[:#-]?\s*(\d{13})\b',
+    re.IGNORECASE
+)
+
 # One-Time Passwords / Verification codes:
 # Usually a 4-8 digit code near keywords like "cod", "verification", "verificare", "OTP", "activare", "autorizare"
 OTP_KEYWORDS = ["cod", "otp", "verificare", "verification", "activare", "autorizare", "confirmare", "security", "securitate"]
@@ -63,6 +70,9 @@ def redact_pii(text: str) -> str:
     # Run OTP replacer a few times to get multiple matches if present
     # We loop or run sub
     text = OTP_REGEX.sub(otp_replacer, text)
+
+    # 3b. Redact Romanian CNP values when explicitly labeled as such.
+    text = CNP_REGEX.sub(lambda match: f"{match.group(1)} [CNP_REDACTED]", text)
 
     # 4. Redact Credit Cards (make sure we don't redact plain short numbers, CARD_REGEX is 13-19 digits)
     text = CARD_REGEX.sub("[CARD_REDACTED]", text)

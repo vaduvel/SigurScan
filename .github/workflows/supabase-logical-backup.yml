@@ -1,0 +1,63 @@
+name: Supabase logical backup
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Daily at 02:23 UTC. This is a logical backup safety net, not PITR.
+    - cron: "23 2 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    name: Create verified Supabase logical backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate secret configuration
+        shell: bash
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SUPABASE_DB_URL:-}" ]]; then
+            echo "::error::GitHub secret SUPABASE_DB_URL is not configured."
+            exit 2
+          fi
+          echo "SUPABASE_DB_URL: SET length=${#SUPABASE_DB_URL}"
+
+      - name: Install PostgreSQL 17 client
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo install -d -m 0755 /usr/share/keyrings
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+          /usr/lib/postgresql/17/bin/pg_dump --version
+
+      - name: Run logical backup
+        shell: bash
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_PROJECT_REF: hslqboubacrdhatmqcky
+          BACKUP_DIR: build/backups/supabase
+        run: tools/supabase_logical_backup.sh
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-logical-backup-${{ github.run_id }}
+          path: build/backups/supabase/*
+          retention-days: 30
+          if-no-files-found: error

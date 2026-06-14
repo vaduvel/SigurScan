@@ -27,11 +27,23 @@ logging.basicConfig(
 logger = logging.getLogger("urechea_worker")
 
 
+def _source_names(ingester: UrecheaIngester, raw_names: List[str] | None = None) -> List[str]:
+    if not raw_names:
+        return [s.name for s in SEED_SOURCES if s.feed_url is not None]
+    names: List[str] = []
+    for item in raw_names:
+        for part in str(item or "").split(","):
+            name = part.strip()
+            if name:
+                names.append(name)
+    return names or [s.name for s in SEED_SOURCES if s.feed_url is not None]
+
+
 def run(source_names: List[str] | None = None) -> int:
     """Fetch RSS feeds, ingest entries, return number ingested."""
     store = CampaignStore()
     ingester = UrecheaIngester(store)
-    sources_to_fetch = source_names or [s.name for s in SEED_SOURCES if s.feed_url is not None]
+    sources_to_fetch = _source_names(ingester, source_names)
     total = 0
     for name in sources_to_fetch:
         entries = ingester.fetch_source(name)

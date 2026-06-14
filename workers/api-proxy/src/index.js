@@ -1,4 +1,5 @@
 const PUBLIC_HOST = "api.sigurscan.com";
+export const STRICT_TRANSPORT_SECURITY = "max-age=31536000; includeSubDomains";
 
 export function buildHttpsRedirect(request) {
   const incomingUrl = new URL(request.url);
@@ -12,6 +13,7 @@ export function buildHttpsRedirect(request) {
     headers: {
       "cache-control": "no-store",
       "location": incomingUrl.toString(),
+      "strict-transport-security": STRICT_TRANSPORT_SECURITY,
       "x-sigurscan-edge": "cloudflare",
     },
   });
@@ -52,6 +54,7 @@ export function buildPublicResponse(upstreamResponse, originUrl) {
 
   // API responses must never be cached at the edge unless an endpoint opts in later.
   headers.set("cache-control", "no-store");
+  headers.set("strict-transport-security", STRICT_TRANSPORT_SECURITY);
   headers.set("x-sigurscan-edge", "cloudflare");
 
   return new Response(upstreamResponse.body, {
@@ -85,6 +88,7 @@ export default {
           status: 502,
           headers: {
             "cache-control": "no-store",
+            "strict-transport-security": STRICT_TRANSPORT_SECURITY,
             "x-sigurscan-edge": "cloudflare",
           },
         },

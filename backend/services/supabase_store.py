@@ -183,6 +183,98 @@ def load_feedback_records() -> List[Dict[str, Any]]:
     return output
 
 
+def save_campaign_intel(entry: Dict[str, Any]) -> None:
+    if not is_supabase_enabled() or not isinstance(entry, dict):
+        return
+    intel_id = entry.get("intel_id")
+    family = entry.get("family")
+    if not intel_id or not family:
+        return
+    row = {
+        "intel_id": intel_id,
+        "family": family,
+        "skeleton": entry.get("skeleton") or {},
+        "iocs": entry.get("iocs") or {},
+        "source": entry.get("source") or {},
+        "evidence_quality": entry.get("evidence_quality") or "medium",
+        "status": entry.get("status") or "active",
+        "regions_hint": entry.get("regions_hint") or ["national"],
+        "moderation": entry.get("moderation") or {},
+    }
+    created_at = _ts_to_iso(entry.get("created_at"))
+    last_seen_at = _ts_to_iso(entry.get("last_seen_at"))
+    if created_at:
+        row["created_at"] = created_at
+    if last_seen_at:
+        row["last_seen_at"] = last_seen_at
+    _post_json("campaign_intel", row, "resolution=merge-duplicates,return=minimal")
+
+
+def load_campaign_intel() -> List[Dict[str, Any]]:
+    rows = _get_json("campaign_intel", {"select": "*", "order": "last_seen_at.desc"})
+    output: List[Dict[str, Any]] = []
+    for row in rows:
+        normalized = dict(row)
+        for key in ("created_at", "last_seen_at"):
+            ts = _iso_to_ts(normalized.get(key))
+            if ts:
+                normalized[key] = ts
+        output.append(normalized)
+    return output
+
+
+def save_campaign_fingerprint(entry: Dict[str, Any]) -> None:
+    if not is_supabase_enabled() or not isinstance(entry, dict):
+        return
+    fingerprint_id = entry.get("fingerprint_id")
+    if not fingerprint_id:
+        return
+    row = {
+        "fingerprint_id": fingerprint_id,
+        "locale": entry.get("locale") or "ro-RO",
+        "channel_class": entry.get("channel_class") or "sms",
+        "arc_family": entry.get("arc_family") or "",
+        "ask_sequence_sig": entry.get("ask_sequence_sig") or "",
+        "cta_pattern_sig": entry.get("cta_pattern_sig") or "",
+        "identity_claim_sig": entry.get("identity_claim_sig") or "",
+        "payment_rail_sig": entry.get("payment_rail_sig") or "",
+        "sensitive_request_sig": entry.get("sensitive_request_sig") or [],
+        "text_skeleton_hash": entry.get("text_skeleton_hash") or "",
+        "url_shape_sig": entry.get("url_shape_sig") or "no-url",
+        "no_raw_iocs": bool(entry.get("no_raw_iocs", True)),
+    }
+    created_at = _ts_to_iso(entry.get("created_at"))
+    if created_at:
+        row["created_at"] = created_at
+    _post_json("campaign_fingerprint", row, "resolution=merge-duplicates,return=minimal")
+
+
+def delete_campaign_fingerprint(fingerprint_id: str) -> None:
+    if not is_supabase_enabled() or not fingerprint_id:
+        return
+    try:
+        requests.delete(
+            _table_url("campaign_fingerprint"),
+            headers=_headers(),
+            params={"fingerprint_id": f"eq.{fingerprint_id}"},
+            timeout=SUPABASE_TIMEOUT_SECONDS,
+        ).raise_for_status()
+    except Exception:
+        return
+
+
+def load_campaign_fingerprints() -> List[Dict[str, Any]]:
+    rows = _get_json("campaign_fingerprint", {"select": "*", "order": "created_at.desc"})
+    output: List[Dict[str, Any]] = []
+    for row in rows:
+        normalized = dict(row)
+        ts = _iso_to_ts(normalized.get("created_at"))
+        if ts:
+            normalized["created_at"] = ts
+        output.append(normalized)
+    return output
+
+
 def load_reputation_cache() -> Dict[str, Any]:
     rows = _get_json("url_reputation_cache", {"select": "*"})
     cache: Dict[str, Any] = {}

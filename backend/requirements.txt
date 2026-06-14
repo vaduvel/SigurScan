@@ -11,3 +11,4 @@ python-multipart==0.0.22
 email-validator==2.3.0
 python-dotenv==1.2.1
 pypdf==6.9.1
+feedparser==6.0.11

@@ -38,6 +38,7 @@ def _result(
     reason_codes: List[str],
     *,
     confidence: int | None = None,
+    is_final: bool | None = None,
 ) -> Dict[str, Any]:
     label = label if label in INTERNAL_LABELS else "UNVERIFIED"
     risk_level = {
@@ -58,7 +59,7 @@ def _result(
         "risk_score": risk_score,
         "reason_codes": reason_codes,
         "confidence": confidence if confidence is not None else (60 if label == "UNVERIFIED" else 80),
-        "is_final": label != "UNVERIFIED",
+        "is_final": (label != "UNVERIFIED") if is_final is None else is_final,
     }
 
 
@@ -286,7 +287,9 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
     # ─── Rule 5: Provider error blocks SAFE but allows SUSPECT ─────────────
     # Moved after all DANGEROUS checks but before SAFE.
     if provider_is_error:
-        return _result("UNVERIFIED", ["provider_error"], confidence=0)
+        if has_provenance:
+            return _result("UNVERIFIED", ["provider_error"], confidence=0, is_final=True)
+        return _result("SUSPECT", ["provider_error"], confidence=55)
 
     # ─── Rule 6: Campaign fingerprint match solo → max SUSPECT ────────────
     if campaign_high and not has_provenance:
@@ -322,4 +325,4 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
         return _result("SUSPECT", ["value_request_needs_verification"], confidence=70)
 
     # ─── Rule 11: Residual ────────────────────────────────────────────────
-    return _result("UNVERIFIED", ["residual"], confidence=60)
+    return _result("UNVERIFIED", ["residual"], confidence=60, is_final=True)

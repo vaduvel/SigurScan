@@ -5,7 +5,10 @@ from dataclasses import dataclass, field
 from typing import List
 
 CUI_PATTERN = re.compile(r"(?:CUI|CIF|RO)\s*[:\s]*(\d{2,10})\b", re.IGNORECASE)
-IBAN_PATTERN = re.compile(r"RO\d{2}[A-Z0-9]{20,24}", re.IGNORECASE)
+# Bug#9: IBAN-ul RO are lungime fixă de 24 caractere (RO + 2 cifre de control +
+# 20 alfanumerice). {20,24} permitea 24-28 caractere total, capturând text de
+# după IBAN ca parte din el.
+IBAN_PATTERN = re.compile(r"RO\d{2}[A-Z0-9]{20}", re.IGNORECASE)
 MONTHS = {
     "january": "01",
     "jan": "01",
@@ -34,20 +37,26 @@ MONTHS = {
 }
 CURRENCY_SYMBOLS = {"€": "EUR", "$": "USD", "£": "GBP"}
 CURRENCY_PATTERN = re.compile(r"\b(RON|LEI|EUR|USD|GBP)\b|[€$£]", re.IGNORECASE)
+# Bug#1 (capătul end-to-end): un număr poate avea grupe de mii separate prin
+# punct/virgulă/spațiu (1.260 / 1 500 / 1,234,567) urmate opțional de 2 zecimale.
+# Vechiul `\d[\d\s]*(?:[.,]\d{1,2})?` trunchia "1.260" la "1.26" înainte ca
+# _parse_ro_amount să apuce să dezambiguizeze separatorul. Întâi forma cu grupe,
+# apoi forma simplă; _parse_ro_amount decide RO vs EN pe șirul complet.
+_AMOUNT_NUM = r"\d+(?:[.,\s]\d{3})+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?"
 AMOUNT_VALUE_PATTERN = re.compile(
-    r"(?:[€$£]\s*(\d[\d\s]*(?:[.,]\d{1,2})?))"
-    r"|(?:(\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:RON|LEI|lei|EUR|USD|GBP|€|\$|£))",
+    r"(?:[€$£]\s*(" + _AMOUNT_NUM + r"))"
+    r"|(?:(" + _AMOUNT_NUM + r")\s*(?:RON|LEI|lei|EUR|USD|GBP|€|\$|£))",
     re.IGNORECASE,
 )
 AMOUNT_PATTERN = re.compile(
     r"(?:Total|TVA|Tax|Subtotal|Amount due|Total due|Balance due|Suma|Valoare|Plata|De plata)\s*(?:factur[ai]|plat[iă]|)?[:\s]*"
-    r"(\d[\d\s]*(?:[.,]\d{1,2})?)",
+    r"(" + _AMOUNT_NUM + r")",
     re.IGNORECASE,
 )
 AMOUNT_WITH_TVA_RATE = re.compile(
-    r"(?:TVA|Tax).*?(\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:RON|LEI|lei|Eur|EUR|USD|GBP|€|\$|£)", re.IGNORECASE
+    r"(?:TVA|Tax).*?(" + _AMOUNT_NUM + r")\s*(?:RON|LEI|lei|Eur|EUR|USD|GBP|€|\$|£)", re.IGNORECASE
 )
-AMOUNT_FALLBACK = re.compile(r"(\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:RON|LEI|lei|Eur|EUR|USD|GBP|€|\$|£)")
+AMOUNT_FALLBACK = re.compile(r"(" + _AMOUNT_NUM + r")\s*(?:RON|LEI|lei|Eur|EUR|USD|GBP|€|\$|£)")
 DATE_PATTERN = re.compile(
     r"\b(0[1-9]|[12]\d|3[01])[./](0[1-9]|1[0-2])[./](20\d{2})\b"
 )
@@ -56,6 +65,17 @@ MONTH_DATE_PATTERN = re.compile(
     r"Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|"
     r"Jul(?:y)?|Aug(?:ust)?|Sep(?:t|tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?"
     r")\s+([0-3]?\d),\s*(20\d{2})\b",
+    re.IGNORECASE,
+)
+# Bug#11: facturile RO scriu data ca „15 ianuarie 2026" (zi, lună în română, an)
+# — ordine inversă față de formatul englezesc „January 15, 2026" și fără virgulă.
+RO_MONTHS = {
+    "ianuarie": "01", "februarie": "02", "martie": "03", "aprilie": "04",
+    "mai": "05", "iunie": "06", "iulie": "07", "august": "08",
+    "septembrie": "09", "octombrie": "10", "noiembrie": "11", "decembrie": "12",
+}
+RO_MONTH_DATE_PATTERN = re.compile(
+    r"\b([0-3]?\d)\s+(" + "|".join(RO_MONTHS.keys()) + r")\s+(20\d{2})\b",
     re.IGNORECASE,
 )
 SCADENTA_LABEL = re.compile(r"scaden[ţt][aă]|\bdue date\b|\bdate due\b|\bpayment due\b", re.IGNORECASE)
@@ -111,11 +131,29 @@ def _parse_ro_amount(raw: str) -> float | None:
     has_comma = "," in cleaned
     has_dot = "." in cleaned
     if has_comma and has_dot:
-        cleaned = cleaned.replace(".", "").replace(",", ".")
+        # Ultimul separator întâlnit este zecimalul; celălalt = separator de mii.
+        if cleaned.rfind(",") > cleaned.rfind("."):
+            # RO: punct=mii, virgulă=zecimal (1.260,50)
+            cleaned = cleaned.replace(".", "").replace(",", ".")
+        else:
+            # EN: virgulă=mii, punct=zecimal (1,500.00)
+            cleaned = cleaned.replace(",", "")
     elif has_comma:
-        cleaned = cleaned.replace(",", ".")
+        # O singură virgulă cu exact 3 cifre după = separator de mii (1,500);
+        # altfel virgula e zecimalul RO (12,50 / 19,00).
+        parts = cleaned.split(",")
+        if len(parts) == 2 and len(parts[1]) == 3 and parts[0].lstrip("-").isdigit():
+            cleaned = cleaned.replace(",", "")
+        else:
+            cleaned = cleaned.replace(",", ".")
     elif has_dot:
-        cleaned = cleaned.replace(" ", "")
+        # Toate grupele de după prima au exact 3 cifre = separator de mii RO
+        # (1.500 / 2.000 / 1.234.567); altfel punctul rămâne zecimal (119.99).
+        parts = cleaned.split(".")
+        if len(parts) >= 2 and parts[0].lstrip("-").isdigit() and all(
+            len(p) == 3 and p.isdigit() for p in parts[1:]
+        ):
+            cleaned = cleaned.replace(".", "")
     try:
         return round(float(cleaned), 2)
     except (ValueError, TypeError):
@@ -284,6 +322,8 @@ def _dates_from_line(line: str) -> list[str]:
         dates.append((match.start(), _normalize_date(match.group(0))))
     for match in MONTH_DATE_PATTERN.finditer(line):
         dates.append((match.start(), _normalize_month_date(match.group(0))))
+    for match in RO_MONTH_DATE_PATTERN.finditer(line):
+        dates.append((match.start(), _normalize_ro_month_date(match.group(0))))
     return [date for _, date in sorted(dates, key=lambda item: item[0])]
 
 
@@ -318,12 +358,24 @@ def _normalize_month_date(raw: str) -> str:
     return f"{year}-{month}-{day:02d}"
 
 
+def _normalize_ro_month_date(raw: str) -> str:
+    match = RO_MONTH_DATE_PATTERN.search(raw)
+    if not match:
+        return raw
+    day = int(match.group(1))
+    month = RO_MONTHS[match.group(2).lower()]
+    year = match.group(3)
+    return f"{year}-{month}-{day:02d}"
+
+
 def _extract_dates(text: str) -> list[str]:
     dates: list[tuple[int, str]] = []
     for match in DATE_PATTERN.finditer(text):
         dates.append((match.start(), _normalize_date(match.group(0))))
     for match in MONTH_DATE_PATTERN.finditer(text):
         dates.append((match.start(), _normalize_month_date(match.group(0))))
+    for match in RO_MONTH_DATE_PATTERN.finditer(text):
+        dates.append((match.start(), _normalize_ro_month_date(match.group(0))))
     return [date for _, date in sorted(dates, key=lambda item: item[0])]
 
 
@@ -393,9 +445,9 @@ def parse_invoice(
     if not text:
         return InvoiceFields(raw_text="")
 
-    # CUI
+    # CUI — group(1) e cifrele propriu-zise; group(0) include prefixul CUI/CIF/RO.
     cui_match = CUI_PATTERN.search(text)
-    cui = _normalize_cui(cui_match.group(0)) if cui_match else None
+    cui = _normalize_cui(cui_match.group(1)) if cui_match else None
 
     # IBAN
     iban_match = IBAN_PATTERN.search(text)
@@ -418,8 +470,13 @@ def parse_invoice(
 
     # Amounts
     amounts = _parse_amounts(text)
-    subtotal = amounts["subtotal"][0] if amounts["subtotal"] else None
-    tva = amounts["tva"][0] if amounts["tva"] else None
+    # Bug#12: subtotal/tva foloseau primul element, total ultimul — pe facturi
+    # cu mai multe linii "Subtotal"/"TVA" (ex. un subtotal pe produse urmat de
+    # subtotalul real de sumar), valorile comparate de coerență veneau din
+    # rânduri diferite și nu se mai aliniau cu total. Ultimul element e cel
+    # din blocul de sumar final, alături de total.
+    subtotal = amounts["subtotal"][-1] if amounts["subtotal"] else None
+    tva = amounts["tva"][-1] if amounts["tva"] else None
     total = amounts["total"][-1] if amounts["total"] else None
     currency = _detect_currency(text)
 

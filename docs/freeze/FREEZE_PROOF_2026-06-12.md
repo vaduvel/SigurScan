@@ -7,9 +7,20 @@ Status: in progress. This document is proof-led: an item is not green unless the
 - Repository: `vaduvel/SigurScan`
 - Local repo: `/Users/vaduvageorge/AndroidStudioProjects/SigurScan`
 - Current branch: `main`
-- Verified code commit: `4918162`
-- Deployed code commit: `4918162`
+- Verified code commit: `e833a63`
+- Deployed code commit: `e833a63`
 - Documentation may advance past the deployed code commit with proof-only updates.
+- 2026-06-13 MoatOS PR0-PR4 merge commit on `origin/main`: `ab5b464`.
+- 2026-06-13 Supabase public-grant hardening commit on `origin/main`: `ed8f4a7`.
+- 2026-06-13 scan pipeline hardening merge commit on `origin/main`: `e833a63`.
+- 2026-06-13 deployed Cloud Run revision after scan pipeline hardening: `sigurscan-api-00031-hxn`, image tag `e833a63`, traffic `100%`.
+- Previous MoatOS deployed Cloud Run revision: `sigurscan-api-00030-lxb`, image tag `ed8f4a7`, traffic `100%`.
+- Pre-flight source HEAD before this proof-only documentation commit: `9c898b6`.
+- Freeze QA worktree used for the 2026-06-13 pre-flight: `/Users/vaduvageorge/.config/superpowers/worktrees/SigurScan/freeze-qa-2026-06-13`.
+- Delta from deployed code to the pre-flight source HEAD is non-runtime:
+  - command: `git diff --name-only fa1e75c..9c898b6`
+  - result: `.github/workflows/supabase-logical-backup.yml`, `backend/test_tooling_defaults.py`, `tools/supabase_logical_backup.sh`, `docs/freeze/FREEZE_PROOF_2026-06-12.md`, `docs/freeze/FREEZE_STATUS_MATRIX_2026-06-12.md`, `docs/operations/SUPABASE_LOGICAL_BACKUPS.md`
+  - interpretation: workflow/tooling/test/docs only; no API/runtime code is ahead of the deployed Cloud Run image.
 - Cloud Run project: `project-20f225c0-d756-4cba-864`
 - Cloud Run service: `sigurscan-api`
 - Cloud Run region: `europe-west1`
@@ -19,13 +30,60 @@ Status: in progress. This document is proof-led: an item is not green unless the
 
 ### Verified
 
+- 2026-06-13 scan pipeline hardening deployment proof:
+  - Source branch reviewed/cherry-picked: `fix/scan-pipeline-hardening-2026-06-13` / draft PR `#10`.
+  - Integrated into `main` as squash commit `e833a63` (`fix: harden invoice and offer scan pipeline`).
+  - Scope: invoice parser amount/date/IBAN/CUI fixes, ANAF checked=false cache behavior, invoice endpoint routed through `verdict_gate.reduce_verdict`, price no longer treated as wrong-channel evidence for offers, dedicated executor for blocking ANAF calls, and regression tests.
+  - Integration patch: canonical verdict labels are `SAFE`, `SUSPECT`, `DANGEROUS`, `UNVERIFIED`, `PENDING`; invoice user-copy mapping was aligned before merge.
+  - Backend verification on `main`: `python3 -m pytest backend -q` -> `828 passed, 1 warning in 4.82s`.
+  - Android verification on `main`: `ANDROID_HOME="$HOME/Library/Android/sdk" JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease -q` -> exit code `0`.
+  - Hygiene: `git diff --check` -> clean; staged diff secret scan -> `SECRET_SCAN_OK`.
+  - Cloud Build id: `8e7a432b-b887-4153-bfe8-d54ea0c4b70a`.
+  - Deployed revision: `sigurscan-api-00031-hxn`.
+  - Deployed image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:e833a63`.
+  - Deployed digest: `sha256:9d412bb7719242563509ad94bfbc0eb826e9bd8e252767715b215d1814a6f5b6`.
+  - Runtime truth after deploy: `containerConcurrency=2`, `minScale=1`, `maxScale=5`, `cpu-throttling=true`, traffic `100%` to `sigurscan-api-00031-hxn`.
+  - Official health: `https://api.sigurscan.com/health` returned `HTTP 200` in `0.292984s` and included `strict-transport-security: max-age=31536000; includeSubDomains` plus `x-sigurscan-edge: cloudflare`.
+  - Raw Run health: `HTTP 200` in `0.161002s`.
+  - Unauthenticated orchestrated route parity: official and raw Run both returned backend `401` with body `{"detail":"Missing or invalid API key."}`.
+  - Authenticated invoice smoke through official domain with Android UA: POST `HTTP 200` in `1.454s`; verdict visible on poll 2; final on poll 3; max poll `3.357s`; label `DANGEROUS` for a deliberately incomplete/fail-safe invoice-control text.
+- 2026-06-13 MoatOS PR0-PR4 deployment proof:
+  - PR: `#11`, squash-merged into `main` as `ab5b464`.
+  - Public-grant hardening commit: `ed8f4a7`.
+  - Cloud Build id: `efbf876f-f32e-4639-b912-fcce892d4e32`.
+  - Deployed revision: `sigurscan-api-00030-lxb`.
+  - Deployed image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:ed8f4a7`.
+  - Deployed digest: `sha256:29b84edc521d05aa930f461f7ccca0fa3ad2020884f4ce9bd8f723f8ab9c9081`.
+  - Runtime truth after deploy: `containerConcurrency=2`, `minScale=1`, `maxScale=5`, `timeout=300`, traffic `100%` to `sigurscan-api-00030-lxb`.
+  - Official health: `https://api.sigurscan.com/health` returned `HTTP 200` in `0.293127s` and included `strict-transport-security: max-age=31536000; includeSubDomains`.
+  - Raw Run health: `HTTP 200` in `0.165501s`.
+  - Unauthenticated official orchestrated scan returned backend `401` in `0.206527s`.
+  - Authenticated raw text-only scan: POST `1.717s`; final status `complete` on poll 2; total `7.924s`; max poll `4.118s`.
+  - Authenticated official text-only scan with Android UA `SigurScan/1.0 Android OkHttp`: POST `0.657s`; final status `complete` on poll 2; total `6.276s`; max poll `4.125s`.
+  - Known edge behavior preserved: Python default `urllib` UA receives Cloudflare `403/1010`; Android/OkHttp UA is accepted and is the supported app path.
 - Cloud Run service exists in `europe-west1`.
   Evidence: `gcloud run services describe sigurscan-api --project project-20f225c0-d756-4cba-864 --region europe-west1`.
-- Latest ready revision is `sigurscan-api-00025-vg5`.
-- Traffic is `100%` to `sigurscan-api-00025-vg5`.
-- Deployed image is `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:4918162`.
-- Deployed image digest is `sha256:1951be05e620f71b74923f4d6460ab36f322767f98f14987e38ff20eea11d1c7`.
-- Latest Cloud Build deployment proof:
+- Latest ready revision is `sigurscan-api-00030-lxb`.
+- Traffic is `100%` to latest revision, currently `sigurscan-api-00030-lxb`.
+- Deployed image is `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:ed8f4a7`.
+- Deployed image digest is `sha256:29b84edc521d05aa930f461f7ccca0fa3ad2020884f4ce9bd8f723f8ab9c9081`.
+- 2026-06-13 earlier pre-flight runtime reconciliation before MoatOS merge:
+  - command: `gcloud run services describe sigurscan-api --project project-20f225c0-d756-4cba-864 --region europe-west1 --format=json(...)`
+  - image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:fa1e75c`
+  - latest ready revision: `sigurscan-api-00029-gjg`
+  - traffic: `100%` to latest revision.
+  - `containerConcurrency=2`, `minScale=1`, `maxScale=5`, `cpu-throttling=true`, `startup-cpu-boost=true`.
+- Previous deploy-tooling hardening Cloud Build deployment proof:
+  - build id: `2a7be3a5-9e12-45ae-aa49-4cc0f67beb41`
+  - status: `SUCCESS`
+  - deployed revision: `sigurscan-api-00029-gjg`
+  - note: deploy script ran `gcloud run services update-traffic "$SERVICE_NAME" --to-latest`; traffic remained `100% LATEST`.
+- Previous freeze reconciliation Cloud Build deployment proof:
+  - build id: `a4b00a6e-3fb4-4e1c-bae0-4060e5858f80`
+  - status: `SUCCESS`
+  - deployed revision: `sigurscan-api-00028-v69`
+  - note: after deploy, traffic was explicitly routed with `gcloud run services update-traffic sigurscan-api --to-latest` because the service had been pinned to an older revision.
+- Previous PDF-fix Cloud Build deployment proof:
   - build id: `c87c4cb2-c160-4abc-95a5-624a611eeb16`
   - status: `SUCCESS`
   - deployed revision: `sigurscan-api-00025-vg5`
@@ -42,7 +100,11 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - Cloud Build log for `8088b6e7-7662-43fb-936a-494baffbd5a2` contained no warning/error/failed tokens.
   - contract test: `backend/test_container_contract.py` passes.
 - Request timeout is `300s`.
-- Container concurrency is `40`.
+- Container concurrency is `2`.
+  - It was reduced during Zone 8 hardening from the earlier high-concurrency posture after live scan probes showed better request stability for the current monolith on Cloud Run.
+  - The current deployed image is `ed8f4a7`; the earlier no-redeploy tuning note applied before the freeze reconciliation image was deployed.
+  - Deploy script hardening after reconciliation now preserves this value with `CONCURRENCY="${CONCURRENCY:-2}"` and `--concurrency "$CONCURRENCY"`, so a future redeploy does not silently reset the service to `40`.
+  - Deploy script hardening after `fa1e75c` also runs `gcloud run services update-traffic "$SERVICE_NAME" --to-latest`, so a future deploy cannot silently build a healthy revision while live traffic remains pinned to an older revision.
 - CPU/memory are `1 CPU` / `1Gi`.
 - Min instances is `1`; max instances is `5`.
 - CPU throttling is `true`, preserving request-based CPU billing rather than always-allocated CPU.
@@ -55,6 +117,8 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - Cloud Run injects `INVOICE_CACHE_HMAC_KEY=invoice-cache-hmac-key:latest`.
   - Test proof: `test_invoice_cache_key_requires_env_secret` fails without env and passes with the test fixture env.
 - Health check returns `HTTP 200` through Cloudflare on `https://api.sigurscan.com/health`.
+  - Post-deploy health after `fa1e75c`: `HTTP 200`, `0.405561s`.
+  - Post-deploy health after `f1701e5`: `HTTP 200`, `0.271734s`.
   - Post-deploy health after `4918162`: `HTTP 200`, `0.442909s`.
   - Post-deploy health after `45b5663`: `HTTP 200`, `1.168s`; runtime reports `rate_limit_backend=upstash`, `api_key_required=true`.
   - Post-deploy health after `21a6943`: `HTTP 200`, `0.361590s`.
@@ -79,6 +143,17 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - policy id: `9868521767490194527`
   - display name: `SigurScan orchestrated poll latency > 8s`
   - condition: any logged poll-latency metric count greater than `0` over a `300s` alignment window.
+- Cloud Monitoring error-rate alert policy exists:
+  - display name: `SigurScan Cloud Run 5xx errors > 0`
+  - condition: any `5xx` response from Cloud Run service `sigurscan-api`.
+  - status: enabled.
+- Alert notification channel is attached:
+  - channel id: `6336647364895454298`
+  - display name: `SigurScan freeze alerts`
+  - type: `email`
+  - status: enabled.
+  - secret hygiene: the email address was verified as configured but is recorded only as `SET`, never printed in the freeze proof.
+  - attached policies: `SigurScan Cloud Run 5xx errors > 0` and `SigurScan orchestrated poll latency > 8s`.
 - Cloud Logging structured-error/request proof captured:
   - controlled request: authenticated `GET /v1/scan/orchestrated/freeze-proof-missing-scan-1781272609`.
   - client response: `HTTP 404`, `2.968071s`, JSON body `{"detail":"Scanarea nu a fost gasita sau a expirat."}`.
@@ -90,6 +165,20 @@ Status: in progress. This document is proof-led: an item is not green unless the
     - server latency: `0.682251566s`
     - user-agent: `SigurScan/1.0 Android OkHttp`
 - Authenticated smoke scan through official domain completed:
+  - scan id: `orch_1781337767_d09f494d`
+  - input: text-only freeze check, no URL, so no URL-provider quota was consumed.
+  - POST: `HTTP 200`, `0.679s`, top-level status `scanning`.
+  - poll 1: `SUSPECT`, top-level status `scanning`, `result.is_final=false`, `0.921s`.
+  - poll 2: `SUSPECT`, top-level status `complete`, `result.is_final=true`, `4.087s`.
+  - wall time: `7.705s`, max poll latency `4.087s`.
+- Previous authenticated smoke scan through official domain:
+  - scan id: `orch_1781336207_ebef4de5`
+  - input: text-only freeze check, no URL, so no URL-provider quota was consumed.
+  - POST: `HTTP 200`, `1.390s`
+  - poll 1: `SUSPECT`, `1.109s`
+  - poll 2: `SUSPECT`, status `complete`, `4.229s`
+  - wall time: `8.140s`, max poll latency `4.229s`.
+- Previous authenticated smoke scan through official domain:
   - scan id: `orch_1781267052_627619ad`
   - poll 1: `SUSPECT`, `is_final=false`, `1.532s`
   - poll 2: `SUSPECT`, `is_final=true`, `4.262s`
@@ -192,12 +281,109 @@ Status: in progress. This document is proof-led: an item is not green unless the
     - poll 3: `HTTP 200`, `3.407s`, `SUSPECT`, `is_final=true`
   - Cloud Run request logs for `orch_1781269113_5074e703` show server-side GET latencies of `0.501767931s`, `0.517308680s`, and `3.180505344s`.
   - A previous local `urllib` poll timeout was not reproduced with `requests`; Cloud Run logs for that scan showed quick server responses. Treat remaining risk as edge/client-path observability, not a confirmed backend handler latency defect.
+- Zone 8 runtime hardening after container-concurrency tuning:
+  - Domain health after tuning:
+    - `https://api.sigurscan.com/health`: `HTTP 200`, `0.276s`.
+    - direct Cloud Run health: `HTTP 200`, `0.146s`.
+    - runtime config reports `api_key_required=true`, `admin_api_configured=true`, `rate_limit_backend=upstash`.
+    - report: `build/reports/freeze/zone8_domain_health_after_tuning_2026-06-12.json`.
+  - Single warm text-only scan:
+    - POST `1.188s`.
+    - provisional public verdict after first poll in roughly `2.5s` total.
+    - final `SUSPECT` in `7.131s` total.
+    - report: `build/reports/freeze/zone8_live_single_warm_2026-06-12.json`.
+  - 8 simultaneous text-only scans before final tuning:
+    - `8/8` finalized.
+    - no `5xx`.
+    - poll p50 `4.847s`, poll max `9.367s`.
+    - total p50 `15.725s`, total max `16.244s`.
+    - report: `build/reports/freeze/zone8_live_concurrency_admin_2026-06-12.json`.
+  - 8 simultaneous text-only scans after `containerConcurrency=2`:
+    - `8/8` finalized.
+    - no `5xx`.
+    - poll p50 `5.041s`, poll max `8.328s`.
+    - total p50 `14.849s`, total max `15.565s`.
+    - report: `build/reports/freeze/zone8_live_concurrency_after_concurrency2_2026-06-12.json`.
+  - 4 simultaneous text-only scans after `containerConcurrency=2`:
+    - `4/4` finalized.
+    - no `5xx`.
+    - poll p50 `3.283s`, poll max `6.049s`.
+    - total p50 `8.992s`, total max `9.147s`.
+    - report: `build/reports/freeze/zone8_live_concurrency4_after_concurrency2_2026-06-12.json`.
+  - Interpretation:
+    - normal single-user and 4-concurrent paths are within the current target posture.
+    - 8 simultaneous text-only scans are stable and complete, but remain a capacity watch item because max poll latency is near/above the `8s` alert threshold.
+- Freeze QA reconciliation on `2026-06-13`:
+  - Command: `gcloud run services describe sigurscan-api --project project-20f225c0-d756-4cba-864 --region europe-west1 --format='value(spec.template.spec.containerConcurrency)'`.
+  - Result: `2`.
+  - Controlled text-only scan concurrency at exactly `N=2`, avoiding URL-provider quota:
+    - official domain: `2/2` finalized, `0` `5xx`, wall time `8.37s`, max poll latency `4.344s`, labels `SUSPECT`, `SUSPECT`.
+    - raw Cloud Run URL: `2/2` finalized, `0` `5xx`, wall time `7.398s`, max poll latency `4.36s`, labels `SUSPECT`, `SUSPECT`.
+  - Interpretation: the real runtime concurrency is `2`; older `5`/`8` scan probes remain historical stress probes, not the current reconciliation threshold.
+- Zone 8 admin telemetry proof:
+  - `/v1/orchestration/telemetry`: `HTTP 200`, JSON response, keys include `alerts`, `by_event_type`, `by_stage`, `conflicts`, `polls_to_final`, `stage_latency_ms`, `time_to_final_ms`, and `urlscan`.
+  - `/v1/orchestration/dashboard`: `HTTP 200`, HTML dashboard response.
+  - `/v1/feedback/summary`: `HTTP 200`, JSON response with accuracy/precision/recall/f1 summary fields.
+  - `/v1/reputation/cache/stats`: `HTTP 200`, JSON response.
+  - telemetry summary: `alerts_count=0`, `urlscan.pending_timeout_events=0`, `urlscan.pending_timeout_rate=0.0`.
+  - reports:
+    - `build/reports/freeze/zone8_admin_endpoints_live_2026-06-12.json`
+    - `build/reports/freeze/zone8_admin_telemetry_summary_2026-06-12.json`
+- Zone 8 log hygiene proof:
+  - controlled live scan included a unique marker plus fake OTP, CNP, IBAN, and card-number values.
+  - `300` Cloud Run log entries were checked.
+  - exact sensitive matches found: `0` for marker, OTP, CNP, IBAN, and card number.
+  - request report: `build/reports/freeze/zone8_log_hygiene_probe_request_2026-06-12.json`.
+  - log report: `build/reports/freeze/zone8_cloud_run_log_hygiene_2026-06-12.json`.
+- 2026-06-13 pre-flight live log hygiene proof:
+  - scan id: `orch_1781345367_80b7f443`.
+  - input: text-only/no URL, with controlled marker and PII-shaped values.
+  - POST: `HTTP 200`, `2.108s`.
+  - poll 1: `SUSPECT`, `status=scanning`, `result.is_final=false`, `4.736s`.
+  - poll 2: `SUSPECT`, `status=complete`, `result.is_final=true`, `4.519s`.
+  - Cloud Logging query requested the latest `500` entries for `sigurscan-api` in the relevant service window; `10` entries were returned/checked.
+  - exact matches found for marker, email, phone, CNP, IBAN, card, and OTP: `0`.
+- Additional local telemetry redaction hardening after `2026-06-13` reconciliation:
+  - `backend/services/telemetry.py` now applies a final recursive `redact_pii()` guard before scan/feedback payloads reach Supabase or JSONL persistence sinks.
+  - `backend/services/pii_redactor.py` now masks explicitly labeled Romanian CNP values.
+  - regression test injects email, phone, CNP, IBAN, card, OTP, and URL-query email into telemetry and verifies raw values are absent from both Supabase-bound payload and JSONL output.
+  - command: `python3 -m pytest -q backend/test_freeze_hardening.py`.
+  - current result before deployment: `4 passed`.
+- Zone 8 regression/provider-degrade proof:
+  - 2026-06-13 targeted deterministic/security pre-flight:
+    - command: `python3 -m pytest backend/test_freeze_hardening.py backend/test_brand_registry.py backend/test_verdict_gate.py backend/test_security_hardening.py -q`
+    - result: `61 passed, 1 warning in 2.17s`.
+  - 2026-06-13 freeze hardening/redaction suite:
+    - command: `python3 -m pytest backend/test_freeze_hardening.py -q -s`
+    - result: `4 passed in 0.17s`.
+  - 2026-06-13 runtime brand registry sweep:
+    - command: custom Python sweep over `load_brand_registry()`.
+    - result: `brands=52`, `aliases_checked=94`, `failures=0`.
+  - targeted atlas/knowledge/gate/invoice/security/latency regression:
+    - command: `python3 -m pytest backend/test_offer_corpus_recall.py backend/test_family_classifier.py backend/test_scam_atlas_contract.py backend/test_scam_atlas_impersonation.py backend/test_impersonation_knowledge_builder.py backend/test_verdict_gate.py backend/test_offer_gate_combos.py backend/test_legal_layer.py backend/test_registry_verification.py backend/test_invoice_orchestration.py backend/test_invoice_endpoint.py backend/test_invoice_parser.py backend/test_invoice_readiness_gate.py backend/test_invoice_coherence.py backend/test_security_hardening.py backend/test_orchestrated_latency.py -q`
+    - result: `231 passed, 1 warning`.
+    - report: `build/reports/freeze/zone8_regression_junit_2026-06-12.xml`.
+  - provider degrade/error handling regression:
+    - command: `python3 -m pytest backend/test_anaf_cui.py backend/test_anaf_cui_offer.py backend/test_offer_web_confirm.py backend/test_registry_verification.py backend/test_backend.py::test_gemini_explainer_handles_timeout_gracefully backend/test_backend.py::test_offer_claim_gemini_grounding_is_bounded_for_25_flash backend/test_backend.py::test_reputation_cache_refetches_when_configured_source_was_not_consulted -q`
+    - result: `54 passed, 1 warning`.
+    - report: `build/reports/freeze/zone8_provider_degrade_junit_2026-06-12.xml`.
+- Cloud Monitoring notification-channel proof after reconciliation:
+  - channel id: `6336647364895454298`.
+  - channel type: email.
+  - status: enabled.
+  - attached to both `SigurScan Cloud Run 5xx errors > 0` and `SigurScan orchestrated poll latency > 8s`.
+- Controlled `5xx` stack-trace proof:
+  - status: `DEFERRED`.
+  - reason: no safe admin-only diagnostic crash route exists in the current public API, and adding one during freeze would create a new operational surface.
+  - existing structured-error proof covers controlled `404` logging, not stack traces for unexpected `5xx`.
+  - recommended follow-up: add a disabled-by-default, admin-key-gated diagnostics route only in a dedicated hardening PR, verify Cloud Logging stack trace, then disable/remove it.
 
 ### Not Yet Green
 
 - Cold-start test after 15 minutes idle has not been run.
-- Full URL-provider scan concurrency/load test has not been run; only single URL-provider smoke and text-only scan concurrency are proven.
-- Latency outlier root-cause is not fully closed: a prior live run had one `29s` poll. The latest 4-run probe and the post-`21a6943` probe did not reproduce it, and Cloud Run logs show sub-4s server-side poll latency for the latest scan, so this remains a watch item rather than a confirmed code defect.
+- Full URL-provider scan concurrency/load test has not been run; only single URL-provider smoke and text-only scan concurrency are proven, deliberately avoiding quota burn.
+- Latency outlier root-cause is not fully closed: a prior live run had one `29s` poll. Latest single-user, 4-concurrent, and 8-concurrent probes did not produce `5xx`, but 8-concurrent text-only scans can still approach the `8s` poll alert threshold. This remains a capacity/observability watch item rather than a confirmed handler crash.
+- Cloud Monitoring policies exist, are enabled, and now have an email notification channel attached.
 
 ### Immediate Fixes
 
@@ -222,14 +408,19 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - SAN contains `sigurscan.com`, `api.sigurscan.com`, and `*.api.sigurscan.com`.
 - Cloudflare Worker proxy version deployed:
   - worker: `sigurscan-api-proxy`.
-  - version id: `d5e812eb-baca-4b88-95af-595966e1613c`.
+  - previous version id: `d5e812eb-baca-4b88-95af-595966e1613c`.
+  - current HSTS hardening version id: `c2523aae-9215-4527-93aa-9a36b82cc491`.
   - route: `api.sigurscan.com`.
   - `workers/api-proxy` test suite: `5/5 passed`.
+- HSTS is present at the edge after Worker hardening:
+  - command: `curl -sD - -o /dev/null https://api.sigurscan.com/health`.
+  - result includes `strict-transport-security: max-age=31536000; includeSubDomains`.
 - Response headers show Cloudflare in the path:
   - `server: cloudflare`
   - `cf-cache-status: DYNAMIC`
   - `x-sigurscan-edge: cloudflare`
   - `cache-control: no-store`
+  - `strict-transport-security: max-age=31536000; includeSubDomains`
 - Official domain health body reports:
   - `rate_limit_enabled=true`
   - `rate_limit_backend=upstash`
@@ -245,11 +436,16 @@ Status: in progress. This document is proof-led: an item is not green unless the
     - `SigurScan/1.0 Android OkHttp`: `HTTP 200`, `0.184060s`
     - authenticated Android UA health: `HTTP 200`, `0.164287s`
   - This is a Cloudflare/WAF user-agent rule, not CORS. QA scripts and legitimate non-Android clients must send an app-like UA or be allowlisted intentionally.
-- `/v1/*` edge behavior after Worker deploy `d5e812eb-baca-4b88-95af-595966e1613c`:
+- `/v1/*` edge behavior after Worker deploy `d5e812eb-baca-4b88-95af-595966e1613c` and HSTS hardening `c2523aae-9215-4527-93aa-9a36b82cc491`:
   - unauthenticated `POST https://api.sigurscan.com/v1/scan/orchestrated` returns `HTTP 401` in `0.281984s`.
   - response includes `cache-control: no-store`.
   - response includes `x-sigurscan-edge: cloudflare`.
   - backend body is preserved: `{"detail":"Missing or invalid API key."}`.
+- Route parity check after HSTS hardening:
+  - `/health`: official `200`, raw Run `200`, same body hash.
+  - `/v1/scan/orchestrated` unauthenticated: official `401`, raw Run `401`, same body hash.
+  - `/v1/reputation/cache/stats` unauthenticated: official `401`, raw Run `401`, same body hash.
+  - `/v1/extract/pdf` unauthenticated: official `401`, raw Run `401`, same body hash.
 
 ### Not Yet Green
 
@@ -307,11 +503,48 @@ Status: in progress. This document is proof-led: an item is not green unless the
     - `expires_at > now()`.
     - `payload.result` present.
     - `payload.pipeline_stage=analysis_ready`.
+- Supabase runtime access is Data API / PostgREST based, not long-lived direct Postgres connections from the app process.
+  - code proof: runtime persistence uses `backend/services/supabase_store.py` with HTTP requests.
+  - pressure proof through admin telemetry endpoint with Android UA:
+    - official domain: `20` concurrent requests, `20/20 HTTP 200`, wall time `1.881s`, max latency `1.874s`.
+    - raw Cloud Run URL: `20` concurrent requests, `20/20 HTTP 200`, wall time `1.248s`, max latency `1.244s`.
+    - no DB exhaustion or `5xx` observed.
+- Backup/PITR status was checked through Supabase CLI:
+  - command: `supabase backups list --project-ref hslqboubacrdhatmqcky --output json`.
+  - result: `pitr_enabled=false`, `walg_enabled=true`, `backups=[]`, region `eu-west-1`.
+  - conclusion: PITR is not enabled, so Zone 3 remains Partial until a paid Supabase PITR/backup posture or an automated backup job is accepted.
+- Automated logical backup tooling was added as the no-PITR backup posture:
+  - workflow: `.github/workflows/supabase-logical-backup.yml`.
+  - script: `tools/supabase_logical_backup.sh`.
+  - runbook: `docs/operations/SUPABASE_LOGICAL_BACKUPS.md`.
+  - cadence: daily at `02:23 UTC` plus manual `workflow_dispatch`.
+  - storage: private GitHub Actions artifact, `30` days retention.
+  - verification: workflow runs `pg_restore --list` and uploads dump, schema, restore list, and checksum manifest.
+  - GitHub workflow status: `Supabase logical backup` is active, workflow id `295225984`.
+  - GitHub secret check after setup: repo secret names include `SUPABASE_DB_URL`, `SUPABASE_SERVICE_KEY`, and `SUPABASE_URL`; secret values were not printed.
+  - first manual run before client fix: `27462368679`, failed correctly because GitHub runner installed `pg_dump 16.14` while Supabase runs Postgres `17.6`.
+  - hardening fix: workflow now installs `postgresql-client-17` and adds `/usr/lib/postgresql/17/bin` to `GITHUB_PATH`; test proof `python3 -m pytest backend/test_tooling_defaults.py -q` returned `6 passed`.
+  - accepted manual run: `27462542127`, event `workflow_dispatch`, head `main` at `cdad5f97cb258ab4c242776ad48e4b24edda6d92`, conclusion `success`.
+  - accepted run URL: `https://github.com/vaduvel/SigurScan/actions/runs/27462542127`.
+  - accepted artifact: `supabase-logical-backup-27462542127`, artifact id `7609394930`, final size `1994250` bytes, artifact zip sha256 `6a9f5205c7584df00b5d8fe160091090335bcdb1634931cf983d154a60af79b5`.
+  - workflow used `pg_dump (PostgreSQL) 17.10`.
+  - produced dump: `hslqboubacrdhatmqcky_20260613T091114Z.dump`, `2206537` bytes, sha256 `fefdb881bdaf191bb0b2dda55f7c93f795b227d3cf61ceb0b16f9afe82a722db`.
+  - produced schema: `hslqboubacrdhatmqcky_20260613T091114Z_schema.sql.gz`, `27728` bytes, sha256 `5d583b87f29a5327878cfb908c37765097ba48e044c834a94855ef4366ef5b66`.
+  - produced restore list: `hslqboubacrdhatmqcky_20260613T091114Z_restore.list`, `38436` bytes, sha256 `24a6354a887b067d1edf27ac158d903124700a527f8f925834100dad54a3ac2c`.
+  - workflow verification: `pg_restore --list passed`; local artifact checksum verification also returned `sha256_ok=True` for dump, schema, and restore list.
+  - limitation accepted: this is an automated daily logical backup, not PITR, and does not include Supabase Storage objects.
+- Current database size is small:
+  - total database size: `26 MB`.
+  - largest tables: `scan_jobs` `11 MB`, `scan_events` `1872 kB`, `url_reputation_cache` `1680 kB`.
+- Local emergency backup fallback was created outside the repository:
+  - schema dump: `/Users/vaduvageorge/SigurScan_backups/supabase/supabase_hslqboubacrdhatmqcky_2026-06-13_09-21-23.sql.gz`, sha256 `0c24bc441aa15be3c5e75dc564494f21567cb4b8ed6180e7bd97bea90707a203`.
+  - data dump: `/Users/vaduvageorge/SigurScan_backups/supabase/supabase_hslqboubacrdhatmqcky_data_2026-06-13_09-23-00.sql.gz`, sha256 `a3e40e7e3572373efb659fc537b10e579d92be5472a17b9de9c2fcd99773651b`.
+  - these dumps are a stopgap only, not a substitute for PITR.
 
-### Not Yet Green
+### Remaining Limitations
 
-- Backup / point-in-time recovery was not confirmed from the CLI. Needs dashboard or management API proof before the whole Zone 3 can be signed as fully green.
-- Dedicated Supabase connection-pool pressure test was not run. Existing five-scan Cloud Run concurrency did not expose a DB failure, but it is not a standalone pool exhaustion proof.
+- Supabase PITR is explicitly not enabled (`pitr_enabled=false`).
+- Accepted resilience posture for this freeze phase is automated daily logical backup via private GitHub Actions artifact retention, plus local emergency dumps as a manual fallback. This protects against full data loss better than no backup, but it is not point-in-time recovery.
 
 ## Zone 4 - Cache And Providers
 
@@ -350,6 +583,35 @@ Status: in progress. This document is proof-led: an item is not green unless the
   - provider gate reason: `official_clean`.
   - timings: scan id `1.33s`, verdict `7.69s`, preview report `2.36s`, screenshot `2.36s`, completion `9.03s`.
   - provider summary keys included `ai_offer_web_check`, `google_web_risk`, `infra_domain_age`, `phishing_database`, `urlhaus`, and `urlscan`.
+- Redirect resolver freeze contract is covered by `backend/test_freeze_hardening.py`:
+  - max redirect hops: `20`.
+  - per-hop timeout: `4.0s`.
+  - redirect requests use `allow_redirects=false` and `stream=true`.
+  - HTML sniff cap: `32KB`.
+  - known shortener coverage includes `bit.ly`, `tiny.cc`, `t.postis.io`, and `lnkd.in`.
+  - live benign redirect proof: `https://httpbin.org/redirect-to?url=https%3A%2F%2Fexample.com` resolves to `https://example.com` with `redirect_count=1`.
+- WHOIS/RDAP/ROTLD/domain-risk proof:
+  - `google.com` RDAP age returned `10498` days with MX records present.
+  - `digi.ro` ROTLD/RDAP path returned age `9660` days with MX records present.
+  - direct ROTLD `whois.rotld.ro:43` proof for `digi.ro` returned `1868` bytes and contained `Registered On`.
+  - established-domain risk scoring produced `domain_established` with negative risk contribution.
+  - young/invalid synthetic domain risk produced `domain_very_young`, `invalid_ssl`, and `cert_very_young`.
+- Brand registry sweep:
+  - runtime sweep over `52` configured brand aliases matched `52/52`.
+  - failures: `[]`.
+- Provider error/degrade contract:
+  - fault-injected provider `error`, `unknown`, Google Web Risk `error`, and URLhaus `error` do not become `SIGUR`.
+  - expected result is `SUSPECT` with residual evidence unless a hard malicious provider is present.
+  - provider `pending` stays internal `PENDING` and does not become `SIGUR`.
+- Provider timeout/error table for the current stack:
+  - Google Web Risk: timeout `3.0s`; error/no match does not prove safety.
+  - Phishing.Database: timeout `4.0s`; error/no match does not prove safety.
+  - URLhaus: timeout `3.0s`; error/no match does not prove safety.
+  - urlscan: submit/get timeout `8.0s`, async pending timeout `120s`; missing preview is not a safe signal.
+  - RDAP/domain age: timeout `2.0s`; missing age is neutral/suspect, not safe.
+  - Mistral semantic pillar: timeout `3.0s`; timeout cannot lower risk.
+  - AI explanation: timeout `2.5s`; explanation is not a verdict provider.
+  - offer-claim web/Gemini path: timeout `5.0s`; failure is recorded as inconclusive/skipped, not safe.
 
 ### Not Yet Green
 
@@ -411,6 +673,11 @@ Status: in progress. This document is proof-led: an item is not green unless the
 - Full backend suite passed after the PDF annotation fix:
   - Command: `python3 -m pytest backend -q`
   - Result: `666 passed, 1 warning`.
+- 2026-06-13 pre-flight full backend suite from the clean freeze QA worktree:
+  - Location: `/Users/vaduvageorge/.config/superpowers/worktrees/SigurScan/freeze-qa-2026-06-13`
+  - Command: `python3 -m pytest backend -q`
+  - Result: `674 passed, 1 warning in 18.19s`.
+  - Warning class: `DeprecationWarning` from `google/genai`; non-blocking for freeze.
 - Quota-bounded live provider smoke through `https://api.sigurscan.com` passed:
   - report: `build/reports/freeze_zone6_live_provider_smoke_2026-06-12.json`
   - command: `backend/eval/live_provider_smoke_runner.py --base-url https://api.sigurscan.com --case live_yoxo_buyback --case live_emag_tracking_official --case live_google_webrisk_phishing_test`
@@ -469,16 +736,70 @@ Status: in progress. This document is proof-led: an item is not green unless the
 - `d9d452c build: make Cloud Run container reproducible`
 - `45b5663 fix: include remote reputation cache in stats`
 - `4918162 fix: keep PDF annotation links when OCR is empty`
-- `origin/main` includes deployed code commit `4918162`.
-- Cloud Run intentionally runs code image `4918162`.
+- `f1701e5 chore: reconcile freeze hardening proof`
+- `fa1e75c chore: harden cloud run traffic routing proof`
+- `origin/main` includes deployed code commit `ed8f4a7`.
+- Cloud Run intentionally runs code image `ed8f4a7` as revision `sigurscan-api-00030-lxb`, with `100%` traffic routed to latest.
+- Branch audit was run from isolated worktree `/Users/vaduvageorge/.config/superpowers/worktrees/SigurScan/freeze-main-2026-06-12` at `7cb7651`.
+- Integrated/ancestor branches:
+  - `origin/feature/deepseek-invoice-freeze-handoff-2026-06-12`
+  - `origin/feature/freeze-ready-main-2026-06-12`
+  - `origin/fix/text-pipeline-privacy-hardening`
+- Branches not safe for raw merge:
+  - `origin/feature/fable-freeze-handoff-2026-06-12`
+  - `origin/feature/freeze-integration-2026-06-12`
+  - `origin/feature/offer-core-parser-readiness`
+  - `origin/feature/offer-anaf-iban-gate`
+  - `origin/feature/offer-android-field-confirmation`
+  - `origin/feature/offer-registry-snapshots`
+  - `origin/feature/offer-legal-layer`
+  - `origin/feature/offer-web-confirm-async`
+  - `origin/feature/offer-knowledge-v3`
+  - `origin/feature/offer-knowledge-v3-complete`
+- Reason: tree diffs from current `main` show these branch trees are older than the freeze base and would delete or revert current freeze docs/evidence, Cloud Run deploy hardening, data assets, and/or tests if merged as whole branches.
+- Current `main` content check:
+  - offer atlas: `10` families.
+  - OP-08 job scams: `16` signals.
+  - OP-09 investment/crypto scams: `15` signals.
+  - offer corpus: `51` fixtures.
+  - legal KB: `9` cards.
+  - impersonation atlas: `13` scam families.
+- Fresh backend verification from the clean worktree:
+  - Command: `python3 -m pytest backend -q`
+  - Result: `666 passed, 1 warning in 4.29s`.
+- 2026-06-13 pre-flight backend verification from the clean freeze QA worktree:
+  - Worktree: `/Users/vaduvageorge/.config/superpowers/worktrees/SigurScan/freeze-qa-2026-06-13`
+  - Command: `python3 -m pytest backend -q`
+  - Result: `674 passed, 1 warning in 18.19s`.
+- 2026-06-13 post-MoatOS verification from the freeze main worktree:
+  - Worktree: `/Users/vaduvageorge/.config/superpowers/worktrees/SigurScan/freeze-main-2026-06-12`
+  - Command: `python3 -m pytest backend -q`
+  - Result: `802 passed, 1 warning in 6.08s`.
+- Fresh Android verification from the clean worktree:
+  - Command: `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease`
+  - Result: `BUILD SUCCESSFUL in 1m 2s`, `96 actionable tasks`.
+- 2026-06-13 pre-flight Android verification from the clean freeze QA worktree:
+  - Command: `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ANDROID_HOME="/Users/vaduvageorge/Library/Android/sdk" ANDROID_SDK_ROOT="/Users/vaduvageorge/Library/Android/sdk" ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease`
+  - Result: `BUILD SUCCESSFUL in 4m 59s`, `96 actionable tasks`.
+  - Release signing proof after copying only ignored local signing files into the isolated worktree for verification:
+    - APK: `app/build/outputs/apk/release/app-release.apk`, size `16M`.
+    - signer DN: `CN=SigurScan, OU=Mobile Security, O=SigurScan, L=Bucharest, ST=Bucharest, C=RO`.
+    - signer SHA-256 digest: `bfd7991c4a7d0c349ae41235f2c0b52d77962c5a9a6729aa3410c54840168b67`.
+- 2026-06-13 post-MoatOS Android verification from the freeze main worktree:
+  - Command: `ANDROID_HOME="$HOME/Library/Android/sdk" JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease -q`
+  - Result: exit code `0`.
+- Physical checkout guard:
+  - 2026-06-13 check: `/Users/vaduvageorge/AndroidStudioProjects/SigurScan` is on `feature/osint-intel-pipeline`.
+  - No local `gate/unverified-verdict` worktree/branch was visible in `git worktree list` or local branch listing during this pre-flight check.
+  - Freeze work did not mutate the physical checkout; all checks and doc edits were done in isolated worktrees.
 
 ### Not Yet Green
 
-- Need a final branch audit for unmerged feature branches before deleting anything.
-- Need one full backend + Android test run after any remaining Cloud Run config fixes.
+- Do not delete old feature branches until Sonet UI and active `gate/unverified-verdict` work are explicitly resolved.
+- Remaining unproven device flows are outside Zone 7: QR import/camera, physical-device release, mobile-network, and fuller offer-with-URL/payment proof if required.
 
 ## Current Verdict
 
 Freeze is not complete yet.
 
-The backend is live and healthy on Cloud Run behind `api.sigurscan.com`, with provider smoke green, API auth active, invoice HMAC secret fallback removed, Android UA hardening deployed, a reproducible hash-locked container, min instances enabled, request-based CPU billing preserved, a Cloud Billing budget guard created, build log audited, latency alerting configured, structured-error proof captured, rollback executed and restored successfully, lightweight concurrency proven, controlled five-scan text-only concurrency proven, remote reputation-cache stats fixed, Android emulator URL E2E proven, Android emulator invoice E2E verified after the CUI/finalization fixes, email HTML hidden-link extraction/scan proven live, and PDF annotation-link extraction fixed and proven live on deployed commit `4918162`. The remaining Cloud Run freeze items are optional cold-start proof if scale-to-zero returns and a deliberately quota-bounded URL-provider concurrency probe.
+The backend is live and healthy on Cloud Run behind `api.sigurscan.com`, with provider smoke green, API auth active, invoice HMAC secret fallback removed, Android UA hardening deployed, a reproducible hash-locked container, min instances enabled, request-based CPU billing preserved, a Cloud Billing budget guard created, build log audited, latency alerting configured, structured-error proof captured, rollback executed and restored successfully, lightweight concurrency proven, controlled text-only concurrency proven, remote reputation-cache stats fixed, Android emulator URL E2E proven, Android emulator invoice E2E verified after the CUI/finalization fixes, email HTML hidden-link extraction/scan proven live, PDF annotation-link extraction fixed and proven live, MoatOS PR0-PR4 merged through PR `#11`, Supabase MoatOS tables migrated and hardened, and Cloud Run deployed on code image `ed8f4a7` as revision `sigurscan-api-00030-lxb`. The remaining Cloud Run freeze items are optional cold-start proof if scale-to-zero returns and a deliberately quota-bounded URL-provider concurrency probe; product freeze still needs the explicitly listed physical-device/mobile-network/store-readiness proofs before a launch sign-off.

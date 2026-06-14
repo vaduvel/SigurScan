@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 from services import supabase_store
+from services.pii_redactor import redact_pii
 
 
 _LOCK = threading.Lock()
@@ -33,11 +34,22 @@ def _append_jsonl(path: Path, payload: Dict[str, Any]) -> None:
         return
 
 
+def _redact_log_value(value: Any) -> Any:
+    """Best-effort final guard before telemetry reaches any persistence sink."""
+    if isinstance(value, str):
+        return redact_pii(value)
+    if isinstance(value, list):
+        return [_redact_log_value(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _redact_log_value(item) for key, item in value.items()}
+    return value
+
+
 def log_scan_event(payload: Dict[str, Any]) -> None:
     if not isinstance(payload, dict):
         return
 
-    base_payload = dict(payload)
+    base_payload = _redact_log_value(dict(payload))
     base_payload.setdefault("event_type", "scan_completed")
     base_payload.setdefault("timestamp", int(time.time()))
     supabase_store.log_scan_event(base_payload)
@@ -48,7 +60,7 @@ def log_feedback_event(payload: Dict[str, Any]) -> None:
     if not isinstance(payload, dict):
         return
 
-    base_payload = dict(payload)
+    base_payload = _redact_log_value(dict(payload))
     base_payload.setdefault("event_type", "scan_feedback")
     base_payload.setdefault("timestamp", int(time.time()))
     supabase_store.log_feedback_event(base_payload)
