@@ -84,7 +84,11 @@ export function collectStrictRequiredUrls({ previewSeed = {}, brandKnowledgePack
   return items.sort((a, b) => a.key.localeCompare(b.key));
 }
 
-export function collectKnowledgeCandidateUrls({ brandKnowledgePack = {}, officialRegistry = {} } = {}) {
+export function collectKnowledgeCandidateUrls({
+  brandKnowledgePack = {},
+  officialRegistry = {},
+  officialUrlPatch = {},
+} = {}) {
   const items = [];
   const seen = new Set();
 
@@ -114,6 +118,15 @@ export function collectKnowledgeCandidateUrls({ brandKnowledgePack = {}, officia
     }
     for (const source of row.source_urls || []) {
       addUniqueUrl(items, seen, source?.url, 'official_registry_source', row.display_name || row.brand_id, false);
+    }
+  }
+
+  const officialPatchRows = officialUrlPatch.entries || [];
+  for (const row of officialPatchRows) {
+    addUniqueUrl(items, seen, row?.url, 'official_url_patch', row?.display_name || row?.brand_id, false);
+    const evidenceUrl = row?.official_evidence_url;
+    if (evidenceUrl && evidenceUrl !== row?.url) {
+      addUniqueUrl(items, seen, evidenceUrl, 'official_url_patch_evidence', row?.display_name || row?.brand_id, false);
     }
   }
 
@@ -164,10 +177,11 @@ export async function auditRepositoryKnowledgeSeed({
   const previewSeed = await loadJson(path.join(repoRoot, 'backend/data/preview_seed_urls_ro.json'));
   const brandKnowledgePack = await loadJson(path.join(repoRoot, 'backend/data/brand_knowledge_pack.json'));
   const officialRegistry = await loadJson(path.join(repoRoot, 'backend/data/knowledge/official_registry_v2026_06_08.json'));
+  const officialUrlPatch = await loadJson(path.join(repoRoot, 'backend/data/knowledge/official_url_patch_2026_06_14.json'));
 
   const seedTargets = workerSeed.targets || [];
   const requiredUrls = collectStrictRequiredUrls({ previewSeed, brandKnowledgePack });
-  const candidateUrls = collectKnowledgeCandidateUrls({ brandKnowledgePack, officialRegistry });
+  const candidateUrls = collectKnowledgeCandidateUrls({ brandKnowledgePack, officialRegistry, officialUrlPatch });
   const required = auditSeedCoverage({ seedTargets, requiredUrls, allowedMissingHosts });
   const candidateAudit = auditSeedCoverage({
     seedTargets,

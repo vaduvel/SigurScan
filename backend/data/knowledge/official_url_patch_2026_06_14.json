@@ -1,0 +1,1396 @@
+{
+  "schema": "sigurscan_official_url_patch_v1",
+  "generated_at": "2026-06-14T00:00:00Z",
+  "source_report": "raport-cercetare-aprofundată (4).md",
+  "entry_count": 72,
+  "preview_seed_count": 51,
+  "registry_only_count": 21,
+  "entries": [
+    {
+      "brand_id": "anpc",
+      "display_name": "ANPC",
+      "category": "public_institution",
+      "url": "https://anpc.ro/",
+      "url_type": "homepage",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Portal oficial pentru consumatori; apare legitim în mesaje, emailuri și dovezi de verificare.",
+      "official_evidence_url": "https://anpc.ro/",
+      "official_evidence_summary": "ANPC expune oficial contact, SAL, ECC și registre utile în propriul site.",
+      "known_aliases": [
+        "ANPC"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Patch peste baseline pentru instituții publice utile în evidence."
+    },
+    {
+      "brand_id": "anpc_sal",
+      "display_name": "ANPC SAL",
+      "category": "public_institution",
+      "url": "https://reclamatiisal.anpc.ro/",
+      "url_type": "support_contact",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Subdomeniu oficial important pentru reclamații și litigii; ușor de confundat cu un third-party.",
+      "official_evidence_url": "https://anpc.ro/",
+      "official_evidence_summary": "ANPC listează oficial platforma SAL în propriul site.",
+      "known_aliases": [
+        "SAL ANPC",
+        "reclamatii SAL"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public și stabil."
+    },
+    {
+      "brand_id": "asf_registers",
+      "display_name": "ASF Registre entități autorizate",
+      "category": "public_institution",
+      "url": "https://asfromania.ro/ro/a/1544/registre-entit%C4%83%C8%9Bi-autorizate",
+      "url_type": "support_contact",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Sursă oficială pentru verificarea licențierii entităților financiare.",
+      "official_evidence_url": "https://asfromania.ro/ro/a/1544/registre-entit%C4%83%C8%9Bi-autorizate",
+      "official_evidence_summary": "ASF publică aici registrele pentru asigurări, piață de capital și pensii private.",
+      "known_aliases": [
+        "Registre ASF"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Registry critic."
+    },
+    {
+      "brand_id": "asf_investor_alerts",
+      "display_name": "ASF Alerte investitori",
+      "category": "public_institution",
+      "url": "https://asfromania.ro/ro/a/19/alerte-investitori---informari",
+      "url_type": "fraud_warning",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Pagina oficială care publică entități și domenii neautorizate pe investiții.",
+      "official_evidence_url": "https://asfromania.ro/ro/a/19/alerte-investitori---informari",
+      "official_evidence_summary": "ASF publică periodic alerte pentru entități care nu sunt autorizate să presteze servicii de investiții.",
+      "known_aliases": [
+        "Alerte ASF",
+        "alerte investitori"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Excelentă pentru evidence, nu doar pentru allowlist."
+    },
+    {
+      "brand_id": "bnr_registers",
+      "display_name": "BNR Registre și liste",
+      "category": "public_institution",
+      "url": "https://www.bnr.ro/2349-registre-si-liste",
+      "url_type": "support_contact",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Verifică oficial bănci, IFN-uri, instituții de plată și emitente de monedă electronică.",
+      "official_evidence_url": "https://www.bnr.ro/2349-registre-si-liste",
+      "official_evidence_summary": "BNR expune aici registrele și listele entităților supravegheate.",
+      "known_aliases": [
+        "Registre BNR"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Registry critic pentru finance."
+    },
+    {
+      "brand_id": "ancom",
+      "display_name": "ANCOM",
+      "category": "public_institution",
+      "url": "https://www.ancom.ro/",
+      "url_type": "homepage",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Autoritate relevantă pentru telecom și poștal; sursă bună pentru context oficial.",
+      "official_evidence_url": "https://www.ancom.ro/",
+      "official_evidence_summary": "ANCOM publică InfoCentru, MyANCOM și alte servicii oficiale în homepage.",
+      "known_aliases": [
+        "ANCOM"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Bun pentru registry și preview."
+    },
+    {
+      "brand_id": "ancom_infocentru",
+      "display_name": "ANCOM InfoCentru",
+      "category": "public_institution",
+      "url": "https://infocentru.ancom.ro/",
+      "url_type": "support_contact",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Hub oficial de informații pentru utilizatori telecom și servicii poștale.",
+      "official_evidence_url": "https://www.ancom.ro/",
+      "official_evidence_summary": "ANCOM prezintă explicit InfoCentru ca resursă publică pentru utilizatori.",
+      "known_aliases": [
+        "InfoCentru ANCOM"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public și stabil."
+    },
+    {
+      "brand_id": "ancom_myancom",
+      "display_name": "My ANCOM",
+      "category": "public_institution",
+      "url": "https://www.myancom.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Portal oficial privat ANCOM; trebuie recunoscut în registry chiar dacă nu e bun pentru preview liber.",
+      "official_evidence_url": "https://www.ancom.ro/",
+      "official_evidence_summary": "ANCOM descrie My ANCOM ca spațiu virtual privat pentru documente și comunicări.",
+      "known_aliases": [
+        "MyANCOM"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Registry-only."
+    },
+    {
+      "brand_id": "onrc",
+      "display_name": "ONRC",
+      "category": "public_institution",
+      "url": "https://www.onrc.ro/index.php/ro/",
+      "url_type": "homepage",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Sursă oficială de verificare a firmelor și a serviciilor ONRC.",
+      "official_evidence_url": "https://www.onrc.ro/index.php/ro/",
+      "official_evidence_summary": "ONRC publică oficial date de contact și portalul propriu pentru servicii.",
+      "known_aliases": [
+        "ONRC",
+        "Registrul Comerțului"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Registry critic pentru companii."
+    },
+    {
+      "brand_id": "onrc_myportal",
+      "display_name": "ONRC MyPortal",
+      "category": "public_institution",
+      "url": "https://myportal.onrc.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Portal oficial ONRC folosit pentru acces la servicii și informații cu autentificare.",
+      "official_evidence_url": "https://www.onrc.ro/index.php/ro/",
+      "official_evidence_summary": "ONRC indică explicit myportal.onrc.ro pentru acces la servicii online.",
+      "known_aliases": [
+        "MyPortal ONRC"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Registry-only."
+    },
+    {
+      "brand_id": "rar",
+      "display_name": "RAR",
+      "category": "public_institution",
+      "url": "https://www.rarom.ro/",
+      "url_type": "homepage",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Instituție oficială critică în piața auto și în verificarea serviciilor online legitime.",
+      "official_evidence_url": "https://www.rarom.ro/",
+      "official_evidence_summary": "RAR publică instrumente online și subdomenii oficiale direct din homepage.",
+      "known_aliases": [
+        "RAR",
+        "Registrul Auto Român"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Foarte util pentru verticala auto."
+    },
+    {
+      "brand_id": "rar_itp",
+      "display_name": "RAR Verificare ITP",
+      "category": "public_institution",
+      "url": "https://prog.rarom.ro/",
+      "url_type": "support_contact",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Subdomeniu oficial pentru verificare ITP, petiții și programări.",
+      "official_evidence_url": "https://www.rarom.ro/",
+      "official_evidence_summary": "RAR leagă explicit prog.rarom.ro pentru verificare ITP și alte servicii online.",
+      "known_aliases": [
+        "Verificare ITP RAR"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public și foarte util."
+    },
+    {
+      "brand_id": "rar_autopass",
+      "display_name": "RAR Auto-Pass",
+      "category": "public_institution",
+      "url": "https://apps.rarom.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Subdomeniu oficial pentru instrumente RAR Auto-Pass.",
+      "official_evidence_url": "https://www.rarom.ro/",
+      "official_evidence_summary": "RAR publică explicit apps.rarom.ro ca intrare pentru Auto-Pass.",
+      "known_aliases": [
+        "RAR Auto-Pass"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public; bun pentru preview."
+    },
+    {
+      "brand_id": "posta_awb",
+      "display_name": "Poșta Română AWB",
+      "category": "courier",
+      "url": "https://awb.posta-romana.ro/",
+      "url_type": "tracking_status",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Subdomeniu oficial de creare documente și urmărire trimiteri.",
+      "official_evidence_url": "https://www.posta-romana.ro/",
+      "official_evidence_summary": "Poșta Română leagă explicit awb.posta-romana.ro în homepage.",
+      "known_aliases": [
+        "AWB Poșta Română"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Preview seed prioritar."
+    },
+    {
+      "brand_id": "fan_awb_tracking",
+      "display_name": "FAN Courier AWB Tracking",
+      "category": "courier",
+      "url": "https://www.fancourier.ro/awb-tracking/",
+      "url_type": "tracking_status",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Pagina oficială de tracking apare foarte des în SMS-uri legitime.",
+      "official_evidence_url": "https://www.fancourier.ro/",
+      "official_evidence_summary": "FAN leagă direct pagina oficială de AWB tracking din site-ul principal.",
+      "known_aliases": [
+        "AWB FAN"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Public și stabil."
+    },
+    {
+      "brand_id": "fan_selfawb",
+      "display_name": "FAN selfAWB",
+      "category": "courier",
+      "url": "https://www.selfawb.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu separat, legitim, ușor de marcat greșit dacă nu e în registry.",
+      "official_evidence_url": "https://www.fancourier.ro/",
+      "official_evidence_summary": "FAN descrie și leagă explicit platforma selfAWB din homepage.",
+      "known_aliases": [
+        "selfAWB"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Registry-only recomandat."
+    },
+    {
+      "brand_id": "sameday",
+      "display_name": "SAMEDAY",
+      "category": "courier",
+      "url": "https://sameday.ro/",
+      "url_type": "homepage",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Sursă excelentă pentru allowlist, deoarece brandul spune explicit ce domenii sunt oficiale.",
+      "official_evidence_url": "https://sameday.ro/",
+      "official_evidence_summary": "SAMEDAY afirmă clar că trebuie folosite doar sameday.ro și sdy.ro.",
+      "known_aliases": [
+        "SAMEDAY",
+        "Sameday"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Hard allowlist candidate."
+    },
+    {
+      "brand_id": "sameday_sdy",
+      "display_name": "SAMEDAY SDY",
+      "category": "courier",
+      "url": "https://sdy.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Alias oficial confirmat de brand; important pentru false positive guards.",
+      "official_evidence_url": "https://sameday.ro/",
+      "official_evidence_summary": "SAMEDAY indică explicit sdy.ro drept domeniu oficial.",
+      "known_aliases": [
+        "SDY"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public și important."
+    },
+    {
+      "brand_id": "sameday_easyway",
+      "display_name": "SAMEDAY easyway",
+      "category": "courier",
+      "url": "https://trimite-colete-easyway.sameday.ro/",
+      "url_type": "official_campaign",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Subdomeniu comercial oficial util pentru oferte și trimiteri legitime.",
+      "official_evidence_url": "https://sameday.ro/",
+      "official_evidence_summary": "SAMEDAY listează explicit serviciul easyway pe acest subdomeniu.",
+      "known_aliases": [
+        "easyway SAMEDAY"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public."
+    },
+    {
+      "brand_id": "sameday_sng_link",
+      "display_name": "SAMEDAY app deeplink",
+      "category": "courier",
+      "url": "https://sameday.sng.link/",
+      "url_type": "app_deeplink_domain",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu delegat oficial pentru aplicație; trebuie recunoscut în seed.",
+      "official_evidence_url": "https://sameday.ro/",
+      "official_evidence_summary": "SAMEDAY publică în site deeplinkul aplicației pe sameday.sng.link.",
+      "known_aliases": [
+        "Sameday app link"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public deeplink."
+    },
+    {
+      "brand_id": "gls_ro",
+      "display_name": "GLS România",
+      "category": "courier",
+      "url": "https://gls-group.com/RO/ro/home/",
+      "url_type": "homepage",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Brand curier relevant în RO, lipsă din multe seed-uri locale.",
+      "official_evidence_url": "https://gls-group.com/RO/ro/home/",
+      "official_evidence_summary": "Pagina oficială GLS România confirmă domeniul local al brandului.",
+      "known_aliases": [
+        "GLS"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Tracking exact rămâne în review."
+    },
+    {
+      "brand_id": "dhl_ro",
+      "display_name": "DHL România",
+      "category": "courier",
+      "url": "https://www.dhl.com/ro-ro/home.html",
+      "url_type": "homepage",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Brand global foarte spoof-uit; domeniul local oficial trebuie cunoscut.",
+      "official_evidence_url": "https://www.dhl.com/ro-ro/home.html",
+      "official_evidence_summary": "Pagina oficială DHL România confirmă domeniul local și serviciile publice.",
+      "known_aliases": [
+        "DHL"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Tracking exact rămâne în review."
+    },
+    {
+      "brand_id": "orange_fraud",
+      "display_name": "Orange prevenire fraudă",
+      "category": "telecom",
+      "url": "https://www.orange.ro/prevenire-frauda/",
+      "url_type": "fraud_warning",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Pagină oficială foarte bună pentru evidence și explicații anti-fraudă.",
+      "official_evidence_url": "https://www.orange.ro/prevenire-frauda/",
+      "official_evidence_summary": "Orange explică aici raportarea fraudelor și canalele oficiale.",
+      "known_aliases": [
+        "Prevenire fraudă Orange"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Public și valoros pentru rules/explanations."
+    },
+    {
+      "brand_id": "orange_qr",
+      "display_name": "Orange app deeplink",
+      "category": "telecom",
+      "url": "https://qr.orange.ro/",
+      "url_type": "app_deeplink_domain",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu oficial folosit pentru descărcarea aplicației My Orange.",
+      "official_evidence_url": "https://www.orange.ro/",
+      "official_evidence_summary": "Orange leagă explicit qr.orange.ro pentru aplicația sa mobilă.",
+      "known_aliases": [
+        "My Orange download"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public deeplink."
+    },
+    {
+      "brand_id": "orange_sso",
+      "display_name": "My Orange auth",
+      "category": "telecom",
+      "url": "https://sso.orange.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu autentic de autentificare și contact în context de fraudă.",
+      "official_evidence_url": "https://www.orange.ro/prevenire-frauda/",
+      "official_evidence_summary": "Orange menționează My Orange pe sso.orange.ro în pagina de prevenire fraudă.",
+      "known_aliases": [
+        "My Orange",
+        "SSO Orange"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Registry-only."
+    },
+    {
+      "brand_id": "orange_community",
+      "display_name": "Comunitatea Orange",
+      "category": "telecom",
+      "url": "https://comunitate.orange.ro/",
+      "url_type": "support_contact",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Forum oficial de suport care apare legitim în multe fluxuri.",
+      "official_evidence_url": "https://www.orange.ro/",
+      "official_evidence_summary": "Orange trimite explicit spre comunitate.orange.ro din homepage.",
+      "known_aliases": [
+        "Comunitatea Orange"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public."
+    },
+    {
+      "brand_id": "yoxo",
+      "display_name": "YOXO",
+      "category": "telecom",
+      "url": "https://www.yoxo.ro/",
+      "url_type": "homepage",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Brand digital Orange cu fluxuri exclusiv în aplicație; ușor de greșit fără registry bun.",
+      "official_evidence_url": "https://www.yoxo.ro/",
+      "official_evidence_summary": "YOXO publică explicit deeplinkurile și campaniile proprii din homepage.",
+      "known_aliases": [
+        "YOXO"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Foarte util pentru false positive guards."
+    },
+    {
+      "brand_id": "yoxo_page_link",
+      "display_name": "YOXO app deeplink",
+      "category": "telecom",
+      "url": "https://yoxo.page.link/",
+      "url_type": "app_deeplink_domain",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu delegat oficial pentru download și activări în aplicație.",
+      "official_evidence_url": "https://www.yoxo.ro/",
+      "official_evidence_summary": "YOXO folosește repetat yoxo.page.link pentru CTA-urile oficiale.",
+      "known_aliases": [
+        "YOXO app link"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public deeplink."
+    },
+    {
+      "brand_id": "yoxo_buyback",
+      "display_name": "YOXO Buyback",
+      "category": "telecom",
+      "url": "https://buyback.yoxo.ro/",
+      "url_type": "official_campaign",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Subdomeniu oficial de campanie util pentru promoții legitime.",
+      "official_evidence_url": "https://www.yoxo.ro/",
+      "official_evidence_summary": "YOXO trimite explicit către buyback.yoxo.ro din homepage.",
+      "known_aliases": [
+        "YOXO Buyback"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public."
+    },
+    {
+      "brand_id": "digi_shortlink",
+      "display_name": "DIGI shortlink",
+      "category": "telecom",
+      "url": "https://s.digi.ro/",
+      "url_type": "app_deeplink_domain",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Shortlink oficial DIGI, foarte sensibil la false positives.",
+      "official_evidence_url": "https://www.digi.ro/",
+      "official_evidence_summary": "DIGI expune explicit s.digi.ro în paginile sale oficiale.",
+      "known_aliases": [
+        "s.digi"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public deeplink/shortlink."
+    },
+    {
+      "brand_id": "digi_referral",
+      "display_name": "DIGI referral/link domain",
+      "category": "telecom",
+      "url": "https://rdslink.rcs-rds.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu oficial de link/campanie DIGI.",
+      "official_evidence_url": "https://www.digi.ro/",
+      "official_evidence_summary": "DIGI publică explicit rdslink.rcs-rds.ro în site-ul propriu.",
+      "known_aliases": [
+        "rdslink"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public."
+    },
+    {
+      "brand_id": "bt_call_center",
+      "display_name": "Banca Transilvania Call Center",
+      "category": "bank",
+      "url": "https://www.bancatransilvania.ro/call-center",
+      "url_type": "support_contact",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Pagină oficială de suport și anti-fraudă; conține numărul pentru fraude.",
+      "official_evidence_url": "https://www.bancatransilvania.ro/call-center",
+      "official_evidence_summary": "BT publică aici numerele oficiale și linia de asistență pentru fraude.",
+      "known_aliases": [
+        "Call Center BT"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Public și util pentru evidence."
+    },
+    {
+      "brand_id": "btpay_web",
+      "display_name": "BT Pay Web",
+      "category": "bank",
+      "url": "https://btpay.bancatransilvania.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Subdomeniu autentic de login BT Pay Web.",
+      "official_evidence_url": "https://www.bancatransilvania.ro/login-internet-banking",
+      "official_evidence_summary": "BT listează explicit btpay.bancatransilvania.ro în pagina oficială de login aplicații.",
+      "known_aliases": [
+        "BT Pay Web"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Registry-only."
+    },
+    {
+      "brand_id": "btgo",
+      "display_name": "BT Go",
+      "category": "bank",
+      "url": "https://goapp.bancatransilvania.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Subdomeniu autentic BT Go; trebuie cunoscut de registry.",
+      "official_evidence_url": "https://www.bancatransilvania.ro/login-internet-banking",
+      "official_evidence_summary": "BT listează explicit goapp.bancatransilvania.ro ca login BT Go.",
+      "known_aliases": [
+        "BT Go"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Registry-only."
+    },
+    {
+      "brand_id": "btultra",
+      "display_name": "BT Ultra",
+      "category": "bank",
+      "url": "https://btultra.btrl.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu autentic BT pe root secundar, foarte ușor de suspectat dacă nu e whitelisted.",
+      "official_evidence_url": "https://www.bancatransilvania.ro/login-internet-banking",
+      "official_evidence_summary": "BT listează explicit btultra.btrl.ro ca login BT Ultra.",
+      "known_aliases": [
+        "BT Ultra"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Registry-only."
+    },
+    {
+      "brand_id": "bt_diaspora",
+      "display_name": "BT Diaspora",
+      "category": "bank",
+      "url": "https://diaspora.bancatransilvania.ro/",
+      "url_type": "official_campaign",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Subdomeniu oficial de campanie/ofertă BT pentru diaspora.",
+      "official_evidence_url": "https://www.bancatransilvania.ro/login-internet-banking",
+      "official_evidence_summary": "BT trimite explicit spre diaspora.bancatransilvania.ro din site-ul propriu.",
+      "known_aliases": [
+        "BT Diaspora"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public."
+    },
+    {
+      "brand_id": "bcr_george",
+      "display_name": "George BCR",
+      "category": "bank",
+      "url": "https://george.bcr.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu autentic de banking digital BCR.",
+      "official_evidence_url": "https://www.bcr.ro/ro/persoane-fizice",
+      "official_evidence_summary": "BCR spune explicit în FAQ că George se accesează la george.bcr.ro.",
+      "known_aliases": [
+        "George",
+        "George BCR"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Registry-only."
+    },
+    {
+      "brand_id": "brd_safety",
+      "display_name": "BRD Siguranță",
+      "category": "bank",
+      "url": "https://www.brd.ro/sfaturi-pentru-siguranta-ta",
+      "url_type": "fraud_warning",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Pagină oficială foarte puternică pentru reguli anti-fraudă și pentru educarea userului.",
+      "official_evidence_url": "https://www.brd.ro/sfaturi-pentru-siguranta-ta",
+      "official_evidence_summary": "BRD avertizează explicit că autoritățile și banca nu cer date bancare sau coduri de acces.",
+      "known_aliases": [
+        "Siguranță BRD"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Public și foarte valoros."
+    },
+    {
+      "brand_id": "brd_mybrdnet",
+      "display_name": "MyBRD Net",
+      "category": "bank",
+      "url": "https://www.mybrdnet.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu autentic BRD de online banking, separat de root.",
+      "official_evidence_url": "https://www.brd.ro/",
+      "official_evidence_summary": "BRD listează explicit www.mybrdnet.ro în secțiunea Online Banking.",
+      "known_aliases": [
+        "MyBRD Net"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Registry-only."
+    },
+    {
+      "brand_id": "brd_you",
+      "display_name": "YOU BRD",
+      "category": "bank",
+      "url": "https://you.brd.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu autentic pentru aplicația YOU BRD.",
+      "official_evidence_url": "https://www.brd.ro/",
+      "official_evidence_summary": "BRD listează explicit you.brd.ro în Online Banking.",
+      "known_aliases": [
+        "YOU BRD",
+        "YOU"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Registry-only."
+    },
+    {
+      "brand_id": "brd_online",
+      "display_name": "BRD Online Onboarding",
+      "category": "bank",
+      "url": "https://online.brd.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Subdomeniu oficial pentru deschidere cont și produse online.",
+      "official_evidence_url": "https://www.brd.ro/",
+      "official_evidence_summary": "BRD leagă explicit online.brd.ro pentru fluxuri de onboarding și produse online.",
+      "known_aliases": [
+        "online.brd.ro"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public."
+    },
+    {
+      "brand_id": "ing_security",
+      "display_name": "ING securitate",
+      "category": "bank",
+      "url": "https://ing.ro/ing-in-romania/informatii-utile/securitate",
+      "url_type": "security_page",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Sursă oficială premium pentru reguli hard anti-phishing și anti-vishing.",
+      "official_evidence_url": "https://ing.ro/ing-in-romania/informatii-utile/securitate",
+      "official_evidence_summary": "ING spune explicit să nu te loghezi din linkuri SMS/email și să folosești doar aplicația sau homebank.ro.",
+      "known_aliases": [
+        "Securitate ING"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Evidence critic."
+    },
+    {
+      "brand_id": "ing_homebank",
+      "display_name": "ING HomeBank",
+      "category": "bank",
+      "url": "https://homebank.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu autentic de banking ING care arată 'short' și legitim, dar merită registry dedicat.",
+      "official_evidence_url": "https://ing.ro/ing-in-romania/informatii-utile/securitate",
+      "official_evidence_summary": "ING numește explicit www.homebank.ro drept adresa corectă pentru HomeBank.",
+      "known_aliases": [
+        "HomeBank",
+        "homebank.ro"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Registry-only."
+    },
+    {
+      "brand_id": "raiffeisen_contact",
+      "display_name": "Raiffeisen contact",
+      "category": "bank",
+      "url": "https://www.raiffeisen.ro/ro/home/contact.html",
+      "url_type": "support_contact",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Pagină oficială de suport și verificare a canalelor legitime.",
+      "official_evidence_url": "https://www.raiffeisen.ro/ro/home/contact.html",
+      "official_evidence_summary": "Pagina oficială de contact Raiffeisen confirmă canalul legitim de suport.",
+      "known_aliases": [
+        "Contact Raiffeisen"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Public."
+    },
+    {
+      "brand_id": "raiffeisen_adjust",
+      "display_name": "Raiffeisen app adjust link",
+      "category": "bank",
+      "url": "https://app.eu.adjust.com/",
+      "url_type": "app_deeplink_domain",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu delegat oficial pentru CTA-urile spre aplicația Smart Mobile.",
+      "official_evidence_url": "https://www.raiffeisen.ro/",
+      "official_evidence_summary": "Raiffeisen folosește explicit app.eu.adjust.com pentru 'Descarcă aplicația Smart Mobile'.",
+      "known_aliases": [
+        "Raiffeisen app link"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public deeplink."
+    },
+    {
+      "brand_id": "raiffeisen_golink",
+      "display_name": "Raiffeisen Smart Mobile go.link",
+      "category": "bank",
+      "url": "https://smart-mobile.eu.go.link/",
+      "url_type": "app_deeplink_domain",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu delegat oficial folosit în CTA-uri comerciale care trimit spre aplicație.",
+      "official_evidence_url": "https://www.raiffeisen.ro/",
+      "official_evidence_summary": "Raiffeisen folosește smart-mobile.eu.go.link în pagini oficiale de produs.",
+      "known_aliases": [
+        "Smart Mobile go.link"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public deeplink."
+    },
+    {
+      "brand_id": "raiffeisen_banking",
+      "display_name": "Raiffeisen banking",
+      "category": "bank",
+      "url": "https://banking.raiffeisen.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Subdomeniu autentic de banking/portal client Raiffeisen.",
+      "official_evidence_url": "https://www.raiffeisen.ro/",
+      "official_evidence_summary": "Raiffeisen leagă banking.raiffeisen.ro din pagini oficiale.",
+      "known_aliases": [
+        "banking.raiffeisen.ro"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Registry-only."
+    },
+    {
+      "brand_id": "raiffeisen_bank",
+      "display_name": "Raiffeisen bank subdomain",
+      "category": "bank",
+      "url": "https://bank.raiffeisen.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Subdomeniu autentic Raiffeisen folosit în fluxuri comerciale și de produs.",
+      "official_evidence_url": "https://www.raiffeisen.ro/",
+      "official_evidence_summary": "Raiffeisen folosește bank.raiffeisen.ro din CTA-uri oficiale.",
+      "known_aliases": [
+        "bank.raiffeisen.ro"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Registry-only."
+    },
+    {
+      "brand_id": "cec_home_ceconline",
+      "display_name": "CEC Internet Banking PF",
+      "category": "bank",
+      "url": "https://home.ceconline.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu autentic de banking CEC pentru persoane fizice.",
+      "official_evidence_url": "https://www.cec.ro/",
+      "official_evidence_summary": "CEC listează explicit home.ceconline.ro ca Internet Banking PF.",
+      "known_aliases": [
+        "home.ceconline.ro"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Registry-only."
+    },
+    {
+      "brand_id": "cec_security",
+      "display_name": "CEC securitatea tranzacțiilor",
+      "category": "bank",
+      "url": "https://www.cec.ro/securitatea-tranzactiilor",
+      "url_type": "security_page",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "medium",
+      "why_needed": "Pagină oficială de security foarte utilă, dar în acest crawl a răspuns cu 403.",
+      "official_evidence_url": "https://www.cec.ro/",
+      "official_evidence_summary": "CEC leagă explicit această pagină sub eticheta 'Siguranță online'.",
+      "known_aliases": [
+        "Securitatea tranzacțiilor CEC"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Ține-o în registry; nu în pre-capture până confirmi manual."
+    },
+    {
+      "brand_id": "cec_ceconline_business",
+      "display_name": "CEC Internet Banking PJ",
+      "category": "bank",
+      "url": "https://www.ceconline.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu autentic de banking CEC pentru persoane juridice.",
+      "official_evidence_url": "https://www.cec.ro/",
+      "official_evidence_summary": "CEC listează explicit www.ceconline.ro ca Internet Banking PJ.",
+      "known_aliases": [
+        "ceconline.ro"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Registry-only."
+    },
+    {
+      "brand_id": "unicredit",
+      "display_name": "UniCredit Bank România",
+      "category": "bank",
+      "url": "https://www.unicredit.ro/ro/persoane-fizice.html",
+      "url_type": "homepage",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Bancă activă în RO care merită introdusă explicit în registry, nu lăsată la voia text similarity.",
+      "official_evidence_url": "https://www.unicredit.ro/ro/persoane-fizice.html",
+      "official_evidence_summary": "UniCredit publică Mobile Banking, onboarding digital și propriile pagini de securitate.",
+      "known_aliases": [
+        "UniCredit"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Patch util peste baseline extins."
+    },
+    {
+      "brand_id": "unicredit_security",
+      "display_name": "UniCredit securitate",
+      "category": "bank",
+      "url": "https://www.unicredit.ro/ro/persoane-fizice/Diverse/securitate.html",
+      "url_type": "security_page",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Pagină oficială de siguranță și anti-fraudă.",
+      "official_evidence_url": "https://www.unicredit.ro/ro/persoane-fizice.html",
+      "official_evidence_summary": "UniCredit leagă explicit pagina de securitate din footer.",
+      "known_aliases": [
+        "Securitate UniCredit"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Public."
+    },
+    {
+      "brand_id": "libra",
+      "display_name": "Libra Internet Bank",
+      "category": "bank",
+      "url": "https://www.librabank.ro/",
+      "url_type": "homepage",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Bancă activă în RO; site-ul publică clar zone de anti-fraudă și securitate.",
+      "official_evidence_url": "https://www.librabank.ro/",
+      "official_evidence_summary": "Libra publică secțiuni dedicate prevenirii fraudelor și sfaturilor de securitate.",
+      "known_aliases": [
+        "Libra Bank",
+        "Libra Internet Bank"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Patch util pentru bănci active în RO."
+    },
+    {
+      "brand_id": "libra_security",
+      "display_name": "Libra securitate bancară",
+      "category": "bank",
+      "url": "https://www.librabank.ro/informatii-securitate-bancara",
+      "url_type": "security_page",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Pagină oficială de fraud prevention și acțiuni post-click.",
+      "official_evidence_url": "https://www.librabank.ro/",
+      "official_evidence_summary": "Libra leagă explicit pagina de securitate și fraud prevention din site-ul principal.",
+      "known_aliases": [
+        "Prevenirea fraudelor Libra"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Public."
+    },
+    {
+      "brand_id": "hidroelectrica_client",
+      "display_name": "Hidroelectrica client",
+      "category": "utility",
+      "url": "https://client.hidroelectrica.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Portal oficial de client, foarte util în fraude cu facturi și restanțe false.",
+      "official_evidence_url": "https://www.hidroelectrica.ro/",
+      "official_evidence_summary": "Hidroelectrica leagă explicit client.hidroelectrica.ro din homepage.",
+      "known_aliases": [
+        "Portal client Hidroelectrica"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Registry-only."
+    },
+    {
+      "brand_id": "ppc_mypcc",
+      "display_name": "myPPC",
+      "category": "utility",
+      "url": "https://myppc.ppcenergy.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Portal oficial client PPC pentru facturi, plăți și date personale.",
+      "official_evidence_url": "https://www.ppcenergy.ro/",
+      "official_evidence_summary": "PPC publică explicit myppc.ppcenergy.ro în propriul site.",
+      "known_aliases": [
+        "myPPC"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Registry-only."
+    },
+    {
+      "brand_id": "ppc_programare",
+      "display_name": "PPC programare online",
+      "category": "utility",
+      "url": "https://programare.ppcenergy.ro/",
+      "url_type": "support_contact",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Subdomeniu oficial pentru programări în magazine.",
+      "official_evidence_url": "https://www.ppcenergy.ro/",
+      "official_evidence_summary": "PPC leagă explicit programare.ppcenergy.ro ca serviciu digital.",
+      "known_aliases": [
+        "Programare PPC"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public."
+    },
+    {
+      "brand_id": "myelectrica",
+      "display_name": "MyElectrica",
+      "category": "utility",
+      "url": "https://myelectrica.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu separat de portal client Electrica, foarte ușor de confundat cu un clone.",
+      "official_evidence_url": "https://www.electricafurnizare.ro/",
+      "official_evidence_summary": "Electrica Furnizare leagă explicit myelectrica.ro pentru cont și factura electronică.",
+      "known_aliases": [
+        "MyElectrica"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Registry-only."
+    },
+    {
+      "brand_id": "emag_help",
+      "display_name": "eMAG Help",
+      "category": "retail",
+      "url": "https://www.emag.ro/help/",
+      "url_type": "support_contact",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Hub oficial de suport pentru comenzi, livrare, retur și contact.",
+      "official_evidence_url": "https://www.emag.ro/help/",
+      "official_evidence_summary": "Pagina Help eMAG expune suportul și alte proprietăți oficiale eMAG.",
+      "known_aliases": [
+        "eMAG Help"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Public."
+    },
+    {
+      "brand_id": "emag_marketplace",
+      "display_name": "eMAG Marketplace",
+      "category": "marketplace",
+      "url": "https://marketplace.emag.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Subdomeniu oficial pentru selleri și fluxuri B2B eMAG.",
+      "official_evidence_url": "https://www.emag.ro/help/",
+      "official_evidence_summary": "eMAG listează marketplace.emag.ro în propriile pagini de help.",
+      "known_aliases": [
+        "Marketplace eMAG"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public."
+    },
+    {
+      "brand_id": "emag_marketplace_leads",
+      "display_name": "eMAG Marketplace Leads",
+      "category": "marketplace",
+      "url": "https://marketplace-leads.emag.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Subdomeniu oficial de lead-gen pentru selleri, ușor de clasificat greșit fără registry.",
+      "official_evidence_url": "https://www.emag.ro/help/",
+      "official_evidence_summary": "eMAG Help publică explicit marketplace-leads.emag.ro.",
+      "known_aliases": [
+        "Marketplace Leads eMAG"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public."
+    },
+    {
+      "brand_id": "emag_buyback",
+      "display_name": "eMAG Easy BuyBack",
+      "category": "retail",
+      "url": "https://www.emag.ro/lps/emag-flip-buyback",
+      "url_type": "official_campaign",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Campanie oficială recurentă; exact genul de landing page pe care un scanner slab o sperie degeaba.",
+      "official_evidence_url": "https://www.emag.ro/",
+      "official_evidence_summary": "eMAG publică oficial programul Easy BuyBack pe landing page propriu.",
+      "known_aliases": [
+        "Easy BuyBack eMAG"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Public."
+    },
+    {
+      "brand_id": "emag_about",
+      "display_name": "About eMAG",
+      "category": "retail",
+      "url": "https://about.emag.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu corporate oficial eMAG util în comunicări instituționale.",
+      "official_evidence_url": "https://www.emag.ro/lps/emag-flip-buyback",
+      "official_evidence_summary": "eMAG leagă about.emag.ro în footer-ul paginilor oficiale.",
+      "known_aliases": [
+        "About eMAG"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public."
+    },
+    {
+      "brand_id": "flanco_rabla",
+      "display_name": "Flanco Programul Rabla",
+      "category": "retail",
+      "url": "https://www.flanco.ro/programul-rabla-extins-recicleaza-responsabil",
+      "url_type": "official_campaign",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Campanie oficială recurentă care poate semăna cu promo-scams dacă nu e recunoscută.",
+      "official_evidence_url": "https://www.flanco.ro/programul-rabla-extins-recicleaza-responsabil",
+      "official_evidence_summary": "Landing page oficial Flanco pentru programul Rabla.",
+      "known_aliases": [
+        "Rabla Flanco"
+      ],
+      "approved_partner_or_delegated_domain": false,
+      "notes": "Public."
+    },
+    {
+      "brand_id": "dedeman_recrutare",
+      "display_name": "Dedeman recrutare",
+      "category": "retail",
+      "url": "https://recrutare.dedeman.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Subdomeniu oficial de cariere util pentru a evita false positives pe hiring legitim.",
+      "official_evidence_url": "https://www.dedeman.ro/ro",
+      "official_evidence_summary": "Dedeman leagă explicit recrutare.dedeman.ro în site-ul propriu.",
+      "known_aliases": [
+        "Cariere Dedeman"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public."
+    },
+    {
+      "brand_id": "dedeman_dedetech",
+      "display_name": "Dedeman DedeTech",
+      "category": "retail",
+      "url": "https://dedetech.dedeman.ro/",
+      "url_type": "partner_domain",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Subdomeniu oficial corporate/tech Dedeman.",
+      "official_evidence_url": "https://www.dedeman.ro/ro",
+      "official_evidence_summary": "Dedeman leagă explicit dedetech.dedeman.ro în site-ul propriu.",
+      "known_aliases": [
+        "DedeTech"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public."
+    },
+    {
+      "brand_id": "microsoft_support",
+      "display_name": "Microsoft Support",
+      "category": "other",
+      "url": "https://support.microsoft.com/",
+      "url_type": "support_contact",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu oficial de suport, critic în scenarii de suport tehnic fals.",
+      "official_evidence_url": "https://www.microsoft.com/ro-ro/",
+      "official_evidence_summary": "Microsoft leagă explicit support.microsoft.com din site-ul propriu.",
+      "known_aliases": [
+        "Support Microsoft"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public."
+    },
+    {
+      "brand_id": "apple_account",
+      "display_name": "Apple Account",
+      "category": "other",
+      "url": "https://account.apple.com/",
+      "url_type": "partner_domain",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu oficial Apple ID / account management, foarte important în scamuri Apple ID.",
+      "official_evidence_url": "https://www.apple.com/ro/",
+      "official_evidence_summary": "Apple România leagă explicit account.apple.com din footer.",
+      "known_aliases": [
+        "Apple ID",
+        "Apple Account"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Registry-only."
+    },
+    {
+      "brand_id": "whatsapp_help",
+      "display_name": "WhatsApp Help Center",
+      "category": "other",
+      "url": "https://faq.whatsapp.com/",
+      "url_type": "support_contact",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu oficial de suport WhatsApp, util în recuperări legitime de cont.",
+      "official_evidence_url": "https://www.whatsapp.com/",
+      "official_evidence_summary": "WhatsApp leagă explicit faq.whatsapp.com în meniul și footerul oficial.",
+      "known_aliases": [
+        "Help Center WhatsApp"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public."
+    },
+    {
+      "brand_id": "whatsapp_web",
+      "display_name": "WhatsApp Web",
+      "category": "other",
+      "url": "https://web.whatsapp.com/",
+      "url_type": "partner_domain",
+      "preview_seed_include": false,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Domeniu autentic pentru sesiuni WhatsApp Web.",
+      "official_evidence_url": "https://www.whatsapp.com/",
+      "official_evidence_summary": "WhatsApp leagă explicit web.whatsapp.com în footer.",
+      "known_aliases": [
+        "WhatsApp Web"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Registry-only."
+    },
+    {
+      "brand_id": "whatsapp_business",
+      "display_name": "WhatsApp Business",
+      "category": "other",
+      "url": "https://www.whatsappbusiness.com/",
+      "url_type": "partner_domain",
+      "preview_seed_include": true,
+      "registry_include": true,
+      "confidence": "high",
+      "why_needed": "Proprietate oficială Meta/WhatsApp relevantă în mesaje comerciale legitime.",
+      "official_evidence_url": "https://www.whatsapp.com/",
+      "official_evidence_summary": "WhatsApp leagă explicit whatsappbusiness.com ca proprietate oficială.",
+      "known_aliases": [
+        "WhatsApp Business"
+      ],
+      "approved_partner_or_delegated_domain": true,
+      "notes": "Public."
+    }
+  ],
+  "needs_human_review": [
+    {
+      "brand_id": "dnsc",
+      "candidate_url": "https://dnsc.ro/",
+      "expected_category": "public_institution",
+      "reason": "Foarte probabil oficial și esențial, dar crawl-ul a răspuns 403.",
+      "suggested_action": "Confirmă manual homepage și paginile publice de alertă; apoi adaugă în registry."
+    },
+    {
+      "brand_id": "drpciv",
+      "candidate_url": "https://dgpci.mai.gov.ro/drpciv",
+      "expected_category": "public_institution",
+      "reason": "URL probabil corect, dar fetch-ul a returnat conținut insuficient pentru confirmare solidă.",
+      "suggested_action": "Validează manual homepage și path-urile publice stabile."
+    },
+    {
+      "brand_id": "vodafone_ro",
+      "candidate_url": "https://www.vodafone.ro/",
+      "expected_category": "telecom",
+      "reason": "Brand critic pe piața locală, dar răspunsurile crawl-ului au fost inconsistente.",
+      "suggested_action": "Extrage manual homepage, paginile de fraudă și eventualele deeplinkuri oficiale."
+    },
+    {
+      "brand_id": "telekom_ro",
+      "candidate_url": "https://www.telekom.ro/",
+      "expected_category": "telecom",
+      "reason": "Site public disponibil, dar relevanța exactă a brandului retail în 2026 trebuie reconfirmată înainte de seed.",
+      "suggested_action": "Verifică rolul curent al brandului și path-urile publice utile."
+    },
+    {
+      "brand_id": "cec_security_fetch",
+      "candidate_url": "https://www.cec.ro/securitatea-tranzactiilor",
+      "expected_category": "bank",
+      "reason": "Pagina este legată oficial din site, dar fetch-ul direct a dat 403.",
+      "suggested_action": "Ține URL-ul în registry și testează manual dacă workerul de preview îl poate trata corect."
+    },
+    {
+      "brand_id": "cargus_tracking_exact",
+      "candidate_url": "needs_exact_url",
+      "expected_category": "courier",
+      "reason": "Domeniul root e clar oficial, dar path-ul exact public de tracking nu a fost extras în această rundă.",
+      "suggested_action": "Validează path-ul de tracking înainte de seed."
+    },
+    {
+      "brand_id": "dpd_tracking_exact",
+      "candidate_url": "needs_exact_url",
+      "expected_category": "courier",
+      "reason": "Homepage-ul oficial e confirmat, dar lipsește path-ul exact de tracking public.",
+      "suggested_action": "Validează manual tracking-ul."
+    },
+    {
+      "brand_id": "gls_tracking_exact",
+      "candidate_url": "needs_exact_url",
+      "expected_category": "courier",
+      "reason": "Homepage-ul oficial e confirmat, dar lipsește path-ul exact de tracking public.",
+      "suggested_action": "Validează manual tracking-ul."
+    },
+    {
+      "brand_id": "dhl_tracking_exact",
+      "candidate_url": "needs_exact_url",
+      "expected_category": "courier",
+      "reason": "Homepage-ul oficial e confirmat, dar lipsește path-ul exact local de tracking.",
+      "suggested_action": "Validează manual tracking-ul."
+    },
+    {
+      "brand_id": "eon_myline_exact",
+      "candidate_url": "needs_exact_url",
+      "expected_category": "utility",
+      "reason": "Homepage-ul confirmă Myline, dar nu am extras URL-ul exact al portalului.",
+      "suggested_action": "Confirmă URL-ul exact înainte de a-l pune în registry."
+    },
+    {
+      "brand_id": "engie_myengie_exact",
+      "candidate_url": "needs_exact_url",
+      "expected_category": "utility",
+      "reason": "Homepage-ul confirmă MyENGIE, dar nu am extras URL-ul exact al portalului.",
+      "suggested_action": "Confirmă URL-ul exact înainte de a-l pune în registry."
+    }
+  ]
+}

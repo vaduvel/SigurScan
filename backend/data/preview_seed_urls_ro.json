@@ -60,6 +60,356 @@
       "label": "Ghiseul official",
       "brand": "Ghiseul.ro",
       "url": "https://www.ghiseul.ro/"
+    },
+    {
+      "label": "ANPC",
+      "brand": "ANPC",
+      "url": "https://anpc.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://anpc.ro/"
+    },
+    {
+      "label": "ANPC SAL",
+      "brand": "ANPC SAL",
+      "url": "https://reclamatiisal.anpc.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://anpc.ro/"
+    },
+    {
+      "label": "ASF Registre entități autorizate",
+      "brand": "ASF Registre entități autorizate",
+      "url": "https://asfromania.ro/ro/a/1544/registre-entit%C4%83%C8%9Bi-autorizate",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://asfromania.ro/ro/a/1544/registre-entit%C4%83%C8%9Bi-autorizate"
+    },
+    {
+      "label": "ASF Alerte investitori",
+      "brand": "ASF Alerte investitori",
+      "url": "https://asfromania.ro/ro/a/19/alerte-investitori---informari",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://asfromania.ro/ro/a/19/alerte-investitori---informari"
+    },
+    {
+      "label": "BNR Registre și liste",
+      "brand": "BNR Registre și liste",
+      "url": "https://www.bnr.ro/2349-registre-si-liste",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.bnr.ro/2349-registre-si-liste"
+    },
+    {
+      "label": "ANCOM",
+      "brand": "ANCOM",
+      "url": "https://www.ancom.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.ancom.ro/"
+    },
+    {
+      "label": "ANCOM InfoCentru",
+      "brand": "ANCOM InfoCentru",
+      "url": "https://infocentru.ancom.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.ancom.ro/"
+    },
+    {
+      "label": "ONRC",
+      "brand": "ONRC",
+      "url": "https://www.onrc.ro/index.php/ro",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.onrc.ro/index.php/ro/"
+    },
+    {
+      "label": "RAR",
+      "brand": "RAR",
+      "url": "https://www.rarom.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.rarom.ro/"
+    },
+    {
+      "label": "RAR Verificare ITP",
+      "brand": "RAR Verificare ITP",
+      "url": "https://prog.rarom.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.rarom.ro/"
+    },
+    {
+      "label": "RAR Auto-Pass",
+      "brand": "RAR Auto-Pass",
+      "url": "https://apps.rarom.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.rarom.ro/"
+    },
+    {
+      "label": "Poșta Română AWB",
+      "brand": "Poșta Română AWB",
+      "url": "https://awb.posta-romana.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.posta-romana.ro/"
+    },
+    {
+      "label": "FAN Courier AWB Tracking",
+      "brand": "FAN Courier AWB Tracking",
+      "url": "https://www.fancourier.ro/awb-tracking",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.fancourier.ro/"
+    },
+    {
+      "label": "SAMEDAY",
+      "brand": "SAMEDAY",
+      "url": "https://sameday.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://sameday.ro/"
+    },
+    {
+      "label": "SAMEDAY SDY",
+      "brand": "SAMEDAY SDY",
+      "url": "https://sdy.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://sameday.ro/"
+    },
+    {
+      "label": "SAMEDAY easyway",
+      "brand": "SAMEDAY easyway",
+      "url": "https://trimite-colete-easyway.sameday.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://sameday.ro/"
+    },
+    {
+      "label": "SAMEDAY app deeplink",
+      "brand": "SAMEDAY app deeplink",
+      "url": "https://sameday.sng.link/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://sameday.ro/"
+    },
+    {
+      "label": "GLS România",
+      "brand": "GLS România",
+      "url": "https://gls-group.com/RO/ro/home",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://gls-group.com/RO/ro/home/"
+    },
+    {
+      "label": "DHL România",
+      "brand": "DHL România",
+      "url": "https://www.dhl.com/ro-ro/home.html",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.dhl.com/ro-ro/home.html"
+    },
+    {
+      "label": "Orange prevenire fraudă",
+      "brand": "Orange prevenire fraudă",
+      "url": "https://www.orange.ro/prevenire-frauda",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.orange.ro/prevenire-frauda/"
+    },
+    {
+      "label": "Orange app deeplink",
+      "brand": "Orange app deeplink",
+      "url": "https://qr.orange.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.orange.ro/"
+    },
+    {
+      "label": "Comunitatea Orange",
+      "brand": "Comunitatea Orange",
+      "url": "https://comunitate.orange.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.orange.ro/"
+    },
+    {
+      "label": "YOXO app deeplink",
+      "brand": "YOXO app deeplink",
+      "url": "https://yoxo.page.link/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.yoxo.ro/"
+    },
+    {
+      "label": "YOXO Buyback",
+      "brand": "YOXO Buyback",
+      "url": "https://buyback.yoxo.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.yoxo.ro/"
+    },
+    {
+      "label": "DIGI shortlink",
+      "brand": "DIGI shortlink",
+      "url": "https://s.digi.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.digi.ro/"
+    },
+    {
+      "label": "DIGI referral/link domain",
+      "brand": "DIGI referral/link domain",
+      "url": "https://rdslink.rcs-rds.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.digi.ro/"
+    },
+    {
+      "label": "Banca Transilvania Call Center",
+      "brand": "Banca Transilvania Call Center",
+      "url": "https://www.bancatransilvania.ro/call-center",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.bancatransilvania.ro/call-center"
+    },
+    {
+      "label": "BT Diaspora",
+      "brand": "BT Diaspora",
+      "url": "https://diaspora.bancatransilvania.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.bancatransilvania.ro/login-internet-banking"
+    },
+    {
+      "label": "BRD Siguranță",
+      "brand": "BRD Siguranță",
+      "url": "https://www.brd.ro/sfaturi-pentru-siguranta-ta",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.brd.ro/sfaturi-pentru-siguranta-ta"
+    },
+    {
+      "label": "BRD Online Onboarding",
+      "brand": "BRD Online Onboarding",
+      "url": "https://online.brd.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.brd.ro/"
+    },
+    {
+      "label": "ING securitate",
+      "brand": "ING securitate",
+      "url": "https://ing.ro/ing-in-romania/informatii-utile/securitate",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://ing.ro/ing-in-romania/informatii-utile/securitate"
+    },
+    {
+      "label": "Raiffeisen contact",
+      "brand": "Raiffeisen contact",
+      "url": "https://www.raiffeisen.ro/ro/home/contact.html",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.raiffeisen.ro/ro/home/contact.html"
+    },
+    {
+      "label": "Raiffeisen app adjust link",
+      "brand": "Raiffeisen app adjust link",
+      "url": "https://app.eu.adjust.com/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.raiffeisen.ro/"
+    },
+    {
+      "label": "Raiffeisen Smart Mobile go.link",
+      "brand": "Raiffeisen Smart Mobile go.link",
+      "url": "https://smart-mobile.eu.go.link/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.raiffeisen.ro/"
+    },
+    {
+      "label": "UniCredit Bank România",
+      "brand": "UniCredit Bank România",
+      "url": "https://www.unicredit.ro/ro/persoane-fizice.html",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.unicredit.ro/ro/persoane-fizice.html"
+    },
+    {
+      "label": "UniCredit securitate",
+      "brand": "UniCredit securitate",
+      "url": "https://www.unicredit.ro/ro/persoane-fizice/Diverse/securitate.html",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.unicredit.ro/ro/persoane-fizice.html"
+    },
+    {
+      "label": "Libra Internet Bank",
+      "brand": "Libra Internet Bank",
+      "url": "https://www.librabank.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.librabank.ro/"
+    },
+    {
+      "label": "Libra securitate bancară",
+      "brand": "Libra securitate bancară",
+      "url": "https://www.librabank.ro/informatii-securitate-bancara",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.librabank.ro/"
+    },
+    {
+      "label": "PPC programare online",
+      "brand": "PPC programare online",
+      "url": "https://programare.ppcenergy.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.ppcenergy.ro/"
+    },
+    {
+      "label": "eMAG Help",
+      "brand": "eMAG Help",
+      "url": "https://www.emag.ro/help",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.emag.ro/help/"
+    },
+    {
+      "label": "eMAG Marketplace",
+      "brand": "eMAG Marketplace",
+      "url": "https://marketplace.emag.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.emag.ro/help/"
+    },
+    {
+      "label": "eMAG Marketplace Leads",
+      "brand": "eMAG Marketplace Leads",
+      "url": "https://marketplace-leads.emag.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.emag.ro/help/"
+    },
+    {
+      "label": "eMAG Easy BuyBack",
+      "brand": "eMAG Easy BuyBack",
+      "url": "https://www.emag.ro/lps/emag-flip-buyback",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.emag.ro/"
+    },
+    {
+      "label": "About eMAG",
+      "brand": "About eMAG",
+      "url": "https://about.emag.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.emag.ro/lps/emag-flip-buyback"
+    },
+    {
+      "label": "Flanco Programul Rabla",
+      "brand": "Flanco Programul Rabla",
+      "url": "https://www.flanco.ro/programul-rabla-extins-recicleaza-responsabil",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.flanco.ro/programul-rabla-extins-recicleaza-responsabil"
+    },
+    {
+      "label": "Dedeman recrutare",
+      "brand": "Dedeman recrutare",
+      "url": "https://recrutare.dedeman.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.dedeman.ro/ro"
+    },
+    {
+      "label": "Dedeman DedeTech",
+      "brand": "Dedeman DedeTech",
+      "url": "https://dedetech.dedeman.ro/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.dedeman.ro/ro"
+    },
+    {
+      "label": "Microsoft Support",
+      "brand": "Microsoft Support",
+      "url": "https://support.microsoft.com/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.microsoft.com/ro-ro/"
+    },
+    {
+      "label": "WhatsApp Help Center",
+      "brand": "WhatsApp Help Center",
+      "url": "https://faq.whatsapp.com/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.whatsapp.com/"
+    },
+    {
+      "label": "WhatsApp Business",
+      "brand": "WhatsApp Business",
+      "url": "https://www.whatsappbusiness.com/",
+      "source_channel": "official_url_patch_2026_06_14",
+      "source_url": "https://www.whatsapp.com/"
     }
   ]
 }
