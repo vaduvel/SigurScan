@@ -8394,6 +8394,108 @@ async def one_tap_report(payload: OneTapReportRequest):
     )
 
 
+# ─── PR-6 — Cercul (out-of-band verification) + Guardian second opinion ──────
+# §6: protocol semnat, NU trece prin verdict_gate. Privacy: ping metadata-only,
+# second-opinion default metadata_only, revocare doar de protejat.
+from services.circle_verification import circle_store as _circle_store
+
+
+class CirclePairRequest(BaseModel):
+    protected_id: str
+    verifier_id: str
+    consent: str = "explicit"
+
+
+class CirclePingRequest(BaseModel):
+    link_id: str
+    claim: str = "caller_claims_to_be_verifier"
+
+
+class CircleRespondRequest(BaseModel):
+    ping_id: str
+    response: str  # its_me | not_me | timeout
+
+
+class CircleRevokeRequest(BaseModel):
+    link_id: str
+    by_user: str
+
+
+class GuardianSecondOpinionRequest(BaseModel):
+    case_id: str
+    protected_id: str
+    guardian_id: str
+    redacted_summary: Optional[Dict[str, Any]] = None
+    share_level: Optional[str] = None  # metadata_only | redacted_excerpt | full_with_consent
+    consent: bool = False
+
+
+@app.post("/v1/circle/pair")
+async def circle_pair(payload: CirclePairRequest):
+    """PR-6 — pairing semnat protejat↔verificator, consimțământ explicit, revocabil."""
+    try:
+        link = _circle_store.pair(
+            protected_id=payload.protected_id,
+            verifier_id=payload.verifier_id,
+            consent=payload.consent,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return link.to_dict()
+
+
+@app.post("/v1/circle/ping")
+async def circle_ping(payload: CirclePingRequest):
+    """PR-6 — ping de verificare out-of-band (metadata-only). Timeout → PRECAUTIE."""
+    try:
+        ping = _circle_store.create_ping(payload.link_id, claim=payload.claim)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="circle link not found")
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return ping.to_dict()
+
+
+@app.post("/v1/circle/respond")
+async def circle_respond(payload: CircleRespondRequest):
+    """PR-6 — răspunsul verificatorului (its_me/not_me/timeout). NEVERIFICAT pe timeout."""
+    try:
+        if payload.response == "timeout":
+            result = _circle_store.resolve_timeout(payload.ping_id)
+        else:
+            result = _circle_store.respond(payload.ping_id, payload.response)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="verification ping not found")
+    return result
+
+
+@app.post("/v1/circle/revoke")
+async def circle_revoke(payload: CircleRevokeRequest):
+    """PR-6 — doar protejatul poate revoca relația din Cerc."""
+    try:
+        _circle_store.revoke(payload.link_id, by_user=payload.by_user)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="circle link not found")
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+    link = _circle_store.get_link(payload.link_id)
+    return link.to_dict()
+
+
+@app.post("/v1/guardian/second-opinion")
+async def guardian_second_opinion(payload: GuardianSecondOpinionRequest):
+    """PR-6 — a doua opinie pentru protejat. Default metadata-only; full doar cu consimțământ."""
+    so = _circle_store.second_opinion(
+        case_id=payload.case_id,
+        protected_id=payload.protected_id,
+        guardian_id=payload.guardian_id,
+        redacted_summary=payload.redacted_summary,
+        share_level=payload.share_level,
+        consent=payload.consent,
+    )
+    return so.to_dict()
+
+
 @app.get("/v1/campaign/families")
 async def campaign_families():
     from services.campaign_intel import FAMILY_TAXONOMY
