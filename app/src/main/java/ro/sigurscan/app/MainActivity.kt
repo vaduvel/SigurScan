@@ -867,9 +867,12 @@ fun RadarTab(viewModel: ScannerViewModel) {
         AudioAsrReadinessCard(
             snapshot = viewModel.audioReadiness,
             status = viewModel.audioReadinessStatus,
+            evidenceResult = viewModel.audioEvidenceResult,
+            hasAssessment = viewModel.assessment != null,
             onConsentChanged = { viewModel.setAudioConsent(it) },
             onDisclosureChanged = { viewModel.setAudioPrivacyDisclosureAccepted(it) },
-            onRefresh = { viewModel.refreshAudioReadiness() }
+            onRefresh = { viewModel.refreshAudioReadiness() },
+            onAnalyzeTranscript = { viewModel.analyzeCurrentTextAsAudioTranscript() }
         )
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -1309,9 +1312,12 @@ private fun CircleGuardianCard(
 private fun AudioAsrReadinessCard(
     snapshot: AudioReadinessSnapshot,
     status: String?,
+    evidenceResult: AudioEvidenceResult?,
+    hasAssessment: Boolean,
     onConsentChanged: (Boolean) -> Unit,
     onDisclosureChanged: (Boolean) -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onAnalyzeTranscript: () -> Unit
 ) {
     val blocked = !snapshot.decision.allowed
     Card(
@@ -1351,6 +1357,22 @@ private fun AudioAsrReadinessCard(
                 Text(it, color = SigurColors.TextSecondary, fontSize = 11.sp, lineHeight = 15.sp)
             }
 
+            evidenceResult?.let { result ->
+                Spacer(modifier = Modifier.height(8.dp))
+                DSChip(
+                    text = when (result.verdict) {
+                        AudioEvidenceVerdict.DANGEROUS -> "PERICULOS"
+                        AudioEvidenceVerdict.SUSPECT -> "SUSPECT"
+                        AudioEvidenceVerdict.UNVERIFIED -> "NEVERIFICAT"
+                    },
+                    tone = when (result.verdict) {
+                        AudioEvidenceVerdict.DANGEROUS -> DSChipTone.Danger
+                        AudioEvidenceVerdict.SUSPECT -> DSChipTone.Suspect
+                        AudioEvidenceVerdict.UNVERIFIED -> DSChipTone.Neutral
+                    }
+                )
+            }
+
             Spacer(modifier = Modifier.height(12.dp))
             Button(
                 onClick = onRefresh,
@@ -1362,6 +1384,19 @@ private fun AudioAsrReadinessCard(
                 Icon(Icons.Default.Security, contentDescription = null, tint = SigurColors.TextPrimary, modifier = Modifier.size(14.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text("Verifică readiness", color = SigurColors.TextPrimary, fontSize = 11.sp)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = onAnalyzeTranscript,
+                enabled = hasAssessment,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = SigurColors.BackgroundSurface),
+                border = BorderStroke(1.dp, SigurColors.GlassBorder),
+                shape = DSPillShape
+            ) {
+                Icon(Icons.Default.Security, contentDescription = null, tint = SigurColors.TextPrimary, modifier = Modifier.size(14.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Analizează transcrierea curentă", color = SigurColors.TextPrimary, fontSize = 11.sp)
             }
         }
     }

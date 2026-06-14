@@ -15,7 +15,7 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 - Android PR-5 are acum hot-cache client, cache offline, CallScreeningService, UI pentru sync/rol OS, audit local fara numar brut si flow de raport oficial 1-tap (`/v1/report`). Flow-ul scan + raport oficial a fost validat pe emulator API 36; CallScreening a fost validat pe emulator cu rol OS activ si apel GSM simulat.
 - Android PR-7 are acum BTR sync local, motor on-device de provenienta pe semnale locale si actiune UI pentru verificarea locala a ultimului scan impotriva BTR. Nu citeste automat SMS-uri.
 - Android PR-8 afiseaza `action_plan` si are flow post-incident pentru impacts reale (`shared_card`, `paid_transfer` etc.).
-- Android PR-9/PR-10 audio are acum engine local de verdict din semnale audio/vishing redactate, dar captura/ASR ramane blocata explicit prin policy pana exista model ASR on-device, consimtamant, disclosure si QA real-device.
+- Android PR-9/PR-10 audio are engine local de verdict si flow real de analiza a transcrierii curente: transcriptul este redus local la semnale, rezultatul nu retine textul brut, iar captura/ASR ramane blocata explicit pana exista model ASR on-device si QA real-device.
 - Play Integrity are wiring testat cap-coada pana la limita credențialelor: backend poate minta access token din service account JSON, emite nonce distribuit Upstash si il consuma atomic single-use, iar Android cere nonce-ul, foloseste Play Integrity SDK si ataseaza `X-Play-Integrity-Token` numai pe POST-urile protejate. Live ramane `off` pana la secret + build Play semnat + monitor pass rate.
 - Productia ruleaza imaginea backend taguita `4645422`.
 
@@ -90,6 +90,10 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
   - rezultat: `BUILD SUCCESSFUL`
   - Android release dupa engine audio: `JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew assembleRelease bundleRelease`
   - rezultat: `BUILD SUCCESSFUL`
+  - Android transcript bridge: `AudioTranscriptEvidenceTest` valideaza cont sigur, AnyDesk, metoda accidentul, apel legitim si toate cele `34` fixture-uri realiste de call transcript.
+  - Android full dupa transcript bridge: `./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease bundleRelease`
+  - rezultat: `BUILD SUCCESSFUL`
+  - MobAI/emulator: transcrierea `Politie + BNR + cont sigur` a produs `PERICULOS` in analiza locala audio; screenshot `docs/evidence/android_pr9_local_transcript_evidence_2026-06-14.png`.
 - Play Integrity / public auth hardening:
   - TDD red backend: `test_play_integrity_mints_access_token_from_service_account_json` a picat initial pentru `_mint_access_token` TODO.
   - Backend green: `INVOICE_CACHE_HMAC_KEY=testkey PRIVACY_SAFE_MODE=false /opt/homebrew/bin/python3 -m pytest backend/test_security_hardening.py -q`
@@ -191,9 +195,9 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 | PR-6 | Guardian second opinion | Da | Da, UI Android dedicat in Radar | `/v1/guardian/second-opinion` live OK; Android trimite rezumat redactat, full fara consimtamant downgrade la metadata_only |
 | PR-7 | Inbox provenance contract / BTR sync | Da ca endpoint | Da ca foundation + UI local check | `/v1/btr/sync` live OK cu User-Agent Android; Android consuma endpointul, stocheaza local si are engine on-device pe semnale locale. UI Radar poate rula verificarea locala a ultimului scan. Nu citeste automat SMS-uri |
 | PR-8 | Plan de actiune post-incident | Da | Da pentru flow de rezultat | `/v1/legal/action-plan` live OK; Android trimite impacts reale selectate si randeaza planul; planul apare in smoke emulator FAN fake |
-| PR-8/9 integ | `action_plan` in orchestrator + audio reference | Partial backend | Partial pentru action_plan; audio engine local fara captura | Orchestratorul trimite `action_plan`; Android il afiseaza. Backend are `audio_evidence` referinta; Android are `AudioEvidenceEngine` pentru semnale redactate. Nu exista captura/ASR audio |
+| PR-8/9 integ | `action_plan` in orchestrator + audio reference | Partial backend | Action plan functional; analiza locala a transcrierii functionala | Orchestratorul trimite `action_plan`; Android il afiseaza. Android reduce local transcrierea curenta la semnale si verdict, fara text brut in rezultat. Nu exista captura/ASR audio |
 | Extra | DNS reputation | Da | Da indirect prin scan response | `infra_dns` live OK; flag Cloud Run activ si pastrat in scriptul de deploy |
-| PR-9/PR-10 | Android on-device: ASR/Vosk, banda inline, captura difuzor | Nu ca ASR complet | Engine local de verdict + UI readiness + gated sigur | `AudioEvidenceEngineTest`, `AudioSafetyPolicyTest`, `ShareIntentManifestTest`, `AndroidBuildConfigPolicyTest`; nu exista inca model ASR local, captura audio sau QA real-device |
+| PR-9/PR-10 | Android on-device: ASR/Vosk, banda inline, captura difuzor | Nu ca ASR complet | Analiza transcript local + engine verdict + UI readiness + gated sigur | `AudioTranscriptEvidenceTest` acopera 34/34 fixture-uri realiste; MobAI confirma verdict local `PERICULOS`. Nu exista inca model ASR romanesc, captura audio sau QA real-device |
 
 ## Gap-uri Care Nu Trebuie Numite Complete
 
@@ -219,7 +223,10 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 
 4. PR-9/PR-10 Android audio nu este implementat ca ASR, dar este blocat matur si vizibil in UI.
    - Nu exista Vosk/ASR/captura difuzor in productie.
-   - Exista `AudioEvidenceEngine` Android pentru reducerea locala a semnalelor audio/vishing deja redactate; nu stocheaza transcript brut si nu foloseste server audio.
+   - Exista `AudioEvidenceEngine` + `AudioTranscriptEvidence` pentru reducerea locala a transcrierii la semnale audio/vishing; rezultatul nu stocheaza transcript brut si nu foloseste server audio.
+   - UI poate analiza local transcrierea curenta si afisa verdictul audio chiar daca ASR/captura ramane blocata.
+   - Readiness-ul modelului necesita setul complet de fisiere runtime; un folder assets ne-gol nu mai poate declara modelul pregatit.
+   - Lista oficiala Vosk verificata pe 2026-06-14 nu ofera model romanesc.
    - `AudioSafetyPolicy` blocheaza capture fara feature flag, consimtamant, disclosure si model.
    - `AndroidBuildConfigPolicyTest` confirma ca `SIGURSCAN_ENABLE_AUDIO_ASR` ramane false-by-default pentru debug/release.
    - Manifestul Android nu cere `RECORD_AUDIO`; nu exista captura audio ascunsa.

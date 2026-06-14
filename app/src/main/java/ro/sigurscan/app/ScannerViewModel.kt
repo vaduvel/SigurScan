@@ -424,6 +424,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         )
     )
     var audioReadinessStatus by mutableStateOf<String?>(null)
+    var audioEvidenceResult by mutableStateOf<AudioEvidenceResult?>(null)
 
     // Family protection
     var familyMembers = mutableStateListOf<FamilyMember>()
@@ -867,7 +868,14 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
 
     fun refreshAudioReadiness() {
         val modelAvailable = runCatching {
-            getApplication<Application>().assets.list("vosk-model-ro").orEmpty().isNotEmpty()
+            val assets = getApplication<Application>().assets
+            val existingFiles = AudioModelPackagePolicy.requiredFiles.filterTo(mutableSetOf()) { path ->
+                runCatching {
+                    assets.open("vosk-model-ro/$path").use { it.read() }
+                    true
+                }.getOrDefault(false)
+            }
+            AudioModelPackagePolicy.isComplete(existingFiles)
         }.getOrDefault(false)
         val updated = audioReadiness.copy(
             featureFlagEnabled = BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR,
@@ -884,6 +892,23 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             "ASR local este pregătit. Captura rămâne on-device."
         } else {
             "ASR audio rămâne blocat: ${decision.reasonCodes.joinToString(", ")}."
+        }
+    }
+
+    fun analyzeCurrentTextAsAudioTranscript() {
+        val transcript = text
+        if (transcript.isBlank()) {
+            audioEvidenceResult = null
+            audioReadinessStatus = "Scanează sau lipește mai întâi transcrierea apelului."
+            return
+        }
+
+        val result = AudioTranscriptEvidence.analyze(transcript)
+        audioEvidenceResult = result
+        audioReadinessStatus = when (result.verdict) {
+            AudioEvidenceVerdict.DANGEROUS -> "Analiza locală a transcrierii: PERICULOS."
+            AudioEvidenceVerdict.SUSPECT -> "Analiza locală a transcrierii: SUSPECT."
+            AudioEvidenceVerdict.UNVERIFIED -> "Analiza locală a transcrierii: nu sunt suficiente dovezi."
         }
     }
 

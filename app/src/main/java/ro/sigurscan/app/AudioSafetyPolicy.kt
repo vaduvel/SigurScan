@@ -23,3 +23,18 @@ object AudioSafetyPolicy {
         )
     }
 }
+
+object AudioModelPackagePolicy {
+    val requiredFiles = setOf(
+        "model-manifest.json",
+        "am/final.mdl",
+        "conf/mfcc.conf",
+        "conf/model.conf",
+        "graph/HCLG.fst",
+        "graph/words.txt"
+    )
+
+    fun isComplete(existingFiles: Set<String>): Boolean {
+        return requiredFiles.all(existingFiles::contains)
+    }
+}

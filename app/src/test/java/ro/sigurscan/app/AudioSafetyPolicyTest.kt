@@ -55,4 +55,29 @@ class AudioSafetyPolicyTest {
         assertFalse(decision.allowed)
         assertTrue(decision.reasonCodes.contains("privacy_disclosure_missing"))
     }
+
+    @Test
+    fun randomAssetDirectoryCannotMasqueradeAsAnAsrModel() {
+        val modelReady = AudioModelPackagePolicy.isComplete(
+            existingFiles = setOf("README.txt", "placeholder.bin")
+        )
+
+        assertFalse(modelReady)
+    }
+
+    @Test
+    fun modelPackageRequiresManifestAndEveryRuntimeFile() {
+        val modelReady = AudioModelPackagePolicy.isComplete(
+            existingFiles = setOf(
+                "model-manifest.json",
+                "am/final.mdl",
+                "conf/mfcc.conf",
+                "conf/model.conf",
+                "graph/HCLG.fst",
+                "graph/words.txt"
+            )
+        )
+
+        assertTrue(modelReady)
+    }
 }
