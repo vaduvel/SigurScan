@@ -144,6 +144,9 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
   - Android `assembleDebug`: `BUILD SUCCESSFUL`
   - Backend targeted BTR/Radar/PR-8: `73 passed, 1 warning`
   - Backend targeted BTR channel fix: `48 passed, 1 warning`
+- Verificari post-deploy `893832e`:
+  - Backend full: `INVOICE_CACHE_HMAC_KEY=testkey PRIVACY_SAFE_MODE=false /opt/homebrew/bin/python3 -m pytest -q` -> `930 passed, 1 warning`
+  - Android JVM: `JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew testDebugUnitTest` -> `BUILD SUCCESSFUL`
 - Cloud Run live:
   - revision: `sigurscan-api-00053-d9d`
   - traffic: `100%`
@@ -164,9 +167,11 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
   - rezultat: `12/12 passed`, `0 failed`
   - acopera: `/health`, `/v1/radar/hot-iocs`, `/v1/btr/sync` full/no-op, `/v1/verify/provenance`, `/v1/circle/pair`, `/v1/circle/ping`, `/v1/circle/respond`, `/v1/circle/revoke`, `/v1/guardian/second-opinion`, `/v1/legal/action-plan`, `/v1/report`
 - Post-deploy live provider smoke dupa `893832e`:
-  - report: `build/reports/live_provider_smoke_2026-06-14_after_provenance_alias_deploy.json`
-  - rezultat: `3/3 passed`, `0 failed`
+  - report: `build/reports/live_provider_smoke_2026-06-14_full_after_provenance_alias_deploy.json`
+  - rezultat: `5/5 passed`, `0 failed`
   - YOXO buyback: `SAFE`, final `https://buyback.yoxo.ro/?r=1`, preview screenshot/report prezente, provideri: `google_web_risk`, `urlhaus`, `phishing_database`, `urlscan`, `infra_dns`, `infra_domain_age`, `infra_ssl`, `ai_offer_web_check`
+  - SMYK catalog: `SAFE`, final `https://smyk.ro/catalogul-ziua-copilului`, preview screenshot/report prezente, provideri: `google_web_risk`, `urlhaus`, `phishing_database`, `urlscan`, `infra_dns`, `infra_domain_age`, `ai_offer_web_check`
+  - eMAG tracking official: `SAFE`, final `https://auth.emag.ro/user/login`, preview screenshot/report prezente, provideri: `google_web_risk`, `urlhaus`, `phishing_database`, `urlscan`, `infra_dns`, `infra_domain_age`, `ai_offer_web_check`
   - Google Web Risk phishing test: `DANGEROUS`, final, provideri: `google_web_risk`, `urlhaus`, `phishing_database`, `infra_dns`, `ai_offer_web_check`
   - iDroid status: `SAFE`, final `https://idroid.ro/verifica-status/`, preview screenshot/report prezente, provideri: `google_web_risk`, `urlhaus`, `phishing_database`, `urlscan`, `infra_dns`, `infra_domain_age`, `ai_offer_web_check`
 - Android emulator QA API 36 (`Medium_Phone_API_36.1`):
@@ -291,8 +296,8 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 
 ## Fresh Live Matrix After Revision 00053
 
-- Provider smoke report: `build/reports/live_provider_smoke_2026-06-14_after_provenance_alias_deploy.json` -> 3/3 passed.
-- YOXO buyback si iDroid status: `SAFE`, finale, ambele cu screenshot preview si urlscan report.
+- Provider smoke report: `build/reports/live_provider_smoke_2026-06-14_full_after_provenance_alias_deploy.json` -> 5/5 passed.
+- YOXO buyback, SMYK catalog, eMAG tracking si iDroid status: `SAFE`, finale, toate cu screenshot preview si urlscan report.
 - Google Web Risk phishing test: `DANGEROUS`, final.
 - Endpoint contract matrix PR-0..PR-8: `build/reports/live_contract_smoke_2026-06-14_after_provenance_alias_deploy.json` -> 12/12 passed pe domeniul oficial.
 - PR-0..PR-4: provenance YOXO cu canal contractual `official_website` -> `match`; Urechea are surse active; CFX produce fingerprint si match-uri.
@@ -312,7 +317,7 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 - Supabase migration `20260614194000_harden_community_report_targets.sql` este aplicata live: datele invalide au fost sterse, `target_type` exista, iar constrangerile hash/target sunt active.
 - Live pe `api.sigurscan.com`: hash invalid respins cu HTTP 400; raport URL acceptat dar absent din Radar; raport phone sintetic prezent temporar in Radar.
 - MobAI/emulator: dupa sync, apelul GSM sintetic a produs `WARN`, `SCREENING_COMPLETED` si `SKIP_RINGING`; UI a afisat auditul local. Datele QA au fost apoi sterse, iar live + Android au revenit la `0 numere raportate`.
-- Live provider smoke dupa deploy `893832e`: `3/3 passed`, `0 failed`.
+- Live provider smoke dupa deploy `893832e`: `5/5 passed`, `0 failed`.
 - Evidence: `docs/evidence/android_radar_phone_contract_warn_2026-06-14.png`.
 
 ## Ce E Production-Grade Acum
