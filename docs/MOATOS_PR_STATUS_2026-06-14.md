@@ -238,6 +238,18 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
    - Manifest `yoxo`: `yoxo.ro`, `buyback.yoxo.ro`, `reconditionate.yoxo.ro`, `newsroom.orange.ro`.
    - Flow-ul live YOXO cu `input_type=text` da `SAFE`, preview prezent, `provenance=match`, `official_domain_match=true`.
 
+## Play Integrity Nonce Anti-Replay Live Proof
+
+- Commit cod: `ebbebe7`; Cloud Run revision: `sigurscan-api-00051-q7d`; imagine: `sigurscan-api:ebbebe7`; trafic: 100%.
+- Backend full: `923 passed, 1 warning`.
+- Android: `testDebugUnitTest lintDebug assembleDebug assembleRelease bundleRelease` -> `BUILD SUCCESSFUL`.
+- `/health` oficial: `play_integrity_mode=off`, `play_integrity_nonce_backend=upstash`, `rate_limit_backend=upstash`, `api_key_required=true`.
+- Endpoint live nonce: doua raspunsuri HTTP 200, nonce-uri distincte de 43 caractere.
+- Upstash live atomic proof: `issued` -> primul `GETDEL=consumed` -> al doilea `GETDEL=missing_or_replayed`.
+- Regresie live YOXO pe contractul corect `input_type=text`: `SAFE/low`, scor 10, preview `ready`, screenshot prezent, rezultat final.
+- Regresie live `urlz.fr/rZrw`: `SUSPECT/medium`, scor 55, preview `unavailable`, reason `final_url_unresolved`, rezultat final.
+- Nu exista inca dovada token Google real: lipsesc service-account-ul autorizat Play Console, build-ul instalat din Google Play cu flag activ si perioada de monitorizare. Din acest motiv live ramane corect `off`.
+
 ## Ce E Production-Grade Acum
 
 - Backend scan pipeline nu mai ramane blocat la provider errors cunoscute.
