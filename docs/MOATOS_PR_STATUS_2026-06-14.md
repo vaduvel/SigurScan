@@ -80,6 +80,8 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
   - AAB: `app/build/outputs/bundle/release/app-release.aab` (`16,399,395` bytes)
   - `apksigner verify --verbose --print-certs`: `Verifies`, v2 signing `true`, signer `CN=SigurScan`
   - `strings app-release.apk | rg "SUPABASE|URLSCAN_API_KEY|VIRUSTOTAL_API_KEY|GOOGLE_SAFE|GOOGLE_WEB_RISK_API_KEY|ro.nudaclick|com.example.myapplication|BEGIN PRIVATE KEY|AIza|eyJhbGci"`: no matches
+  - `python3 tools/audit_android_release_secrets.py app/build/outputs/apk/release/app-release.apk`: provider/admin/service secrets `embedded=false`; client API key warning prezent
+  - `python3 tools/audit_android_release_secrets.py app/build/outputs/bundle/release/app-release.aab`: provider/admin/service secrets `embedded=false`; client API key warning prezent
 - Android emulator QA PR-7 local check (`Medium_Phone_API_36.1`):
   - APK debug curent instalat cu `./gradlew installDebug`
   - scan Android `YOXO Shop oferte pe https://www.yoxo.ro/`: UI `SIGUR`, `Verificări complete`, preview securizat, final domain `yoxo.ro`
@@ -188,7 +190,12 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
    - Tehnic scanarea se inchide corect, preview explica `final_url_unresolved`, DNS detecteaza `registrar_suspended`.
    - User-facing label este `UNVERIFIED/info`; daca produsul vrea fail-safe mai vizibil, regula trebuie ajustata la `SUSPECT` pentru shortener + final unresolved + DNS suspended.
 
-6. BTR backend production are manifest YOXO dupa deploy `e4a0f82`.
+6. Release public auth ramane limitat pana la Play Integrity/backend-issued token.
+   - APK/AAB nu contin provider/admin/service secrets dupa auditul `tools/audit_android_release_secrets.py`.
+   - APK/AAB contin cheia de client `SIGURSCAN_API_KEY`/`SIGURSCAN_RELEASE_API_KEY`, tratata doar ca bariera anti-abuz extractabila.
+   - `/health` arata `play_integrity_mode=off`; pentru release public larg nu trebuie numita autentificare reala.
+
+7. BTR backend production are manifest YOXO dupa deploy `e4a0f82`.
    - Manifest `yoxo`: `yoxo.ro`, `buyback.yoxo.ro`, `reconditionate.yoxo.ro`, `newsroom.orange.ro`.
    - Flow-ul live YOXO cu `input_type=text` da `SAFE`, preview prezent, `provenance=match`, `official_domain_match=true`.
 

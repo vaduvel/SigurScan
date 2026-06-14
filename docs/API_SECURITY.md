@@ -64,6 +64,10 @@ blocheze scanări legitime. Concluzie: în producție, configurează Upstash.
 - Runtime: `ApiKeyInterceptor` adaugă `X-API-KEY` pe clientul Retrofit.
 - **Limitare asumată:** cheia din APK e extractabilă. E doar o barieră
   anti-abuz. Autentificarea reală vine din Play Integrity (mai jos).
+- Audit repetabil: `python3 tools/audit_android_release_secrets.py app/build/outputs/apk/release/app-release.apk`
+  trebuie să eșueze dacă găsește provider/admin/service secrets în artifact.
+  `SIGURSCAN_API_KEY` / `SIGURSCAN_RELEASE_API_KEY` sunt raportate ca warning
+  până când sunt înlocuite de Play Integrity sau token scurt emis de backend.
 
 ## Play Integrity (schelet)
 

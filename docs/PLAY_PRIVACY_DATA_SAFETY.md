@@ -90,11 +90,14 @@ Nu se face:
 - Privacy Policy publica, accesibila din Play listing si aplicatie, pe domeniu/alias SigurScan.
 - Data Safety completata cu URL/content scan, third-party processing si encryption in transit.
 - `ENABLE_RATE_LIMIT=true` pe backend pentru productie.
-- `REQUIRE_API_KEY=true` doar pentru clienti privati/admin sau dupa app attestation/backend-issued token; nu pune shared API secrets in APK.
+- `REQUIRE_API_KEY=true` este acceptabil pentru build-uri private ca bariera anti-abuz, dar cheia de client din APK este extractabila.
+- Pentru release public larg: trecere la Play Integrity in `monitor/enforce` sau token scurt emis de backend; nu trata shared client API key din APK ca autentificare reala.
 - Supabase RLS hardening aplicat remote: anon nu citeste/scrie tabele brute de telemetry, feedback, device sau community reports.
 - `SIGURSCAN_URLSCAN_API_KEY`, Google Web Risk, URLhaus si Phishing.Database configurate doar in backend/Vercel.
 - VirusTotal Public API nu este folosit in produsul comercial v1; daca revine, trebuie contract/licenta compatibila comercial.
-- Confirmare ca release APK/AAB nu contine provider keys.
+- Confirmare ca release APK/AAB nu contine provider/admin/service secrets:
+  `python3 tools/audit_android_release_secrets.py app/build/outputs/apk/release/app-release.apk`
+  si acelasi script pe `.aab`.
 
 ## Verificari executate
 
