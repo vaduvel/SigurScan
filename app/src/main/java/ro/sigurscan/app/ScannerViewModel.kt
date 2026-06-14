@@ -1,7 +1,9 @@
 package ro.sigurscan.app
 
+import android.Manifest
 import android.app.Application
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.graphics.pdf.PdfRenderer
@@ -14,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.security.crypto.EncryptedSharedPreferences
@@ -294,13 +297,28 @@ data class AudioReadinessSnapshot(
     val featureFlagEnabled: Boolean = false,
     val modelAvailable: Boolean = false,
     val nativeRuntimeAvailable: Boolean = false,
+    val microphonePermissionGranted: Boolean = false,
     val decision: AudioCaptureDecision = AudioSafetyPolicy.canStartCapture(
         explicitConsent = false,
         modelAvailable = false,
         nativeRuntimeAvailable = false,
         privacyDisclosureAccepted = false,
-        featureFlagEnabled = false
+        featureFlagEnabled = false,
+        microphonePermissionGranted = false
     )
+)
+
+data class SpeakerGuardSnapshot(
+    val active: Boolean = false,
+    val phase: SpeakerGuardPhase = SpeakerGuardPhase.IDLE,
+    val chunksAnalyzed: Int = 0,
+    val chunksDropped: Int = 0,
+    val latestVerdict: AudioEvidenceVerdict? = null,
+    val latestReasonCode: String? = null,
+    val latestArcFamily: String? = null,
+    val latestLatencyMs: Long? = null,
+    val status: String = "Speaker Guard este oprit.",
+    val rawAudioStored: Boolean = false
 )
 
 internal fun guardianRedactedSummaryFromAssessment(assessment: OfflineAssessment?): Map<String, Any> {
@@ -427,6 +445,8 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     )
     var audioReadinessStatus by mutableStateOf<String?>(null)
     var audioEvidenceResult by mutableStateOf<AudioEvidenceResult?>(null)
+    var speakerGuardSnapshot by mutableStateOf(SpeakerGuardSnapshot())
+    private var speakerGuardSession: SpeakerGuardSession? = null
 
     // Family protection
     var familyMembers = mutableStateListOf<FamilyMember>()
@@ -869,6 +889,10 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun refreshAudioReadiness() {
+        val microphonePermissionGranted = ContextCompat.checkSelfPermission(
+            getApplication<Application>(),
+            Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
         val modelReadiness = runCatching {
             val assets = getApplication<Application>().assets
             val existingFiles = AudioModelPackagePolicy.requiredFiles.filterTo(mutableSetOf()) { path ->
@@ -889,14 +913,16 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         val updated = audioReadiness.copy(
             featureFlagEnabled = BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR,
             modelAvailable = modelReadiness.first,
-            nativeRuntimeAvailable = WhisperCppNativeBridge.available
+            nativeRuntimeAvailable = WhisperCppNativeBridge.available,
+            microphonePermissionGranted = microphonePermissionGranted
         )
         val decision = AudioSafetyPolicy.canStartCapture(
             explicitConsent = updated.explicitConsent,
             modelAvailable = updated.modelAvailable,
             nativeRuntimeAvailable = updated.nativeRuntimeAvailable,
             privacyDisclosureAccepted = updated.privacyDisclosureAccepted,
-            featureFlagEnabled = updated.featureFlagEnabled
+            featureFlagEnabled = updated.featureFlagEnabled,
+            microphonePermissionGranted = updated.microphonePermissionGranted
         )
         audioReadiness = updated.copy(decision = decision)
         audioReadinessStatus = if (decision.allowed) {
@@ -905,6 +931,80 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             val reasons = (decision.reasonCodes + modelReadiness.second).distinct()
             "ASR audio rămâne blocat: ${reasons.joinToString(", ")}."
         }
+    }
+
+    fun startSpeakerGuard() {
+        refreshAudioReadiness()
+        val decision = audioReadiness.decision
+        if (!decision.allowed) {
+            audioReadinessStatus = "Speaker Guard nu poate porni: ${decision.reasonCodes.joinToString(", ")}."
+            return
+        }
+        if (speakerGuardSession?.active == true) return
+
+        audioReadinessStatus = "Pregătim modelul Whisper local."
+        viewModelScope.launch {
+            val modelFile = withContext(Dispatchers.IO) { prepareWhisperModelFile() }
+            val session = SpeakerGuardSession(getApplication())
+            speakerGuardSession = session
+            session.start(viewModelScope, modelFile.absolutePath) { update ->
+                viewModelScope.launch(Dispatchers.Main) {
+                    applySpeakerGuardUpdate(update)
+                }
+            }
+        }
+    }
+
+    fun stopSpeakerGuard() {
+        speakerGuardSession?.stop()
+        speakerGuardSession = null
+        speakerGuardSnapshot = speakerGuardSnapshot.copy(
+            active = false,
+            phase = SpeakerGuardPhase.STOPPED,
+            status = "Speaker Guard este oprit."
+        )
+    }
+
+    private fun applySpeakerGuardUpdate(update: SpeakerGuardUpdate) {
+        val evidence = update.result?.evidence
+        if (evidence != null) {
+            audioEvidenceResult = evidence
+        }
+        speakerGuardSnapshot = SpeakerGuardSnapshot(
+            active = update.active,
+            phase = update.phase,
+            chunksAnalyzed = update.chunksAnalyzed,
+            chunksDropped = update.chunksDropped,
+            latestVerdict = evidence?.verdict ?: speakerGuardSnapshot.latestVerdict,
+            latestReasonCode = update.reasonCode ?: update.result?.reasonCode,
+            latestArcFamily = evidence?.arcFamily ?: speakerGuardSnapshot.latestArcFamily,
+            latestLatencyMs = update.latencyMs ?: speakerGuardSnapshot.latestLatencyMs,
+            status = update.status,
+            rawAudioStored = false
+        )
+        audioReadinessStatus = update.status
+        if (!update.active && update.phase != SpeakerGuardPhase.PROCESSING) {
+            speakerGuardSession = null
+        }
+    }
+
+    private fun prepareWhisperModelFile(): File {
+        val app = getApplication<Application>()
+        val targetDir = File(app.filesDir, "asr/whispercpp")
+        val targetFile = File(targetDir, "ggml-model.bin")
+        targetDir.mkdirs()
+
+        app.assets.open("${AudioModelPackagePolicy.assetRoot}/ggml-model.bin").use { input ->
+            val expectedBytes = input.available().toLong()
+            if (targetFile.exists() && targetFile.length() == expectedBytes) {
+                return targetFile
+            }
+        }
+
+        app.assets.open("${AudioModelPackagePolicy.assetRoot}/ggml-model.bin").use { input ->
+            FileOutputStream(targetFile).use { output -> input.copyTo(output) }
+        }
+        return targetFile
     }
 
     fun analyzeCurrentTextAsAudioTranscript() {
@@ -4132,5 +4232,11 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             historyItems.clear()
             historyItems.addAll(items)
         }
+    }
+
+    override fun onCleared() {
+        speakerGuardSession?.stop()
+        speakerGuardSession = null
+        super.onCleared()
     }
 }

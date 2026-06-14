@@ -19,12 +19,14 @@ object AudioSafetyPolicy {
         modelAvailable: Boolean,
         nativeRuntimeAvailable: Boolean = false,
         privacyDisclosureAccepted: Boolean,
-        featureFlagEnabled: Boolean
+        featureFlagEnabled: Boolean,
+        microphonePermissionGranted: Boolean
     ): AudioCaptureDecision {
         val reasons = mutableListOf<String>()
         if (!featureFlagEnabled) reasons += "feature_flag_disabled"
         if (!explicitConsent) reasons += "explicit_consent_missing"
         if (!privacyDisclosureAccepted) reasons += "privacy_disclosure_missing"
+        if (!microphonePermissionGranted) reasons += "microphone_permission_missing"
         if (!modelAvailable) reasons += "asr_model_missing"
         if (!nativeRuntimeAvailable) reasons += "asr_native_runtime_missing"
         return AudioCaptureDecision(

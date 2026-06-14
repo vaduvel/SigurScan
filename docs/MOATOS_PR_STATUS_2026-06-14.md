@@ -197,7 +197,7 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 | PR-8 | Plan de actiune post-incident | Da | Da pentru flow de rezultat | `/v1/legal/action-plan` live OK; Android trimite impacts reale selectate si randeaza planul; planul apare in smoke emulator FAN fake |
 | PR-8/9 integ | `action_plan` in orchestrator + audio reference | Partial backend | Action plan functional; analiza locala a transcrierii functionala | Orchestratorul trimite `action_plan`; Android il afiseaza. Android reduce local transcrierea curenta la semnale si verdict, fara text brut in rezultat. Nu exista captura/ASR audio |
 | Extra | DNS reputation | Da | Da indirect prin scan response | `infra_dns` live OK; flag Cloud Run activ si pastrat in scriptul de deploy |
-| PR-9/PR-10 | Android on-device: Whisper.cpp ASR, banda inline, captura difuzor | Nu ca ASR complet | Analiza transcript local + engine verdict + UI readiness + Whisper native/model gated sigur | `AudioTranscriptEvidenceTest` acopera 34/34 fixture-uri realiste + zgomot ASR real; `WhisperCppAsrEngineTest` acopera contractul adapterului fara audio raw retinut; `AudioSafetyPolicyTest` acopera manifestul Whisper; instrumented test pe Nokia C22 confirma runtime native, model checksum/load si transcriere fixture RO. Modelul curent `tiny-q8_0` are ~12.9s pe fixture scurt, deci nu este real-time production |
+| PR-9/PR-10 | Android on-device: Whisper.cpp ASR, banda inline, captura difuzor | Partial: batch + Speaker Guard best-effort | Analiza transcript local + engine verdict + UI readiness + Start/Stop Speaker Guard + Whisper native/model gated sigur | `AudioTranscriptEvidenceTest` acopera 34/34 fixture-uri realiste + zgomot ASR real; `WhisperCppAsrEngineTest` acopera contractul adapterului fara audio raw retinut; `AudioSafetyPolicyTest` acopera manifestul Whisper si permisiunea microfon; instrumented test pe Nokia C22 confirma runtime native, model checksum/load si transcriere fixture RO. `SpeakerGuardSession` captureaza microfon 16 kHz in chunk-uri pentru apel pe difuzor, dar modelul curent `tiny-q8_0` are ~12.9s pe fixture scurt, deci alerta inline ramane best-effort, nu real-time strict |
 
 ## Gap-uri Care Nu Trebuie Numite Complete
 
@@ -221,12 +221,12 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
    - App-ul afiseaza `action_plan` primit in scan response.
    - App-ul permite declararea impacts reale si cere plan personalizat.
 
-4. PR-9/PR-10 Android audio are native/model functional pentru batch benchmark, dar nu este implementat ca ASR production real-time.
+4. PR-9/PR-10 Android audio are native/model functional pentru batch benchmark si Speaker Guard best-effort, dar nu este inca ASR production real-time strict.
    - Exista Whisper.cpp `v1.8.6` ca submodule, build NDK/CMake si `libsigurscan_whisper.so` ambalat in APK.
    - Exista model multilingual `ggml-tiny-q8_0` in `assets/asr/whispercpp/`, cu manifest SHA-256.
    - Pe Nokia C22, testul instrumentat confirma load runtime, load model si transcriere fixture romana, dar timpul optimizat este ~12.9s pentru un WAV scurt. Asta este acceptabil pentru batch scurt, dar prea lent pentru banda live/call real-time.
    - `tiny-q5_1` a fost mai lent (~16.4s), iar `tiny` full a fost mai mare/lent si nu este selectat.
-   - Nu exista inca captura difuzor/microfon production.
+   - Exista `SpeakerGuardSession` pentru user-started microphone capture cand apelul este pus pe difuzor: PCM mono 16 kHz, chunk-uri de 6s, queue de 1 chunk, drop la backpressure, Whisper local, evidence local, fara audio brut retinut in state.
    - Vosk nu mai este calea aleasa pentru Android; inlocuitorul selectat este Whisper.cpp.
    - Exista `AudioEvidenceEngine` + `AudioTranscriptEvidence` pentru reducerea locala a transcrierii la semnale audio/vishing; rezultatul nu stocheaza transcript brut si nu foloseste server audio.
    - Exista `WhisperCppAsrEngine` cu runtime native injectabil, contract PCM mono 16 kHz romana si fallback explicit `whisper_native_unavailable` cand JNI-ul lipseste.
@@ -234,10 +234,10 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
    - Readiness-ul modelului necesita pachetul `assets/asr/whispercpp/` cu `model-manifest.json` si `ggml-model.bin`; manifestul trebuie sa declare `engine=whisper.cpp`, `language=ro`, `sample_rate_hz=16000` si checksum SHA-256 valid.
    - Readiness-ul de captura necesita si runtime-ul native `sigurscan_whisper`; un model valid fara JNI ramane blocat cu `asr_native_runtime_missing`.
    - Lista oficiala Vosk verificata pe 2026-06-14 nu ofera model romanesc.
-   - `AudioSafetyPolicy` blocheaza capture fara feature flag, consimtamant, disclosure si model.
+   - `AudioSafetyPolicy` blocheaza capture fara feature flag, consimtamant, disclosure, model, runtime native si permisiune microfon.
    - `AndroidBuildConfigPolicyTest` confirma ca `SIGURSCAN_ENABLE_AUDIO_ASR` ramane false-by-default pentru debug/release.
-   - Manifestul Android nu cere `RECORD_AUDIO`; nu exista captura audio ascunsa.
-   - Manifestul este acoperit de `ShareIntentManifestTest`, inclusiv interdictia `RECORD_AUDIO`.
+   - Manifestul Android cere `RECORD_AUDIO` pentru Speaker Guard explicit pornit de user; nu cere SMS/call log/contacts si nu exista captura audio ascunsa.
+   - Manifestul este acoperit de `ShareIntentManifestTest`, inclusiv permisiunea microfon revizuita pentru Speaker Guard.
    - Android are card readiness pentru consimtamant/disclosure/model/feature flag; nu cere permisiune microfon si nu porneste captura falsa.
 
 5. Gate/UX pentru `urlz.fr/rZrw` este rezolvat live pentru cazul shortener + final URL nerezolvabil + DNS suspendat.

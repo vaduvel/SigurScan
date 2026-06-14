@@ -35,7 +35,6 @@ class ShareIntentManifestTest {
             "android.permission.SEND_SMS",
             "android.permission.READ_CALL_LOG",
             "android.permission.READ_CONTACTS",
-            "android.permission.RECORD_AUDIO",
             "android.permission.POST_NOTIFICATIONS"
         )
 
@@ -45,6 +44,14 @@ class ShareIntentManifestTest {
                 manifest.contains("""android:name="$permission"""")
             )
         }
+    }
+
+    @Test
+    fun speakerGuardDeclaresReviewedMicrophonePermission() {
+        assertTrue(
+            "Speaker Guard needs explicit RECORD_AUDIO for user-started microphone capture.",
+            manifest.contains("""android:name="android.permission.RECORD_AUDIO"""")
+        )
     }
 
     @Test

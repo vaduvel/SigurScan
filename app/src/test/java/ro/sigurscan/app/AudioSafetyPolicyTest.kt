@@ -12,7 +12,8 @@ class AudioSafetyPolicyTest {
             explicitConsent = false,
             modelAvailable = false,
             privacyDisclosureAccepted = false,
-            featureFlagEnabled = false
+            featureFlagEnabled = false,
+            microphonePermissionGranted = false
         )
 
         assertFalse(decision.allowed)
@@ -26,7 +27,8 @@ class AudioSafetyPolicyTest {
             modelAvailable = true,
             nativeRuntimeAvailable = true,
             privacyDisclosureAccepted = true,
-            featureFlagEnabled = true
+            featureFlagEnabled = true,
+            microphonePermissionGranted = true
         )
 
         assertTrue(decision.allowed)
@@ -39,7 +41,8 @@ class AudioSafetyPolicyTest {
             modelAvailable = true,
             nativeRuntimeAvailable = false,
             privacyDisclosureAccepted = true,
-            featureFlagEnabled = true
+            featureFlagEnabled = true,
+            microphonePermissionGranted = true
         )
 
         assertFalse(decision.allowed)
@@ -52,7 +55,8 @@ class AudioSafetyPolicyTest {
             explicitConsent = true,
             modelAvailable = false,
             privacyDisclosureAccepted = true,
-            featureFlagEnabled = true
+            featureFlagEnabled = true,
+            microphonePermissionGranted = true
         )
 
         assertFalse(decision.allowed)
@@ -65,11 +69,27 @@ class AudioSafetyPolicyTest {
             explicitConsent = true,
             modelAvailable = true,
             privacyDisclosureAccepted = false,
-            featureFlagEnabled = true
+            featureFlagEnabled = true,
+            microphonePermissionGranted = true
         )
 
         assertFalse(decision.allowed)
         assertTrue(decision.reasonCodes.contains("privacy_disclosure_missing"))
+    }
+
+    @Test
+    fun microphonePermissionIsRequiredForSpeakerGuardCapture() {
+        val decision = AudioSafetyPolicy.canStartCapture(
+            explicitConsent = true,
+            modelAvailable = true,
+            nativeRuntimeAvailable = true,
+            privacyDisclosureAccepted = true,
+            featureFlagEnabled = true,
+            microphonePermissionGranted = false
+        )
+
+        assertFalse(decision.allowed)
+        assertTrue(decision.reasonCodes.contains("microphone_permission_missing"))
     }
 
     @Test

@@ -802,6 +802,23 @@ fun QrScannerScreen(
 @Composable
 fun RadarTab(viewModel: ScannerViewModel) {
     val context = LocalContext.current
+    var hasMicrophonePermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    val microphonePermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        hasMicrophonePermission = granted
+        viewModel.refreshAudioReadiness()
+        if (granted) {
+            viewModel.startSpeakerGuard()
+        } else {
+            viewModel.audioReadinessStatus = "Permisiunea microfonului este necesară pentru Speaker Guard."
+        }
+    }
     val locatedCampaigns = remember(viewModel.campaigns) {
         viewModel.campaigns.count { it.lat != null && it.lon != null }
     }
@@ -872,7 +889,17 @@ fun RadarTab(viewModel: ScannerViewModel) {
             onConsentChanged = { viewModel.setAudioConsent(it) },
             onDisclosureChanged = { viewModel.setAudioPrivacyDisclosureAccepted(it) },
             onRefresh = { viewModel.refreshAudioReadiness() },
-            onAnalyzeTranscript = { viewModel.analyzeCurrentTextAsAudioTranscript() }
+            onAnalyzeTranscript = { viewModel.analyzeCurrentTextAsAudioTranscript() },
+            speakerGuard = viewModel.speakerGuardSnapshot,
+            hasMicrophonePermission = hasMicrophonePermission,
+            onStartSpeakerGuard = {
+                if (!hasMicrophonePermission) {
+                    microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                } else {
+                    viewModel.startSpeakerGuard()
+                }
+            },
+            onStopSpeakerGuard = { viewModel.stopSpeakerGuard() }
         )
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -1317,7 +1344,11 @@ private fun AudioAsrReadinessCard(
     onConsentChanged: (Boolean) -> Unit,
     onDisclosureChanged: (Boolean) -> Unit,
     onRefresh: () -> Unit,
-    onAnalyzeTranscript: () -> Unit
+    onAnalyzeTranscript: () -> Unit,
+    speakerGuard: SpeakerGuardSnapshot,
+    hasMicrophonePermission: Boolean,
+    onStartSpeakerGuard: () -> Unit,
+    onStopSpeakerGuard: () -> Unit
 ) {
     val blocked = !snapshot.decision.allowed
     Card(
@@ -1341,6 +1372,7 @@ private fun AudioAsrReadinessCard(
             ReadinessRow("Feature flag", snapshot.featureFlagEnabled)
             ReadinessRow("Model Whisper local", snapshot.modelAvailable)
             ReadinessRow("Runtime Whisper native", snapshot.nativeRuntimeAvailable)
+            ReadinessRow("Permisiune microfon", snapshot.microphonePermissionGranted || hasMicrophonePermission)
             ReadinessRow("Consimțământ explicit", snapshot.explicitConsent)
             ReadinessRow("Disclosure privacy acceptat", snapshot.privacyDisclosureAccepted)
 
@@ -1374,6 +1406,9 @@ private fun AudioAsrReadinessCard(
                 )
             }
 
+            Spacer(modifier = Modifier.height(10.dp))
+            SpeakerGuardStatusBlock(speakerGuard)
+
             Spacer(modifier = Modifier.height(12.dp))
             Button(
                 onClick = onRefresh,
@@ -1388,6 +1423,32 @@ private fun AudioAsrReadinessCard(
             }
             Spacer(modifier = Modifier.height(8.dp))
             Button(
+                onClick = if (speakerGuard.active) onStopSpeakerGuard else onStartSpeakerGuard,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (speakerGuard.active) SigurColors.DangerousLight else SigurColors.SafeLight
+                ),
+                border = BorderStroke(
+                    1.dp,
+                    if (speakerGuard.active) SigurColors.DangerousBorder else SigurColors.SafeBorder
+                ),
+                shape = DSPillShape
+            ) {
+                Icon(
+                    if (speakerGuard.active) Icons.Default.Stop else Icons.Default.Mic,
+                    contentDescription = null,
+                    tint = if (speakerGuard.active) SigurColors.Dangerous else SigurColors.Safe,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    if (speakerGuard.active) "Oprește Speaker Guard" else "Pornește Speaker Guard",
+                    color = if (speakerGuard.active) SigurColors.Dangerous else SigurColors.Safe,
+                    fontSize = 11.sp
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
                 onClick = onAnalyzeTranscript,
                 enabled = hasAssessment,
                 modifier = Modifier.fillMaxWidth(),
@@ -1398,6 +1459,67 @@ private fun AudioAsrReadinessCard(
                 Icon(Icons.Default.Security, contentDescription = null, tint = SigurColors.TextPrimary, modifier = Modifier.size(14.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text("Analizează transcrierea curentă", color = SigurColors.TextPrimary, fontSize = 11.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpeakerGuardStatusBlock(snapshot: SpeakerGuardSnapshot) {
+    val tone = when (snapshot.latestVerdict) {
+        AudioEvidenceVerdict.DANGEROUS -> DSChipTone.Danger
+        AudioEvidenceVerdict.SUSPECT -> DSChipTone.Suspect
+        AudioEvidenceVerdict.UNVERIFIED -> DSChipTone.Neutral
+        null -> if (snapshot.active) DSChipTone.Brand else DSChipTone.Neutral
+    }
+    Card(
+        colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundSurface),
+        border = BorderStroke(1.dp, SigurColors.BorderSubtle),
+        shape = DSCardShape,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    if (snapshot.active) Icons.Default.GraphicEq else Icons.Default.MicOff,
+                    contentDescription = null,
+                    tint = if (snapshot.active) SigurColors.Brand else SigurColors.TextMuted,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Speaker Guard", color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Spacer(modifier = Modifier.weight(1f))
+                DSChip(
+                    when {
+                        snapshot.latestVerdict == AudioEvidenceVerdict.DANGEROUS -> "PERICULOS"
+                        snapshot.latestVerdict == AudioEvidenceVerdict.SUSPECT -> "SUSPECT"
+                        snapshot.active -> "ascultă"
+                        else -> "oprit"
+                    },
+                    tone = tone
+                )
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                snapshot.status,
+                color = SigurColors.TextSecondary,
+                fontSize = 11.sp,
+                lineHeight = 15.sp
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                "Fragmente analizate: ${snapshot.chunksAnalyzed} · pierdute: ${snapshot.chunksDropped} · audio brut salvat: nu",
+                color = SigurColors.TextMuted,
+                fontSize = 10.sp,
+                lineHeight = 14.sp
+            )
+            snapshot.latestLatencyMs?.let { latency ->
+                Text(
+                    "Ultima analiză: ${latency / 1000.0}s${snapshot.latestArcFamily?.let { " · $it" } ?: ""}",
+                    color = SigurColors.TextMuted,
+                    fontSize = 10.sp,
+                    lineHeight = 14.sp
+                )
             }
         }
     }
