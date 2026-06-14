@@ -174,6 +174,17 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
   - eMAG tracking official: `SAFE`, final `https://auth.emag.ro/user/login`, preview screenshot/report prezente, provideri: `google_web_risk`, `urlhaus`, `phishing_database`, `urlscan`, `infra_dns`, `infra_domain_age`, `ai_offer_web_check`
   - Google Web Risk phishing test: `DANGEROUS`, final, provideri: `google_web_risk`, `urlhaus`, `phishing_database`, `infra_dns`, `ai_offer_web_check`
   - iDroid status: `SAFE`, final `https://idroid.ro/verifica-status/`, preview screenshot/report prezente, provideri: `google_web_risk`, `urlhaus`, `phishing_database`, `urlscan`, `infra_dns`, `infra_domain_age`, `ai_offer_web_check`
+- Post-deploy edge/security smoke dupa `893832e`:
+  - report: `build/reports/live_edge_security_smoke_2026-06-14_after_893832e.json`
+  - rezultat: `4/4 passed`, `0 failed`
+  - `/health`: `HTTP 200`, `status=ok`, `strict-transport-security=max-age=31536000; includeSubDomains`, `x-sigurscan-edge=cloudflare`, `cache-control=no-store`
+  - `http://api.sigurscan.com/health`: `HTTP 308` catre HTTPS
+  - POST `/v1/scan/orchestrated` fara API key: `HTTP 401`, `Missing or invalid API key.`, `cache-control=no-store`
+  - GET `/v1/btr/sync` fara API key: `HTTP 401`, `Missing or invalid API key.`, `cache-control=no-store`
+- Cloud Run post-deploy observability:
+  - `gcloud logging read` pe `sigurscan-api-00053-d9d`, `severity>=ERROR`, `freshness=2h`: `[]`
+  - Cloud Build `fa67cbf2-7c61-460b-a706-28b36080cb10`: `SUCCESS`
+  - Artifact digest: `sha256:b52ac50e70760daad92271709a422e3b8f8851f6470ed12b0e1d211ffa957f4f`
 - Android emulator QA API 36 (`Medium_Phone_API_36.1`):
   - APK debug instalat cu succes pe `emulator-5554`.
   - Launch `ro.sigurscan.app/.MainActivity`: OK, fara crash `AndroidRuntime` pentru app.
@@ -300,6 +311,7 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 - YOXO buyback, SMYK catalog, eMAG tracking si iDroid status: `SAFE`, finale, toate cu screenshot preview si urlscan report.
 - Google Web Risk phishing test: `DANGEROUS`, final.
 - Endpoint contract matrix PR-0..PR-8: `build/reports/live_contract_smoke_2026-06-14_after_provenance_alias_deploy.json` -> 12/12 passed pe domeniul oficial.
+- Edge/security smoke: `build/reports/live_edge_security_smoke_2026-06-14_after_893832e.json` -> 4/4 passed; fara erori Cloud Run `severity>=ERROR` pe revizia `00053-d9d` in fereastra verificata.
 - PR-0..PR-4: provenance YOXO cu canal contractual `official_website` -> `match`; Urechea are surse active; CFX produce fingerprint si match-uri.
 - PR-0..PR-4: provenance YOXO cu alias live `web` -> `match` dupa normalizarea din `893832e`.
 - PR-5: Radar hot-cache are schema valida; raportul 1-tap produce canale DNSC + PNRISC precompletate.
