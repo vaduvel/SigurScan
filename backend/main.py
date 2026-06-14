@@ -5104,6 +5104,35 @@ def _urlscan_preview_cache_key(final_url: Any) -> Optional[str]:
     return hashlib.sha256(canonical_url.encode("utf-8")).hexdigest()
 
 
+def _fast_preview_cache_lookup_keys(final_url: Any) -> List[str]:
+    canonical_url = _canonical_urlscan_preview_cache_url(final_url)
+    if not canonical_url:
+        return []
+    candidates = [canonical_url]
+    try:
+        parsed = urllib.parse.urlsplit(canonical_url)
+    except Exception:
+        parsed = None
+    if parsed and parsed.query:
+        queryless_url = urllib.parse.urlunsplit(
+            (
+                parsed.scheme,
+                parsed.netloc,
+                parsed.path or "/",
+                "",
+                "",
+            )
+        )
+        if queryless_url and queryless_url not in candidates:
+            candidates.append(queryless_url)
+    keys: List[str] = []
+    for candidate in candidates:
+        cache_key = _urlscan_preview_cache_key(candidate)
+        if cache_key and cache_key not in keys:
+            keys.append(cache_key)
+    return keys
+
+
 def _urlscan_preview_cache_is_fresh(entry: Dict[str, Any]) -> bool:
     raw_expires_at = entry.get("expires_at")
     try:
@@ -5253,23 +5282,33 @@ def _normalize_fast_preview_cache_entry(entry: Any) -> Optional[Dict[str, Any]]:
 
 
 def _load_fast_preview_cache(final_url: Any) -> Optional[Dict[str, Any]]:
-    cache_key = _urlscan_preview_cache_key(final_url)
-    if not cache_key:
+    cache_keys = _fast_preview_cache_lookup_keys(final_url)
+    if not cache_keys:
         return None
 
-    cached = _normalize_fast_preview_cache_entry(_FAST_PREVIEW_CACHE.get(cache_key))
-    if cached:
-        return cached
+    for cache_key in cache_keys:
+        cached = _normalize_fast_preview_cache_entry(_FAST_PREVIEW_CACHE.get(cache_key))
+        if cached:
+            return cached
 
-    persisted = _normalize_fast_preview_cache_entry(supabase_store.load_fast_preview_cache(cache_key))
-    if not persisted:
-        alias = supabase_store.load_fast_preview_alias_cache(cache_key)
-        final_hash = str((alias or {}).get("final_url_hash") or "").strip()
-        if final_hash and final_hash != cache_key:
-            persisted = _normalize_fast_preview_cache_entry(supabase_store.load_fast_preview_cache(final_hash))
+    persisted = None
+    persisted_key = None
+    for cache_key in cache_keys:
+        persisted = _normalize_fast_preview_cache_entry(supabase_store.load_fast_preview_cache(cache_key))
+        persisted_key = cache_key if persisted else None
+        if not persisted:
+            alias = supabase_store.load_fast_preview_alias_cache(cache_key)
+            final_hash = str((alias or {}).get("final_url_hash") or "").strip()
+            if final_hash and final_hash != cache_key:
+                persisted = _normalize_fast_preview_cache_entry(supabase_store.load_fast_preview_cache(final_hash))
+                persisted_key = final_hash if persisted else None
+        if persisted:
+            break
 
     if persisted:
-        _FAST_PREVIEW_CACHE[cache_key] = persisted
+        _FAST_PREVIEW_CACHE[cache_keys[0]] = persisted
+        if persisted_key:
+            _FAST_PREVIEW_CACHE[persisted_key] = persisted
         if len(_FAST_PREVIEW_CACHE) > FAST_PREVIEW_CACHE_MAX_ENTRIES:
             oldest_key = next(iter(_FAST_PREVIEW_CACHE))
             _FAST_PREVIEW_CACHE.pop(oldest_key, None)

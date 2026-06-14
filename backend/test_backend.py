@@ -4602,6 +4602,49 @@ def test_fast_preview_cache_hit_is_visual_only(monkeypatch):
     assert "urlscan" not in updated["analysis"]["evidence"]["external_intel_summary"]
 
 
+def test_fast_preview_cache_uses_queryless_visual_fallback(monkeypatch):
+    requested_url = "https://www.yoxo.ro/?pid=sms&shortlink=wax1s1w6"
+    queryless_url = "https://www.yoxo.ro/"
+    queryless_key = app_main._urlscan_preview_cache_key(queryless_url)
+    assert queryless_key
+    app_main._FAST_PREVIEW_CACHE.clear()
+
+    row = {
+        "url_hash": queryless_key,
+        "original_url": queryless_url,
+        "final_url": queryless_url,
+        "final_domain": "www.yoxo.ro",
+        "screenshot_path": f"{queryless_key}.png",
+        "screenshot_w": 1365,
+        "screenshot_h": 2200,
+        "page_title": "YOXO",
+        "reachable": True,
+        "status": "ready",
+        "source": "precapture_worker",
+        "visual_only": True,
+        "verdict_role": "none",
+        "expires_at": int(time.time()) + 3600,
+    }
+
+    seen_hashes = []
+
+    def fake_load_fast_preview_cache(url_hash):
+        seen_hashes.append(url_hash)
+        return dict(row) if url_hash == queryless_key else None
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main.supabase_store, "load_fast_preview_cache", fake_load_fast_preview_cache)
+        patched.setattr(app_main.supabase_store, "load_fast_preview_alias_cache", lambda alias_hash: None)
+        patched.setattr(app_main.supabase_store, "create_preview_signed_url", lambda path, **kwargs: f"https://signed.example/{path}")
+        cached = app_main._load_fast_preview_cache(requested_url)
+
+    assert cached is not None
+    assert cached["source"] == "precapture_worker"
+    assert cached["final_url"] == queryless_url
+    assert cached["screenshot_url"] == f"https://signed.example/{queryless_key}.png"
+    assert queryless_key in seen_hashes
+
+
 def test_fast_preview_memory_cache_reuses_live_signed_url(monkeypatch):
     final_url = "https://www.fancourier.ro/"
     cache_key = app_main._urlscan_preview_cache_key(final_url)
