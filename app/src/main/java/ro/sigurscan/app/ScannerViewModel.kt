@@ -568,7 +568,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 radarScreeningAudit = radarScreeningAuditStore.load()
                 btrSyncSnapshot = btrSyncStore.load()
                 circleSnapshot = loadCircleProtectionSnapshot()
-                refreshAudioReadiness()
+                audioReadinessStatus = "Apasă readiness sau pornește Speaker Guard pentru verificarea locală."
             }
         }
     }
@@ -889,31 +889,73 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun refreshAudioReadiness() {
-        val microphonePermissionGranted = ContextCompat.checkSelfPermission(
-            getApplication<Application>(),
-            Manifest.permission.RECORD_AUDIO
-        ) == PackageManager.PERMISSION_GRANTED
-        val modelReadiness = runCatching {
-            val assets = getApplication<Application>().assets
-            val existingFiles = AudioModelPackagePolicy.requiredFiles.filterTo(mutableSetOf()) { path ->
-                runCatching {
-                    assets.open("${AudioModelPackagePolicy.assetRoot}/$path").use { it.read() }
-                    true
-                }.getOrDefault(false)
-            }
-            if (!AudioModelPackagePolicy.isComplete(existingFiles)) {
-                false to listOf("asr_model_missing")
+        audioReadinessStatus = "Verificăm readiness audio local."
+        viewModelScope.launch {
+            val (snapshot, reasons) = evaluateAudioReadiness(audioReadiness)
+            audioReadiness = snapshot
+            audioReadinessStatus = if (snapshot.decision.allowed) {
+                "Whisper local este pregătit. Captura rămâne on-device."
             } else {
-                val manifest = assets.open("${AudioModelPackagePolicy.assetRoot}/model-manifest.json").use { input ->
-                    AudioModelPackagePolicy.parseManifest(input.bufferedReader().readText())
-                }
-                manifest.valid to manifest.reasonCodes
+                "ASR audio rămâne blocat: ${reasons.joinToString(", ")}."
             }
-        }.getOrDefault(false to listOf("asr_model_missing"))
-        val updated = audioReadiness.copy(
+        }
+    }
+
+    fun startSpeakerGuard() {
+        if (speakerGuardSession?.active == true) return
+
+        audioReadinessStatus = "Pregătim modelul Whisper local."
+        viewModelScope.launch {
+            val (snapshot, reasons) = evaluateAudioReadiness(audioReadiness)
+            audioReadiness = snapshot
+            val decision = snapshot.decision
+            if (!decision.allowed) {
+                audioReadinessStatus = "Speaker Guard nu poate porni: ${reasons.joinToString(", ")}."
+                return@launch
+            }
+            val modelFile = withContext(Dispatchers.IO) { prepareWhisperModelFile() }
+            val session = SpeakerGuardSession(getApplication())
+            speakerGuardSession = session
+            session.start(viewModelScope, modelFile.absolutePath) { update ->
+                viewModelScope.launch(Dispatchers.Main) {
+                    applySpeakerGuardUpdate(update)
+                }
+            }
+        }
+    }
+
+    private suspend fun evaluateAudioReadiness(base: AudioReadinessSnapshot): Pair<AudioReadinessSnapshot, List<String>> {
+        val app = getApplication<Application>()
+        val result = withContext(Dispatchers.IO) {
+            val microphonePermissionGranted = ContextCompat.checkSelfPermission(
+                app,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+            val modelReadiness = runCatching {
+                val assets = app.assets
+                val existingFiles = AudioModelPackagePolicy.requiredFiles.filterTo(mutableSetOf()) { path ->
+                    runCatching {
+                        assets.open("${AudioModelPackagePolicy.assetRoot}/$path").use { it.read() }
+                        true
+                    }.getOrDefault(false)
+                }
+                if (!AudioModelPackagePolicy.isComplete(existingFiles)) {
+                    false to listOf("asr_model_missing")
+                } else {
+                    val manifest = assets.open("${AudioModelPackagePolicy.assetRoot}/model-manifest.json").use { input ->
+                        AudioModelPackagePolicy.parseManifest(input.bufferedReader().readText())
+                    }
+                    manifest.valid to manifest.reasonCodes
+                }
+            }.getOrDefault(false to listOf("asr_model_missing"))
+            val nativeReady = WhisperCppNativeBridge.available
+            Triple(microphonePermissionGranted, modelReadiness, nativeReady)
+        }
+        val (microphonePermissionGranted, modelReadiness, nativeReady) = result
+        val updated = base.copy(
             featureFlagEnabled = BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR,
             modelAvailable = modelReadiness.first,
-            nativeRuntimeAvailable = WhisperCppNativeBridge.available,
+            nativeRuntimeAvailable = nativeReady,
             microphonePermissionGranted = microphonePermissionGranted
         )
         val decision = AudioSafetyPolicy.canStartCapture(
@@ -924,35 +966,8 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             featureFlagEnabled = updated.featureFlagEnabled,
             microphonePermissionGranted = updated.microphonePermissionGranted
         )
-        audioReadiness = updated.copy(decision = decision)
-        audioReadinessStatus = if (decision.allowed) {
-            "Whisper local este pregătit. Captura rămâne on-device."
-        } else {
-            val reasons = (decision.reasonCodes + modelReadiness.second).distinct()
-            "ASR audio rămâne blocat: ${reasons.joinToString(", ")}."
-        }
-    }
-
-    fun startSpeakerGuard() {
-        refreshAudioReadiness()
-        val decision = audioReadiness.decision
-        if (!decision.allowed) {
-            audioReadinessStatus = "Speaker Guard nu poate porni: ${decision.reasonCodes.joinToString(", ")}."
-            return
-        }
-        if (speakerGuardSession?.active == true) return
-
-        audioReadinessStatus = "Pregătim modelul Whisper local."
-        viewModelScope.launch {
-            val modelFile = withContext(Dispatchers.IO) { prepareWhisperModelFile() }
-            val session = SpeakerGuardSession(getApplication())
-            speakerGuardSession = session
-            session.start(viewModelScope, modelFile.absolutePath) { update ->
-                viewModelScope.launch(Dispatchers.Main) {
-                    applySpeakerGuardUpdate(update)
-                }
-            }
-        }
+        val reasons = (decision.reasonCodes + modelReadiness.second).distinct()
+        return updated.copy(decision = decision) to reasons
     }
 
     fun stopSpeakerGuard() {

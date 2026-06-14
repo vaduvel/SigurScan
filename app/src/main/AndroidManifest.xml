@@ -65,6 +65,8 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="sigurscan" android:host="scan" />
+                <data android:scheme="sigurscan" android:host="radar" />
+                <data android:scheme="sigurscan" android:host="speaker-guard" />
             </intent-filter>
         </activity>
 

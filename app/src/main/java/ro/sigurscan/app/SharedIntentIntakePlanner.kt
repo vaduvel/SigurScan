@@ -12,6 +12,7 @@ internal enum class SharedIntentAutoScan {
 
 internal sealed interface SharedIntentIntakePlan {
     data class DeepLink(val text: String?) : SharedIntentIntakePlan
+    data class Navigate(val destination: SharedIntentDestination) : SharedIntentIntakePlan
 
     data class SharedContent(
         val textPayload: ResolvedSharedTextPayload?,
@@ -23,9 +24,15 @@ internal sealed interface SharedIntentIntakePlan {
     data object Ignore : SharedIntentIntakePlan
 }
 
+internal enum class SharedIntentDestination {
+    RADAR,
+    SPEAKER_GUARD
+}
+
 internal interface SharedIntentIntakeSink {
     fun clear()
     fun showDeepLink(text: String?)
+    fun navigate(destination: SharedIntentDestination)
     fun stageText(payload: ResolvedSharedTextPayload, preservePendingFiles: Boolean)
     fun stageFile(uri: Uri, fallbackMime: String, preserveSharedTextState: Boolean)
     fun scanText()
@@ -37,6 +44,9 @@ internal fun buildSharedIntentIntakePlan(intent: Intent?): SharedIntentIntakePla
 
     if (intent.action == Intent.ACTION_VIEW && isDeepLinkScanIntent(intent)) {
         return SharedIntentIntakePlan.DeepLink(resolveDeepLinkScanText(intent))
+    }
+    if (intent.action == Intent.ACTION_VIEW && isDeepLinkRadarIntent(intent)) {
+        return SharedIntentIntakePlan.Navigate(resolveDeepLinkDestination(intent))
     }
 
     if (intent.action != Intent.ACTION_SEND && intent.action != Intent.ACTION_SEND_MULTIPLE) {
@@ -81,6 +91,7 @@ internal fun executeSharedIntentIntakePlan(
 ) {
     when (plan) {
         is SharedIntentIntakePlan.DeepLink -> sink.showDeepLink(plan.text)
+        is SharedIntentIntakePlan.Navigate -> sink.navigate(plan.destination)
         SharedIntentIntakePlan.Ignore -> Unit
         is SharedIntentIntakePlan.SharedContent -> {
             sink.clear()

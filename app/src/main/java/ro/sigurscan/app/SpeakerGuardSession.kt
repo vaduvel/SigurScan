@@ -9,6 +9,7 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
@@ -43,6 +44,10 @@ class SpeakerGuardSession(
     private val asrEngine: WhisperCppAsrEngine = WhisperCppAsrEngine()
 ) {
     private var job: Job? = null
+    @Volatile
+    private var activeAudioRecord: AudioRecord? = null
+    @Volatile
+    private var stopRequested: Boolean = false
 
     val active: Boolean
         get() = job?.isActive == true
@@ -53,10 +58,14 @@ class SpeakerGuardSession(
         onUpdate: (SpeakerGuardUpdate) -> Unit
     ) {
         if (active) return
+        stopRequested = false
         job = scope.launch(Dispatchers.Default) {
             runCatching {
                 runCaptureLoop(modelPath, onUpdate)
             }.onFailure { throwable ->
+                if (stopRequested || throwable is CancellationException) {
+                    return@onFailure
+                }
                 onUpdate(
                     SpeakerGuardUpdate(
                         phase = SpeakerGuardPhase.ERROR,
@@ -70,7 +79,9 @@ class SpeakerGuardSession(
     }
 
     fun stop() {
+        stopRequested = true
         job?.cancel()
+        releaseActiveAudioRecord()
         job = null
     }
 
@@ -143,6 +154,7 @@ class SpeakerGuardSession(
         var chunksDropped = 0
 
         try {
+            activeAudioRecord = audioRecord
             audioRecord.startRecording()
             onUpdate(
                 SpeakerGuardUpdate(
@@ -226,8 +238,10 @@ class SpeakerGuardSession(
             processor.cancel()
         } finally {
             chunks.close()
-            runCatching { audioRecord.stop() }
-            audioRecord.release()
+            if (activeAudioRecord === audioRecord) {
+                activeAudioRecord = null
+            }
+            releaseAudioRecord(audioRecord)
             onUpdate(
                 SpeakerGuardUpdate(
                     phase = SpeakerGuardPhase.STOPPED,
@@ -238,6 +252,18 @@ class SpeakerGuardSession(
                 )
             )
         }
+    }
+
+    private fun releaseActiveAudioRecord() {
+        activeAudioRecord?.let { audioRecord ->
+            activeAudioRecord = null
+            releaseAudioRecord(audioRecord)
+        }
+    }
+
+    private fun releaseAudioRecord(audioRecord: AudioRecord) {
+        runCatching { audioRecord.stop() }
+        runCatching { audioRecord.release() }
     }
 
     private fun statusFor(result: LocalAsrResult): String {

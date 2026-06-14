@@ -57,6 +57,30 @@ class SharedIntentStreamExtractorInstrumentedTest {
     }
 
     @Test
+    fun deepLinkRadarPlansRadarNavigation() {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("sigurscan://radar"))
+
+        val plan = buildSharedIntentIntakePlan(intent)
+
+        assertEquals(
+            SharedIntentIntakePlan.Navigate(SharedIntentDestination.RADAR),
+            plan
+        )
+    }
+
+    @Test
+    fun deepLinkSpeakerGuardPlansSpeakerGuardNavigation() {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("sigurscan://speaker-guard"))
+
+        val plan = buildSharedIntentIntakePlan(intent)
+
+        assertEquals(
+            SharedIntentIntakePlan.Navigate(SharedIntentDestination.SPEAKER_GUARD),
+            plan
+        )
+    }
+
+    @Test
     fun actionSendPrefersExtraHtmlTextOverVisibleText() {
         val html = """<a href="https://rides.sng.link/Aw5zn/hw3r?_fallback_redirect=https%3A%2F%2Fwww.uber.com">Comandă o cursă</a>"""
         val intent = Intent(Intent.ACTION_SEND)
@@ -279,6 +303,10 @@ class SharedIntentStreamExtractorInstrumentedTest {
 
             override fun showDeepLink(text: String?) {
                 events += "deep:$text"
+            }
+
+            override fun navigate(destination: SharedIntentDestination) {
+                events += "navigate:$destination"
             }
 
             override fun stageText(payload: ResolvedSharedTextPayload, preservePendingFiles: Boolean) {

@@ -128,6 +128,18 @@ private fun handleIncomingIntent(context: Context, intent: Intent?, viewModel: S
                 viewModel.currentTab = "scan"
             }
 
+            override fun navigate(destination: SharedIntentDestination) {
+                when (destination) {
+                    SharedIntentDestination.RADAR -> {
+                        viewModel.currentTab = "radar"
+                    }
+                    SharedIntentDestination.SPEAKER_GUARD -> {
+                        viewModel.currentTab = "radar"
+                        viewModel.audioReadinessStatus = "Pune apelul pe difuzor, apoi pornește Speaker Guard."
+                    }
+                }
+            }
+
             override fun stageText(payload: ResolvedSharedTextPayload, preservePendingFiles: Boolean) {
                 viewModel.stageSharedTextPayload(
                     payload = payload.text,
@@ -301,6 +313,26 @@ internal fun isDeepLinkScanIntent(intent: Intent?): Boolean {
     if (!"sigurscan".equals(data.scheme, ignoreCase = true)) return false
     val host = data.host?.lowercase(Locale.getDefault())
     return host == "scan" || data.path?.trim('/')?.lowercase(Locale.getDefault()) == "scan"
+}
+
+internal fun isDeepLinkRadarIntent(intent: Intent?): Boolean {
+    val data = intent?.data ?: return false
+    if (!"sigurscan".equals(data.scheme, ignoreCase = true)) return false
+    val target = data.host?.lowercase(Locale.getDefault())
+        ?: data.path?.trim('/')?.lowercase(Locale.getDefault())
+        ?: return false
+    return target == "radar" || target == "speaker-guard"
+}
+
+internal fun resolveDeepLinkDestination(intent: Intent?): SharedIntentDestination {
+    val data = intent?.data
+    val target = data?.host?.lowercase(Locale.getDefault())
+        ?: data?.path?.trim('/')?.lowercase(Locale.getDefault())
+    return if (target == "speaker-guard") {
+        SharedIntentDestination.SPEAKER_GUARD
+    } else {
+        SharedIntentDestination.RADAR
+    }
 }
 
 @Composable
