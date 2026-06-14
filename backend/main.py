@@ -4308,6 +4308,23 @@ def _user_recommended_action(risk_level: str) -> str:
     return "Trimiteți mesajul în format original (sau emailul .eml) pentru o verificare completă."
 
 
+def _preventive_action_plan_for_scan(analysis_results: Dict[str, Any], user_label: str) -> Optional[Dict[str, Any]]:
+    if str(user_label or "").upper() not in {"DANGEROUS", "SUSPECT"}:
+        return None
+    if isinstance(analysis_results.get("action_plan"), dict):
+        return analysis_results.get("action_plan")
+    try:
+        from services.legal_action_plan import build_action_plan
+
+        return build_action_plan(
+            verdict=str(user_label or "SUSPECT").upper(),
+            family=analysis_results.get("detected_family_id") or analysis_results.get("detected_family"),
+            impacts=["none"],
+        )
+    except Exception:
+        return None
+
+
 def _build_scan_response(
     scan_id_prefix: str,
     analysis_results: Dict[str, Any],
@@ -4321,13 +4338,14 @@ def _build_scan_response(
 ) -> Dict[str, Any]:
     normalized_risk_level = risk_level if risk_level is not None else analysis_results.get("risk_level", "unknown")
     user_facing_risk_level = _normalize_user_facing_risk_level(normalized_risk_level)
+    user_facing_label = _user_risk_level_label(user_facing_risk_level)
     user_facing_risk_text = _user_risk_level_text(user_facing_risk_level)
     payload = {
         "scan_id": scan_id or _new_scan_id(scan_id_prefix),
         "risk_score": risk_score if risk_score is not None else analysis_results.get("risk_score", 0),
         "risk_level": normalized_risk_level,
         "user_risk_level": user_facing_risk_level,
-        "user_risk_label": _user_risk_level_label(user_facing_risk_level),
+        "user_risk_label": user_facing_label,
         "user_risk_text": user_facing_risk_text,
         "user_recommended_action": _user_recommended_action(user_facing_risk_level),
         "detected_family": analysis_results.get("detected_family", "Necunoscut"),
@@ -4349,7 +4367,7 @@ def _build_scan_response(
         # Prezent doar pe ruta ofertă; clientul îl randează verbatim, sub verdict.
         "legal": analysis_results.get("legal"),
         # PR-8: plan de acțiune preventiv (TriageScreen), prezent pe verdicte de risc.
-        "action_plan": analysis_results.get("action_plan"),
+        "action_plan": _preventive_action_plan_for_scan(analysis_results, user_facing_label),
     }
     if extra_fields:
         payload.update(extra_fields)

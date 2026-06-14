@@ -6081,6 +6081,55 @@ def test_build_scan_response_exposes_non_technical_status():
     assert payload["user_risk_label"] == "DANGEROUS"
 
 
+def test_build_scan_response_attaches_preventive_action_plan_for_risky_verdicts():
+    payload = _build_scan_response(
+        "text",
+        analysis_results={
+            "risk_score": 82,
+            "risk_level": "high",
+            "detected_family": "Scam bancar",
+            "detected_family_id": "CONV_BANK_SAFE_ACCOUNT",
+        },
+        redacted_text="mesaj test",
+        ai_explanation={},
+    )
+
+    plan = payload.get("action_plan")
+    assert plan is not None
+    assert plan["label"] == "Plan de acțiune"
+    assert plan["verdict"] == "DANGEROUS"
+    assert plan["impacts"] == ["none"]
+    assert plan["steps"]
+
+
+def test_build_scan_response_does_not_attach_action_plan_for_safe_verdicts():
+    payload = _build_scan_response(
+        "text",
+        analysis_results={"risk_score": 10, "risk_level": "low", "detected_family": "Curat"},
+        redacted_text="mesaj test",
+        ai_explanation={},
+    )
+
+    assert payload.get("action_plan") is None
+
+
+def test_build_scan_response_preserves_existing_action_plan():
+    existing = {"label": "Plan de acțiune", "verdict": "SUSPECT", "steps": [{"title": "Custom"}]}
+    payload = _build_scan_response(
+        "text",
+        analysis_results={
+            "risk_score": 55,
+            "risk_level": "medium",
+            "detected_family": "Test",
+            "action_plan": existing,
+        },
+        redacted_text="mesaj test",
+        ai_explanation={},
+    )
+
+    assert payload.get("action_plan") == existing
+
+
 def test_privacy_policy_is_public_and_discloses_user_initiated_scans(monkeypatch):
     original_require_api_key = app_main.REQUIRE_API_KEY
     app_main.REQUIRE_API_KEY = True
