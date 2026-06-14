@@ -1,11 +1,13 @@
 package ro.sigurscan.app
 
 import android.Manifest
+import android.app.role.RoleManager
 import android.content.Intent
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
 import android.text.Html
@@ -807,6 +809,15 @@ fun RadarTab(viewModel: ScannerViewModel) {
         Text("Radar Scam", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = SigurColors.TextPrimary)
         Spacer(modifier = Modifier.height(16.dp))
 
+        RadarCallProtectionCard(
+            cache = viewModel.radarHotCache,
+            loading = viewModel.radarHotCacheLoading,
+            status = viewModel.radarHotCacheStatus,
+            onSync = { viewModel.syncRadarHotCache() },
+            onEnableRole = { requestCallScreeningRole(context) }
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
         if (viewModel.liveCampaignEvent != null) {
             ActiveCampaignBanner(viewModel.liveCampaignEvent!!) {
                 viewModel.clearLiveCampaignEvent()
@@ -877,6 +888,87 @@ fun RadarTab(viewModel: ScannerViewModel) {
             }
         }
     }
+}
+
+@Composable
+private fun RadarCallProtectionCard(
+    cache: RadarHotCacheSnapshot?,
+    loading: Boolean,
+    status: String?,
+    onSync: () -> Unit,
+    onEnableRole: () -> Unit
+) {
+    val expired = cache?.isExpired() ?: true
+    val cacheText = when {
+        cache == null -> "Cache apeluri indisponibil"
+        expired -> "Cache apeluri expirat"
+        else -> "${cache.hotCampaigns.size} campanii, ${cache.numberReputation.size} numere raportate"
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
+        border = DSCardBorder,
+        shape = DSCardShape,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Phone, contentDescription = null, tint = SigurColors.Brand, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Protecție apeluri", color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(cacheText, color = SigurColors.TextMuted, fontSize = 11.sp, lineHeight = 15.sp)
+                }
+                DSChip(if (expired) "necesită sync" else "offline ready", tone = if (expired) DSChipTone.Pending else DSChipTone.Safe)
+            }
+            status?.takeIf { it.isNotBlank() }?.let {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(it, color = SigurColors.TextSecondary, fontSize = 11.sp, lineHeight = 15.sp)
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = onSync,
+                    enabled = !loading,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = SigurColors.BrandTint),
+                    border = BorderStroke(1.dp, SigurColors.Brand),
+                    shape = DSPillShape
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = null, tint = SigurColors.Brand, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(if (loading) "Sync..." else "Sincronizează", color = SigurColors.Brand, fontSize = 11.sp)
+                }
+                Button(
+                    onClick = onEnableRole,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = SigurColors.BackgroundSurface),
+                    border = BorderStroke(1.dp, SigurColors.GlassBorder),
+                    shape = DSPillShape
+                ) {
+                    Icon(Icons.Default.SettingsPhone, contentDescription = null, tint = SigurColors.TextPrimary, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Activează", color = SigurColors.TextPrimary, fontSize = 11.sp)
+                }
+            }
+        }
+    }
+}
+
+private fun requestCallScreeningRole(context: Context) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val roleManager = context.getSystemService(RoleManager::class.java)
+        val intent = roleManager?.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING)
+        if (intent != null) {
+            context.startActivity(intent)
+            return
+        }
+    }
+    val fallback = Intent(ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+        data = Uri.parse("package:${context.packageName}")
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    context.startActivity(fallback)
 }
 
 @Composable

@@ -234,6 +234,30 @@ data class ScamCampaign(
         get() = lastSeen ?: lastSeenSnake ?: ""
 }
 
+data class RadarHotCampaign(
+    @SerializedName("campaign_id") val campaignId: String,
+    val family: String? = null,
+    @SerializedName("warning_title") val warningTitle: String? = null,
+    @SerializedName("warning_body") val warningBody: String? = null,
+    val regions: List<String> = emptyList(),
+    @SerializedName("phone_hash_prefixes") val phoneHashPrefixes: List<String> = emptyList(),
+    val confidence: String? = null
+)
+
+data class RadarNumberReputation(
+    @SerializedName("phone_hash") val phoneHash: String,
+    val status: String? = null,
+    val family: String? = null,
+    @SerializedName("bucket_count") val bucketCount: String? = null
+)
+
+data class RadarHotCacheResponse(
+    @SerializedName("generated_at") val generatedAt: String? = null,
+    @SerializedName("ttl_minutes") val ttlMinutes: Int = 60,
+    @SerializedName("hot_campaigns") val hotCampaigns: List<RadarHotCampaign> = emptyList(),
+    @SerializedName("number_reputation") val numberReputation: List<RadarNumberReputation> = emptyList()
+)
+
 @Serializable
 data class CommunityReport(
     val hash: String,
@@ -354,6 +378,9 @@ interface SigurScanApi {
         @Query("status") status: String = "active",
         @Query("limit") limit: Int = 50
     ): List<ScamCampaign>
+
+    @GET("v1/radar/hot-iocs")
+    suspend fun getRadarHotIocs(): RadarHotCacheResponse
 
     @GET("v1/evaluation/readiness")
     suspend fun getReadiness(

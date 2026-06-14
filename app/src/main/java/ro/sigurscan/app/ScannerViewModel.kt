@@ -350,6 +350,9 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     var liveCampaignEvent by mutableStateOf<String?>(null)
     var campaigns = mutableStateListOf<ScamCampaign>()
     var campaignsLoading by mutableStateOf(false)
+    var radarHotCache by mutableStateOf<RadarHotCacheSnapshot?>(null)
+    var radarHotCacheLoading by mutableStateOf(false)
+    var radarHotCacheStatus by mutableStateOf<String?>(null)
 
     // Family protection
     var familyMembers = mutableStateListOf<FamilyMember>()
@@ -406,6 +409,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     private var stagedEvidenceInputKind: String? = null
     private var stagedEvidenceChannel: String? = null
     private val resultCache = Collections.synchronizedMap(LinkedHashMap<String, CachedAssessmentRecord>())
+    private val radarHotCacheStore by lazy { RadarHotCacheStore.fromContext(application) }
 
     private val api: SigurScanApi by lazy {
         val logging = HttpLoggingInterceptor().apply {
@@ -448,6 +452,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             cleanupLegacyTempUploads()
             withContext(Dispatchers.Main) {
                 applyPersistedStartupState(persisted)
+                radarHotCache = radarHotCacheStore.load()
             }
         }
     }
@@ -517,6 +522,30 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 campaigns.clear()
             } finally {
                 campaignsLoading = false
+            }
+        }
+    }
+
+    fun syncRadarHotCache() {
+        if (radarHotCacheLoading) return
+        radarHotCacheLoading = true
+        radarHotCacheStatus = "Se sincronizează Radarul pentru apeluri."
+        viewModelScope.launch {
+            try {
+                val response = api.getRadarHotIocs()
+                val snapshot = RadarHotCacheSnapshot(
+                    generatedAtEpochMillis = System.currentTimeMillis(),
+                    ttlMinutes = response.ttlMinutes,
+                    hotCampaigns = response.hotCampaigns,
+                    numberReputation = response.numberReputation
+                )
+                radarHotCacheStore.save(snapshot)
+                radarHotCache = snapshot
+                radarHotCacheStatus = "Radar sincronizat: ${snapshot.hotCampaigns.size} campanii, ${snapshot.numberReputation.size} numere raportate."
+            } catch (_: Exception) {
+                radarHotCacheStatus = "Nu am putut sincroniza Radarul. Reîncearcă din aplicație."
+            } finally {
+                radarHotCacheLoading = false
             }
         }
     }
