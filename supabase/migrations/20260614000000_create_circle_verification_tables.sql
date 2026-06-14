@@ -3,8 +3,10 @@
 -- Aici: relația umană protejat↔verificator, ping-urile de verificare și a doua opinie.
 
 -- Pairing semnat protejat↔verificator (consimțământ explicit, revocabil).
+-- NB: id-urile sunt `text` (prefixate „cl_/vp_/go_" de backend), nu uuid — backend-ul
+-- furnizează mereu id-ul (services/circle_verification.py), nu DB-ul.
 create table if not exists public.circle_links (
-  link_id           uuid primary key default gen_random_uuid(),
+  link_id           text primary key,
   protected_user_id text not null,
   verifier_user_id  text not null,
   consent           text not null default 'explicit' check (consent in ('explicit')),
@@ -17,8 +19,8 @@ create table if not exists public.circle_links (
 
 -- Ping de verificare out-of-band. Payload metadata-only; default_on_timeout = PRECAUTIE.
 create table if not exists public.verification_pings (
-  ping_id            uuid primary key default gen_random_uuid(),
-  link_id            uuid not null references public.circle_links(link_id) on delete cascade,
+  ping_id            text primary key,
+  link_id            text not null references public.circle_links(link_id) on delete cascade,
   claim              text not null default 'caller_claims_to_be_verifier',
   payload_class      text not null default 'metadata_only' check (payload_class in ('metadata_only')),
   default_on_timeout text not null default 'PRECAUTIE',
@@ -32,7 +34,7 @@ create table if not exists public.verification_pings (
 -- A doua opinie pentru protejat. share_level implicit metadata_only; full doar cu consimțământ.
 -- Linia roșie: doar redacted_summary structurat, ZERO conținut brut.
 create table if not exists public.guardian_second_opinion (
-  request_id        uuid primary key default gen_random_uuid(),
+  request_id        text primary key,
   case_id           text not null,
   protected_user_id text not null,
   guardian_user_id  text not null,

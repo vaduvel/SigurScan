@@ -241,3 +241,45 @@ class TestEndpoints:
             "redacted_summary": {"family": "IMP-02"}})
         assert r.status_code == 200
         assert r.json()["share_level"] == "metadata_only"
+
+
+class TestSupabasePersistenceWiring:
+    """Write-through best-effort: endpoint-urile cheamă supabase_store (no-op fără
+    chei). Verificăm că wiring-ul există — Codex doar aplică migrarea + pune cheile."""
+
+    def _client(self):
+        from fastapi.testclient import TestClient
+        import main as app_main
+        return TestClient(app_main.app)
+
+    def test_pair_persists_link(self, monkeypatch):
+        import main as app_main
+        calls = {}
+        monkeypatch.setattr(app_main.supabase_store, "save_circle_link",
+                            lambda link: calls.setdefault("link", link))
+        client = self._client()
+        client.post("/v1/circle/pair", json={
+            "protected_id": "u_g", "verifier_id": "u_s", "consent": "explicit"})
+        assert calls.get("link", {}).get("protected_user_id") == "u_g"
+
+    def test_revoke_persists_revocation(self, monkeypatch):
+        import main as app_main
+        seen = {}
+        monkeypatch.setattr(app_main.supabase_store, "mark_circle_link_revoked",
+                            lambda link_id: seen.setdefault("id", link_id))
+        client = self._client()
+        link_id = client.post("/v1/circle/pair", json={
+            "protected_id": "u_g", "verifier_id": "u_s", "consent": "explicit"}).json()["link_id"]
+        client.post("/v1/circle/revoke", json={"link_id": link_id, "by_user": "u_g"})
+        assert seen.get("id") == link_id
+
+    def test_second_opinion_persists(self, monkeypatch):
+        import main as app_main
+        seen = {}
+        monkeypatch.setattr(app_main.supabase_store, "save_guardian_second_opinion",
+                            lambda op: seen.setdefault("op", op))
+        client = self._client()
+        client.post("/v1/guardian/second-opinion", json={
+            "case_id": "sc_9", "protected_id": "u_g", "guardian_id": "u_s",
+            "redacted_summary": {"family": "IMP-02"}})
+        assert seen.get("op", {}).get("case_id") == "sc_9"

@@ -8441,6 +8441,7 @@ async def circle_pair(payload: CirclePairRequest):
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    supabase_store.save_circle_link(link.to_dict())  # best-effort, no-op fără Supabase
     return link.to_dict()
 
 
@@ -8453,6 +8454,7 @@ async def circle_ping(payload: CirclePingRequest):
         raise HTTPException(status_code=404, detail="circle link not found")
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+    supabase_store.save_verification_ping(ping.to_dict())  # best-effort
     return ping.to_dict()
 
 
@@ -8466,6 +8468,10 @@ async def circle_respond(payload: CircleRespondRequest):
             result = _circle_store.respond(payload.ping_id, payload.response)
     except KeyError:
         raise HTTPException(status_code=404, detail="verification ping not found")
+    saved_ping = _circle_store.get_ping(payload.ping_id)
+    if saved_ping is not None:
+        supabase_store.update_verification_ping(  # best-effort
+            saved_ping.ping_id, saved_ping.verifier_response or "", saved_ping.status)
     return result
 
 
@@ -8478,6 +8484,7 @@ async def circle_revoke(payload: CircleRevokeRequest):
         raise HTTPException(status_code=404, detail="circle link not found")
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
+    supabase_store.mark_circle_link_revoked(payload.link_id)  # best-effort
     link = _circle_store.get_link(payload.link_id)
     return link.to_dict()
 
@@ -8493,6 +8500,7 @@ async def guardian_second_opinion(payload: GuardianSecondOpinionRequest):
         share_level=payload.share_level,
         consent=payload.consent,
     )
+    supabase_store.save_guardian_second_opinion(so.to_dict())  # best-effort
     return so.to_dict()
 
 

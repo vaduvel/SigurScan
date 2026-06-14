@@ -427,3 +427,74 @@ def load_scan_job(scan_id: str) -> Optional[Dict[str, Any]]:
     if isinstance(updated_at, str):
         payload["_storage_updated_at"] = updated_at
     return payload
+
+
+# ─── PR-6 — Cercul: persistență durabilă (write-through, best-effort) ─────────
+# Toate funcțiile sunt no-op fără SUPABASE_URL/SERVICE_ROLE_KEY (vezi _post_json/
+# _patch_json). Backend-ul rulează identic cu sau fără Supabase; când Codex pune
+# cheile + aplică migrarea, datele Cercului devin durabile (audit + cross-instance).
+
+def save_circle_link(link: Dict[str, Any]) -> None:
+    if not link.get("link_id"):
+        return
+    row = {
+        "link_id": link.get("link_id"),
+        "protected_user_id": link.get("protected_user_id"),
+        "verifier_user_id": link.get("verifier_user_id"),
+        "consent": link.get("consent") or "explicit",
+        "revocable": bool(link.get("revocable", True)),
+        "active": bool(link.get("active", True)),
+    }
+    _post_json("circle_links", row, "resolution=merge-duplicates,return=minimal")
+
+
+def mark_circle_link_revoked(link_id: str) -> None:
+    if not link_id:
+        return
+    _patch_json(
+        "circle_links",
+        {"active": False, "revoked_at": _ts_to_iso(int(time.time()))},
+        {"link_id": f"eq.{link_id}"},
+    )
+
+
+def save_verification_ping(ping: Dict[str, Any]) -> None:
+    if not ping.get("ping_id"):
+        return
+    row = {
+        "ping_id": ping.get("ping_id"),
+        "link_id": ping.get("link_id"),
+        "claim": ping.get("claim") or "caller_claims_to_be_verifier",
+        "payload_class": ping.get("payload_class") or "metadata_only",
+        "default_on_timeout": ping.get("default_on_timeout") or "PRECAUTIE",
+        "latency_target_s": int(ping.get("latency_target_s") or 10),
+        "status": ping.get("status") or "pending",
+    }
+    _post_json("verification_pings", row, "resolution=merge-duplicates,return=minimal")
+
+
+def update_verification_ping(ping_id: str, response: str, status: str = "resolved") -> None:
+    if not ping_id:
+        return
+    _patch_json(
+        "verification_pings",
+        {"verifier_response": response, "status": status,
+         "resolved_at": _ts_to_iso(int(time.time()))},
+        {"ping_id": f"eq.{ping_id}"},
+    )
+
+
+def save_guardian_second_opinion(opinion: Dict[str, Any]) -> None:
+    if not opinion.get("request_id"):
+        return
+    row = {
+        "request_id": opinion.get("request_id"),
+        "case_id": opinion.get("case_id"),
+        "protected_user_id": opinion.get("protected_user_id"),
+        "guardian_user_id": opinion.get("guardian_user_id"),
+        "share_level": opinion.get("share_level") or "metadata_only",
+        "share_downgraded": bool(opinion.get("share_downgraded", False)),
+        "redacted_summary": opinion.get("redacted_summary") or {},
+        "status": opinion.get("status") or "pending",
+    }
+    _post_json("guardian_second_opinion", row, "resolution=merge-duplicates,return=minimal")
