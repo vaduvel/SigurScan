@@ -246,6 +246,18 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
     # firmă, IBAN străin pe factură RO, limbaj „cont schimbat" (BEC), multi-IBAN.
     fraud_flags: list[str] = []
     issuer_name = fields.emitent
+    # Registru negativ: dacă vreun IBAN al facturii a fost raportat ca fraudă →
+    # semnal HARD (prinde „firmă reală + IBAN complice" de la victima #2).
+    from services.negative_iban_registry import reported_fraud_ibans
+    candidate_ibans = list(fields.all_ibans or [])
+    if fields.iban:
+        candidate_ibans.append(fields.iban)
+    if reported_fraud_ibans(candidate_ibans):
+        fraud_flags.append("REPORTED_FRAUD_IBAN")
+        warnings.append(
+            "IBAN-ul de plată a fost raportat anterior ca fraudă. NU plăti și "
+            "raportează incidentul."
+        )
     if _beneficiary_mismatch(fields.payment_beneficiary, issuer_name):
         fraud_flags.append("BENEFICIARY_PERSON_MISMATCH")
         warnings.append(

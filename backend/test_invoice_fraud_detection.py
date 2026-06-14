@@ -142,3 +142,48 @@ class TestMapperFusion:
         from services.invoice_evidence_gate_mapper import build_invoice_bundle
         bundle = build_invoice_bundle(None, "")
         assert bundle["schema"] == "sigurscan_evidence_bundle_v2"
+
+
+class TestNegativeIbanRegistry:
+    """Pilon registru negativ: IBAN raportat → PERICULOS determinist (victima #2).
+    Prinde fix „firmă reală + IBAN complice", unde whitelist-ul nu ajută."""
+
+    @pytest.fixture
+    def registry_with(self, tmp_path, monkeypatch):
+        import json
+        from services import negative_iban_registry as nir
+        from services import invoice_orchestrator as io
+
+        def _make(ibans):
+            f = tmp_path / "neg.json"
+            f.write_text(json.dumps({"reported_ibans": ibans}))
+            monkeypatch.setenv("NEGATIVE_IBAN_REGISTRY_PATH", str(f))
+            nir.reload_registry()
+            io._verdict_cache.clear()  # izolare: forțează re-scan
+            return nir
+
+        yield _make
+        nir.reload_registry()
+
+    def test_is_reported_normalizat(self, registry_with):
+        nir = registry_with(["RO49AAAA1B31007593840000"])
+        assert nir.is_reported_fraud("RO49 AAAA 1B31 0075 9384 0000")
+        assert not nir.is_reported_fraud("RO83BTRLRONCRT0299335701")
+
+    def test_registru_gol_fara_fals_pozitiv(self, registry_with):
+        nir = registry_with([])
+        assert not nir.is_reported_fraud("RO49AAAA1B31007593840000")
+
+    @pytest.mark.asyncio
+    async def test_scan_flag_iban_raportat(self, registry_with):
+        registry_with(["RO49AAAA1B31007593840000"])
+        r = await scan_invoice("Furnizor SC ALFA SRL\nIBAN RO49AAAA1B31007593840000\nTotal 100 lei factura")
+        assert "REPORTED_FRAUD_IBAN" in r.fraud_flags
+
+    @pytest.mark.asyncio
+    async def test_iban_raportat_da_periculos(self, registry_with):
+        from services.invoice_evidence_gate_mapper import evaluate_invoice_verdict
+        registry_with(["RO49AAAA1B31007593840000"])
+        r = await scan_invoice("Furnizor SC BETA SRL\nIBAN RO49AAAA1B31007593840000\nTotal 250 lei plata")
+        _, gate = evaluate_invoice_verdict(r, r.raw_text)
+        assert gate["label"] == "DANGEROUS"

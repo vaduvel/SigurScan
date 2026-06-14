@@ -75,6 +75,14 @@ def build_invoice_bundle(result, redacted_text: str = "") -> Dict[str, Any]:
     strong_fraud_combo = ("FOREIGN_IBAN" in fraud_flags) and ("ACCOUNT_CHANGE_LANGUAGE" in fraud_flags)
 
     provider_section = _provider_section(result)
+    # Registru negativ = dovadă externă HARD (ca un provider „malicious"): IBAN
+    # raportat anterior ca fraudă → verdict_gate Rule 1 → PERICULOS determinist.
+    if "REPORTED_FRAUD_IBAN" in fraud_flags:
+        provider_section["verdict"] = "malicious"
+        provider_section["negative_iban_registry"] = {
+            "status": "malicious", "verdict": "malicious", "severity": "high",
+            "consulted": True, "reasons": ["IBAN raportat ca fraudă"],
+        }
 
     # Identity (issuer/destination): brand match + destinație nealiniată.
     if beneficiary_mismatch_flag:
