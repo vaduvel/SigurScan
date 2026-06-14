@@ -353,6 +353,9 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     var radarHotCache by mutableStateOf<RadarHotCacheSnapshot?>(null)
     var radarHotCacheLoading by mutableStateOf(false)
     var radarHotCacheStatus by mutableStateOf<String?>(null)
+    var btrSyncSnapshot by mutableStateOf<BtrSyncSnapshot?>(null)
+    var btrSyncLoading by mutableStateOf(false)
+    var btrSyncStatus by mutableStateOf<String?>(null)
 
     // Family protection
     var familyMembers = mutableStateListOf<FamilyMember>()
@@ -410,6 +413,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     private var stagedEvidenceChannel: String? = null
     private val resultCache = Collections.synchronizedMap(LinkedHashMap<String, CachedAssessmentRecord>())
     private val radarHotCacheStore by lazy { RadarHotCacheStore.fromContext(application) }
+    private val btrSyncStore by lazy { BtrSyncStore.fromContext(application) }
 
     private val api: SigurScanApi by lazy {
         val logging = HttpLoggingInterceptor().apply {
@@ -453,6 +457,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             withContext(Dispatchers.Main) {
                 applyPersistedStartupState(persisted)
                 radarHotCache = radarHotCacheStore.load()
+                btrSyncSnapshot = btrSyncStore.load()
             }
         }
     }
@@ -546,6 +551,29 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 radarHotCacheStatus = "Nu am putut sincroniza Radarul. Reîncearcă din aplicație."
             } finally {
                 radarHotCacheLoading = false
+            }
+        }
+    }
+
+    fun syncBtrManifests() {
+        if (btrSyncLoading) return
+        btrSyncLoading = true
+        btrSyncStatus = "Se sincronizează registrul oficial local."
+        viewModelScope.launch {
+            try {
+                val currentVersion = btrSyncSnapshot?.version
+                val response = api.getBtrSync(currentVersion)
+                val snapshot = btrSyncStore.apply(response)
+                btrSyncSnapshot = snapshot
+                btrSyncStatus = if (response.changed) {
+                    "BTR sincronizat: ${snapshot?.manifests?.size ?: 0} manifeste oficiale."
+                } else {
+                    "BTR este deja la zi: ${snapshot?.manifests?.size ?: 0} manifeste."
+                }
+            } catch (_: Exception) {
+                btrSyncStatus = "Nu am putut sincroniza BTR. Reîncearcă din aplicație."
+            } finally {
+                btrSyncLoading = false
             }
         }
     }

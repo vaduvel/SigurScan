@@ -258,6 +258,40 @@ data class RadarHotCacheResponse(
     @SerializedName("number_reputation") val numberReputation: List<RadarNumberReputation> = emptyList()
 )
 
+data class BtrSourceRef(
+    val url: String? = null,
+    val publisher: String? = null,
+    @SerializedName("accessed_at") val accessedAt: String? = null,
+    val confidence: String? = null
+)
+
+data class BtrManifest(
+    @SerializedName("manifest_id") val manifestId: String,
+    val type: String? = null,
+    @SerializedName("display_name") val displayName: String,
+    val category: String? = null,
+    val country: String? = null,
+    @SerializedName("official_domains") val officialDomains: List<String> = emptyList(),
+    @SerializedName("official_email_domains") val officialEmailDomains: List<String> = emptyList(),
+    @SerializedName("official_shortcodes") val officialShortcodes: List<String> = emptyList(),
+    @SerializedName("official_phones_e164") val officialPhonesE164: List<String> = emptyList(),
+    @SerializedName("official_channels") val officialChannels: List<String> = emptyList(),
+    @SerializedName("never_asks") val neverAsks: List<String> = emptyList(),
+    @SerializedName("never_does") val neverDoes: List<String> = emptyList(),
+    @SerializedName("source_refs") val sourceRefs: List<BtrSourceRef> = emptyList(),
+    @SerializedName("last_verified_at") val lastVerifiedAt: String? = null,
+    val confidence: String? = null,
+    @SerializedName("review_status") val reviewStatus: String? = null
+)
+
+data class BtrSyncResponse(
+    val changed: Boolean = false,
+    val version: String? = null,
+    @SerializedName("generated_at") val generatedAt: String? = null,
+    val manifests: List<BtrManifest>? = null,
+    val count: Int = 0
+)
+
 @Serializable
 data class CommunityReport(
     val hash: String,
@@ -381,6 +415,9 @@ interface SigurScanApi {
 
     @GET("v1/radar/hot-iocs")
     suspend fun getRadarHotIocs(): RadarHotCacheResponse
+
+    @GET("v1/btr/sync")
+    suspend fun getBtrSync(@Query("client_version") clientVersion: String? = null): BtrSyncResponse
 
     @GET("v1/evaluation/readiness")
     suspend fun getReadiness(

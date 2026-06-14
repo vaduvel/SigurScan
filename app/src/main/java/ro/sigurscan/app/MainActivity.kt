@@ -818,6 +818,14 @@ fun RadarTab(viewModel: ScannerViewModel) {
         )
         Spacer(modifier = Modifier.height(16.dp))
 
+        BtrOnDeviceCard(
+            snapshot = viewModel.btrSyncSnapshot,
+            loading = viewModel.btrSyncLoading,
+            status = viewModel.btrSyncStatus,
+            onSync = { viewModel.syncBtrManifests() }
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
         if (viewModel.liveCampaignEvent != null) {
             ActiveCampaignBanner(viewModel.liveCampaignEvent!!) {
                 viewModel.clearLiveCampaignEvent()
@@ -885,6 +893,61 @@ fun RadarTab(viewModel: ScannerViewModel) {
                     campaign.lon,
                     campaign.title
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BtrOnDeviceCard(
+    snapshot: BtrSyncSnapshot?,
+    loading: Boolean,
+    status: String?,
+    onSync: () -> Unit
+) {
+    val cacheText = snapshot?.let {
+        "${it.manifests.size} manifeste oficiale • ${it.version}"
+    } ?: "Registru oficial local indisponibil"
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
+        border = DSCardBorder,
+        shape = DSCardShape,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = SigurColors.Safe, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("BTR on-device", color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(cacheText, color = SigurColors.TextMuted, fontSize = 11.sp, lineHeight = 15.sp)
+                }
+                DSChip(if (snapshot == null) "necesită sync" else "local", tone = if (snapshot == null) DSChipTone.Pending else DSChipTone.Safe)
+            }
+            Text(
+                "Manifestele coboară pe telefon; conținutul SMS nu este trimis la server.",
+                color = SigurColors.TextSecondary,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+            status?.takeIf { it.isNotBlank() }?.let {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(it, color = SigurColors.TextSecondary, fontSize = 11.sp, lineHeight = 15.sp)
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(
+                onClick = onSync,
+                enabled = !loading,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = SigurColors.SafeLight),
+                border = BorderStroke(1.dp, SigurColors.SafeBorder),
+                shape = DSPillShape
+            ) {
+                Icon(Icons.Default.Download, contentDescription = null, tint = SigurColors.Safe, modifier = Modifier.size(14.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(if (loading) "Sync..." else "Sincronizează BTR", color = SigurColors.Safe, fontSize = 11.sp)
             }
         }
     }
