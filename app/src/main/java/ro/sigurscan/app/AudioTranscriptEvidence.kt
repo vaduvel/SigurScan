@@ -34,6 +34,7 @@ object AudioTranscriptEvidence {
     }
 
     private fun detectSensitiveAsks(text: String): List<String> {
+        val compact = text.replace(" ", "")
         return buildSet {
             if (containsAny(text, "otp", "cod sms", "cod de verificare", "codul primit")) add("otp")
             if (containsAny(text, "cvv", "cvc", "datele cardului", "numarul cardului")) add("card")
@@ -59,7 +60,7 @@ object AudioTranscriptEvidence {
                     "banii",
                     "lei cash",
                     "euro cash"
-                )
+                ) || containsAny(compact, "multibani", "mutibani", "mutibanii")
             ) {
                 add("transfer")
             }
@@ -67,6 +68,7 @@ object AudioTranscriptEvidence {
     }
 
     private fun detectArcFamily(text: String, sensitiveAsks: List<String>): String? {
+        val compact = text.replace(" ", "")
         val hasBank = containsAny(text, "banca", "bnr", "raiffeisen", "bcr", "cec bank", "brd", "revolut") ||
             Regex("""\bbt\b|\bing\b""").containsMatchIn(text)
         val hasAuthority = containsAny(text, "politie", "politist", "inspector", "procuror", "anaf")
@@ -75,7 +77,9 @@ object AudioTranscriptEvidence {
         val hasInvestment = containsAny(text, "investitie", "actiuni", "profit garantat", "broker", "consultant")
 
         return when {
-            containsAny(text, "cont sigur", "cont de siguranta") || (hasBank && hasAuthority && "transfer" in sensitiveAsks) ->
+            containsAny(text, "cont sigur", "cont de siguranta") ||
+                containsAny(compact, "contsigur", "consigur", "condsigur") ||
+                (hasBank && hasAuthority && "transfer" in sensitiveAsks) ->
                 "CONV_BANK_SAFE_ACCOUNT"
 
             containsAny(text, "credit fraudulos", "credit pe numele", "cerere de credit") && (hasBank || hasAuthority) ->

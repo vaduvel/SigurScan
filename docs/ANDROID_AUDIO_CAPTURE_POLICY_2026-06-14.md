@@ -20,8 +20,9 @@ Current state:
 - `WhisperCppAsrEngine` is wired as the Android replacement path and feeds transcripts into the local audio evidence engine without retaining raw audio bytes.
 - Capture readiness also requires the `sigurscan_whisper` native runtime to load; a model file alone cannot mark audio capture as ready.
 - The app now builds `libsigurscan_whisper.so` from whisper.cpp `v1.8.6` through Android NDK/CMake.
-- A bundled `ggml-tiny-q5_1` multilingual model is present for low-memory Nokia C22 benchmarking; APK debug size is about 74 MB.
-- Nokia C22 real-device benchmark: native runtime loads, model checksum passes, model loads, and a Romanian vishing WAV fixture produces actionable local evidence. The optimized fixture transcription still takes about 16.4 seconds, so this is not ready for real-time call audio.
+- A bundled `ggml-tiny-q8_0` multilingual model is present for low-memory Nokia C22 benchmarking.
+- Nokia C22 real-device benchmark: native runtime loads, model checksum passes, model loads, and a Romanian vishing WAV fixture produces actionable local evidence. Current optimized fixture transcription takes about 12.9 seconds, so this is useful for short batch analysis but still not ready for real-time call audio.
+- Model comparison on the same fixture: `tiny-q5_1` was about 16.4s; `tiny-q8_0` was about 12.9s and is the current pick; full `tiny` was slower and failed the actionable-evidence assertion before ASR-noise hardening, so it is not selected.
 - Vosk is no longer the selected Android ASR path because the official Vosk model list checked on 2026-06-14 does not provide a Romanian model: `https://alphacephei.com/vosk/models`.
 - No hidden call recording is implemented.
 - The Android manifest does not request `android.permission.RECORD_AUDIO`.

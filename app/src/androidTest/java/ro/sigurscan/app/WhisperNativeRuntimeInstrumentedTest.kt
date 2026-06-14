@@ -3,12 +3,14 @@ package ro.sigurscan.app
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import android.util.Log
+import com.google.gson.JsonParser
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.security.MessageDigest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -29,10 +31,7 @@ class WhisperNativeRuntimeInstrumentedTest {
             modelFile.outputStream().use { output -> input.copyTo(output) }
         }
 
-        assertEquals(
-            "818710568da3ca15689e31a743197b520007872ff9576237bda97bd1b469c3d7",
-            sha256(modelFile)
-        )
+        assertEquals(readManifestSha256(), sha256(modelFile))
         assertTrue(WhisperCppNativeBridge.canLoadModel(modelFile.absolutePath))
     }
 
@@ -57,7 +56,8 @@ class WhisperNativeRuntimeInstrumentedTest {
         Log.i("SigurScanWhisperTest", "elapsed_ms=$elapsedMs transcript=${result.transcript}")
 
         assertTrue(result.transcript, result.success)
-        assertNotEquals(AudioEvidenceVerdict.UNVERIFIED, result.evidence?.verdict)
+        assertNotNull(result.evidence)
+        assertNotEquals(AudioEvidenceVerdict.UNVERIFIED, result.evidence!!.verdict)
     }
 
     private fun sha256(file: File): String {
@@ -81,6 +81,12 @@ class WhisperNativeRuntimeInstrumentedTest {
             modelFile.outputStream().use { output -> input.copyTo(output) }
         }
         return modelFile
+    }
+
+    private fun readManifestSha256(): String {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val raw = context.assets.open("asr/whispercpp/model-manifest.json").bufferedReader().use { it.readText() }
+        return JsonParser.parseString(raw).asJsonObject.get("sha256").asString
     }
 
     private fun readPcm16Mono16kWav(bytes: ByteArray): ShortArray {

@@ -20,6 +20,14 @@ class AudioTranscriptEvidenceTest {
     }
 
     @Test
+    fun noisyWhisperTranscriptStillDetectsSafeAccountTransfer() {
+        val result = AudioTranscriptEvidence.analyze("Benerecere sa multibani intr-un consiguracum")
+
+        assertEquals(AudioEvidenceVerdict.SUSPECT, result.verdict)
+        assertEquals("CONV_BANK_SAFE_ACCOUNT", result.arcFamily)
+    }
+
+    @Test
     fun remoteAccessInvestmentTranscriptProducesDangerous() {
         val result = AudioTranscriptEvidence.analyze(
             "Consultantul promite profit garantat si cere sa instalez AnyDesk pentru acces la distanta."

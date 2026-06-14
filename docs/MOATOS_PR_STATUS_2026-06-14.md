@@ -197,7 +197,7 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 | PR-8 | Plan de actiune post-incident | Da | Da pentru flow de rezultat | `/v1/legal/action-plan` live OK; Android trimite impacts reale selectate si randeaza planul; planul apare in smoke emulator FAN fake |
 | PR-8/9 integ | `action_plan` in orchestrator + audio reference | Partial backend | Action plan functional; analiza locala a transcrierii functionala | Orchestratorul trimite `action_plan`; Android il afiseaza. Android reduce local transcrierea curenta la semnale si verdict, fara text brut in rezultat. Nu exista captura/ASR audio |
 | Extra | DNS reputation | Da | Da indirect prin scan response | `infra_dns` live OK; flag Cloud Run activ si pastrat in scriptul de deploy |
-| PR-9/PR-10 | Android on-device: Whisper.cpp ASR, banda inline, captura difuzor | Nu ca ASR complet | Analiza transcript local + engine verdict + UI readiness + Whisper native/model gated sigur | `AudioTranscriptEvidenceTest` acopera 34/34 fixture-uri realiste; `WhisperCppAsrEngineTest` acopera contractul adapterului fara audio raw retinut; `AudioSafetyPolicyTest` acopera manifestul Whisper; instrumented test pe Nokia C22 confirma runtime native, model checksum/load si transcriere fixture RO. Latența optimizata este inca ~16.4s pentru fixture scurt, deci nu este real-time production |
+| PR-9/PR-10 | Android on-device: Whisper.cpp ASR, banda inline, captura difuzor | Nu ca ASR complet | Analiza transcript local + engine verdict + UI readiness + Whisper native/model gated sigur | `AudioTranscriptEvidenceTest` acopera 34/34 fixture-uri realiste + zgomot ASR real; `WhisperCppAsrEngineTest` acopera contractul adapterului fara audio raw retinut; `AudioSafetyPolicyTest` acopera manifestul Whisper; instrumented test pe Nokia C22 confirma runtime native, model checksum/load si transcriere fixture RO. Modelul curent `tiny-q8_0` are ~12.9s pe fixture scurt, deci nu este real-time production |
 
 ## Gap-uri Care Nu Trebuie Numite Complete
 
@@ -223,8 +223,9 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 
 4. PR-9/PR-10 Android audio are native/model functional pentru batch benchmark, dar nu este implementat ca ASR production real-time.
    - Exista Whisper.cpp `v1.8.6` ca submodule, build NDK/CMake si `libsigurscan_whisper.so` ambalat in APK.
-   - Exista model multilingual `ggml-tiny-q5_1` in `assets/asr/whispercpp/`, cu manifest SHA-256.
-   - Pe Nokia C22, testul instrumentat confirma load runtime, load model si transcriere fixture romana, dar timpul optimizat este ~16.4s pentru un WAV scurt. Asta este prea lent pentru banda live/call real-time.
+   - Exista model multilingual `ggml-tiny-q8_0` in `assets/asr/whispercpp/`, cu manifest SHA-256.
+   - Pe Nokia C22, testul instrumentat confirma load runtime, load model si transcriere fixture romana, dar timpul optimizat este ~12.9s pentru un WAV scurt. Asta este acceptabil pentru batch scurt, dar prea lent pentru banda live/call real-time.
+   - `tiny-q5_1` a fost mai lent (~16.4s), iar `tiny` full a fost mai mare/lent si nu este selectat.
    - Nu exista inca captura difuzor/microfon production.
    - Vosk nu mai este calea aleasa pentru Android; inlocuitorul selectat este Whisper.cpp.
    - Exista `AudioEvidenceEngine` + `AudioTranscriptEvidence` pentru reducerea locala a transcrierii la semnale audio/vishing; rezultatul nu stocheaza transcript brut si nu foloseste server audio.
