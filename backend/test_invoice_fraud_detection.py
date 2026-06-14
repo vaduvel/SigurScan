@@ -231,3 +231,57 @@ class TestNegativeIbanRuntimeFeed:
         # fără admin key → 401/403 (fail closed)
         r = client.post("/v1/internal/negative-iban", json={"iban": "RO49AAAA1B31007593840000"})
         assert r.status_code in (401, 403)
+
+
+class TestVendorMemory:
+    """Pilon B — vendor memory: IBAN schimbat față de istoricul firmei = semnal BEC."""
+
+    IBAN_A = "RO49AAAA1B31007593840000"
+    IBAN_B = "RO83BTRLRONCRT0299335701"
+
+    @pytest.fixture(autouse=True)
+    def _clean(self):
+        from services import vendor_memory as vm
+        from services import invoice_orchestrator as io
+        vm._memory.clear(); io._verdict_cache.clear()
+        yield
+        vm._memory.clear()
+
+    @pytest.fixture
+    def _no_anaf(self):
+        from unittest.mock import patch, AsyncMock
+        from services.anaf_cui import CuiResult
+        cui = CuiResult(exists=True, checked=True, denumire="SC X SRL", activ=True,
+                        data_inactivare=None, platitor_tva=True, enrolled_efactura=False, raw=None)
+        with patch("services.invoice_orchestrator.check_cui", new_callable=AsyncMock) as m:
+            m.return_value = cui
+            yield
+
+    @pytest.mark.asyncio
+    async def test_prima_factura_memoreaza_fara_flag(self, _no_anaf):
+        from services import vendor_memory as vm
+        r = await scan_invoice(f"Furnizor SC X SRL CUI RO12345678\nIBAN {self.IBAN_A}\nTotal 100 luna mai")
+        assert "IBAN_CHANGED_VS_HISTORY" not in r.fraud_flags
+        assert self.IBAN_A in vm.known_ibans_for_cui("RO12345678")
+
+    @pytest.mark.asyncio
+    async def test_iban_schimbat_da_flag_si_suspect(self, _no_anaf):
+        from services.invoice_evidence_gate_mapper import evaluate_invoice_verdict
+        await scan_invoice(f"Furnizor SC X SRL CUI RO12345678\nIBAN {self.IBAN_A}\nTotal 100 luna mai")
+        r2 = await scan_invoice(f"Furnizor SC X SRL CUI RO12345678\nIBAN {self.IBAN_B}\nTotal 200 luna iunie")
+        assert "IBAN_CHANGED_VS_HISTORY" in r2.fraud_flags
+        _, gate = evaluate_invoice_verdict(r2, r2.raw_text)
+        assert gate["label"] in {"SUSPECT", "DANGEROUS"}
+
+    @pytest.mark.asyncio
+    async def test_acelasi_iban_fara_flag(self, _no_anaf):
+        await scan_invoice(f"Furnizor SC X SRL CUI RO12345678\nIBAN {self.IBAN_A}\nTotal 100 luna mai")
+        r2 = await scan_invoice(f"Furnizor SC X SRL CUI RO12345678\nIBAN {self.IBAN_A}\nTotal 300 luna iulie")
+        assert "IBAN_CHANGED_VS_HISTORY" not in r2.fraud_flags
+
+    @pytest.mark.asyncio
+    async def test_anti_poisoning_iban_strain_nu_se_memoreaza(self, _no_anaf):
+        from services import vendor_memory as vm
+        # factură cu IBAN străin (semnal de fraudă) → NU se memorează
+        await scan_invoice("Furnizor SC X SRL CUI RO12345678\nIBAN DE89370400440532013000\nTotal 100 mai")
+        assert vm.known_ibans_for_cui("RO12345678") == set()

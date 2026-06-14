@@ -568,3 +568,20 @@ def load_negative_ibans() -> List[str]:
     """IBAN-urile raportate din Supabase (gol fără chei)."""
     rows = _get_json("negative_iban_registry", {"select": "iban", "limit": "5000"})
     return [r.get("iban") for r in rows if isinstance(r, dict) and r.get("iban")]
+
+
+# ─── Vendor memory (istoric IBAN per CUI) — write-through best-effort ─────────
+def save_vendor_iban(cui: str, iban: str) -> None:
+    if not cui or not iban:
+        return
+    _post_json(
+        "vendor_iban_memory",
+        {"cui": cui, "iban": iban},
+        "resolution=merge-duplicates,return=minimal",
+    )
+
+
+def load_vendor_ibans() -> List[Dict[str, Any]]:
+    """Perechi {cui, iban} din Supabase (gol fără chei)."""
+    rows = _get_json("vendor_iban_memory", {"select": "cui,iban", "limit": "10000"})
+    return [r for r in rows if isinstance(r, dict) and r.get("cui") and r.get("iban")]

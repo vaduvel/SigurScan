@@ -71,7 +71,10 @@ def build_invoice_bundle(result, redacted_text: str = "") -> Dict[str, Any]:
     # Piloni de semnale de fraudă (din scan_invoice) — intră ca SEMNALE, gate-ul decide.
     fraud_flags = list(result.fraud_flags) if result else []
     beneficiary_mismatch_flag = "BENEFICIARY_PERSON_MISMATCH" in fraud_flags
-    weak_fraud_flag = any(f in fraud_flags for f in ("FOREIGN_IBAN", "ACCOUNT_CHANGE_LANGUAGE"))
+    weak_fraud_flag = any(
+        f in fraud_flags
+        for f in ("FOREIGN_IBAN", "ACCOUNT_CHANGE_LANGUAGE", "IBAN_CHANGED_VS_HISTORY")
+    )
     strong_fraud_combo = ("FOREIGN_IBAN" in fraud_flags) and ("ACCOUNT_CHANGE_LANGUAGE" in fraud_flags)
 
     provider_section = _provider_section(result)

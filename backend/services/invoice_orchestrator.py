@@ -282,6 +282,21 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
     if len(fields.all_ibans or []) >= 2:
         fraud_flags.append("MULTIPLE_IBANS")
 
+    # Vendor memory: IBAN schimbat față de istoricul curat al firmei (semnal BEC #1).
+    from services import vendor_memory
+    if fields.cui and fields.iban:
+        if vendor_memory.iban_changed_for_cui(fields.cui, fields.iban):
+            fraud_flags.append("IBAN_CHANGED_VS_HISTORY")
+            warnings.append(
+                "IBAN-ul diferă de cel folosit anterior pentru această firmă — "
+                "confirmă telefonic noul cont înainte de plată (tactică BEC)."
+            )
+        # Anti-poisoning: memorăm DOAR din scanări fără semnale de fraudă tari.
+        _hard = ("REPORTED_FRAUD_IBAN", "BENEFICIARY_PERSON_MISMATCH",
+                 "FOREIGN_IBAN", "IBAN_CHANGED_VS_HISTORY", "ACCOUNT_CHANGE_LANGUAGE")
+        if not any(f in fraud_flags for f in _hard):
+            vendor_memory.remember_invoice_iban(fields.cui, fields.iban)
+
     result = InvoiceScanResult(
         raw_text=ocr_text,
         fields=fields,
