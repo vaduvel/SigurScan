@@ -1,5 +1,7 @@
 package ro.sigurscan.app
 
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import java.util.Locale
 
 data class InboxSignalBundle(
@@ -26,6 +28,17 @@ enum class OnDeviceInboxVerdict {
 }
 
 object InboxProvenanceEngine {
+    fun evaluateLocalText(rawText: String, observedDomain: String?, btr: BtrSyncSnapshot?): InboxProvenanceVerdict {
+        val bundle = InboxSignalBundle(
+            messageHash = hashLocalText(rawText),
+            claimedBrand = detectClaimedBrand(rawText, btr),
+            observedDomain = observedDomain,
+            sensitiveAsks = detectSensitiveAsks(rawText),
+            hasUrl = !observedDomain.isNullOrBlank()
+        )
+        return evaluate(bundle, btr)
+    }
+
     fun evaluate(bundle: InboxSignalBundle, btr: BtrSyncSnapshot?): InboxProvenanceVerdict {
         if (btr == null || btr.manifests.isEmpty()) {
             return InboxProvenanceVerdict(
@@ -79,6 +92,33 @@ object InboxProvenanceEngine {
         } ?: btr.manifests.firstOrNull { manifest ->
             domainMatches(bundle.observedDomain, manifest.officialDomains)
         }
+    }
+
+    private fun detectClaimedBrand(rawText: String, btr: BtrSyncSnapshot?): String? {
+        val normalized = normalizeName(rawText)
+        if (normalized.isBlank() || btr == null) return null
+        return btr.manifests.firstOrNull { manifest ->
+            val display = normalizeName(manifest.displayName)
+            val id = normalizeName(manifest.manifestId)
+            (display.isNotBlank() && normalized.contains(display)) ||
+                (id.isNotBlank() && normalized.contains(id))
+        }?.displayName
+    }
+
+    private fun detectSensitiveAsks(rawText: String): List<String> {
+        val text = normalizeName(rawText)
+        return buildSet {
+            if (Regex("\\b(otp|pin|cod|codul|cod verificare|cod sms)\\b").containsMatchIn(text)) add("otp")
+            if (Regex("\\b(card|cvv|cvc|numar card|date card|cont bancar)\\b").containsMatchIn(text)) add("card")
+            if (Regex("\\b(parola|password|credentiale|login)\\b").containsMatchIn(text)) add("password")
+        }.toList()
+    }
+
+    private fun hashLocalText(rawText: String): String {
+        val normalized = rawText.trim().lowercase(Locale.US)
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(normalized.toByteArray(StandardCharsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it) }
     }
 
     private fun domainMatches(observedDomain: String?, officialDomains: List<String>): Boolean {

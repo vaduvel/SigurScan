@@ -405,6 +405,8 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     var btrSyncSnapshot by mutableStateOf<BtrSyncSnapshot?>(null)
     var btrSyncLoading by mutableStateOf(false)
     var btrSyncStatus by mutableStateOf<String?>(null)
+    var inboxProvenanceVerdict by mutableStateOf<InboxProvenanceVerdict?>(null)
+    var inboxProvenanceStatus by mutableStateOf<String?>(null)
     var actionPlanLoading by mutableStateOf(false)
     var actionPlanStatus by mutableStateOf<String?>(null)
     var officialReportLoading by mutableStateOf(false)
@@ -649,6 +651,37 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             } finally {
                 btrSyncLoading = false
             }
+        }
+    }
+
+    fun runLocalInboxProvenanceCheck() {
+        val current = assessment
+        if (current == null) {
+            inboxProvenanceVerdict = null
+            inboxProvenanceStatus = "Scanează sau partajează întâi un mesaj/link."
+            return
+        }
+        val observedDomain = observedDomainForInboxSignal(current)
+        val verdict = InboxProvenanceEngine.evaluateLocalText(
+            rawText = current.originalText,
+            observedDomain = observedDomain,
+            btr = btrSyncSnapshot
+        )
+        inboxProvenanceVerdict = verdict
+        inboxProvenanceStatus = when (verdict.verdict) {
+            OnDeviceInboxVerdict.SAFE -> "Verificare locală: canal oficial și fără cerere sensibilă."
+            OnDeviceInboxVerdict.DANGEROUS -> "Verificare locală: brand oficial + cerere interzisă."
+            OnDeviceInboxVerdict.SUSPECT -> "Verificare locală: necesită verificare suplimentară."
+            OnDeviceInboxVerdict.UNVERIFIED -> "Verificare locală: registru lipsă sau identitate neconfirmată."
+        }
+    }
+
+    private fun observedDomainForInboxSignal(current: OfflineAssessment): String? {
+        val candidates = listOfNotNull(current.finalUrl, current.redirectChain.lastOrNull())
+        return candidates.firstNotNullOfOrNull { raw ->
+            runCatching { URI(raw).host }
+                .getOrNull()
+                ?.takeIf { it.isNotBlank() }
         }
     }
 

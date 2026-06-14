@@ -835,9 +835,12 @@ fun RadarTab(viewModel: ScannerViewModel) {
 
         BtrOnDeviceCard(
             snapshot = viewModel.btrSyncSnapshot,
+            verdict = viewModel.inboxProvenanceVerdict,
             loading = viewModel.btrSyncLoading,
             status = viewModel.btrSyncStatus,
-            onSync = { viewModel.syncBtrManifests() }
+            provenanceStatus = viewModel.inboxProvenanceStatus,
+            onSync = { viewModel.syncBtrManifests() },
+            onLocalCheck = { viewModel.runLocalInboxProvenanceCheck() }
         )
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -945,9 +948,12 @@ fun RadarTab(viewModel: ScannerViewModel) {
 @Composable
 private fun BtrOnDeviceCard(
     snapshot: BtrSyncSnapshot?,
+    verdict: InboxProvenanceVerdict?,
     loading: Boolean,
     status: String?,
-    onSync: () -> Unit
+    provenanceStatus: String?,
+    onSync: () -> Unit,
+    onLocalCheck: () -> Unit
 ) {
     val cacheText = snapshot?.let {
         "${it.manifests.size} manifeste oficiale • ${it.version}"
@@ -980,18 +986,45 @@ private fun BtrOnDeviceCard(
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(it, color = SigurColors.TextSecondary, fontSize = 11.sp, lineHeight = 15.sp)
             }
+            verdict?.let {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "Ultima verificare locală: ${it.verdict.name.lowercase(Locale.getDefault())} · ${it.reasonCodes.joinToString(", ")}",
+                    color = SigurColors.TextMuted,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp
+                )
+            }
+            provenanceStatus?.takeIf { it.isNotBlank() }?.let {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(it, color = SigurColors.TextSecondary, fontSize = 11.sp, lineHeight = 15.sp)
+            }
             Spacer(modifier = Modifier.height(12.dp))
-            Button(
-                onClick = onSync,
-                enabled = !loading,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = SigurColors.SafeLight),
-                border = BorderStroke(1.dp, SigurColors.SafeBorder),
-                shape = DSPillShape
-            ) {
-                Icon(Icons.Default.Download, contentDescription = null, tint = SigurColors.Safe, modifier = Modifier.size(14.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(if (loading) "Sync..." else "Sincronizează BTR", color = SigurColors.Safe, fontSize = 11.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = onSync,
+                    enabled = !loading,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = SigurColors.SafeLight),
+                    border = BorderStroke(1.dp, SigurColors.SafeBorder),
+                    shape = DSPillShape
+                ) {
+                    Icon(Icons.Default.Download, contentDescription = null, tint = SigurColors.Safe, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(if (loading) "Sync..." else "Sincronizează", color = SigurColors.Safe, fontSize = 11.sp)
+                }
+                Button(
+                    onClick = onLocalCheck,
+                    enabled = snapshot != null,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = SigurColors.BackgroundSurface),
+                    border = BorderStroke(1.dp, SigurColors.GlassBorder),
+                    shape = DSPillShape
+                ) {
+                    Icon(Icons.Default.Verified, contentDescription = null, tint = SigurColors.TextPrimary, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Verifică local", color = SigurColors.TextPrimary, fontSize = 11.sp)
+                }
             }
         }
     }

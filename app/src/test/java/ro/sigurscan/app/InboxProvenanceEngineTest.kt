@@ -67,4 +67,41 @@ class InboxProvenanceEngineTest {
 
         assertEquals(OnDeviceInboxVerdict.UNVERIFIED, verdict.verdict)
     }
+
+    @Test
+    fun localTextOfficialDomainWithoutSensitiveAskIsSafe() {
+        val verdict = InboxProvenanceEngine.evaluateLocalText(
+            rawText = "Upgrade fara regrete in YOXO Shop. Vezi ofertele pe https://www.yoxo.ro/",
+            observedDomain = "www.yoxo.ro",
+            btr = snapshot
+        )
+
+        assertEquals(OnDeviceInboxVerdict.SAFE, verdict.verdict)
+        assertEquals("yoxo", verdict.manifestId)
+        assertEquals(false, verdict.rawStored)
+        assertEquals("on_device_only", verdict.processing)
+    }
+
+    @Test
+    fun localTextOfficialBrandAskingOtpIsDangerous() {
+        val verdict = InboxProvenanceEngine.evaluateLocalText(
+            rawText = "YOXO: trimite codul de verificare primit prin SMS pentru activare.",
+            observedDomain = "www.yoxo.ro",
+            btr = snapshot
+        )
+
+        assertEquals(OnDeviceInboxVerdict.DANGEROUS, verdict.verdict)
+        assertEquals(listOf("never_ask_violation:otp"), verdict.reasonCodes)
+    }
+
+    @Test
+    fun localTextMentioningSmsWithoutCodeDoesNotBecomeDangerous() {
+        val verdict = InboxProvenanceEngine.evaluateLocalText(
+            rawText = "YOXO: informare SMS despre oferta ta din aplicatie.",
+            observedDomain = "www.yoxo.ro",
+            btr = snapshot
+        )
+
+        assertEquals(OnDeviceInboxVerdict.SAFE, verdict.verdict)
+    }
 }

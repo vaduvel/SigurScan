@@ -13,7 +13,7 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 - DNS reputation este activ live (`ENABLE_DNS_REPUTATION=true`) si apare in scanari reale ca `infra_dns`.
 - PR-6 Cercul are acum write-through plus read-fallback din Supabase; testat live cu link creat inainte de deploy.
 - Android PR-5 are acum hot-cache client, cache offline, CallScreeningService, UI pentru sync/rol OS, audit local fara numar brut si flow de raport oficial 1-tap (`/v1/report`). Flow-ul scan + raport oficial a fost validat pe emulator API 36; CallScreening a fost validat pe emulator cu rol OS activ si apel GSM simulat.
-- Android PR-7 are acum BTR sync local si motor on-device de provenienta pe semnale locale. Nu citeste automat SMS-uri.
+- Android PR-7 are acum BTR sync local, motor on-device de provenienta pe semnale locale si actiune UI pentru verificarea locala a ultimului scan impotriva BTR. Nu citeste automat SMS-uri.
 - Android PR-8 afiseaza `action_plan` si are flow post-incident pentru impacts reale (`shared_card`, `paid_transfer` etc.).
 - Android PR-9/PR-10 audio este blocat explicit prin policy pana exista model ASR on-device, consimtamant, disclosure si QA real-device.
 - Productia ruleaza imaginea backend taguita `3183000`. Commit-urile de documentatie/status de dupa deploy nu schimba codul backend din container.
@@ -53,6 +53,13 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
   - `JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew testDebugUnitTest assembleDebug`
   - rezultat: `BUILD SUCCESSFUL`
   - observatii: doar warning-uri Kotlin existente/deprecated Compose icons/clipboard/lifecycle; fara test sau build failure
+- Android PR-7 local inbox/BTR dupa conectare UI:
+  - `JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew testDebugUnitTest --tests 'ro.sigurscan.app.InboxProvenanceEngineTest'`
+  - rezultat: `BUILD SUCCESSFUL`
+  - `JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew testDebugUnitTest assembleDebug`
+  - rezultat: `BUILD SUCCESSFUL`
+  - live BTR smoke cu `User-Agent: SigurScan/1.0 Android OkHttp` si cheia locala: `/v1/btr/sync` `200`, `count=17`, `version=btr-ro-2026.06.13`, `yoxo=true`
+  - observatie: acelasi endpoint poate intoarce Cloudflare `1010` pentru clienti de terminal fara User-Agent-ul app-ului; nu este un 403 backend de API key.
 - Verificari locale dupa conectarea raportului oficial si BTR YOXO:
   - Backend full final dupa merge cu `origin/main`: `914 passed, 1 warning`
   - Android full JVM: `BUILD SUCCESSFUL`
@@ -112,7 +119,7 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 | PR-6 | Cercul out-of-band | Da | Da, UI Android dedicat in Radar | `/v1/circle/pair`, `/ping`, `/respond`, `/revoke` live OK; Android are pair/ping/respond/revoke fara continut brut |
 | PR-6 persist | Supabase durable state | Da | N/A | `circle_links`, `verification_pings`, `guardian_second_opinion` live OK; read-fallback adaugat in `4ba2b9b` |
 | PR-6 | Guardian second opinion | Da | Da, UI Android dedicat in Radar | `/v1/guardian/second-opinion` live OK; Android trimite rezumat redactat, full fara consimtamant downgrade la metadata_only |
-| PR-7 | Inbox provenance contract / BTR sync | Da ca endpoint | Foundation real | `/v1/btr/sync` live OK; Android consuma endpointul, stocheaza local si are engine on-device pe semnale locale. Nu citeste automat SMS-uri |
+| PR-7 | Inbox provenance contract / BTR sync | Da ca endpoint | Da ca foundation + UI local check | `/v1/btr/sync` live OK cu User-Agent Android; Android consuma endpointul, stocheaza local si are engine on-device pe semnale locale. UI Radar poate rula verificarea locala a ultimului scan. Nu citeste automat SMS-uri |
 | PR-8 | Plan de actiune post-incident | Da | Da pentru flow de rezultat | `/v1/legal/action-plan` live OK; Android trimite impacts reale selectate si randeaza planul; planul apare in smoke emulator FAN fake |
 | PR-8/9 integ | `action_plan` in orchestrator + audio reference | Partial backend | Partial pentru action_plan, nu audio | Orchestratorul trimite `action_plan`; Android il afiseaza. Nu exista audio reference/on-device audio |
 | Extra | DNS reputation | Da | Da indirect prin scan response | `infra_dns` live OK; flag Cloud Run activ |
@@ -130,7 +137,7 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 
 2. Android BTR sync / Inbox PR-7 este foundation, nu citire automata SMS.
    - Backend-ul ofera `/v1/btr/sync`.
-   - App-ul are client Retrofit, store local si engine on-device.
+   - App-ul are client Retrofit, store local, engine on-device si buton UI pentru verificarea locala a ultimului scan pe semnale redactate/local extrase.
    - Manifestul Android nu cere `READ_SMS`; nu exista citire automata inbox/SMS.
    - Lipseste integrarea cu un flux real de inbox/SMS dupa decizia de produs si permisiuni.
 
@@ -163,6 +170,7 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 - Cercul PR-6 nu mai depinde strict de memoria unei singure instante Cloud Run.
 - Android afiseaza planul de actiune preventiv PR-8 cand backend-ul il include in scan response.
 - Android poate sincroniza Radar hot-cache si BTR de pe domeniul oficial.
+- Android poate rula PR-7 BTR local check din UI pe ultimul scan, fara endpoint care primeste SMS sau text brut.
 - Android poate cere pachet de raportare oficiala 1-tap pentru verdicturi de risc, fara continut brut.
 - Android are CallScreeningService offline-first; nu face network in timpul apelului, este validat pe emulator cu rol OS activ si apel GSM simulat.
 - Android are UI Cercul/Guardian in Radar: pair, ping, raspuns, revocare si second opinion metadata/redacted.
