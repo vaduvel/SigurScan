@@ -377,6 +377,11 @@ class ScannerViewModelTest {
             activitySource.contains("viewModel.scanInvoiceFromDocument(capturedUri, context)")
         )
         assertTrue(
+            "Invoice camera capture must request CAMERA permission before launching TakePicture.",
+            activitySource.contains("invoiceCameraPermissionLauncher") &&
+                activitySource.contains("ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)")
+        )
+        assertTrue(
             "Scan UI must expose a visible camera action for invoices.",
             activitySource.contains("Fotografiază Factură")
         )

@@ -13,6 +13,7 @@ import android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
 import android.text.Html
 import android.text.Spanned
 import android.view.ViewGroup.LayoutParams
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -372,15 +373,32 @@ fun MainScreen(viewModel: ScannerViewModel) {
         }
         pendingInvoicePhotoUri = null
     }
+    fun launchInvoiceCameraCapture() {
+        val uri = createInvoiceCaptureUri(context)
+        pendingInvoicePhotoUri = uri
+        invoicePhotoLauncher.launch(uri)
+    }
+    val invoiceCameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            launchInvoiceCameraCapture()
+        } else {
+            pendingInvoicePhotoUri = null
+            Toast.makeText(context, "Permite camera ca să fotografiezi factura.", Toast.LENGTH_SHORT).show()
+        }
+    }
     val offerPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri?.let { viewModel.scanOfferFromDocument(it, context) }
     }
     val captureInvoicePhoto = {
-        val uri = createInvoiceCaptureUri(context)
-        pendingInvoicePhotoUri = uri
-        invoicePhotoLauncher.launch(uri)
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            launchInvoiceCameraCapture()
+        } else {
+            invoiceCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
     }
     var showQrScanner by remember { mutableStateOf(false) }
     val closeQrScanner = { showQrScanner = false }
