@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hmac
 import os
+import re
 import time
 from typing import Any, List, Optional, TYPE_CHECKING
 from dataclasses import dataclass, field
@@ -33,7 +34,7 @@ def _hmac_digest(data: str) -> str:
 
 
 def _cache_key(fields) -> str:
-    raw = f"{fields.cui}|{fields.iban}|{fields.total}|{fields.data_emitere}|{fields.nr_factura}"
+    raw = fields.raw_text or f"{fields.cui}|{fields.iban}|{fields.total}|{fields.data_emitere}|{fields.nr_factura}"
     return _hmac_digest(raw)
 
 
@@ -84,9 +85,72 @@ class InvoiceScanResult:
     brand: Optional[str] = None
     brand_match: Optional[BrandMatchResult] = None
     anaf_cui_check: Optional[dict] = None
+    payment_destination: Optional[dict] = None
     error: Optional[str] = None
     warnings: list = field(default_factory=list)
+    fraud_flags: list[str] = field(default_factory=list)
     from_cache: bool = False
+
+
+_DIACRITICS = str.maketrans("ăâîșşțţ", "aaisstt")
+_COMPANY_MARKERS = re.compile(
+    r"\b(s\.?\s?r\.?\s?l|s\.?\s?a|s\.?\s?c|p\.?\s?f\.?\s?a|i\.?\s?i|s\.?\s?n\.?\s?c|"
+    r"societate|societatea|asociat|fundat|regia|intreprindere|cooperativa|cabinet|"
+    r"sucursala|gmbh|ltd|llc|inc|s\.?p\.?a)\b",
+    re.IGNORECASE,
+)
+_ACCOUNT_CHANGE_RE = re.compile(
+    r"(am\s+schimbat\s+(contul|banca|iban)|cont(ul)?\s+(nou|s-?a\s+schimbat|modificat|actualizat)|"
+    r"noul\s+(nostru\s+)?(cont|iban)|iban[-\s]*(ul)?\s*(nou|s-?a\s+(schimbat|modificat))|"
+    r"schimbare\s+(de\s+)?cont\s+bancar|date(le)?\s+bancare\s+(au\s+fost\s+)?(modificat|actualizat|schimbat)|"
+    r"changed\s+(our\s+)?(bank\s+account|account\s+details|iban)|new\s+(bank\s+)?account)",
+    re.IGNORECASE,
+)
+_PRESSURE_RE = re.compile(
+    r"(astazi|imediat|in\s*24\s*(de\s*)?ore|ultima\s+zi|chiar\s+acum|de\s+urgenta|"
+    r"altfel\s+(se\s+)?(suspend|debrans|deconect|pierde|anuleaz|sista)|debransare|"
+    r"deconectare|executare\s+silita|poprire|pierdeti\s+comanda|risc(ati)?\s+(suspendare|debransare)|"
+    r"evita(?:ti)?\s+(?:suspendarea|deconectarea|debransarea|penalizarile|blocarea))",
+    re.IGNORECASE,
+)
+_NAME_STOPWORDS = {"sc", "srl", "sa", "pfa", "ii", "snc", "de", "si"}
+
+
+def _txt_norm(text: str) -> str:
+    return (text or "").lower().translate(_DIACRITICS)
+
+
+def _foreign_ibans(all_ibans: list[str]) -> list[str]:
+    output: list[str] = []
+    for raw in all_ibans or []:
+        norm = "".join(ch for ch in str(raw or "").upper() if ch.isalnum())
+        if len(norm) >= 4 and norm[:2] != "RO" and validate_iban(norm).valid_structure:
+            output.append(norm)
+    return output
+
+
+def _name_tokens(name: str) -> set[str]:
+    cleaned = _COMPANY_MARKERS.sub(" ", _txt_norm(name))
+    return {token for token in re.findall(r"[a-z]{2,}", cleaned) if token not in _NAME_STOPWORDS}
+
+
+def _beneficiary_is_person(name: Optional[str]) -> bool:
+    if not name or _COMPANY_MARKERS.search(name):
+        return False
+    tokens = re.findall(r"[A-Za-zĂÂÎȘŞȚŢăâîșşțţ]{2,}", name.strip())
+    return 2 <= len(tokens) <= 4
+
+
+def _beneficiary_mismatch(beneficiary: Optional[str], issuer: Optional[str]) -> bool:
+    if not _beneficiary_is_person(beneficiary):
+        return False
+    beneficiary_tokens = _name_tokens(beneficiary or "")
+    issuer_tokens = _name_tokens(issuer or "")
+    if beneficiary_tokens and issuer_tokens and len(beneficiary_tokens & issuer_tokens) >= min(
+        2, len(beneficiary_tokens), len(issuer_tokens)
+    ):
+        return False
+    return True
 
 
 def _fields_to_coherence(fields: InvoiceFields) -> CoherenceResult:
@@ -180,6 +244,91 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
         elif not cui_check["activ"]:
             warnings.append(f"Company {cui_check['denumire']} is inactive")
 
+    fraud_flags: list[str] = []
+    candidate_ibans = list(getattr(fields, "all_ibans", []) or [])
+    if fields.iban:
+        candidate_ibans.append(fields.iban)
+    try:
+        from services.negative_iban_registry import reported_fraud_ibans
+
+        if reported_fraud_ibans(candidate_ibans):
+            fraud_flags.append("REPORTED_FRAUD_IBAN")
+            warnings.append("IBAN-ul de plată a fost raportat anterior ca fraudă.")
+    except Exception:
+        pass
+
+    if _beneficiary_mismatch(getattr(fields, "payment_beneficiary", None), fields.emitent):
+        fraud_flags.append("BENEFICIARY_PERSON_MISMATCH")
+        warnings.append(
+            "Beneficiarul plății pare o persoană fizică, nu firma emitentă. "
+            "Confirmă direct cu furnizorul înainte de plată."
+        )
+
+    if _foreign_ibans(candidate_ibans):
+        fraud_flags.append("FOREIGN_IBAN")
+        warnings.append("IBAN-ul de plată nu este românesc; verifică destinația pe un canal oficial.")
+
+    payment_destination = None
+    if fields.iban:
+        try:
+            from services.payment_destination_registry import match_payment_destination
+
+            payment_destination = match_payment_destination(
+                fields.iban,
+                claimed_brand=claimed_brand,
+                cui=fields.cui,
+            )
+            if payment_destination.get("matched") and payment_destination.get("brand_matches") is False:
+                fraud_flags.append("PAYMENT_DESTINATION_BRAND_MISMATCH")
+                warnings.append("IBAN-ul este oficial pentru alt furnizor, nu pentru emitentul declarat.")
+            elif payment_destination.get("matched") is False and iban_valid and iban_valid.valid_structure:
+                fraud_flags.append("UNKNOWN_PAYMENT_DESTINATION")
+                warnings.append(
+                    "IBAN-ul este valid, dar destinația de plată nu este confirmată ca oficială. "
+                    "Verifică în portalul/aplicația furnizorului înainte de plată."
+                )
+        except Exception:
+            payment_destination = None
+
+    normalized_text = _txt_norm(ocr_text)
+    if _ACCOUNT_CHANGE_RE.search(normalized_text):
+        fraud_flags.append("ACCOUNT_CHANGE_LANGUAGE")
+        warnings.append("Textul anunță cont bancar/IBAN schimbat; confirmă pe un canal separat.")
+    if _PRESSURE_RE.search(normalized_text):
+        fraud_flags.append("PAYMENT_PRESSURE")
+    if len(set(candidate_ibans)) >= 2:
+        fraud_flags.append("MULTIPLE_IBANS")
+
+    try:
+        from services.offer_signals import CARD_CVV_OTP
+
+        if CARD_CVV_OTP.search(ocr_text or ""):
+            fraud_flags.append("SENSITIVE_DATA_REQUESTED")
+            warnings.append("Factura cere date de card/CVV/OTP; nu completa și nu plăti.")
+    except Exception:
+        pass
+
+    try:
+        from services import vendor_memory
+
+        if fields.cui and fields.iban:
+            if vendor_memory.iban_changed_for_cui(fields.cui, fields.iban):
+                fraud_flags.append("IBAN_CHANGED_VS_HISTORY")
+                warnings.append("IBAN-ul diferă de istoricul curat al acestei firme.")
+            hard_flags = {
+                "REPORTED_FRAUD_IBAN",
+                "BENEFICIARY_PERSON_MISMATCH",
+                "FOREIGN_IBAN",
+                "IBAN_CHANGED_VS_HISTORY",
+                "ACCOUNT_CHANGE_LANGUAGE",
+                "SENSITIVE_DATA_REQUESTED",
+                "UNKNOWN_PAYMENT_DESTINATION",
+            }
+            if not (hard_flags & set(fraud_flags)):
+                vendor_memory.remember_invoice_iban(fields.cui, fields.iban)
+    except Exception:
+        pass
+
     result = InvoiceScanResult(
         raw_text=ocr_text,
         fields=fields,
@@ -189,7 +338,9 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
         brand=claimed_brand,
         brand_match=brand_match_result,
         anaf_cui_check=anaf_check,
+        payment_destination=payment_destination,
         warnings=warnings,
+        fraud_flags=fraud_flags,
     )
     _set_cached_verdict(fields, result)
     return result
@@ -228,6 +379,7 @@ async def scan_offer(
     from services.offer_entity_verifier import verify_offer_entity
     from services.offer_evidence_gate_mapper import evaluate_offer_verdict
     from services.registry_verification import verify_offer_registries
+    from services.cross_scan_knowledge import evaluate_cross_scan_knowledge
 
     fields = parse_offer(ocr_text, links=links, qr_payloads=qr_payloads, input_type="offer")
     coherence = check_coherence(
@@ -249,10 +401,17 @@ async def scan_offer(
     )
     # Registre publice: snapshot-uri locale/stubs oneste — zero apeluri live.
     registry_results = verify_offer_registries(fields, family_code)
+    cross_scan_knowledge = evaluate_cross_scan_knowledge(
+        text=fields.raw_text or ocr_text,
+        claimed_brand=entity.claimed_brand or fields.claimed_brand or fields.emitent,
+        cui=fields.cui,
+        source_channel="offer",
+    )
     out = evaluate_offer_verdict(
         fields, signals=signals, entity=entity, coherence=coherence,
         family_code=family_code, family_confidence=family_conf, readiness=readiness,
         redacted_text=ocr_text, registry_results=registry_results,
+        cross_scan_knowledge=cross_scan_knowledge,
     )
     return OfferScanResult(
         raw_text=ocr_text,
@@ -277,7 +436,18 @@ async def scan_offer(
 # Maparea InvoiceScanResult -> Evidence Bundle v2 + reduce_verdict. Sursă unică
 # de adevăr, refolosită de /v1/scan/invoice ȘI de fast-lane-ul orchestrat.
 # ─────────────────────────────────────────────────────────────────────────────
-def build_invoice_evidence_bundle(result: "InvoiceScanResult", redacted_text: str = "") -> dict:
+_UNTRUSTED_INTAKE = {"whatsapp", "sms", "social_dm", "messenger", "telegram", "unknown"}
+
+
+def _intake_trusted(source_channel: Optional[str]) -> bool:
+    return str(source_channel or "").strip().lower() not in _UNTRUSTED_INTAKE
+
+
+def build_invoice_evidence_bundle(
+    result: "InvoiceScanResult",
+    redacted_text: str = "",
+    source_channel: Optional[str] = None,
+) -> dict:
     import hashlib
     import json
     import re
@@ -292,6 +462,46 @@ def build_invoice_evidence_bundle(result: "InvoiceScanResult", redacted_text: st
     cui_matches = bool(brand_match and brand_match.cui_matches)
     iban_matches = bool(brand_match and brand_match.iban_matches)
     claimed_brand = result.brand or "Nespecificat"
+    fraud_flags = list(getattr(result, "fraud_flags", []) or [])
+    beneficiary_mismatch = "BENEFICIARY_PERSON_MISMATCH" in fraud_flags
+    destination_mismatch = "PAYMENT_DESTINATION_BRAND_MISMATCH" in fraud_flags
+    unknown_destination = "UNKNOWN_PAYMENT_DESTINATION" in fraud_flags
+    payment_destination = getattr(result, "payment_destination", None) or {}
+    never_asks_result = {
+        "brand_ids": [],
+        "violated_never_asks": [],
+        "source_channel": str(source_channel or "").strip().lower(),
+        "source_refs": [],
+    }
+    try:
+        from services.brand_never_asks import evaluate_brand_never_asks
+
+        never_asks_result = evaluate_brand_never_asks(
+            claimed_brand=result.brand,
+            text=redacted_text or result.raw_text,
+            source_channel=source_channel,
+            fraud_flags=fraud_flags,
+            payment_destination=payment_destination,
+        )
+    except Exception:
+        pass
+    violated_never_asks = list(never_asks_result.get("violated_never_asks") or [])
+    destination_trusted = bool(
+        payment_destination.get("matched")
+        and (payment_destination.get("brand_matches") is True or payment_destination.get("cui_matches") is True)
+        and payment_destination.get("can_contribute_to_safe") is True
+        and payment_destination.get("trust_tier") in {"T0_PARTNER_SIGNED", "T1_PUBLIC_OFFICIAL", "T2_OFFICIAL_DOCUMENT_CHAIN"}
+    )
+    destination_required = bool(
+        getattr(result.fields, "iban", None)
+        and payment_destination.get("registry_has_brand_destinations") is True
+    )
+    weak_fraud_flag = any(
+        flag in fraud_flags
+        for flag in ("FOREIGN_IBAN", "ACCOUNT_CHANGE_LANGUAGE", "IBAN_CHANGED_VS_HISTORY", "UNKNOWN_PAYMENT_DESTINATION")
+    )
+    sensitive_requested = "SENSITIVE_DATA_REQUESTED" in fraud_flags
+    strong_bec_combo = "FOREIGN_IBAN" in fraud_flags and "ACCOUNT_CHANGE_LANGUAGE" in fraud_flags
 
     anaf_status = "clean"
     anaf_reasons: list = []
@@ -330,13 +540,65 @@ def build_invoice_evidence_bundle(result: "InvoiceScanResult", redacted_text: st
     }
     if anaf_reasons:
         provider_section.setdefault("reasons", []).extend(anaf_reasons)
+    if "REPORTED_FRAUD_IBAN" in fraud_flags:
+        provider_section["verdict"] = "malicious"
+        provider_section["negative_iban_registry"] = {
+            "status": "malicious",
+            "verdict": "malicious",
+            "severity": "high",
+            "consulted": True,
+            "reasons": ["IBAN raportat ca fraudă"],
+        }
+    if payment_destination:
+        if destination_mismatch:
+            provider_section["payment_destination"] = {
+                "status": "suspicious",
+                "verdict": "suspicious",
+                "trust_tier": payment_destination.get("trust_tier"),
+                "brand_id": payment_destination.get("brand_id"),
+                "matched": True,
+                "brand_matches": False,
+                "reasons": ["IBAN oficial pentru alt furnizor"],
+                "iban_masked_for_client": payment_destination.get("iban_masked_for_client"),
+            }
+        elif destination_trusted:
+            provider_section["payment_destination"] = {
+                "status": "clean",
+                "verdict": "clean",
+                "trust_tier": payment_destination.get("trust_tier"),
+                "brand_id": payment_destination.get("brand_id"),
+                "matched": True,
+                "brand_matches": True,
+                "iban_masked_for_client": payment_destination.get("iban_masked_for_client"),
+            }
+        elif destination_required or unknown_destination:
+            provider_section["payment_destination"] = {
+                "status": "unknown",
+                "verdict": "unknown",
+                "trust_tier": payment_destination.get("trust_tier"),
+                "matched": False,
+                "brand_matches": None,
+                "reasons": ["IBAN valid structural, dar neconfirmat ca destinație oficială"],
+            }
 
-    if impersonation_risk:
+    if beneficiary_mismatch:
+        identity_status = "lookalike"
+        identity_reason = "Beneficiarul plății nu corespunde firmei emitente"
+    elif destination_mismatch:
+        identity_status = "lookalike"
+        identity_reason = "Destinația de plată aparține altui furnizor"
+    elif impersonation_risk:
         identity_status = "lookalike"
         identity_reason = "CUI/IBAN nealiniat cu brandul declarat"
-    elif cui_matches and iban_matches:
+    elif destination_trusted and payment_destination.get("cui_matches") is True:
         identity_status = "official"
-        identity_reason = "Brand confirmat prin CUI și IBAN"
+        identity_reason = "CUI și destinație de plată confirmate oficial"
+    elif cui_matches and iban_matches and (not destination_required or destination_trusted):
+        identity_status = "official"
+        identity_reason = "Brand confirmat prin CUI și destinație de plată oficială"
+    elif cui_matches and destination_required and not destination_trusted:
+        identity_status = "unknown"
+        identity_reason = "IBAN valid, dar nu este confirmat în registry-ul oficial al furnizorului"
     elif claimed_brand != "Nespecificat":
         identity_status = "unknown"
         identity_reason = "Brand declarat dar neverificat complet"
@@ -344,24 +606,52 @@ def build_invoice_evidence_bundle(result: "InvoiceScanResult", redacted_text: st
         identity_status = "unknown"
         identity_reason = "Brand nedeclarat"
 
+    if not _intake_trusted(source_channel) and identity_status == "official":
+        identity_status = "unknown"
+        identity_reason = "Canal neoficial; proveniență neconfirmată"
+
     identity_section = {
         "status": identity_status,
         "claimed_brand": claimed_brand,
         "domain_reputation": "established" if (brand_match and brand_match.domain_matches) else "unknown",
         "reason": identity_reason,
-        "completeness": brand_match is not None,
+        "completeness": (
+            brand_match is not None
+            or beneficiary_mismatch
+            or weak_fraud_flag
+            or sensitive_requested
+            or "REPORTED_FRAUD_IBAN" in fraud_flags
+            or destination_required
+            or destination_mismatch
+            or unknown_destination
+            or destination_trusted
+            or bool(violated_never_asks)
+        ),
+        "violated_never_asks": violated_never_asks,
     }
+    if never_asks_result.get("source_refs"):
+        identity_section["never_asks_source_refs"] = never_asks_result.get("source_refs")
 
-    request_section = {"sensitive": "transfer", "channel": "invoice", "completeness": True}
+    request_section = {
+        "sensitive": "card" if sensitive_requested else "transfer",
+        "channel": never_asks_result.get("source_channel") if violated_never_asks else "invoice",
+        "completeness": True,
+    }
 
     semantic_risk = "low"
     semantic_reasons: list = []
-    if impersonation_risk:
-        semantic_risk = "high"
-        semantic_reasons.append("Impersonation risk detected")
     if readiness_blocks_safe:
         semantic_risk = "medium"
         semantic_reasons.append("Date insuficiente")
+    if weak_fraud_flag:
+        semantic_risk = "medium"
+        semantic_reasons.append("Semnal de fraudă pe destinația plății")
+    if impersonation_risk or beneficiary_mismatch or destination_mismatch or strong_bec_combo or sensitive_requested:
+        semantic_risk = "high"
+        semantic_reasons.append("Impersonation risk detected")
+    if violated_never_asks:
+        semantic_risk = "high"
+        semantic_reasons.append("Brand never-asks policy violated")
     if coherence and not coherence.all_ok:
         semantic_reasons.append("Document incoherent")
     semantic_section = {
@@ -390,9 +680,13 @@ def build_invoice_evidence_bundle(result: "InvoiceScanResult", redacted_text: st
     return bundle
 
 
-def evaluate_invoice_verdict(result: "InvoiceScanResult", redacted_text: str = "") -> dict:
+def evaluate_invoice_verdict(
+    result: "InvoiceScanResult",
+    redacted_text: str = "",
+    source_channel: Optional[str] = None,
+) -> dict:
     """Factură -> bundle v2 -> reduce_verdict (gate unic). {bundle, gate}."""
     from services.verdict_gate import verdict as reduce_verdict
 
-    bundle = build_invoice_evidence_bundle(result, redacted_text)
+    bundle = build_invoice_evidence_bundle(result, redacted_text, source_channel=source_channel)
     return {"bundle": bundle, "gate": reduce_verdict(bundle)}

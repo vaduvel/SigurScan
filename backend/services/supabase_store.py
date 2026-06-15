@@ -223,6 +223,38 @@ def load_campaign_intel() -> List[Dict[str, Any]]:
     return output
 
 
+def save_negative_iban(iban: str, *, source: str = "manual", family: Optional[str] = None) -> None:
+    if not iban:
+        return
+    row = {
+        "iban": iban,
+        "source": source or "manual",
+        "family": family,
+        "report_count": 1,
+    }
+    _post_json("negative_iban_registry", row, "resolution=merge-duplicates,return=minimal")
+
+
+def load_negative_ibans() -> List[str]:
+    rows = _get_json("negative_iban_registry", {"select": "iban"})
+    return [str(row.get("iban") or "") for row in rows if row.get("iban")]
+
+
+def save_vendor_iban(cui: str, iban: str) -> None:
+    if not cui or not iban:
+        return
+    row = {
+        "cui": cui,
+        "iban": iban,
+        "seen_count": 1,
+    }
+    _post_json("vendor_iban_memory", row, "resolution=merge-duplicates,return=minimal")
+
+
+def load_vendor_ibans() -> List[Dict[str, Any]]:
+    return _get_json("vendor_iban_memory", {"select": "cui,iban"})
+
+
 def save_campaign_fingerprint(entry: Dict[str, Any]) -> None:
     if not is_supabase_enabled() or not isinstance(entry, dict):
         return

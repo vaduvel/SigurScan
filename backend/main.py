@@ -3450,10 +3450,26 @@ def _build_decision_evidence_bundle(
         provider_verdict=str(provider_section.get("verdict") or "unknown"),
     )
     provenance_proto = evidence.get("provenance") if isinstance(evidence.get("provenance"), dict) else {}
+    cross_scan = evidence.get("cross_scan_knowledge") if isinstance(evidence.get("cross_scan_knowledge"), dict) else {}
+    cross_never_asks = cross_scan.get("brand_never_asks") if isinstance(cross_scan.get("brand_never_asks"), dict) else {}
+    cross_violated_never_asks = list(cross_never_asks.get("violated_never_asks") or [])
+    fraud_flags = set(cross_scan.get("fraud_flags") or [])
     if provenance_proto.get("violated_never_asks"):
         identity_section["violated_never_asks"] = provenance_proto["violated_never_asks"]
+    if cross_violated_never_asks and not official_destination:
+        merged = list(identity_section.get("violated_never_asks") or [])
+        for item in cross_violated_never_asks:
+            if item not in merged:
+                merged.append(item)
+        identity_section["violated_never_asks"] = merged
     if provenance_proto.get("violated_never_does"):
         identity_section["violated_never_does"] = provenance_proto["violated_never_does"]
+    if "PAYMENT_DESTINATION_BRAND_MISMATCH" in fraud_flags:
+        identity_section["status"] = "lookalike"
+        identity_section["reason"] = "IBAN-ul aparține altei destinații oficiale decât brandul pretins."
+    elif "UNKNOWN_PAYMENT_DESTINATION" in fraud_flags and identity_section.get("status") == "official":
+        identity_section["status"] = "unknown"
+        identity_section["reason"] = "IBAN-ul este valid, dar nu este confirmat pentru brandul pretins."
     provenance_section = {
         "official_domain_match": provenance_proto.get("official_domain_match", False),
         "manifest_id": provenance_proto.get("manifest_id"),
@@ -3486,6 +3502,7 @@ def _build_decision_evidence_bundle(
             "urgency": bool(re.search(r"\b(urgent|azi|acum|24\s*de\s*ore|ultima|expir[ăa])\b", str(raw_text or ""), re.IGNORECASE)),
             "passive_payment": bool(re.search(r"\b(plata abonamentului|se va efectua automat plata|factur[ăa])\b", str(raw_text or ""), re.IGNORECASE)),
             "apk_or_remote_mention": bool(re.search(r"\b(apk|anydesk|teamviewer|remote access|control la distan[țt][ăa])\b", str(raw_text or ""), re.IGNORECASE)),
+            "cross_scan_knowledge": cross_scan,
         },
         "semantic_review": semantic_review,
     }
@@ -3630,6 +3647,17 @@ def _apply_provider_gate_verdict(
     evidence["external_intel_summary"] = summary
 
     claimed_brand = str(analysis.get("claimed_brand") or "Nespecificat")
+    source_channel = evidence.get("source_channel") if isinstance(evidence, dict) else None
+    try:
+        from services.cross_scan_knowledge import evaluate_cross_scan_knowledge
+
+        evidence["cross_scan_knowledge"] = evaluate_cross_scan_knowledge(
+            text=raw_text,
+            claimed_brand=None if claimed_brand == "Nespecificat" else claimed_brand,
+            source_channel=source_channel,
+        )
+    except Exception:
+        evidence.setdefault("cross_scan_knowledge", {})
     has_urls = bool(resolved_urls)
     offer = evidence.get("offer_claim_verification")
     offer_status = str(offer.get("status", "")).lower() if isinstance(offer, dict) else ""
@@ -5804,7 +5832,16 @@ def _merge_orchestrated_conflict_job(reloaded: Dict[str, Any], local: Dict[str, 
     ):
         merged["pipeline_stage"] = local.get("pipeline_stage")
 
-    for key in ("resolved_urls", "primary_final_url", "threat_intel", "analysis", "result", "claim_verifier_required", "offer_web_claim"):
+    for key in (
+        "resolved_urls",
+        "primary_final_url",
+        "threat_intel",
+        "analysis",
+        "result",
+        "claim_verifier_required",
+        "offer_web_claim",
+        "invoice_analysis_text",
+    ):
         local_value = local.get(key)
         if local_value not in (None, "", [], {}) and merged.get(key) in (None, "", [], {}):
             merged[key] = _deep_copy_jsonable(local_value)
@@ -6302,6 +6339,7 @@ def _mark_required_pillars_timeout(job: Dict[str, Any]) -> Dict[str, Any]:
             reason_codes.append("orchestration:required_timeout")
         existing_semantic["reason_codes"] = reason_codes
     job["analysis"] = analysis
+    job["required_pillars_timed_out"] = True
     _set_orchestrated_stage(job, "done")
     _emit_orchestrated_telemetry("orchestrated_required_timeout", job)
     return job
@@ -6741,7 +6779,13 @@ def _orchestrated_result_is_final(job: Dict[str, Any], analysis: Dict[str, Any])
         return False
     has_url_context = bool(job.get("urls")) or bool(job.get("resolved_urls"))
     if not has_url_context:
-        return False
+        provider_gate = evidence.get("provider_gate") if isinstance(evidence.get("provider_gate"), dict) else {}
+        timeout_family = str(analysis.get("detected_family_id") or "") == "provider-gate-required-timeout"
+        return (
+            provider_gate.get("required_timeout") is not True
+            and not timeout_family
+            and job.get("required_pillars_timed_out") is not True
+        )
     reason_codes = {str(item).strip() for item in gate.get("reason_codes") or []}
     return not (reason_codes & {"insufficient_evidence", "provider_error"})
 
@@ -7108,6 +7152,25 @@ async def _create_orchestrated_job(payload: OrchestratedScanRequest) -> Dict[str
         privacy_entry = privacy_by_hash.get(hashlib.sha256(raw_url.encode("utf-8")).hexdigest(), {})
         safe_url = str(privacy_entry.get("external_url") or "")
         privacy_safe_text = privacy_safe_text.replace(raw_url, safe_url)
+    cross_scan_knowledge: Dict[str, Any] = {}
+    try:
+        from services.brand_registry import detect_claimed_brand
+        from services.cross_scan_knowledge import evaluate_cross_scan_knowledge
+        from services.invoice_parser import CUI_PATTERN
+
+        cui_match = CUI_PATTERN.search(privacy_safe_text)
+        cui = None
+        if cui_match:
+            cui = "".join(ch for ch in (cui_match.group("label") or cui_match.group("bare") or "") if ch.isdigit())
+        claimed_brand = detect_claimed_brand(None, privacy_safe_text, raw_urls)
+        cross_scan_knowledge = evaluate_cross_scan_knowledge(
+            text=privacy_safe_text,
+            claimed_brand=claimed_brand,
+            cui=cui,
+            source_channel=payload.source_channel,
+        )
+    except Exception:
+        cross_scan_knowledge = {}
     redacted_text = redact_pii(privacy_safe_text)
     scan_id = _new_scan_id("orch")
     extra_fields = dict(context.get("extra_fields") or {})
@@ -7142,6 +7205,7 @@ async def _create_orchestrated_job(payload: OrchestratedScanRequest) -> Dict[str
         "source_channel": context["source_channel"],
         "urls": urls,
         "redacted_text": redacted_text,
+        "cross_scan_knowledge": cross_scan_knowledge,
         "analysis": {},
         "resolved_urls": [],
         "primary_final_url": None,
@@ -7184,6 +7248,11 @@ async def _create_orchestrated_job(payload: OrchestratedScanRequest) -> Dict[str
             "urlscan_timeout_count": 0,
         },
     }
+    if context["input_type"] == "invoice":
+        # Invoice verdicts depend on exact payment identifiers. Keep the
+        # privacy-safe URL-substituted text only until the invoice fast lane
+        # parses IBAN/CUI, then remove it before final persistence.
+        job["invoice_analysis_text"] = privacy_safe_text
     job = _persist_orchestrated_job(job)
     _emit_orchestrated_telemetry("orchestrated_created", job)
     return job
@@ -7346,17 +7415,18 @@ async def _run_orchestrated_fast_lane(job: Dict[str, Any], request: Request) -> 
 
 
 async def _run_orchestrated_invoice_fast_lane(job: Dict[str, Any], request: Request) -> Dict[str, Any]:
-    from services.invoice_orchestrator import scan_invoice
+    from services.invoice_orchestrator import evaluate_invoice_verdict, scan_invoice
     from services.verdict_gate import verdict as reduce_verdict
 
     redacted_text = str(job.get("redacted_text") or "")
+    invoice_analysis_text = str(job.get("invoice_analysis_text") or redacted_text)
     urls = job.get("urls") if isinstance(job.get("urls"), list) else []
     _set_orchestrated_stage(job, "invoice_parse")
     try:
         result = await _timed_orchestrated_component(
             job,
             "invoice_fast_lane.scan_invoice",
-            lambda: scan_invoice(redacted_text, links=urls),
+            lambda: scan_invoice(invoice_analysis_text, links=urls),
         )
     except Exception as exc:
         result = None
@@ -7492,7 +7562,19 @@ async def _run_orchestrated_invoice_fast_lane(job: Dict[str, Any], request: Requ
     canonical = json.dumps(bundle, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     bundle["evidence_hash"] = "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
-    gate_result = reduce_verdict(bundle)
+    try:
+        from services.invoice_orchestrator import evaluate_invoice_verdict
+
+        invoice_gate = evaluate_invoice_verdict(
+            result,
+            redacted_text,
+            source_channel=job.get("source_channel"),
+        )
+        bundle = invoice_gate["bundle"]
+        gate_result = invoice_gate["gate"]
+        semantic_section = bundle.get("semantic_review") or semantic_section
+    except Exception:
+        gate_result = reduce_verdict(bundle)
 
     # Build analysis dict compatible with the existing contract.
     analysis: Dict[str, Any] = {
@@ -7510,6 +7592,8 @@ async def _run_orchestrated_invoice_fast_lane(job: Dict[str, Any], request: Requ
                     "emitent": fields.emitent if fields else None,
                     "cui": fields.cui if fields else None,
                     "iban": fields.iban if fields else None,
+                    "all_ibans": list(getattr(fields, "all_ibans", []) or []) if fields else [],
+                    "payment_beneficiary": getattr(fields, "payment_beneficiary", None) if fields else None,
                     "nr_factura": fields.nr_factura if fields else None,
                     "data_emitere": fields.data_emitere if fields else None,
                     "scadenta": fields.scadenta if fields else None,
@@ -7524,10 +7608,12 @@ async def _run_orchestrated_invoice_fast_lane(job: Dict[str, Any], request: Requ
                     "iban_matches": iban_matches,
                     "impersonation_risk": impersonation_risk,
                 },
+                "payment_destination": getattr(result, "payment_destination", None) if result else None,
                 "readiness": {
                     "state": readiness.state.value if readiness else None,
                     "blocks_safe_verdict": readiness_blocks_safe,
                 },
+                "fraud_flags": list(getattr(result, "fraud_flags", []) or []) if result else [],
                 "warnings": list(result.warnings) if result else [],
                 "verdict_gate": gate_result,
             },
@@ -7570,6 +7656,7 @@ async def _run_orchestrated_invoice_fast_lane(job: Dict[str, Any], request: Requ
     analysis["safe_actions"] = safe_actions
 
     job["analysis"] = analysis
+    job.pop("invoice_analysis_text", None)
     job["claim_verifier_required"] = False
     _set_orchestrated_stage(job, "analysis_ready")
     job = _persist_orchestrated_job(job)
@@ -7580,10 +7667,12 @@ async def _run_orchestrated_invoice_fast_lane(job: Dict[str, Any], request: Requ
 async def _run_orchestrated_offer_fast_lane(job: Dict[str, Any], request: Request) -> Dict[str, Any]:
     """Ruta ofertă: scan_offer (gate unic) → contract analysis. Ruta factură neatinsă."""
     from services.invoice_orchestrator import scan_offer
+    from services.offer_evidence_gate_mapper import evaluate_offer_verdict
     from services.verdict_gate import verdict as reduce_verdict
 
     redacted_text = str(job.get("redacted_text") or "")
     urls = job.get("urls") if isinstance(job.get("urls"), list) else []
+    cross_scan_knowledge = job.get("cross_scan_knowledge") if isinstance(job.get("cross_scan_knowledge"), dict) else {}
     _set_orchestrated_stage(job, "offer_parse")
     try:
         result = await _timed_orchestrated_component(
@@ -7596,11 +7685,27 @@ async def _run_orchestrated_offer_fast_lane(job: Dict[str, Any], request: Reques
         _emit_orchestrated_telemetry("orchestrated_offer_error", job, error=str(exc))
 
     if result is not None:
-        gate_result = result.gate
-        bundle = result.bundle
         fields = result.fields
         entity = result.entity
         coherence = result.coherence
+        if cross_scan_knowledge:
+            out = evaluate_offer_verdict(
+                fields,
+                signals=result.signals,
+                entity=entity,
+                coherence=coherence,
+                family_code=result.family_code,
+                family_confidence=result.family_confidence,
+                readiness=result.readiness,
+                redacted_text=redacted_text,
+                registry_results=result.registry,
+                cross_scan_knowledge=cross_scan_knowledge,
+            )
+            gate_result = out["gate"]
+            bundle = out["bundle"]
+        else:
+            gate_result = result.gate
+            bundle = result.bundle
         claimed_brand = (entity.claimed_brand if entity else None) or "Nespecificat"
         family_id = result.family_code
         family_name = result.family_name
@@ -8778,7 +8883,7 @@ async def scan_invoice_endpoint(
     Accepts an image or PDF, runs OCR, extracts invoice fields, validates
     IBAN/CUI/brand, checks ANAF registry, and returns structured warnings.
     """
-    from services.invoice_orchestrator import scan_invoice
+    from services.invoice_orchestrator import evaluate_invoice_verdict, scan_invoice
 
     if bool(image_file) == bool(pdf_file):
         raise HTTPException(
@@ -8832,6 +8937,7 @@ async def scan_invoice_endpoint(
 
     extracted_urls = _dedupe_preserve_order(pdf_annotation_urls + extract_urls(ocr_text))
     result = await scan_invoice(ocr_text, links=extracted_urls)
+    invoice_gate = evaluate_invoice_verdict(result, result.raw_text, source_channel=source_channel)
 
     response = {
         "source_type": source_type,
@@ -8847,6 +8953,8 @@ async def scan_invoice_endpoint(
             "total": result.fields.total,
             "currency": result.fields.currency,
             "invoice_profile": result.fields.invoice_profile,
+            "all_ibans": result.fields.all_ibans,
+            "payment_beneficiary": result.fields.payment_beneficiary,
         },
         "readiness": {
             "state": result.readiness.state.value,
@@ -8874,7 +8982,11 @@ async def scan_invoice_endpoint(
             "iban_matches": result.brand_match.iban_matches,
             "impersonation_risk": result.brand_match.impersonation_risk,
         } if result.brand_match else None,
+        "payment_destination": result.payment_destination,
         "anaf": result.anaf_cui_check,
+        "fraud_flags": result.fraud_flags,
+        "evidence_bundle": invoice_gate["bundle"],
+        "verdict_gate": invoice_gate["gate"],
         "warnings": result.warnings,
         "error": result.error,
         "ocr_warning": ocr_warning,

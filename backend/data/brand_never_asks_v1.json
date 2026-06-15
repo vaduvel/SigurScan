@@ -1,0 +1,271 @@
+{
+  "version": "2026-06-15",
+  "brands": [
+    {
+      "brand_id": "ing",
+      "type": "banca",
+      "never_asks": [
+        "login_link",
+        "pin",
+        "safe_account_transfer",
+        "card_number",
+        "otp",
+        "password",
+        "remote_access",
+        "crypto",
+        "personal_data",
+        "financial_data"
+      ],
+      "official_statement_url": "https://ing.ro/inbusiness-blog-antreprenori/business-abc/Fraud--de-impersonare",
+      "verified_at": "2026-06-15",
+      "evidence_quote": "ING nu cere parola, coduri de autorizare, datele cardului, remote access, cont sigur sau crypto ATM.",
+      "confidence": "high"
+    },
+    {
+      "brand_id": "brd",
+      "type": "banca",
+      "never_asks": [
+        "username",
+        "password",
+        "token_password",
+        "card_number",
+        "expiry_date",
+        "cvv",
+        "pin"
+      ],
+      "official_statement_url": "https://www.brd.ro/",
+      "verified_at": "2026-06-15",
+      "evidence_quote": "nu a solicitat si nu va solicita niciodata datele de autentificare",
+      "confidence": "high"
+    },
+    {
+      "brand_id": "unicredit",
+      "type": "banca",
+      "never_asks": [
+        "username",
+        "password",
+        "card_number",
+        "cvv",
+        "pin",
+        "3d_secure_password",
+        "card_data_for_receiving_money",
+        "credit_cancel_by_phone"
+      ],
+      "official_statement_url": "https://www.unicredit.ro/ro/persoane-fizice/Diverse/securitate.html",
+      "verified_at": "2026-06-15",
+      "evidence_quote": "Banca nu solicita niciodata informatii privind parole de acces",
+      "confidence": "high"
+    },
+    {
+      "brand_id": "sameday",
+      "type": "curier",
+      "never_asks": [
+        "payment_request_sms",
+        "payment_request_social_media",
+        "extra_fee_sms"
+      ],
+      "official_statement_url": "https://sameday.ro/cand-un-mesaj-pare-fraudulos-cel-mai-probabil-asa-este/",
+      "verified_at": "2026-06-15",
+      "evidence_quote": "SAMEDAY nu transmite niciodata solicitari de plata prin SMS",
+      "confidence": "high"
+    },
+    {
+      "brand_id": "aquatim",
+      "type": "utility",
+      "never_asks": [
+        "cash_collection_on_field"
+      ],
+      "official_statement_url": "https://www.aquatim.ro/informa%C8%9Bii-utile/tarife-%C8%99i-factur%C4%83/unde-%C8%99i-cum-pute%C8%9Bi-pl%C4%83ti/",
+      "verified_at": "2026-06-15",
+      "evidence_quote": "Aquatim NU incaseaza pe teren, direct de la clienti.",
+      "confidence": "high"
+    },
+    {
+      "brand_id": "ghiseul_ro",
+      "type": "public_payment_platform",
+      "never_asks": [
+        "payment_obligation_sms",
+        "payment_obligation_email",
+        "card_data_by_link"
+      ],
+      "official_statement_url": "https://www.ghiseul.ro/ghiseul/public",
+      "verified_at": "2026-06-15",
+      "evidence_quote": "Ghiseul.ro nu anunta prin SMS sau e-mail aparitia unei obligatii de plata.",
+      "confidence": "high"
+    },
+    {
+      "brand_id": "fan_courier",
+      "type": "curier",
+      "never_asks": [
+        "card_number",
+        "cvv",
+        "password",
+        "otp",
+        "whatsapp_code",
+        "delivery_fee_sms"
+      ],
+      "official_statement_url": "https://www.fancourier.ro/alerta-de-smishing/",
+      "verified_at": "2026-06-15",
+      "evidence_quote": "FAN Courier nu solicita prin SMS parole, coduri de verificare, coduri WhatsApp sau date de card.",
+      "confidence": "high"
+    },
+    {
+      "brand_id": "posta_romana",
+      "type": "curier",
+      "never_asks": [
+        "card_number",
+        "cvv",
+        "pin",
+        "delivery_fee_sms"
+      ],
+      "official_statement_url": "https://www.posta-romana.ro/",
+      "verified_at": "2026-06-15",
+      "evidence_quote": "Alerta oficiala confirma tentative de phishing prin SMS in numele Postei Romane.",
+      "confidence": "high"
+    },
+    {
+      "brand_id": "banca_transilvania",
+      "type": "banca",
+      "never_asks": [
+        "password",
+        "pin",
+        "cvv",
+        "card_number"
+      ],
+      "official_statement_url": "https://www.bancatransilvania.ro/",
+      "verified_at": "2026-06-15",
+      "evidence_quote": "BT nu cere parole, PIN sau CVV prin telefon, SMS sau e-mail.",
+      "confidence": "high"
+    },
+    {
+      "brand_id": "bcr",
+      "type": "banca",
+      "never_asks": [
+        "password",
+        "pin",
+        "cvv",
+        "card_number",
+        "otp",
+        "remote_access",
+        "safe_account_transfer",
+        "personal_data_by_email_link"
+      ],
+      "official_statement_url": "https://www.bcr.ro/ro/persoane-fizice/informatii-utile/securitate/cum-iti-protejeaza-BCR-conturile-si-tranzactiile",
+      "verified_at": "2026-06-15",
+      "evidence_quote": "BCR nu solicita niciodata transmiterea parolelor, PIN/CVV, codurilor de autorizare, remote access sau transfer intr-un cont sigur.",
+      "confidence": "high"
+    },
+    {
+      "brand_id": "raiffeisen",
+      "type": "banca",
+      "never_asks": [
+        "card_number",
+        "pin",
+        "otp",
+        "password",
+        "remote_access"
+      ],
+      "official_statement_url": "https://bank.raiffeisen.ro/ro/in-siguranta-online/home.html",
+      "verified_at": "2026-06-15",
+      "evidence_quote": "Raiffeisen nu solicita prin e-mail/SMS date personale, coduri de activare, parole sau date ale cardului.",
+      "confidence": "high"
+    },
+    {
+      "brand_id": "cec",
+      "type": "banca",
+      "never_asks": [
+        "card_number",
+        "pin",
+        "otp",
+        "password"
+      ],
+      "official_statement_url": "https://www.cec.ro/securitatea-tranzactiilor",
+      "verified_at": "2026-06-15",
+      "evidence_quote": "CEC nu cere pe email sau la telefon date de conectare sau coduri.",
+      "confidence": "medium"
+    },
+    {
+      "brand_id": "revolut_ro",
+      "type": "banca",
+      "never_asks": [
+        "otp",
+        "remote_access",
+        "safe_account_transfer"
+      ],
+      "official_statement_url": "https://help.revolut.com/ro-RO/help/security-logging-in/how-do-i-protect-myself-from-fraudsters/fraud-education-vishing-impersonation/",
+      "verified_at": "2026-06-15",
+      "evidence_quote": "Revolut nu cere coduri la telefon, remote access sau transfer catre cont nou/securizat.",
+      "confidence": "high"
+    },
+    {
+      "brand_id": "anaf",
+      "type": "institutie_publica",
+      "never_asks": [
+        "link_request",
+        "card_number",
+        "cvv",
+        "financial_data"
+      ],
+      "official_statement_url": "https://www.anaf.ro/anaf/internet/Galati/comunicate/comunicate_dgrfp/",
+      "verified_at": "2026-06-15",
+      "evidence_quote": "ANAF nu solicita accesarea de linkuri si nu cere date bancare.",
+      "confidence": "high"
+    },
+    {
+      "brand_id": "politia_romana_general_warning",
+      "type": "institutie_publica",
+      "never_asks": [
+        "card_number",
+        "cvv",
+        "pin",
+        "otp",
+        "password",
+        "remote_access",
+        "safe_account_transfer",
+        "crypto",
+        "gift_card"
+      ],
+      "official_statement_url": "https://politiaromana.ro/ro/comunicate/metode-de-inselaciune-in-mediul-online-si-atacurile-de-tip-spoofing",
+      "verified_at": "2026-06-15",
+      "evidence_quote": "Institutiile oficiale nu cer coduri, parole, transferuri sau control la distanta prin apel.",
+      "confidence": "high"
+    },
+    {
+      "brand_id": "orange",
+      "type": "telecom",
+      "never_asks": [
+        "pin",
+        "password",
+        "financial_data"
+      ],
+      "official_statement_url": "https://www.orange.ro/prevenire-frauda/",
+      "verified_at": "2026-06-15",
+      "evidence_quote": "Orange nu solicita informatii legate de conturi bancare, parole, PIN-uri sau coduri de reincarcare.",
+      "confidence": "high"
+    },
+    {
+      "brand_id": "vodafone",
+      "type": "telecom",
+      "never_asks": [
+        "password",
+        "financial_data"
+      ],
+      "official_statement_url": "https://www.vodafone.ro/frauda/",
+      "verified_at": "2026-06-15",
+      "evidence_quote": "Vodafone avertizeaza sa nu furnizezi date confidentiale, conturi bancare, parole sau coduri.",
+      "confidence": "medium"
+    },
+    {
+      "brand_id": "digi",
+      "type": "telecom",
+      "never_asks": [
+        "pin",
+        "password"
+      ],
+      "official_statement_url": "https://www.digi.ro/ghid-clienti",
+      "verified_at": "2026-06-15",
+      "evidence_quote": "DIGI avertizeaza asupra linkurilor din SMS/email pentru accesarea contului.",
+      "confidence": "medium"
+    }
+  ]
+}

@@ -1,0 +1,565 @@
+{
+  "version": "pdr-ro-research-delta-utilities-2026.06.15",
+  "purpose": "Utilities, salubritate, and contextual merchant-payment delta from agent research. Backend-only; exact raw IBANs must not be shipped to Android.",
+  "entries": [
+    {
+      "brand_id": "apa_canal_galati",
+      "display_name": "Apa Canal Galati",
+      "legal_name": "APA CANAL S.A. Galati",
+      "cui": "16914128",
+      "category": "apa",
+      "collects_via": "iban",
+      "source_report": "agent-019ecaa6-e817-7ff2-a5ed-de4c8dad8588",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "invoice_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Raiffeisen Bank",
+          "source_refs": [
+            {
+              "url": "https://www.apa-canal.ro/relatii-clienti/modalitati-de-plata",
+              "publisher": "APA CANAL S.A. Galati",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official payment page lists bank accounts for invoice payment and asks users to include subscriber code on payment order."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO69RZBR0000060005790827",
+          "iban_masked_for_client": "RO69 RZBR **** **** **** 0827"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "invoice_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Garanti Bank",
+          "source_refs": [
+            {
+              "url": "https://www.apa-canal.ro/relatii-clienti/modalitati-de-plata",
+              "publisher": "APA CANAL S.A. Galati",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official payment page lists bank accounts for invoice payment and asks users to include subscriber code on payment order."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO70UGBI0000152008237RON",
+          "iban_masked_for_client": "RO70 UGBI **** **** **** 7RON"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "invoice_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR",
+          "source_refs": [
+            {
+              "url": "https://www.apa-canal.ro/relatii-clienti/modalitati-de-plata",
+              "publisher": "APA CANAL S.A. Galati",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official payment page lists bank accounts for invoice payment and asks users to include subscriber code on payment order."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO11RNCB0141032860980001",
+          "iban_masked_for_client": "RO11 RNCB **** **** **** 0001"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "invoice_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD",
+          "source_refs": [
+            {
+              "url": "https://www.apa-canal.ro/relatii-clienti/modalitati-de-plata",
+              "publisher": "APA CANAL S.A. Galati",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official payment page lists bank accounts for invoice payment and asks users to include subscriber code on payment order."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO78BRDE180SV59581731800",
+          "iban_masked_for_client": "RO78 BRDE **** **** **** 1800"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "invoice_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "CEC Bank",
+          "source_refs": [
+            {
+              "url": "https://www.apa-canal.ro/relatii-clienti/modalitati-de-plata",
+              "publisher": "APA CANAL S.A. Galati",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official payment page lists bank accounts for invoice payment and asks users to include subscriber code on payment order."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO18CECEGL0130RON0759854",
+          "iban_masked_for_client": "RO18 CECE **** **** **** 9854"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "invoice_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "ING Bank",
+          "source_refs": [
+            {
+              "url": "https://www.apa-canal.ro/relatii-clienti/modalitati-de-plata",
+              "publisher": "APA CANAL S.A. Galati",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official payment page lists bank accounts for invoice payment and asks users to include subscriber code on payment order."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO47INGB0010000035718911",
+          "iban_masked_for_client": "RO47 INGB **** **** **** 8911"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "invoice_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Raiffeisen Bank",
+          "source_refs": [
+            {
+              "url": "https://www.apa-canal.ro/relatii-clienti/modalitati-de-plata",
+              "publisher": "APA CANAL S.A. Galati",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official payment page lists bank accounts for invoice payment and asks users to include subscriber code on payment order."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO17RZBR0000060016011683",
+          "iban_masked_for_client": "RO17 RZBR **** **** **** 1683"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "invoice_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR",
+          "source_refs": [
+            {
+              "url": "https://www.apa-canal.ro/relatii-clienti/modalitati-de-plata",
+              "publisher": "APA CANAL S.A. Galati",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official payment page lists bank accounts for invoice payment and asks users to include subscriber code on payment order."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO32RNCB0141032860980108",
+          "iban_masked_for_client": "RO32 RNCB **** **** **** 0108"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "invoice_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "CEC Bank",
+          "source_refs": [
+            {
+              "url": "https://www.apa-canal.ro/relatii-clienti/modalitati-de-plata",
+              "publisher": "APA CANAL S.A. Galati",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official payment page lists bank accounts for invoice payment and asks users to include subscriber code on payment order."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO71CECEGL0144RON0946967",
+          "iban_masked_for_client": "RO71 CECE **** **** **** 6967"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "invoice_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRMA",
+          "source_refs": [
+            {
+              "url": "https://www.apa-canal.ro/relatii-clienti/modalitati-de-plata",
+              "publisher": "APA CANAL S.A. Galati",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official payment page lists bank accounts for invoice payment and asks users to include subscriber code on payment order."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO71BRMA115000021454RO03",
+          "iban_masked_for_client": "RO71 BRMA **** **** **** RO03"
+        }
+      ]
+    },
+    {
+      "brand_id": "salubris_iasi",
+      "display_name": "Salubris Iasi",
+      "legal_name": "SALUBRIS S.A.",
+      "cui": "14816433",
+      "category": "salubritate",
+      "collects_via": "iban",
+      "source_report": "agent-019ecaa6-e817-7ff2-a5ed-de4c8dad8588",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "invoice_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD",
+          "source_refs": [
+            {
+              "url": "https://salubris.ro/facturarea-serviciilor-de-salubritate/",
+              "publisher": "SALUBRIS S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official Salubris pages list invoice-payment bank accounts and customer-service payment methods."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO51BRDE240SV12952322400",
+          "iban_masked_for_client": "RO51 BRDE **** **** **** 2400"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "invoice_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "ING Bank",
+          "source_refs": [
+            {
+              "url": "https://salubris.ro/facturarea-serviciilor-de-salubritate/",
+              "publisher": "SALUBRIS S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official Salubris pages list invoice-payment bank accounts and customer-service payment methods."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO97INGB0014000029538911",
+          "iban_masked_for_client": "RO97 INGB **** **** **** 8911"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "invoice_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "UniCredit Bank",
+          "source_refs": [
+            {
+              "url": "https://salubris.ro/facturarea-serviciilor-de-salubritate/",
+              "publisher": "SALUBRIS S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official Salubris pages list invoice-payment bank accounts and customer-service payment methods."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO14BACX0000000430181000",
+          "iban_masked_for_client": "RO14 BACX **** **** **** 1000"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "invoice_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR",
+          "source_refs": [
+            {
+              "url": "https://salubris.ro/facturarea-serviciilor-de-salubritate/",
+              "publisher": "SALUBRIS S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official Salubris pages list invoice-payment bank accounts and customer-service payment methods."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO16RNCB0175020913010001",
+          "iban_masked_for_client": "RO16 RNCB **** **** **** 0001"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "invoice_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Raiffeisen Bank",
+          "source_refs": [
+            {
+              "url": "https://salubris.ro/facturarea-serviciilor-de-salubritate/",
+              "publisher": "SALUBRIS S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official Salubris pages list invoice-payment bank accounts and customer-service payment methods."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO16RZBR0000060013502505",
+          "iban_masked_for_client": "RO16 RZBR **** **** **** 2505"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "invoice_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Banca Transilvania",
+          "source_refs": [
+            {
+              "url": "https://salubris.ro/facturarea-serviciilor-de-salubritate/",
+              "publisher": "SALUBRIS S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official Salubris pages list invoice-payment bank accounts and customer-service payment methods."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO70BTRLRONCRT0V13703401",
+          "iban_masked_for_client": "RO70 BTRL **** **** **** 3401"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "invoice_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRMA",
+          "source_refs": [
+            {
+              "url": "https://salubris.ro/facturarea-serviciilor-de-salubritate/",
+              "publisher": "SALUBRIS S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official Salubris pages list invoice-payment bank accounts and customer-service payment methods."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO54BRMA112000018370RO01",
+          "iban_masked_for_client": "RO54 BRMA **** **** **** RO01"
+        }
+      ]
+    },
+    {
+      "brand_id": "compania_apa_olt",
+      "display_name": "Compania de Apa Olt",
+      "legal_name": "Compania de Apa Olt S.A.",
+      "cui": "21307548",
+      "category": "apa",
+      "collects_via": "iban",
+      "source_report": "agent-019ecaa6-e817-7ff2-a5ed-de4c8dad8588",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T2_OFFICIAL_DOCUMENT_CHAIN",
+          "source_kind": "official_webpage",
+          "scope": "corporate_identification_contextual",
+          "confidence": "medium",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": false,
+          "bank_name": "BRD",
+          "source_refs": [
+            {
+              "url": "https://caolt.ro/contact.html",
+              "publisher": "Compania de Apa Olt S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "medium",
+              "source_lines": "Official contact page lists fiscal identification and bank accounts; retained as contextual evidence, not a broad SAFE whitelist."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO33BRDE290SV14995572900",
+          "iban_masked_for_client": "RO33 BRDE **** **** **** 2900"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T2_OFFICIAL_DOCUMENT_CHAIN",
+          "source_kind": "official_webpage",
+          "scope": "corporate_identification_contextual",
+          "confidence": "medium",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": false,
+          "bank_name": "BCR",
+          "source_refs": [
+            {
+              "url": "https://caolt.ro/contact.html",
+              "publisher": "Compania de Apa Olt S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "medium",
+              "source_lines": "Official contact page lists fiscal identification and bank accounts; retained as contextual evidence, not a broad SAFE whitelist."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO28RNCB0200074442340001",
+          "iban_masked_for_client": "RO28 RNCB **** **** **** 0001"
+        }
+      ]
+    },
+    {
+      "brand_id": "retim_ecologic_service",
+      "display_name": "RETIM Ecologic Service",
+      "legal_name": "RETIM Ecologic Service S.A.",
+      "cui": "9112229",
+      "category": "salubritate",
+      "collects_via": "contract_context",
+      "source_report": "agent-019ecaa6-e817-7ff2-a5ed-de4c8dad8588",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T2_OFFICIAL_DOCUMENT_CHAIN",
+          "source_kind": "official_document_chain",
+          "scope": "salubritate_contract_invoice_context",
+          "confidence": "medium",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": false,
+          "bank_name": "BRD",
+          "source_refs": [
+            {
+              "url": "https://retim.ro/wp-content/uploads/2024/02/SPECIMEN-PERSOANE-FIZICE-RURAL.pdf",
+              "publisher": "RETIM Ecologic Service S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "medium",
+              "source_lines": "Official specimen contract lists RO54BRDE360SV07195093600; payment page also lists official channels. Retained as contextual evidence, not a broad SAFE whitelist."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO54BRDE360SV07195093600",
+          "iban_masked_for_client": "RO54 BRDE **** **** **** 3600"
+        }
+      ]
+    },
+    {
+      "brand_id": "emag_ads_dante",
+      "display_name": "eMAG Ads / Dante",
+      "legal_name": "Dante International S.A.",
+      "cui": "14399840",
+      "category": "retail_ads",
+      "collects_via": "merchant_profile_context",
+      "source_report": "agent-019ecaa6-e817-7ff2-a5ed-de4c8dad8588",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T2_OFFICIAL_DOCUMENT_CHAIN",
+          "source_kind": "official_webpage",
+          "scope": "emag_ads_merchant_profile",
+          "confidence": "medium",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": false,
+          "bank_name": "Banca Transilvania",
+          "source_refs": [
+            {
+              "url": "https://www.emag.ro/danteskv/63197/v",
+              "publisher": "Dante International S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "medium",
+              "source_lines": "eMAG Ads profile lists RO02BTRLRONCRT00W6717503. Scope is merchant/ads profile, not general eMAG retail invoice payment."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO02BTRLRONCRT00W6717503",
+          "iban_masked_for_client": "RO02 BTRL **** **** **** 7503"
+        }
+      ]
+    }
+  ]
+}

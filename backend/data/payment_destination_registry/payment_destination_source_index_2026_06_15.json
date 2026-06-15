@@ -1,0 +1,75 @@
+{
+  "version": "pdr-source-index-2026.06.15",
+  "sources": [
+    {
+      "url": "https://www.ppcenergy.ro/servicii-digitale/modalitati-de-plata-factura/",
+      "publisher": "PPC Energy / PPC Energie",
+      "accessed_at": "2026-06-15",
+      "confidence": "high",
+      "source_lines": "PPC official payment page lists bank transfer IBANs, lines 1298-1318"
+    },
+    {
+      "url": "https://www.eon.ro/modalitati-de-plata-factura",
+      "publisher": "E.ON România",
+      "accessed_at": "2026-06-15",
+      "confidence": "high",
+      "source_lines": "E.ON official payment page lists bank transfer accounts, lines 201-215"
+    },
+    {
+      "url": "https://www.apavital.ro/modalitati-de-plata",
+      "publisher": "APAVITAL Iași",
+      "accessed_at": "2026-06-15",
+      "confidence": "high",
+      "source_lines": "APAVITAL official payment page lists bank transfer accounts, lines 136-149"
+    },
+    {
+      "url": "https://www.apabrasov.ro/",
+      "publisher": "Compania Apa Brașov",
+      "accessed_at": "2026-06-15",
+      "confidence": "high",
+      "source_lines": "Official homepage lists company bank accounts and CUI, lines 381-400"
+    },
+    {
+      "url": "https://www.hidroelectrica.ro/",
+      "publisher": "Hidroelectrica",
+      "accessed_at": "2026-06-15",
+      "confidence": "high",
+      "source_lines": "Official homepage: payment through Portal by invoice number and contract code, lines 217-225"
+    },
+    {
+      "url": "https://www.engie.ro/plateste-online/",
+      "publisher": "ENGIE România",
+      "accessed_at": "2026-06-15",
+      "confidence": "high",
+      "source_lines": "Official online payment page asks client code/invoice/email/amount, lines 159-177"
+    },
+    {
+      "url": "https://www.electricafurnizare.ro/modalitati-de-plata-factura-electrica-furnizare/",
+      "publisher": "Electrica Furnizare",
+      "accessed_at": "2026-06-15",
+      "confidence": "high",
+      "source_lines": "Official payment methods page, lines 62-125"
+    },
+    {
+      "url": "https://www.digi.ro/",
+      "publisher": "Digi România",
+      "accessed_at": "2026-06-15",
+      "confidence": "high",
+      "source_lines": "Official homepage/payment modal: pay invoice online, lines 220-238"
+    },
+    {
+      "url": "https://www.orange.ro/help/factura-plati-si-consum",
+      "publisher": "Orange România",
+      "accessed_at": "2026-06-15",
+      "confidence": "high",
+      "source_lines": "Official help page references My Orange/payment, lines 48-58 and 173-177"
+    },
+    {
+      "url": "https://www.apanovabucuresti.ro/",
+      "publisher": "Apa Nova București",
+      "accessed_at": "2026-06-15",
+      "confidence": "high",
+      "source_lines": "Official homepage: pay invoice online/app, company details, lines 75-79 and 180-183"
+    }
+  ]
+}

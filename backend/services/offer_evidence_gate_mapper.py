@@ -133,9 +133,10 @@ def _semantic_risk(
     family_code: Optional[str],
     family_confidence: float,
     registry_no_match: bool = False,
+    suppress_brand_impersonation: bool = False,
 ) -> str:
     high = (
-        entity.brand_impersonation
+        (entity.brand_impersonation and not suppress_brand_impersonation)
         or (entity.has_cui and entity.cui_checked and not entity.cui_exists and entity.claims_company)
         or (entity.has_cui and entity.cui_exists and not entity.cui_active)
         or (S.OFFER_IBAN_INVALID_STRUCTURE in signals and S.OFFER_PRICE_URGENCY in signals)
@@ -184,6 +185,7 @@ def build_offer_bundle(
     readiness: Optional[ReadinessGateResult] = None,
     redacted_text: Optional[str] = None,
     registry_results: Optional[List[RegistryVerificationResult]] = None,
+    cross_scan_knowledge: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Construiește Evidence Bundle v2 din faptele ofertei. Pur, determinist."""
     registry_results = list(registry_results or [])
@@ -192,10 +194,36 @@ def build_offer_bundle(
     sensitive = _sensitive(fields, signals)
     channel = _channel(fields, signals, sensitive, text)
     identity_status, identity_reason = _identity(entity, readiness_ready=ready)
+    cross_scan_knowledge = dict(cross_scan_knowledge or {})
+    never_asks = cross_scan_knowledge.get("brand_never_asks")
+    violated_never_asks = []
+    if isinstance(never_asks, dict):
+        violated_never_asks = list(never_asks.get("violated_never_asks") or [])
+    payment_destinations = cross_scan_knowledge.get("payment_destinations")
+    official_payment_match = any(
+        isinstance(item, dict)
+        and item.get("matched") is True
+        and item.get("brand_matches") is True
+        and item.get("can_contribute_to_safe") is True
+        for item in (payment_destinations if isinstance(payment_destinations, list) else [])
+    )
+    fraud_flags = set(cross_scan_knowledge.get("fraud_flags") or [])
+    destination_mismatch = "PAYMENT_DESTINATION_BRAND_MISMATCH" in fraud_flags
+    unknown_destination = "UNKNOWN_PAYMENT_DESTINATION" in fraud_flags
     semantic = _semantic_risk(
         signals, entity, coherence, family_code, family_confidence,
         registry_no_match=_registry_no_match_alert(registry_results, entity),
+        suppress_brand_impersonation=official_payment_match and not destination_mismatch,
     )
+    if violated_never_asks or destination_mismatch:
+        identity_status = "lookalike"
+        identity_reason = "Brand pretins, dar cererea de plată/date contrazice politica oficială"
+    elif official_payment_match and identity_status == "lookalike":
+        identity_status = "unknown"
+        identity_reason = "Brand pretins cu destinație de plată oficială, dar fără proveniență completă"
+    elif unknown_destination and identity_status == "official":
+        identity_status = "unknown"
+        identity_reason = "IBAN valid, dar destinația de plată nu este confirmată pentru brand"
 
     bundle: Dict[str, Any] = {
         "schema": "sigurscan_evidence_bundle_v2",
@@ -220,8 +248,11 @@ def build_offer_bundle(
                 r.to_bundle_dict()
                 for r in sorted(registry_results, key=lambda r: r.source_id)
             ],
+            "cross_scan_knowledge": cross_scan_knowledge,
         },
     }
+    if violated_never_asks:
+        bundle["identity"]["violated_never_asks"] = violated_never_asks
     canonical = json.dumps(bundle, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     bundle["evidence_hash"] = "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
     return bundle
@@ -238,6 +269,7 @@ def evaluate_offer_verdict(
     readiness: Optional[ReadinessGateResult] = None,
     redacted_text: Optional[str] = None,
     registry_results: Optional[List[RegistryVerificationResult]] = None,
+    cross_scan_knowledge: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Bundle ofertă → reduce_verdict (gate-ul unic). Întoarce {bundle, gate}."""
     bundle = build_offer_bundle(
@@ -250,5 +282,6 @@ def evaluate_offer_verdict(
         readiness=readiness,
         redacted_text=redacted_text,
         registry_results=registry_results,
+        cross_scan_knowledge=cross_scan_knowledge,
     )
     return {"bundle": bundle, "gate": reduce_verdict(bundle)}

@@ -1,0 +1,89 @@
+{
+  "version": "pdr-ro-utility-delta-2026.06.15",
+  "purpose": "Verified utility payment destination delta from user-provided official/public research. Backend-only; exact raw IBANs must not be shipped to Android.",
+  "entries": [
+    {
+      "brand_id": "apa_nova_bucuresti",
+      "display_name": "Apa Nova Bucuresti",
+      "legal_name": "Apa Nova Bucuresti S.A.",
+      "cui": null,
+      "category": "utilitati_apa",
+      "collects_via": "fixed_public_ibans",
+      "source_report": "pasted-text-e80db25a-f1b4-4684-af47-dbb712f1566b",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "water_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD Groupe Societe Generale",
+          "source_refs": [
+            {
+              "url": "https://www.apanovabucuresti.ro/informatii-utile/tarife-si-facturi/factura-apanova",
+              "publisher": "Apa Nova Bucuresti S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "User-provided official payment research lists Apa Nova BRD payment account and requires invoice number plus client code."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO33BRDE450SV01059614500",
+          "iban_masked_for_client": "RO33 BRDE **** **** **** 4500"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "water_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR",
+          "source_refs": [
+            {
+              "url": "https://www.apanovabucuresti.ro/informatii-utile/tarife-si-facturi/factura-apanova",
+              "publisher": "Apa Nova Bucuresti S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "User-provided official payment research lists Apa Nova BCR payment account and requires invoice number plus client code."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO24RNCB0072000491450001",
+          "iban_masked_for_client": "RO24 RNCB **** **** **** 0001"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "water_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "ING Bank",
+          "source_refs": [
+            {
+              "url": "https://www.apanovabucuresti.ro/informatii-utile/tarife-si-facturi/factura-apanova",
+              "publisher": "Apa Nova Bucuresti S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "User-provided official payment research lists Apa Nova ING payment account and requires invoice number plus client code."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO84INGB5001008226448910",
+          "iban_masked_for_client": "RO84 INGB **** **** **** 8910"
+        }
+      ]
+    }
+  ]
+}

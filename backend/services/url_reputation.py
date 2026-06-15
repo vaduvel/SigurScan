@@ -138,6 +138,12 @@ DEFAULT_CACHE_TTL_SECONDS = int(os.getenv("URL_REPUTATION_CACHE_TTL_SECONDS", "4
 MAX_REPUTATION_URLS = int(os.getenv("MAX_REPUTATION_URLS", "60"))
 REPUTATION_CACHE_MAX_ITEMS = int(os.getenv("URL_REPUTATION_CACHE_MAX_ITEMS", "1000"))
 DEFAULT_REPUTATION_CACHE_PATH = Path(__file__).resolve().parents[1] / "data" / "url_reputation_cache.json"
+DEFAULT_LOCAL_PHISHING_LOOKALIKE_PATH = (
+    Path(__file__).resolve().parents[1] / "data" / "phishing_lookalike_domains_v1.json"
+)
+LOCAL_PHISHING_LOOKALIKE_PATH = Path(
+    os.getenv("LOCAL_PHISHING_LOOKALIKE_PATH", str(DEFAULT_LOCAL_PHISHING_LOOKALIKE_PATH)),
+)
 REPUTATION_CACHE_PATH = Path(
     os.getenv("URL_REPUTATION_CACHE_PATH", str(DEFAULT_REPUTATION_CACHE_PATH)),
 )
@@ -597,6 +603,40 @@ def _feed_lines(text: str) -> set[str]:
     return values
 
 
+def _load_local_phishing_lookalikes(path: Path | None = None) -> Dict[str, Any]:
+    source_path = path or LOCAL_PHISHING_LOOKALIKE_PATH
+    if not source_path.exists():
+        return {"domains": set(), "metadata": {}}
+    try:
+        with open(source_path, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        return {"domains": set(), "metadata": {}}
+
+    domains: set[str] = set()
+    metadata: Dict[str, Dict[str, Any]] = {}
+    for item in data.get("phishing_domains") or []:
+        if not isinstance(item, dict):
+            continue
+        domain = str(item.get("domain") or "").strip(".").lower()
+        if not domain or "/" in domain or "." not in domain:
+            continue
+        confidence = str(item.get("confidence") or "").strip().lower()
+        if confidence not in {"high", "medium"}:
+            continue
+        domains.add(domain)
+        metadata[domain] = {
+            "source": "local_phishing_lookalikes",
+            "source_url": item.get("source_url"),
+            "source_publisher": item.get("source_publisher"),
+            "reported_at": item.get("reported_at"),
+            "confidence": confidence,
+            "impersonates_brand": item.get("impersonates_brand"),
+            "scam_type": item.get("scam_type"),
+        }
+    return {"domains": domains, "metadata": metadata}
+
+
 def _scam_blocklist_domain_lines(text: str) -> set[str]:
     domains: set[str] = set()
     for raw_line in text.splitlines():
@@ -634,12 +674,19 @@ def _load_phishing_database_feeds() -> Dict[str, Any]:
         })
         return _PHISHING_DATABASE_CACHE
 
+    local = _load_local_phishing_lookalikes()
+    local_domains = local.get("domains") if isinstance(local.get("domains"), set) else set()
+    local_metadata = local.get("metadata") if isinstance(local.get("metadata"), dict) else {}
+
     try:
         domains_text = _download_text_feed(PHISHING_DATABASE_DOMAINS_URL)
         links_text = _download_text_feed(PHISHING_DATABASE_LINKS_URL)
+        remote_domains = _feed_lines(domains_text)
         _PHISHING_DATABASE_CACHE.update({
             "loaded_at": now,
-            "domains": _feed_lines(domains_text),
+            "domains": remote_domains | local_domains,
+            "local_domains": local_domains,
+            "local_metadata": local_metadata,
             "links": _feed_lines(links_text),
             "error": None,
             "domains_url": PHISHING_DATABASE_DOMAINS_URL,
@@ -650,7 +697,9 @@ def _load_phishing_database_feeds() -> Dict[str, Any]:
         if not _PHISHING_DATABASE_CACHE.get("domains") and not _PHISHING_DATABASE_CACHE.get("links"):
             _PHISHING_DATABASE_CACHE.update({
                 "loaded_at": now,
-                "domains": set(),
+                "domains": set(local_domains),
+                "local_domains": local_domains,
+                "local_metadata": local_metadata,
                 "links": set(),
             })
         _PHISHING_DATABASE_CACHE["error"] = str(exc)
@@ -794,6 +843,8 @@ def _fetch_phishing_database(urls: List[str]) -> Dict[str, Dict[str, Any]]:
     feed = _load_phishing_database_feeds()
     query_ms = int((time.perf_counter() - start) * 1000)
     domains = feed.get("domains") if isinstance(feed.get("domains"), set) else set()
+    local_domains = feed.get("local_domains") if isinstance(feed.get("local_domains"), set) else set()
+    local_metadata = feed.get("local_metadata") if isinstance(feed.get("local_metadata"), dict) else {}
     links = feed.get("links") if isinstance(feed.get("links"), set) else set()
     error = feed.get("error")
 
@@ -810,8 +861,11 @@ def _fetch_phishing_database(urls: List[str]) -> Dict[str, Dict[str, Any]]:
             continue
 
         matched_link = next((variant for variant in _canonical_url_variants(url) if variant in links), None)
-        matched_domain = _domain_matches_feed(_host_from_url(url), domains)
+        hostname = _host_from_url(url)
+        matched_local_domain = _domain_matches_feed(hostname, local_domains)
+        matched_domain = matched_local_domain or _domain_matches_feed(hostname, domains)
         if matched_link or matched_domain:
+            local_details = local_metadata.get(matched_local_domain or "") if matched_local_domain else {}
             output[key] = {
                 "status": "malicious",
                 "threat_type": "phishing",
@@ -822,8 +876,10 @@ def _fetch_phishing_database(urls: List[str]) -> Dict[str, Dict[str, Any]]:
                     "match_type": "url" if matched_link else "domain",
                     "matched_value": matched_link or matched_domain,
                     "domains_loaded": len(domains),
+                    "local_domains_loaded": len(local_domains),
                     "links_loaded": len(links),
                     "feed_version_loaded_at": _coerce_int(feed.get("loaded_at", 0), 0),
+                    **({"local_source": local_details} if local_details else {}),
                 },
                 "query_ms": query_ms,
             }
@@ -837,6 +893,7 @@ def _fetch_phishing_database(urls: List[str]) -> Dict[str, Dict[str, Any]]:
                 "status": "not_listed",
                 "provider": "phishing_database",
                 "domains_loaded": len(domains),
+                "local_domains_loaded": len(local_domains),
                 "links_loaded": len(links),
             },
             "query_ms": query_ms,

@@ -1,0 +1,102 @@
+{
+  "version": "2026-06-15",
+  "description": "Registru negativ pentru IBAN-uri raportate ca fraudă. Intrările active trebuie să aibă sursă, status verificat și încredere ridicată. Listele fără proveniență stau în quarantine_review și nu influențează verdictul.",
+  "reported_ibans": [
+    {
+      "iban": "SK0711110000001329100001",
+      "status": "verified",
+      "confidence": "high",
+      "source_kind": "official_ip_office",
+      "source_url": "https://link.epo.org/web/warning_invoice_11_2015_en.pdf",
+      "source_ref": "European Patent Office misleading/fraudulent invoice warning",
+      "source_publisher": "European Patent Office",
+      "reported_at": "2015-09-15",
+      "family": "misleading_invoice_ip",
+      "notes": "EPO warning sample lists this IBAN in a fraudulent/misleading invoice example."
+    }
+  ],
+  "research_refs": [
+    {
+      "source_kind": "bank_guidance",
+      "source_name": "ING Romania",
+      "source_url": "https://ing.ro/inbusiness-blog-antreprenori/business-abc/Cum-ne-ferim",
+      "notes": "Frauda cu facturi: atacatorii pot modifica IBAN-ul unei facturi aparent legitime."
+    },
+    {
+      "source_kind": "banking_association_guidance",
+      "source_name": "Asociatia Romana a Bancilor",
+      "source_url": "https://www.arb.ro/arb-talks-alin-becheanu-arb-atunci-cand-vrem-sa-incasam-sume-de-bani-furnizam-doar-contul-iban/",
+      "notes": "Factura poate veni ca si cum ar fi de la furnizor, dar cu alt IBAN."
+    },
+    {
+      "source_kind": "press_guidance",
+      "source_name": "Bancherul.ro",
+      "source_url": "https://www.bancherul.ro/schimbarea-contului-iban-poate-fi-o-inselaciune/",
+      "notes": "Schimbarea contului IBAN trebuie verificata prin canal separat."
+    }
+  ],
+  "quarantine_review": [
+    {
+      "iban": "ES9121002020460144439386",
+      "status": "quarantine",
+      "confidence": "high",
+      "source_kind": "official_ip_office",
+      "source_url": "https://link.epo.org/web/warning_invoice_2_2016_en.pdf",
+      "source_ref": "European Patent Office misleading/fraudulent invoice warning",
+      "source_publisher": "European Patent Office",
+      "reported_at": "2015-12-16",
+      "family": "misleading_invoice_ip",
+      "notes": "Official EPO warning sample, but the provided IBAN does not pass structural checksum validation; retained for research/provenance only and not active in verdict."
+    },
+    {
+      "iban": "MD40VI022512600001135EUR",
+      "status": "unverified",
+      "notes": "Seed din branch vechi fara provenienta per-IBAN; nu este activ in verdict."
+    },
+    {
+      "iban": "MD45ML022580000000013566",
+      "status": "unverified",
+      "notes": "Seed din branch vechi fara provenienta per-IBAN; nu este activ in verdict."
+    },
+    {
+      "iban": "EG490036000100011019780033566",
+      "status": "unverified",
+      "notes": "Seed din branch vechi fara provenienta per-IBAN; nu este activ in verdict."
+    },
+    {
+      "iban": "PL27114020040000300280926524",
+      "status": "unverified",
+      "notes": "Seed din branch vechi fara provenienta per-IBAN; nu este activ in verdict."
+    },
+    {
+      "iban": "RO80BACX0000000870599000",
+      "status": "unverified",
+      "notes": "Seed din branch vechi fara provenienta per-IBAN; nu este activ in verdict."
+    },
+    {
+      "iban": "RO39CECEB20508RON3395189",
+      "status": "unverified",
+      "notes": "Seed din branch vechi fara provenienta per-IBAN; nu este activ in verdict."
+    },
+    {
+      "iban": "RO12CECEC001946311534411",
+      "status": "unverified",
+      "notes": "Seed din branch vechi fara provenienta per-IBAN; nu este activ in verdict."
+    },
+    {
+      "iban": "RO65RZBR0000060015648621",
+      "status": "unverified",
+      "notes": "Seed din branch vechi fara provenienta per-IBAN; nu este activ in verdict."
+    },
+    {
+      "iban": "RO68BRDE080SV18429540800",
+      "status": "unverified",
+      "notes": "Seed din branch vechi fara provenienta per-IBAN; nu este activ in verdict."
+    },
+    {
+      "iban": "RO88RNCB0075047497820001",
+      "status": "unverified",
+      "notes": "Seed din branch vechi fara provenienta per-IBAN; nu este activ in verdict."
+    }
+  ]
+}

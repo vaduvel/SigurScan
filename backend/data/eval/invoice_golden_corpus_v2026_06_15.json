@@ -1,0 +1,414 @@
+{
+  "version": "2026-06-15",
+  "description": "Golden OCR-text cases for Romanian invoice/payment-destination fraud detection.",
+  "cases": [
+    {
+      "case_id": "official_ppc_native_safe",
+      "input": {
+        "source_channel": "android_native",
+        "text": "Furnizor: PPC Energie S.A.\nCUI: RO22000460\nIBAN RO45 BTRL RONI NCS0 0073 9101\nTotal 119 RON"
+      },
+      "cui_records": {
+        "22000460": {
+          "exists": true,
+          "checked": true,
+          "denumire": "PPC Energie S.A.",
+          "activ": true,
+          "platitor_tva": true,
+          "enrolled_efactura": true
+        }
+      },
+      "expected_fields": {
+        "emitent": "PPC Energie S.A.",
+        "cui": "22000460",
+        "iban": "RO45BTRLRONINCS000739101",
+        "total": 119.0
+      },
+      "forbidden_flags": [
+        "UNKNOWN_PAYMENT_DESTINATION",
+        "PAYMENT_DESTINATION_BRAND_MISMATCH",
+        "SENSITIVE_DATA_REQUESTED"
+      ],
+      "expected_payment_destination": {
+        "matched": true,
+        "brand_id": "ppc_energy",
+        "brand_matches": true,
+        "can_contribute_to_safe": true,
+        "confidence": "high"
+      },
+      "expected_gate_labels": [
+        "SAFE"
+      ]
+    },
+    {
+      "case_id": "ppc_unknown_iban_suspect_not_safe",
+      "input": {
+        "source_channel": "android_native",
+        "text": "Furnizor: PPC Energie S.A.\nCUI: RO22000460\nIBAN RO49AAAA1B31007593840000\nTotal 119 RON"
+      },
+      "cui_records": {
+        "22000460": {
+          "exists": true,
+          "checked": true,
+          "denumire": "PPC Energie S.A.",
+          "activ": true,
+          "platitor_tva": true,
+          "enrolled_efactura": true
+        }
+      },
+      "expected_fields": {
+        "cui": "22000460",
+        "iban": "RO49AAAA1B31007593840000"
+      },
+      "expected_flags": [
+        "UNKNOWN_PAYMENT_DESTINATION"
+      ],
+      "expected_payment_destination": {
+        "matched": false,
+        "registry_has_brand_destinations": true,
+        "can_contribute_to_safe": false
+      },
+      "expected_gate_labels": [
+        "SUSPECT"
+      ],
+      "forbidden_gate_labels": [
+        "SAFE"
+      ]
+    },
+    {
+      "case_id": "official_iban_for_other_brand_dangerous",
+      "input": {
+        "source_channel": "android_native",
+        "text": "Furnizor: E.ON Energie Romania S.A.\nCUI: RO22043010\nIBAN RO45 BTRL RONI NCS0 0073 9101\nTotal 119 RON"
+      },
+      "cui_records": {
+        "22043010": {
+          "exists": true,
+          "checked": true,
+          "denumire": "E.ON Energie Romania S.A.",
+          "activ": true,
+          "platitor_tva": true,
+          "enrolled_efactura": true
+        }
+      },
+      "expected_fields": {
+        "emitent": "E.ON Energie Romania S.A.",
+        "cui": "22043010",
+        "iban": "RO45BTRLRONINCS000739101"
+      },
+      "expected_flags": [
+        "PAYMENT_DESTINATION_BRAND_MISMATCH"
+      ],
+      "expected_payment_destination": {
+        "matched": true,
+        "brand_id": "ppc_energy",
+        "brand_matches": false,
+        "can_contribute_to_safe": false
+      },
+      "expected_gate_labels": [
+        "DANGEROUS"
+      ]
+    },
+    {
+      "case_id": "account_change_foreign_iban_dangerous",
+      "input": {
+        "source_channel": "email",
+        "text": "Furnizor: SC REAL SRL\nCUI: RO12345678\nAm schimbat contul bancar. Noul IBAN este DE89370400440532013000.\nPlatiti azi pentru a evita suspendarea.\nTotal 5000 RON"
+      },
+      "cui_records": {
+        "12345678": {
+          "exists": true,
+          "checked": true,
+          "denumire": "SC REAL SRL",
+          "activ": true,
+          "platitor_tva": true
+        }
+      },
+      "expected_fields": {
+        "emitent": "SC REAL SRL",
+        "cui": "12345678",
+        "iban": null
+      },
+      "expected_flags": [
+        "ACCOUNT_CHANGE_LANGUAGE",
+        "FOREIGN_IBAN",
+        "PAYMENT_PRESSURE"
+      ],
+      "expected_gate_labels": [
+        "DANGEROUS"
+      ]
+    },
+    {
+      "case_id": "person_beneficiary_company_invoice_dangerous",
+      "input": {
+        "source_channel": "android_native",
+        "text": "Furnizor: SC REAL SRL CUI RO12345678\nBeneficiar: Popescu Ion Marian\nIBAN RO49AAAA1B31007593840000\nTotal 8500 RON"
+      },
+      "cui_records": {
+        "12345678": {
+          "exists": true,
+          "checked": true,
+          "denumire": "SC REAL SRL",
+          "activ": true,
+          "platitor_tva": true
+        }
+      },
+      "expected_fields": {
+        "emitent": "SC REAL SRL CUI RO12345678",
+        "cui": "12345678",
+        "iban": "RO49AAAA1B31007593840000",
+        "payment_beneficiary": "Popescu Ion Marian"
+      },
+      "expected_flags": [
+        "BENEFICIARY_PERSON_MISMATCH",
+        "UNKNOWN_PAYMENT_DESTINATION"
+      ],
+      "expected_gate_labels": [
+        "DANGEROUS"
+      ]
+    },
+    {
+      "case_id": "card_cvv_otp_request_dangerous",
+      "input": {
+        "source_channel": "sms",
+        "text": "Factura restanta Digi. Pentru a evita deconectarea, confirma datele cardului, codul CVV si OTP. Total 89 lei"
+      },
+      "expected_flags": [
+        "PAYMENT_PRESSURE",
+        "SENSITIVE_DATA_REQUESTED"
+      ],
+      "expected_gate_labels": [
+        "DANGEROUS"
+      ]
+    },
+    {
+      "case_id": "vendor_memory_changed_iban_dangerous",
+      "input": {
+        "source_channel": "android_native",
+        "text": "Furnizor: SC REAL SRL\nCUI: RO12345678\nIBAN RO83BTRLRONCRT0299335701\nTotal 300 RON"
+      },
+      "vendor_memory_seed": [
+        {
+          "cui": "12345678",
+          "iban": "RO49AAAA1B31007593840000"
+        }
+      ],
+      "cui_records": {
+        "12345678": {
+          "exists": true,
+          "checked": true,
+          "denumire": "SC REAL SRL",
+          "activ": true,
+          "platitor_tva": true
+        }
+      },
+      "expected_fields": {
+        "cui": "12345678",
+        "iban": "RO83BTRLRONCRT0299335701"
+      },
+      "expected_flags": [
+        "IBAN_CHANGED_VS_HISTORY",
+        "UNKNOWN_PAYMENT_DESTINATION"
+      ],
+      "expected_gate_labels": [
+        "SUSPECT",
+        "DANGEROUS"
+      ],
+      "forbidden_gate_labels": [
+        "SAFE"
+      ]
+    },
+    {
+      "case_id": "multiple_ibans_requires_review",
+      "input": {
+        "source_channel": "email",
+        "text": "Furnizor: SC REAL SRL\nCUI: RO12345678\nCont vechi RO49AAAA1B31007593840000\nCont nou RO83BTRLRONCRT0299335701\nTotal 470 RON"
+      },
+      "cui_records": {
+        "12345678": {
+          "exists": true,
+          "checked": true,
+          "denumire": "SC REAL SRL",
+          "activ": true,
+          "platitor_tva": true
+        }
+      },
+      "expected_fields": {
+        "cui": "12345678",
+        "iban": "RO49AAAA1B31007593840000"
+      },
+      "expected_flags": [
+        "MULTIPLE_IBANS",
+        "UNKNOWN_PAYMENT_DESTINATION"
+      ],
+      "expected_gate_labels": [
+        "SUSPECT",
+        "DANGEROUS"
+      ],
+      "forbidden_gate_labels": [
+        "SAFE"
+      ]
+    },
+    {
+      "case_id": "apa_canal_high_official_payment_not_dangerous",
+      "input": {
+        "source_channel": "android_native",
+        "text": "Furnizor: Apa Canal Galati S.A.\nCUI: RO16914128\nIBAN RO78BRDE180SV59581731800\nTotal 145 RON"
+      },
+      "cui_records": {
+        "16914128": {
+          "exists": true,
+          "checked": true,
+          "denumire": "Apa Canal Galati S.A.",
+          "activ": true,
+          "platitor_tva": true
+        }
+      },
+      "expected_fields": {
+        "cui": "16914128",
+        "iban": "RO78BRDE180SV59581731800"
+      },
+      "forbidden_flags": [
+        "UNKNOWN_PAYMENT_DESTINATION",
+        "PAYMENT_DESTINATION_BRAND_MISMATCH"
+      ],
+      "expected_payment_destination": {
+        "matched": true,
+        "brand_id": "apa_canal_galati",
+        "brand_matches": true,
+        "can_contribute_to_safe": true,
+        "confidence": "high"
+      },
+      "forbidden_gate_labels": [
+        "DANGEROUS"
+      ]
+    },
+    {
+      "case_id": "salubris_high_official_payment_not_dangerous",
+      "input": {
+        "source_channel": "android_native",
+        "text": "Furnizor: Salubris S.A. Iasi\nCUI: RO14816433\nIBAN RO70BTRLRONCRT0V13703401\nTotal 88 RON"
+      },
+      "cui_records": {
+        "14816433": {
+          "exists": true,
+          "checked": true,
+          "denumire": "Salubris S.A.",
+          "activ": true,
+          "platitor_tva": true
+        }
+      },
+      "expected_fields": {
+        "cui": "14816433",
+        "iban": "RO70BTRLRONCRT0V13703401"
+      },
+      "forbidden_flags": [
+        "UNKNOWN_PAYMENT_DESTINATION",
+        "PAYMENT_DESTINATION_BRAND_MISMATCH"
+      ],
+      "expected_payment_destination": {
+        "matched": true,
+        "brand_id": "salubris_iasi",
+        "brand_matches": true,
+        "can_contribute_to_safe": true,
+        "confidence": "high"
+      },
+      "forbidden_gate_labels": [
+        "DANGEROUS"
+      ]
+    },
+    {
+      "case_id": "retim_medium_contextual_not_safe",
+      "input": {
+        "source_channel": "android_native",
+        "text": "RETIM Ecologic Service S.A. CUI 9112229. Cont contractual RO54BRDE360SV07195093600 pentru servicii de salubritate. Total 55 RON"
+      },
+      "cui_records": {
+        "9112229": {
+          "exists": true,
+          "checked": true,
+          "denumire": "RETIM Ecologic Service S.A.",
+          "activ": true,
+          "platitor_tva": true
+        }
+      },
+      "expected_fields": {
+        "cui": "9112229",
+        "iban": "RO54BRDE360SV07195093600"
+      },
+      "expected_payment_destination": {
+        "matched": true,
+        "brand_id": "retim_ecologic_service",
+        "brand_matches": true,
+        "can_contribute_to_safe": false,
+        "confidence": "medium"
+      },
+      "forbidden_gate_labels": [
+        "SAFE",
+        "DANGEROUS"
+      ]
+    },
+    {
+      "case_id": "benign_card_payment_phrase_not_sensitive",
+      "input": {
+        "source_channel": "android_native",
+        "text": "Factura fiscala SC REAL SRL CUI RO12345678\nIBAN RO49AAAA1B31007593840000\nTotal 119 RON. Plata cu cardul pe portal sau virament bancar."
+      },
+      "cui_records": {
+        "12345678": {
+          "exists": true,
+          "checked": true,
+          "denumire": "SC REAL SRL",
+          "activ": true,
+          "platitor_tva": true
+        }
+      },
+      "expected_fields": {
+        "cui": "12345678",
+        "iban": "RO49AAAA1B31007593840000"
+      },
+      "expected_flags": [
+        "UNKNOWN_PAYMENT_DESTINATION"
+      ],
+      "forbidden_flags": [
+        "SENSITIVE_DATA_REQUESTED"
+      ],
+      "expected_gate_labels": [
+        "SUSPECT"
+      ],
+      "forbidden_gate_labels": [
+        "DANGEROUS",
+        "SAFE"
+      ]
+    },
+    {
+      "case_id": "overcaptured_word_after_iban_retained",
+      "input": {
+        "source_channel": "android_native",
+        "text": "RETIM Ecologic Service S.A. CUI 9112229. Cont contractual RO54BRDE360SV07195093600 pentru servicii de salubritate."
+      },
+      "cui_records": {
+        "9112229": {
+          "exists": true,
+          "checked": true,
+          "denumire": "RETIM Ecologic Service S.A.",
+          "activ": true,
+          "platitor_tva": true
+        }
+      },
+      "expected_fields": {
+        "cui": "9112229",
+        "iban": "RO54BRDE360SV07195093600"
+      },
+      "expected_payment_destination": {
+        "matched": true,
+        "brand_id": "retim_ecologic_service",
+        "confidence": "medium"
+      },
+      "forbidden_gate_labels": [
+        "SAFE",
+        "DANGEROUS"
+      ]
+    }
+  ]
+}

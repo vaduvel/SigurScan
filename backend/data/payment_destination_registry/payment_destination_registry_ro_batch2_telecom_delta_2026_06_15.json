@@ -1,0 +1,145 @@
+{
+  "version": "pdr-ro-batch2-telecom-delta-2026.06.15",
+  "purpose": "Telecom payment destination delta from user-provided batch2 registry. Backend-only; exact raw IBANs must not be shipped to Android.",
+  "entries": [
+    {
+      "brand_id": "vodafone_romania",
+      "display_name": "Vodafone Romania",
+      "legal_name": "Vodafone Romania S.A.",
+      "cui": "8971726",
+      "category": "telecom",
+      "collects_via": "direct_debit",
+      "source_report": "payment_registry_batch2.json",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T2_OFFICIAL_DOCUMENT_CHAIN",
+          "source_kind": "official_pdf",
+          "scope": "direct_debit",
+          "confidence": "medium",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": false,
+          "bank_name": "BCR",
+          "source_refs": [
+            {
+              "url": "https://m.vodafone.ro/bcr-debit-mandate.pdf",
+              "publisher": "Vodafone Romania S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Vodafone direct-debit mandate lists supplier Vodafone Romania S.A. and account RO13RNCB0076006386030001."
+            },
+            {
+              "url": "https://media.mobile.telekom.ro/notificare-fuziune.pdf",
+              "publisher": "Vodafone Romania S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official merger notice confirms Vodafone Romania S.A. CUI 8971726."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO13RNCB0076006386030001",
+          "iban_masked_for_client": "RO13 RNCB **** **** **** 0001"
+        }
+      ]
+    },
+    {
+      "brand_id": "nextgen_communications",
+      "display_name": "NextGen Communications",
+      "legal_name": "NextGen Communications S.R.L.",
+      "cui": "24166583",
+      "category": "telecom",
+      "collects_via": "iban",
+      "source_report": "payment_registry_batch2.json",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "invoice_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Banca Transilvania",
+          "source_refs": [
+            {
+              "url": "https://www.next-gen.ro/modalitati-plata-factura",
+              "publisher": "NextGen Communications S.R.L.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official NextGen payment page lists RO66BTRL0450160100725245 and asks users to include customer code and invoice number."
+            },
+            {
+              "url": "https://next-gen.ro/termeni-legali",
+              "publisher": "NextGen Communications S.R.L.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official legal terms confirm NextGen Communications S.R.L. CUI RO24166583."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO66BTRL0450160100725245",
+          "iban_masked_for_client": "RO66 BTRL **** **** **** 5245"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "invoice_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD",
+          "source_refs": [
+            {
+              "url": "https://www.next-gen.ro/modalitati-plata-factura",
+              "publisher": "NextGen Communications S.R.L.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official NextGen payment page lists RO82BRDE450SV83186594500 and asks users to include customer code and invoice number."
+            },
+            {
+              "url": "https://next-gen.ro/termeni-legali",
+              "publisher": "NextGen Communications S.R.L.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official legal terms confirm NextGen Communications S.R.L. CUI RO24166583."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO82BRDE450SV83186594500",
+          "iban_masked_for_client": "RO82 BRDE **** **** **** 4500"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "REFERENCE_ONLY_NOT_EXACT_MATCH",
+          "source_kind": "official_webpage",
+          "scope": "reference_only_masked_trezorerie",
+          "confidence": "medium",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "reference_only_not_exact_match",
+          "can_contribute_to_safe": false,
+          "bank_name": "Trezorerie",
+          "source_refs": [
+            {
+              "url": "https://www.next-gen.ro/modalitati-plata-factura",
+              "publisher": "NextGen Communications S.R.L.",
+              "accessed_at": "2026-06-15",
+              "confidence": "medium",
+              "source_lines": "Official NextGen payment page lists a masked Trezorerie account for public institutions; it is retained for reference only."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO52TREZ7005069XXX008541",
+          "iban_masked_for_client": "RO52 TREZ **** **** **** 8541"
+        }
+      ]
+    }
+  ]
+}

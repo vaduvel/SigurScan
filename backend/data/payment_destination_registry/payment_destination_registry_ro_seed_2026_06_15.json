@@ -1,0 +1,1189 @@
+{
+  "version": "pdr-ro-2026.06.15",
+  "generated_at": "2026-06-15T00:00:00Z",
+  "purpose": "Payment Destination Registry seed for SigurScan invoice verification. Backend-only seed. Do not ship raw IBANs to Android.",
+  "rules": {
+    "no_public_iban_owner_lookup": true,
+    "iban_mod97_valid_alone_verdict": "UNVERIFIED",
+    "safe_requires": [
+      "issuer_identity_match",
+      "payment_destination_trust_tier_T0_T1_or_T2",
+      "official_channel_or_official_document_chain",
+      "no_sensitive_wrong_channel_request",
+      "provider_clean_or_not_required"
+    ],
+    "unknown_iban_policy": "T4_STRUCTURALLY_VALID_UNKNOWN; never contributes to SAFE",
+    "masked_pattern_policy": "Official masked/pattern IBANs are source context only; they cannot be exact whitelist matches.",
+    "storage_policy": "Store raw official IBAN seeds only server-side. Compute HMAC-SHA256(normalized_iban, secret) for matching. Android receives only masked display and trust result.",
+    "source_confidence_policy": "high only for official brand/company web pages or signed partner feeds"
+  },
+  "trust_tiers": {
+    "T0_PARTNER_SIGNED": "Brand/biller provides signed official payment destination manifest/feed.",
+    "T1_PUBLIC_OFFICIAL": "Payment destination published on official company/brand website/document.",
+    "T2_OFFICIAL_DOCUMENT_CHAIN": "Payment destination observed in user-provided document from official portal/e-Factura/SPV.",
+    "T3_USER_LOCAL_TRUSTED": "User-local confirmed destination after official portal confirmation; not global.",
+    "T4_STRUCTURALLY_VALID_UNKNOWN": "IBAN structurally valid, but no official destination evidence.",
+    "T5_DANGEROUS_MISMATCH": "Destination conflicts with claimed issuer or uses personal/Revolut/crypto/gift card for company/stat invoice."
+  },
+  "entries": [
+    {
+      "brand_id": "ppc_energy",
+      "display_name": "PPC Energy / PPC Energie",
+      "legal_name": "needs_confirmation",
+      "cui": null,
+      "category": "utility_energy",
+      "official_payment_channels": [
+        {
+          "type": "online_payment_no_auth",
+          "domain": "ppcenergy.ro",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.ppcenergy.ro/servicii-digitale/modalitati-de-plata-factura/",
+              "publisher": "PPC Energy / PPC Energie",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "PPC official payment page lists bank transfer IBANs, lines 1298-1318"
+            }
+          ],
+          "notes": "Official page supports online payment without authentication by payment code/invoice ID/email."
+        },
+        {
+          "type": "myppc_app_or_portal",
+          "domain": "ppcenergy.ro",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.ppcenergy.ro/servicii-digitale/modalitati-de-plata-factura/",
+              "publisher": "PPC Energy / PPC Energie",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "PPC official payment page lists bank transfer IBANs, lines 1298-1318"
+            }
+          ]
+        },
+        {
+          "type": "bank_transfer",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.ppcenergy.ro/servicii-digitale/modalitati-de-plata-factura/",
+              "publisher": "PPC Energy / PPC Energie",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "PPC official payment page lists bank transfer IBANs, lines 1298-1318"
+            }
+          ]
+        }
+      ],
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "energy_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Banca Transilvania",
+          "source_refs": [
+            {
+              "url": "https://www.ppcenergy.ro/servicii-digitale/modalitati-de-plata-factura/",
+              "publisher": "PPC Energy / PPC Energie",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "PPC official payment page lists bank transfer IBANs, lines 1298-1318"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO45BTRLRONINCS000739101",
+          "iban_display_official": "RO45 BTRL RONI NCS0 0073 9101",
+          "iban_masked_for_client": "RO45 BTRL **** **** **** 9101"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "energy_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR",
+          "source_refs": [
+            {
+              "url": "https://www.ppcenergy.ro/servicii-digitale/modalitati-de-plata-factura/",
+              "publisher": "PPC Energy / PPC Energie",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "PPC official payment page lists bank transfer IBANs, lines 1298-1318"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO68RNCB0285087588940001",
+          "iban_display_official": "RO68 RNCB 0285 0875 8894 0001",
+          "iban_masked_for_client": "RO68 RNCB **** **** **** 0001"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "energy_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "CEC Bank",
+          "source_refs": [
+            {
+              "url": "https://www.ppcenergy.ro/servicii-digitale/modalitati-de-plata-factura/",
+              "publisher": "PPC Energy / PPC Energie",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "PPC official payment page lists bank transfer IBANs, lines 1298-1318"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO22CECEB31844RON2549947",
+          "iban_display_official": "RO22 CECE B318 44RO N254 9947",
+          "iban_masked_for_client": "RO22 CECE **** **** **** 9947"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "energy_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Garanti Bank",
+          "source_refs": [
+            {
+              "url": "https://www.ppcenergy.ro/servicii-digitale/modalitati-de-plata-factura/",
+              "publisher": "PPC Energy / PPC Energie",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "PPC official payment page lists bank transfer IBANs, lines 1298-1318"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO81UGBI0000362006278RON",
+          "iban_display_official": "RO81 UGBI 0000 3620 0627 8RON",
+          "iban_masked_for_client": "RO81 UGBI **** **** **** 8RON"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "energy_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "ING",
+          "source_refs": [
+            {
+              "url": "https://www.ppcenergy.ro/servicii-digitale/modalitati-de-plata-factura/",
+              "publisher": "PPC Energy / PPC Energie",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "PPC official payment page lists bank transfer IBANs, lines 1298-1318"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO84INGB0002000000001111",
+          "iban_display_official": "RO84 INGB 0002 0000 0000 1111",
+          "iban_masked_for_client": "RO84 INGB **** **** **** 1111"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "energy_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Intesa Sanpaolo Bank",
+          "source_refs": [
+            {
+              "url": "https://www.ppcenergy.ro/servicii-digitale/modalitati-de-plata-factura/",
+              "publisher": "PPC Energy / PPC Energie",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "PPC official payment page lists bank transfer IBANs, lines 1298-1318"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO96WBAN2511000041503311",
+          "iban_display_official": "RO96 WBAN 2511 0000 4150 3311",
+          "iban_masked_for_client": "RO96 WBAN **** **** **** 3311"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "energy_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Raiffeisen Bank",
+          "source_refs": [
+            {
+              "url": "https://www.ppcenergy.ro/servicii-digitale/modalitati-de-plata-factura/",
+              "publisher": "PPC Energy / PPC Energie",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "PPC official payment page lists bank transfer IBANs, lines 1298-1318"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO07RZBR0000060009424399",
+          "iban_display_official": "RO07 RZBR 0000 0600 0942 4399",
+          "iban_masked_for_client": "RO07 RZBR **** **** **** 4399"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "energy_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "UniCredit Bank",
+          "source_refs": [
+            {
+              "url": "https://www.ppcenergy.ro/servicii-digitale/modalitati-de-plata-factura/",
+              "publisher": "PPC Energy / PPC Energie",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "PPC official payment page lists bank transfer IBANs, lines 1298-1318"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO19BACX0000000214353000",
+          "iban_display_official": "RO19 BACX 0000 0002 1435 3000",
+          "iban_masked_for_client": "RO19BACX0000000214353000"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "energy_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD",
+          "source_refs": [
+            {
+              "url": "https://www.ppcenergy.ro/servicii-digitale/modalitati-de-plata-factura/",
+              "publisher": "PPC Energy / PPC Energie",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "PPC official payment page lists bank transfer IBANs, lines 1298-1318"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO86BRDE450SV47653474500",
+          "iban_display_official": "RO86 BRDE 450S V476 5347 4500",
+          "iban_masked_for_client": "RO86 BRDE **** **** **** 4500"
+        }
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.ppcenergy.ro/servicii-digitale/modalitati-de-plata-factura/",
+          "publisher": "PPC Energy / PPC Energie",
+          "accessed_at": "2026-06-15",
+          "confidence": "high",
+          "source_lines": "PPC official payment page lists bank transfer IBANs, lines 1298-1318"
+        }
+      ],
+      "notes": "Legal name/CUI not asserted from the scraped payment page in this seed; verify separately before issuer-safe rules.",
+      "review_status": "active"
+    },
+    {
+      "brand_id": "eon_energie_romania",
+      "display_name": "E.ON Energie România",
+      "legal_name": "E.ON Energie România S.A.",
+      "cui": "22043010",
+      "category": "utility_energy_gas",
+      "official_payment_channels": [
+        {
+          "type": "myline_app_or_portal",
+          "domain": "eon.ro",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.eon.ro/modalitati-de-plata-factura",
+              "publisher": "E.ON România",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "E.ON official payment page lists bank transfer accounts, lines 201-215"
+            }
+          ]
+        },
+        {
+          "type": "bank_transfer",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.eon.ro/modalitati-de-plata-factura",
+              "publisher": "E.ON România",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "E.ON official payment page lists bank transfer accounts, lines 201-215"
+            }
+          ]
+        }
+      ],
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "energy_gas_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD",
+          "source_refs": [
+            {
+              "url": "https://www.eon.ro/modalitati-de-plata-factura",
+              "publisher": "E.ON România",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "E.ON official payment page lists bank transfer accounts, lines 201-215"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO53BRDE270SV23904012700",
+          "iban_display_official": "RO 53 BRDE 270S V239 0401 2700",
+          "iban_masked_for_client": "RO53 BRDE **** **** **** 2700"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "energy_gas_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "ING Bank",
+          "source_refs": [
+            {
+              "url": "https://www.eon.ro/modalitati-de-plata-factura",
+              "publisher": "E.ON România",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "E.ON official payment page lists bank transfer accounts, lines 201-215"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO27INGB0015000028188911",
+          "iban_display_official": "RO 27 INGB 0015 0000 2818 8911",
+          "iban_masked_for_client": "RO27 INGB **** **** **** 8911"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "energy_gas_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Unicredit Bank",
+          "source_refs": [
+            {
+              "url": "https://www.eon.ro/modalitati-de-plata-factura",
+              "publisher": "E.ON România",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "E.ON official payment page lists bank transfer accounts, lines 201-215"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO58BACX0000003701625003",
+          "iban_display_official": "RO 58 BACX 0000 0037 0162 5003",
+          "iban_masked_for_client": "RO58BACX0000003701625003"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "energy_gas_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "CreditCoop",
+          "source_refs": [
+            {
+              "url": "https://www.eon.ro/modalitati-de-plata-factura",
+              "publisher": "E.ON România",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "E.ON official payment page lists bank transfer accounts, lines 201-215"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO88CRCOX130013000088260",
+          "iban_display_official": "RO 88 CRCO X130 0130 0008 8260",
+          "iban_masked_for_client": "RO88CRCOX130013000088260"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "energy_gas_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Raiffeisen Bank",
+          "source_refs": [
+            {
+              "url": "https://www.eon.ro/modalitati-de-plata-factura",
+              "publisher": "E.ON România",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "E.ON official payment page lists bank transfer accounts, lines 201-215"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO86RZBR0000060012355190",
+          "iban_display_official": "RO 86 RZBR 0000 0600 1235 5190",
+          "iban_masked_for_client": "RO86 RZBR **** **** **** 5190"
+        },
+        {
+          "kind": "iban_pattern",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "energy_gas_bill_payment_for_treasury",
+          "confidence": "medium",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "reference_only_not_exact_match",
+          "can_contribute_to_safe": false,
+          "bank_name": "Trezoreria Târgu Mureș",
+          "source_refs": [
+            {
+              "url": "https://www.eon.ro/modalitati-de-plata-factura",
+              "publisher": "E.ON România",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "E.ON official payment page lists bank transfer accounts, lines 201-215"
+            }
+          ],
+          "iban_pattern_official_masked": "RO14TREZ4765069XXX007593",
+          "iban_display_official": "RO14 TREZ 4765 069X XX00 7593",
+          "notes": "Official page shows masked Xs; do not exact-match or use as SAFE whitelist until exact official IBAN is confirmed."
+        }
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.eon.ro/modalitati-de-plata-factura",
+          "publisher": "E.ON România",
+          "accessed_at": "2026-06-15",
+          "confidence": "high",
+          "source_lines": "E.ON official payment page lists bank transfer accounts, lines 201-215"
+        }
+      ],
+      "notes": "Source page caveat: Delgaz Grid/E.ON Asist Complet invoices may use different accounts printed on those invoices; do not apply E.ON energy bill whitelist to those entities.",
+      "review_status": "active"
+    },
+    {
+      "brand_id": "apavital_iasi",
+      "display_name": "APAVITAL Iași",
+      "legal_name": "APAVITAL S.A.",
+      "cui": null,
+      "category": "utility_water",
+      "official_payment_channels": [
+        {
+          "type": "online_payment_website",
+          "domain": "apavital.ro",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.apavital.ro/modalitati-de-plata",
+              "publisher": "APAVITAL Iași",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "APAVITAL official payment page lists bank transfer accounts, lines 136-149"
+            }
+          ]
+        },
+        {
+          "type": "ghiseul_ro",
+          "domain": "ghiseul.ro",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.apavital.ro/modalitati-de-plata",
+              "publisher": "APAVITAL Iași",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "APAVITAL official payment page lists bank transfer accounts, lines 136-149"
+            }
+          ]
+        },
+        {
+          "type": "bank_transfer",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.apavital.ro/modalitati-de-plata",
+              "publisher": "APAVITAL Iași",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "APAVITAL official payment page lists bank transfer accounts, lines 136-149"
+            }
+          ]
+        }
+      ],
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "water_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD Iași",
+          "source_refs": [
+            {
+              "url": "https://www.apavital.ro/modalitati-de-plata",
+              "publisher": "APAVITAL Iași",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "APAVITAL official payment page lists bank transfer accounts, lines 136-149"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO37BRDE240SV47757172400",
+          "iban_display_official": "RO37BRDE240SV47757172400",
+          "iban_masked_for_client": "RO37 BRDE **** **** **** 2400"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "water_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD Iași Anastasie Panu",
+          "source_refs": [
+            {
+              "url": "https://www.apavital.ro/modalitati-de-plata",
+              "publisher": "APAVITAL Iași",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "APAVITAL official payment page lists bank transfer accounts, lines 136-149"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO37BRDE240SV08267502400",
+          "iban_display_official": "RO37BRDE240SV08267502400",
+          "iban_masked_for_client": "RO37 BRDE **** **** **** 2400"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "water_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Raiffeisen Bank S.A. Agenția Iași",
+          "source_refs": [
+            {
+              "url": "https://www.apavital.ro/modalitati-de-plata",
+              "publisher": "APAVITAL Iași",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "APAVITAL official payment page lists bank transfer accounts, lines 136-149"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO47RZBR0000060003107233",
+          "iban_display_official": "RO47RZBR0000060003107233",
+          "iban_masked_for_client": "RO47 RZBR **** **** **** 7233"
+        },
+        {
+          "kind": "iban_pattern",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "water_bill_payment",
+          "confidence": "medium",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "reference_only_not_exact_match",
+          "can_contribute_to_safe": false,
+          "bank_name": "Banca Transilvania S.A.",
+          "source_refs": [
+            {
+              "url": "https://www.apavital.ro/modalitati-de-plata",
+              "publisher": "APAVITAL Iași",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "APAVITAL official payment page lists bank transfer accounts, lines 136-149"
+            }
+          ],
+          "iban_pattern_official_masked": "RO56BTRL02401202E61068XX",
+          "iban_display_official": "RO56BTRL02401202E61068XX",
+          "notes": "Official page shows XX; do not exact-match until exact IBAN confirmed."
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "water_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR Iași",
+          "source_refs": [
+            {
+              "url": "https://www.apavital.ro/modalitati-de-plata",
+              "publisher": "APAVITAL Iași",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "APAVITAL official payment page lists bank transfer accounts, lines 136-149"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO21RNCB0175012554420001",
+          "iban_display_official": "RO21RNCB0175012554420001",
+          "iban_masked_for_client": "RO21 RNCB **** **** **** 0001"
+        },
+        {
+          "kind": "iban_pattern",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "budgetary_units_only",
+          "confidence": "medium",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "reference_only_not_exact_match",
+          "can_contribute_to_safe": false,
+          "bank_name": "Trezoreria Iași",
+          "source_refs": [
+            {
+              "url": "https://www.apavital.ro/modalitati-de-plata",
+              "publisher": "APAVITAL Iași",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "APAVITAL official payment page lists bank transfer accounts, lines 136-149"
+            }
+          ],
+          "iban_pattern_official_masked": "RO17TREZ4065069XXX002179",
+          "iban_display_official": "RO17TREZ4065069XXX002179",
+          "notes": "Official page shows XXX and says valid only for budgetary units; do not exact-match."
+        }
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.apavital.ro/modalitati-de-plata",
+          "publisher": "APAVITAL Iași",
+          "accessed_at": "2026-06-15",
+          "confidence": "high",
+          "source_lines": "APAVITAL official payment page lists bank transfer accounts, lines 136-149"
+        }
+      ],
+      "notes": "Source tells transfer should include user name, client code, invoice number and date.",
+      "review_status": "active"
+    },
+    {
+      "brand_id": "compania_apa_brasov",
+      "display_name": "Compania Apa Brașov",
+      "legal_name": "Compania Apa Brașov",
+      "cui": "RO1096128",
+      "category": "utility_water",
+      "official_payment_channels": [
+        {
+          "type": "bank_transfer",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.apabrasov.ro/",
+              "publisher": "Compania Apa Brașov",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official homepage lists company bank accounts and CUI, lines 381-400"
+            }
+          ]
+        }
+      ],
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "water_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Unicredit Tiriac Bank SA",
+          "source_refs": [
+            {
+              "url": "https://www.apabrasov.ro/",
+              "publisher": "Compania Apa Brașov",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official homepage lists company bank accounts and CUI, lines 381-400"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO78BACX0000000642579002",
+          "iban_display_official": "RO78BACX0000000642579002",
+          "iban_masked_for_client": "RO78BACX0000000642579002"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "water_bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD Groupe Societe Generale",
+          "source_refs": [
+            {
+              "url": "https://www.apabrasov.ro/",
+              "publisher": "Compania Apa Brașov",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official homepage lists company bank accounts and CUI, lines 381-400"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO81BRDE080SV05660200800",
+          "iban_display_official": "RO81BRDE080SV05660200800",
+          "iban_masked_for_client": "RO81 BRDE **** **** **** 0800"
+        },
+        {
+          "kind": "iban_pattern",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "treasury",
+          "confidence": "medium",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "reference_only_not_exact_match",
+          "can_contribute_to_safe": false,
+          "bank_name": "Trezorerie",
+          "source_refs": [
+            {
+              "url": "https://www.apabrasov.ro/",
+              "publisher": "Compania Apa Brașov",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official homepage lists company bank accounts and CUI, lines 381-400"
+            }
+          ],
+          "iban_pattern_official_masked": "RO63TREZ1315069XXX000650",
+          "iban_display_official": "RO63TREZ1315069XXX000650",
+          "notes": "Official page shows XXX; do not exact-match until exact official IBAN confirmed."
+        }
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.apabrasov.ro/",
+          "publisher": "Compania Apa Brașov",
+          "accessed_at": "2026-06-15",
+          "confidence": "high",
+          "source_lines": "Official homepage lists company bank accounts and CUI, lines 381-400"
+        }
+      ],
+      "notes": "Official page lists company banking details and CUI.",
+      "review_status": "active"
+    },
+    {
+      "brand_id": "hidroelectrica",
+      "display_name": "Hidroelectrica",
+      "legal_name": "needs_confirmation",
+      "cui": null,
+      "category": "utility_energy",
+      "official_payment_channels": [
+        {
+          "type": "portal_no_auth_invoice_contract_code",
+          "domain": "hidroelectrica.ro",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.hidroelectrica.ro/",
+              "publisher": "Hidroelectrica",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official homepage: payment through Portal by invoice number and contract code, lines 217-225"
+            }
+          ],
+          "notes": "Official homepage says invoices can be paid directly from Portal without account/authentication using invoice number and contract code, with card/Google Pay/Apple Pay."
+        }
+      ],
+      "payment_destinations": [],
+      "source_refs": [
+        {
+          "url": "https://www.hidroelectrica.ro/",
+          "publisher": "Hidroelectrica",
+          "accessed_at": "2026-06-15",
+          "confidence": "high",
+          "source_lines": "Official homepage: payment through Portal by invoice number and contract code, lines 217-225"
+        }
+      ],
+      "notes": "No official IBAN found in this pass. Do not add IBAN until public official or partner-signed source is available.",
+      "review_status": "active"
+    },
+    {
+      "brand_id": "engie_romania",
+      "display_name": "ENGIE România",
+      "legal_name": "needs_confirmation",
+      "cui": null,
+      "category": "utility_gas_energy",
+      "official_payment_channels": [
+        {
+          "type": "online_payment",
+          "domain": "engie.ro",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.engie.ro/plateste-online/",
+              "publisher": "ENGIE România",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official online payment page asks client code/invoice/email/amount, lines 159-177"
+            }
+          ],
+          "notes": "Official online payment form uses client code, invoice number, email and amount."
+        },
+        {
+          "type": "myengie_app_or_portal",
+          "domain": "engie.ro",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.engie.ro/plateste-online/",
+              "publisher": "ENGIE România",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official online payment page asks client code/invoice/email/amount, lines 159-177"
+            }
+          ]
+        }
+      ],
+      "payment_destinations": [],
+      "source_refs": [
+        {
+          "url": "https://www.engie.ro/plateste-online/",
+          "publisher": "ENGIE România",
+          "accessed_at": "2026-06-15",
+          "confidence": "high",
+          "source_lines": "Official online payment page asks client code/invoice/email/amount, lines 159-177"
+        }
+      ],
+      "notes": "No official IBAN found in this pass.",
+      "review_status": "active"
+    },
+    {
+      "brand_id": "electrica_furnizare",
+      "display_name": "Electrica Furnizare",
+      "legal_name": "Electrica Furnizare S.A.",
+      "cui": null,
+      "category": "utility_energy",
+      "official_payment_channels": [
+        {
+          "type": "myelectrica_app_or_portal",
+          "domain": "electricafurnizare.ro",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.electricafurnizare.ro/modalitati-de-plata-factura-electrica-furnizare/",
+              "publisher": "Electrica Furnizare",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official payment methods page, lines 62-125"
+            }
+          ]
+        },
+        {
+          "type": "online_payment_or_partners",
+          "domain": "electricafurnizare.ro",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.electricafurnizare.ro/modalitati-de-plata-factura-electrica-furnizare/",
+              "publisher": "Electrica Furnizare",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official payment methods page, lines 62-125"
+            }
+          ]
+        }
+      ],
+      "payment_destinations": [],
+      "source_refs": [
+        {
+          "url": "https://www.electricafurnizare.ro/modalitati-de-plata-factura-electrica-furnizare/",
+          "publisher": "Electrica Furnizare",
+          "accessed_at": "2026-06-15",
+          "confidence": "high",
+          "source_lines": "Official payment methods page, lines 62-125"
+        }
+      ],
+      "notes": "Official site warns about phishing emails urging payment via insecure link; no official IBAN found in this pass.",
+      "review_status": "active"
+    },
+    {
+      "brand_id": "digi_romania",
+      "display_name": "DIGI România",
+      "legal_name": "needs_confirmation",
+      "cui": null,
+      "category": "telecom",
+      "official_payment_channels": [
+        {
+          "type": "online_payment",
+          "domain": "digi.ro",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.digi.ro/",
+              "publisher": "Digi România",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official homepage/payment modal: pay invoice online, lines 220-238"
+            }
+          ],
+          "notes": "Official site/payment modal references online bill payment and payment from invoice email."
+        }
+      ],
+      "payment_destinations": [],
+      "source_refs": [
+        {
+          "url": "https://www.digi.ro/",
+          "publisher": "Digi România",
+          "accessed_at": "2026-06-15",
+          "confidence": "high",
+          "source_lines": "Official homepage/payment modal: pay invoice online, lines 220-238"
+        }
+      ],
+      "notes": "No official IBAN found in this pass.",
+      "review_status": "active"
+    },
+    {
+      "brand_id": "orange_romania",
+      "display_name": "Orange România",
+      "legal_name": "needs_confirmation",
+      "cui": null,
+      "category": "telecom",
+      "official_payment_channels": [
+        {
+          "type": "my_orange_app_or_portal",
+          "domain": "orange.ro",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.orange.ro/help/factura-plati-si-consum",
+              "publisher": "Orange România",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official help page references My Orange/payment, lines 48-58 and 173-177"
+            }
+          ]
+        },
+        {
+          "type": "online_payment",
+          "domain": "orange.ro",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.orange.ro/help/factura-plati-si-consum",
+              "publisher": "Orange România",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official help page references My Orange/payment, lines 48-58 and 173-177"
+            }
+          ]
+        }
+      ],
+      "payment_destinations": [],
+      "source_refs": [
+        {
+          "url": "https://www.orange.ro/help/factura-plati-si-consum",
+          "publisher": "Orange România",
+          "accessed_at": "2026-06-15",
+          "confidence": "high",
+          "source_lines": "Official help page references My Orange/payment, lines 48-58 and 173-177"
+        }
+      ],
+      "notes": "No official IBAN found in this pass.",
+      "review_status": "active"
+    },
+    {
+      "brand_id": "apa_nova_bucuresti",
+      "display_name": "Apa Nova București",
+      "legal_name": "Apa Nova București S.A.",
+      "cui": "RO12276949",
+      "category": "utility_water",
+      "official_payment_channels": [
+        {
+          "type": "online_payment",
+          "domain": "apanovabucuresti.ro",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.apanovabucuresti.ro/",
+              "publisher": "Apa Nova București",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official homepage: pay invoice online/app, company details, lines 75-79 and 180-183"
+            }
+          ]
+        },
+        {
+          "type": "app_or_account",
+          "domain": "apanovabucuresti.ro",
+          "confidence": "high",
+          "source_refs": [
+            {
+              "url": "https://www.apanovabucuresti.ro/",
+              "publisher": "Apa Nova București",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official homepage: pay invoice online/app, company details, lines 75-79 and 180-183"
+            }
+          ]
+        }
+      ],
+      "payment_destinations": [],
+      "source_refs": [
+        {
+          "url": "https://www.apanovabucuresti.ro/",
+          "publisher": "Apa Nova București",
+          "accessed_at": "2026-06-15",
+          "confidence": "high",
+          "source_lines": "Official homepage: pay invoice online/app, company details, lines 75-79 and 180-183"
+        }
+      ],
+      "notes": "No official IBAN found in this pass; source confirms company CUI and online/app payment.",
+      "review_status": "active"
+    }
+  ],
+  "summary": {
+    "brands_total": 10,
+    "complete_official_iban_destinations": 20,
+    "official_masked_or_pattern_destinations_not_for_exact_match": 4,
+    "brands_with_payment_channel_only_no_iban": 6,
+    "warning": "Completeness is not implied. This is a seed batch, not a national whitelist."
+  },
+  "source_index": [
+    {
+      "url": "https://www.ppcenergy.ro/servicii-digitale/modalitati-de-plata-factura/",
+      "publisher": "PPC Energy / PPC Energie",
+      "accessed_at": "2026-06-15",
+      "confidence": "high",
+      "source_lines": "PPC official payment page lists bank transfer IBANs, lines 1298-1318"
+    },
+    {
+      "url": "https://www.eon.ro/modalitati-de-plata-factura",
+      "publisher": "E.ON România",
+      "accessed_at": "2026-06-15",
+      "confidence": "high",
+      "source_lines": "E.ON official payment page lists bank transfer accounts, lines 201-215"
+    },
+    {
+      "url": "https://www.apavital.ro/modalitati-de-plata",
+      "publisher": "APAVITAL Iași",
+      "accessed_at": "2026-06-15",
+      "confidence": "high",
+      "source_lines": "APAVITAL official payment page lists bank transfer accounts, lines 136-149"
+    },
+    {
+      "url": "https://www.apabrasov.ro/",
+      "publisher": "Compania Apa Brașov",
+      "accessed_at": "2026-06-15",
+      "confidence": "high",
+      "source_lines": "Official homepage lists company bank accounts and CUI, lines 381-400"
+    },
+    {
+      "url": "https://www.hidroelectrica.ro/",
+      "publisher": "Hidroelectrica",
+      "accessed_at": "2026-06-15",
+      "confidence": "high",
+      "source_lines": "Official homepage: payment through Portal by invoice number and contract code, lines 217-225"
+    },
+    {
+      "url": "https://www.engie.ro/plateste-online/",
+      "publisher": "ENGIE România",
+      "accessed_at": "2026-06-15",
+      "confidence": "high",
+      "source_lines": "Official online payment page asks client code/invoice/email/amount, lines 159-177"
+    },
+    {
+      "url": "https://www.electricafurnizare.ro/modalitati-de-plata-factura-electrica-furnizare/",
+      "publisher": "Electrica Furnizare",
+      "accessed_at": "2026-06-15",
+      "confidence": "high",
+      "source_lines": "Official payment methods page, lines 62-125"
+    },
+    {
+      "url": "https://www.digi.ro/",
+      "publisher": "Digi România",
+      "accessed_at": "2026-06-15",
+      "confidence": "high",
+      "source_lines": "Official homepage/payment modal: pay invoice online, lines 220-238"
+    },
+    {
+      "url": "https://www.orange.ro/help/factura-plati-si-consum",
+      "publisher": "Orange România",
+      "accessed_at": "2026-06-15",
+      "confidence": "high",
+      "source_lines": "Official help page references My Orange/payment, lines 48-58 and 173-177"
+    },
+    {
+      "url": "https://www.apanovabucuresti.ro/",
+      "publisher": "Apa Nova București",
+      "accessed_at": "2026-06-15",
+      "confidence": "high",
+      "source_lines": "Official homepage: pay invoice online/app, company details, lines 75-79 and 180-183"
+    }
+  ]
+}

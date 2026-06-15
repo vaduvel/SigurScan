@@ -1,0 +1,72 @@
+{
+  "version": "2026-06-15",
+  "description": "Curated local phishing/lookalike domains from user-provided research. Used as a local extension of phishing_database provider evidence.",
+  "phishing_domains": [
+    {
+      "domain": "fancourier.lol",
+      "impersonates_brand": "fan_courier",
+      "scam_type": "smishing_colet",
+      "source": "press",
+      "source_url": "https://romania.europalibera.org/a/avertizare-dnsc-continua-campaniile-de-frauda-prin-whatsapp-si-sms-folosind-identitatea-firmelor-de-curierat/33660275.html",
+      "source_publisher": "Europa Libera",
+      "reported_at": "2026-01-26",
+      "evidence_quote": "paginile de phishing ... (de exemplu, fancourier[.]lol)",
+      "confidence": "medium"
+    },
+    {
+      "domain": "fancourier.xyz",
+      "impersonates_brand": "fan_courier",
+      "scam_type": "smishing_colet",
+      "source": "press",
+      "source_url": "https://hotnews.ro/cum-sa-te-feresti-de-cea-mai-raspandita-inselatorie-online-a-momentului-poti-sa-pierzi-cu-totul-accesul-la-contul-de-whatsapp-2190870",
+      "source_publisher": "HotNews",
+      "reported_at": "2026-03-12",
+      "evidence_quote": "site-uri clona de genul fancourier.lol sau fancourier.xyz",
+      "confidence": "medium"
+    },
+    {
+      "domain": "ghisaul.lat",
+      "impersonates_brand": "ghiseul_ro",
+      "scam_type": "phishing_login",
+      "source": "official_institution",
+      "source_url": "https://www.mt.ro/spatiul-media/comunicate-de-presa/com15052026",
+      "source_publisher": "Ministerul Transporturilor si Infrastructurii",
+      "reported_at": "2026-05-15",
+      "evidence_quote": "Site-ul din imagine (ghisaul.lat) este un SITE CLONA. Platforma oficiala este www.ghiseul.ro",
+      "confidence": "high"
+    },
+    {
+      "domain": "ghiseal.lat",
+      "impersonates_brand": "ghiseul_ro",
+      "scam_type": "phishing_login",
+      "source": "press",
+      "source_url": "https://hunt.io/blog/massive-smishing-campaign-governments-postal-telecoms",
+      "source_publisher": "Hunt.io",
+      "reported_at": "2026-05-27",
+      "evidence_quote": "Domains like ghiseal[.]lat ... are not accidents",
+      "confidence": "medium"
+    },
+    {
+      "domain": "ghizeul.lat",
+      "impersonates_brand": "ghiseul_ro",
+      "scam_type": "phishing_login",
+      "source": "press",
+      "source_url": "https://hunt.io/blog/massive-smishing-campaign-governments-postal-telecoms",
+      "source_publisher": "Hunt.io",
+      "reported_at": "2026-05-27",
+      "evidence_quote": "Domains like ... ghizeul[.]lat are not accidents",
+      "confidence": "medium"
+    },
+    {
+      "domain": "ghisiul.lat",
+      "impersonates_brand": "ghiseul_ro",
+      "scam_type": "phishing_login",
+      "source": "press",
+      "source_url": "https://hunt.io/blog/massive-smishing-campaign-governments-postal-telecoms",
+      "source_publisher": "Hunt.io",
+      "reported_at": "2026-05-27",
+      "evidence_quote": "Domains like ... ghisiul[.]lat are not accidents",
+      "confidence": "medium"
+    }
+  ]
+}

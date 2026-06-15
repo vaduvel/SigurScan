@@ -41,6 +41,12 @@ class TestDetectClaimedBrand:
     def test_detect_fan_courier(self):
         assert detect_claimed_brand("FAN Courier Express", "factura curierat", []) == "fan_courier"
 
+    def test_detect_dpd_romania(self):
+        assert detect_claimed_brand("Dynamic Parcel Distribution SA", "DPD Romania factura", []) == "dpd_romania"
+
+    def test_detect_raja(self):
+        assert detect_claimed_brand("RAJA SA", "servicii apa canal CUI 1890420", []) == "raja"
+
     def test_detect_petrom(self):
         assert detect_claimed_brand("OMV Petrom SA", "factura carburanti", []) == "petrom"
 

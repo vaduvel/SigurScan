@@ -1,0 +1,447 @@
+{
+  "version": "pdr-ro-verified-delta-2026.06.15",
+  "purpose": "Verified delta from user-provided official-payment research. Backend-only; exact raw IBANs must not be shipped to Android.",
+  "entries": [
+    {
+      "brand_id": "orange_romania_communications",
+      "display_name": "Orange Romania Communications S.A.",
+      "legal_name": "Orange Romania Communications S.A.",
+      "cui": "427320",
+      "category": "telecom",
+      "collects_via": "fixed_public_ibans",
+      "source_report": "pasted-text-57af2e30-742c-4040-8d4b-9bc2e86295b6",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bank_transfer_fixed_services",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR",
+          "source_refs": [
+            {
+              "url": "https://www.orange.ro/help/care-sunt-modalitatile-de-plata-pentru-factura-de-servicii-fixe-orange-romania-communications-16283",
+              "publisher": "Orange Romania Communications S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Orange Romania Communications lists BCR bank transfer account for fixed-services invoices."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO51RNCB0080002971510001",
+          "iban_masked_for_client": "RO51 RNCB **** **** **** 0001"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bank_transfer_fixed_services",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD Groupe Société Générale",
+          "source_refs": [
+            {
+              "url": "https://www.orange.ro/help/care-sunt-modalitatile-de-plata-pentru-factura-de-servicii-fixe-orange-romania-communications-16283",
+              "publisher": "Orange Romania Communications S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Orange Romania Communications lists BRD bank transfer account for fixed-services invoices."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO76BRDE450SV05283104500",
+          "iban_masked_for_client": "RO76 BRDE **** **** **** 4500"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bank_transfer_fixed_services",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "CEC Bank",
+          "source_refs": [
+            {
+              "url": "https://www.orange.ro/help/care-sunt-modalitatile-de-plata-pentru-factura-de-servicii-fixe-orange-romania-communications-16283",
+              "publisher": "Orange Romania Communications S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Orange Romania Communications lists CEC bank transfer account for fixed-services invoices."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO20CECEB312N4RON2075487",
+          "iban_masked_for_client": "RO20 CECE **** **** **** 5487"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bank_transfer_fixed_services",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Banca Centrală Cooperatistă CREDITCOOP",
+          "source_refs": [
+            {
+              "url": "https://www.orange.ro/help/care-sunt-modalitatile-de-plata-pentru-factura-de-servicii-fixe-orange-romania-communications-16283",
+              "publisher": "Orange Romania Communications S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Orange Romania Communications lists CreditCoop bank transfer account for fixed-services invoices."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO10CRCOX410041000022041",
+          "iban_masked_for_client": "RO10 CRCO **** **** **** 2041"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bank_transfer_fixed_services",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "ING Bank",
+          "source_refs": [
+            {
+              "url": "https://www.orange.ro/help/care-sunt-modalitatile-de-plata-pentru-factura-de-servicii-fixe-orange-romania-communications-16283",
+              "publisher": "Orange Romania Communications S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Orange Romania Communications lists ING bank transfer account for fixed-services invoices."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO77INGB0001000000000123",
+          "iban_masked_for_client": "RO77 INGB **** **** **** 0123"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bank_transfer_fixed_services",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Raiffeisen Bank",
+          "source_refs": [
+            {
+              "url": "https://www.orange.ro/help/care-sunt-modalitatile-de-plata-pentru-factura-de-servicii-fixe-orange-romania-communications-16283",
+              "publisher": "Orange Romania Communications S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Orange Romania Communications lists Raiffeisen bank transfer account for fixed-services invoices."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO10RZBR0000060006537916",
+          "iban_masked_for_client": "RO10 RZBR **** **** **** 7916"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bank_transfer_fixed_services",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "UniCredit Bank",
+          "source_refs": [
+            {
+              "url": "https://www.orange.ro/help/care-sunt-modalitatile-de-plata-pentru-factura-de-servicii-fixe-orange-romania-communications-16283",
+              "publisher": "Orange Romania Communications S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Orange Romania Communications lists UniCredit bank transfer account for fixed-services invoices."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO24BACX0000000000031313",
+          "iban_masked_for_client": "RO24 BACX **** **** **** 1313"
+        }
+      ]
+    },
+    {
+      "brand_id": "electrica_furnizare",
+      "display_name": "Electrica Furnizare S.A.",
+      "legal_name": "Electrica Furnizare S.A.",
+      "cui": "28909028",
+      "category": "utilitati_energie",
+      "collects_via": "fixed_public_ibans",
+      "source_report": "pasted-text-57af2e30-742c-4040-8d4b-9bc2e86295b6",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_document_chain",
+          "scope": "bank_transfer",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "ING Bank",
+          "source_refs": [
+            {
+              "url": "https://www.electricafurnizare.ro/app/uploads/2025/05/Conditii-generale-de-furnizare-a-energiei-electrice-la-clientii-casnici.pdf",
+              "publisher": "Electrica Furnizare S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official Electrica Furnizare document lists company account RO74INGB5001008197998990."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO74INGB5001008197998990",
+          "iban_masked_for_client": "RO74 INGB **** **** **** 8990"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bank_transfer",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Banca Transilvania",
+          "source_refs": [
+            {
+              "url": "https://www.electricafurnizare.ro/modalitati-de-plata-factura-electrica-furnizare/",
+              "publisher": "Electrica Furnizare S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "User-provided official-page extraction lists BT account for Electrica Furnizare."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO22BTRLRONINCS000704401",
+          "iban_masked_for_client": "RO22 BTRL **** **** **** 4401"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bank_transfer",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Banca Comercială Română",
+          "source_refs": [
+            {
+              "url": "https://www.electricafurnizare.ro/modalitati-de-plata-factura-electrica-furnizare/",
+              "publisher": "Electrica Furnizare S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "User-provided official-page extraction lists BCR account for Electrica Furnizare."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO90RNCB0072122960930970",
+          "iban_masked_for_client": "RO90 RNCB **** **** **** 0970"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bank_transfer",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Garanti Bank",
+          "source_refs": [
+            {
+              "url": "https://www.electricafurnizare.ro/modalitati-de-plata-factura-electrica-furnizare/",
+              "publisher": "Electrica Furnizare S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "User-provided official-page extraction lists Garanti account for Electrica Furnizare."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO07UGBI0000512010490RON",
+          "iban_masked_for_client": "RO07 UGBI **** **** **** 0RON"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bank_transfer",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "UniCredit Bank",
+          "source_refs": [
+            {
+              "url": "https://www.electricafurnizare.ro/modalitati-de-plata-factura-electrica-furnizare/",
+              "publisher": "Electrica Furnizare S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "User-provided official-page extraction lists UniCredit account for Electrica Furnizare."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO92BACX0000000741463072",
+          "iban_masked_for_client": "RO92 BACX **** **** **** 3072"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bank_transfer",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "CreditCoop",
+          "source_refs": [
+            {
+              "url": "https://www.electricafurnizare.ro/modalitati-de-plata-factura-electrica-furnizare/",
+              "publisher": "Electrica Furnizare S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "User-provided official-page extraction lists CreditCoop account for Electrica Furnizare."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO94CRCOX130013000225310",
+          "iban_masked_for_client": "RO94 CRCO **** **** **** 5310"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bank_transfer",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "CEC Bank",
+          "source_refs": [
+            {
+              "url": "https://www.electricafurnizare.ro/modalitati-de-plata-factura-electrica-furnizare/",
+              "publisher": "Electrica Furnizare S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "User-provided official-page extraction lists CEC account for Electrica Furnizare."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO59CECEB00044RON1000436",
+          "iban_masked_for_client": "RO59 CECE **** **** **** 0436"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bank_transfer",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD Groupe Société Générale",
+          "source_refs": [
+            {
+              "url": "https://www.electricafurnizare.ro/modalitati-de-plata-factura-electrica-furnizare/",
+              "publisher": "Electrica Furnizare S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "User-provided official-page extraction lists BRD account for Electrica Furnizare."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO21BRDE450SV52770554500",
+          "iban_masked_for_client": "RO21 BRDE **** **** **** 4500"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bank_transfer",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Raiffeisen Bank",
+          "source_refs": [
+            {
+              "url": "https://www.electricafurnizare.ro/modalitati-de-plata-factura-electrica-furnizare/",
+              "publisher": "Electrica Furnizare S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "User-provided official-page extraction lists Raiffeisen account for Electrica Furnizare."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO14RZBR0000060021815926",
+          "iban_masked_for_client": "RO14 RZBR **** **** **** 5926"
+        }
+      ]
+    },
+    {
+      "brand_id": "eon_energie_romania",
+      "display_name": "E.ON Energie România S.A.",
+      "legal_name": "E.ON Energie România S.A.",
+      "cui": "22043010",
+      "category": "utilitati_energie",
+      "collects_via": "billpay_channel_context",
+      "source_report": "pasted-text-57af2e30-742c-4040-8d4b-9bc2e86295b6",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T4_STRUCTURALLY_VALID_UNKNOWN",
+          "source_kind": "official_channel_context_not_exact_bank_account_current_page",
+          "scope": "raiffeisen_billpay_context_only",
+          "confidence": "medium",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "context_only_not_safe",
+          "can_contribute_to_safe": false,
+          "bank_name": "Raiffeisen Bank",
+          "source_refs": [
+            {
+              "url": "https://www.eon.ro/info-utile",
+              "publisher": "E.ON Energie România S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "medium",
+              "source_lines": "Current E.ON page lists Raiffeisen for Mobile/Internet Banking, while exact bank-account list shows BRD, ING, UniCredit, CreditCoop and a masked Trezorerie account."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO86RZBR0000060012355190",
+          "iban_masked_for_client": "RO86 RZBR **** **** **** 5190"
+        }
+      ]
+    }
+  ]
+}

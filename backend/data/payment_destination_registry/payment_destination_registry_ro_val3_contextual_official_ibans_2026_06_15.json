@@ -1,0 +1,76 @@
+{
+  "version": "pdr-ro-val3-contextual-official-ibans-2026.06.15",
+  "purpose": "Contextual official-payment delta from user-provided public/official research. Backend-only; medium-confidence entries can be matched for evidence but must not contribute to SAFE.",
+  "entries": [
+    {
+      "brand_id": "omniasig",
+      "display_name": "OMNIASIG",
+      "legal_name": "OMNIASIG VIENNA INSURANCE GROUP S.A.",
+      "cui": "14360018",
+      "category": "asigurari",
+      "collects_via": "iban",
+      "source_report": "pasted-text-cbbfda54-b73d-4727-a7fc-ad3774903075",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T2_OFFICIAL_DOCUMENT_CHAIN",
+          "source_kind": "official_webpage",
+          "scope": "corporate_identification_contextual",
+          "confidence": "medium",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": false,
+          "bank_name": "BCR",
+          "source_refs": [
+            {
+              "url": "https://omniasig.ro/ro/date-identificare",
+              "publisher": "OMNIASIG VIENNA INSURANCE GROUP S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "medium",
+              "source_lines": "Official OMNIASIG identification page lists IBAN RO17RNCB0090000506110001; payment page may use distinct policy-level IBANs."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO17RNCB0090000506110001",
+          "iban_masked_for_client": "RO17 RNCB **** **** **** 0001"
+        }
+      ]
+    },
+    {
+      "brand_id": "allianz_tiriac",
+      "display_name": "Allianz-Tiriac",
+      "legal_name": "ALLIANZ-TIRIAC ASIGURARI S.A.",
+      "cui": "6120740",
+      "category": "asigurari",
+      "collects_via": "iban",
+      "source_report": "pasted-text-cbbfda54-b73d-4727-a7fc-ad3774903075",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T2_OFFICIAL_DOCUMENT_CHAIN",
+          "source_kind": "official_document_chain",
+          "scope": "campaign_document_contextual",
+          "confidence": "medium",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": false,
+          "bank_name": "UniCredit Bank",
+          "source_refs": [
+            {
+              "url": "https://www.allianztiriac.ro/content/dam/onemarketing/cee/azro/documente/regulamente/Regulament_Confort_la_pret_de_RCA.pdf",
+              "publisher": "ALLIANZ-TIRIAC ASIGURARI S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "medium",
+              "source_lines": "Official Allianz-Tiriac document lists IBAN RO69BACX0000000030063255, but this is not a general public premium-payment whitelist."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO69BACX0000000030063255",
+          "iban_masked_for_client": "RO69 BACX **** **** **** 3255"
+        }
+      ]
+    }
+  ]
+}

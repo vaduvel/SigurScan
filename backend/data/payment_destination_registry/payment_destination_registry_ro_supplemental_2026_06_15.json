@@ -1,0 +1,1904 @@
+{
+  "version": "pdr-ro-supplemental-2026.06.15",
+  "purpose": "Supplemental Payment Destination Registry extracted from user-provided deep research reports. Backend-only; raw IBANs must not be sent to Android.",
+  "entries": [
+    {
+      "brand_id": "hidroelectrica",
+      "display_name": "S.P.E.E.H. HIDROELECTRICA S.A.",
+      "legal_name": "S.P.E.E.H. HIDROELECTRICA S.A.",
+      "cui": "13267213",
+      "category": "utilitati_energie",
+      "collects_via": "both",
+      "source_report": "raport-cercetare-aprofundată (5).md",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Banca Comercială Română",
+          "source_refs": [
+            {
+              "url": "https://cdn.hidroelectrica.ro/cdn/furnizare/12_11/modalitati_de_plata-clienti_casnici.pdf",
+              "publisher": "S.P.E.E.H. HIDROELECTRICA S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "Virament, prin Ordin de Plată, în contul IBAN: RO63 RNCB 0072 0183 3187 0495 ( Detalii Plată > Cont Contract și Număr Factură )"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO63RNCB0072018331870495",
+          "iban_masked_for_client": "RO63 RNCB **** **** **** 0495"
+        }
+      ]
+    },
+    {
+      "brand_id": "eon_energie_romania",
+      "display_name": "E.ON Energie România S.A.",
+      "legal_name": "E.ON Energie România S.A.",
+      "cui": "22043010",
+      "category": "utilitati_energie",
+      "collects_via": "both",
+      "source_report": "raport-cercetare-aprofundată (5).md",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD",
+          "source_refs": [
+            {
+              "url": "https://www.eon.ro/info-utile",
+              "publisher": "E.ON Energie România S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "BRD - RO 53 BRDE 270S V239 0401 2700"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO53BRDE270SV23904012700",
+          "iban_masked_for_client": "RO53 BRDE **** **** **** 2700"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "ING Bank",
+          "source_refs": [
+            {
+              "url": "https://www.eon.ro/info-utile",
+              "publisher": "E.ON Energie România S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "ING Bank - RO 27 INGB 0015 0000 2818 8911"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO27INGB0015000028188911",
+          "iban_masked_for_client": "RO27 INGB **** **** **** 8911"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "UniCredit Bank",
+          "source_refs": [
+            {
+              "url": "https://www.eon.ro/info-utile",
+              "publisher": "E.ON Energie România S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "Unicredit Bank - RO 58 BACX 0000 0037 0162 5003"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO58BACX0000003701625003",
+          "iban_masked_for_client": "RO58 BACX **** **** **** 5003"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Banca Centrală Cooperatistă CREDITCOOP",
+          "source_refs": [
+            {
+              "url": "https://www.eon.ro/info-utile",
+              "publisher": "E.ON Energie România S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "CreditCoop - RO 88 CRCO X130 0130 0008 8260"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO88CRCOX130013000088260",
+          "iban_masked_for_client": "RO88 CRCO **** **** **** 8260"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Trezoreria Târgu Mureș",
+          "source_refs": [
+            {
+              "url": "https://www.eon.ro/info-utile",
+              "publisher": "E.ON Energie România S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "Trezoreria Târgu Mureș - RO14 TREZ 4765 069X XX00 7593 (CUI 22043010)."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO14TREZ4765069XXX007593",
+          "iban_masked_for_client": "RO14 TREZ **** **** **** 7593"
+        }
+      ]
+    },
+    {
+      "brand_id": "engie_romania",
+      "display_name": "ENGIE Romania S.A.",
+      "legal_name": "ENGIE Romania S.A.",
+      "cui": "13093222",
+      "category": "utilitati_gaz",
+      "collects_via": "both",
+      "source_report": "raport-cercetare-aprofundată (5).md",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD GSG – SMCC",
+          "source_refs": [
+            {
+              "url": "https://www.engie.ro/doc/modalitati-de-plata-a-facturii.pdf",
+              "publisher": "ENGIE Romania S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "BRD GSG – SMCC: RO26 BRDE 450S V114 3681 4500"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO26BRDE450SV11436814500",
+          "iban_masked_for_client": "RO26 BRDE **** **** **** 4500"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Raiffeisen Bank",
+          "source_refs": [
+            {
+              "url": "https://www.engie.ro/doc/modalitati-de-plata-a-facturii.pdf",
+              "publisher": "ENGIE Romania S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "Raiffeisen Bank – RO40 RZBR 0000 0600 1066 0361"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO40RZBR0000060010660361",
+          "iban_masked_for_client": "RO40 RZBR **** **** **** 0361"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR",
+          "source_refs": [
+            {
+              "url": "https://www.engie.ro/doc/modalitati-de-plata-a-facturii.pdf",
+              "publisher": "ENGIE Romania S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "BCR – RO16 RNCB 0074 0018 4206 G242"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO16RNCB007400184206G242",
+          "iban_masked_for_client": "RO16 RNCB **** **** **** G242"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Citibank Europe",
+          "source_refs": [
+            {
+              "url": "https://www.engie.ro/doc/modalitati-de-plata-a-facturii.pdf",
+              "publisher": "ENGIE Romania S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "Citibank Europe – RO18 CITI 0000 0008 2490 2224"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO18CITI0000000824902224",
+          "iban_masked_for_client": "RO18 CITI **** **** **** 2224"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Banca Centrală Cooperatistă CREDITCOOP",
+          "source_refs": [
+            {
+              "url": "https://www.engie.ro/doc/modalitati-de-plata-a-facturii.pdf",
+              "publisher": "ENGIE Romania S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "Banca Centrală Cooperatistă CREDITCOOP – RO70 CRCO X410 0410 0002 1931"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO70CRCOX410041000021931",
+          "iban_masked_for_client": "RO70 CRCO **** **** **** 1931"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "UniCredit Bank",
+          "source_refs": [
+            {
+              "url": "https://www.engie.ro/doc/modalitati-de-plata-a-facturii.pdf",
+              "publisher": "ENGIE Romania S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "UniCredit Bank – RO54 BACX 0000 0001 2482 3310"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO54BACX0000000124823310",
+          "iban_masked_for_client": "RO54 BACX **** **** **** 3310"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "ING Bank",
+          "source_refs": [
+            {
+              "url": "https://www.engie.ro/doc/modalitati-de-plata-a-facturii.pdf",
+              "publisher": "ENGIE Romania S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "ING Bank – RO83 INGB 0001 0000 0000 0888"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO83INGB0001000000000888",
+          "iban_masked_for_client": "RO83 INGB **** **** **** 0888"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "CEC Bank",
+          "source_refs": [
+            {
+              "url": "https://www.engie.ro/doc/modalitati-de-plata-a-facturii.pdf",
+              "publisher": "ENGIE Romania S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "CEC Bank – RO80 CECE B315 N5RO N218 9733"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO80CECEB315N5RON2189733",
+          "iban_masked_for_client": "RO80 CECE **** **** **** 9733"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Banca Transilvania",
+          "source_refs": [
+            {
+              "url": "https://www.engie.ro/doc/modalitati-de-plata-a-facturii.pdf",
+              "publisher": "ENGIE Romania S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "Banca Transilvania – RO44 BTRL 0430 1601 0071 3643"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO44BTRL0430160100713643",
+          "iban_masked_for_client": "RO44 BTRL **** **** **** 3643"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Trezorerie",
+          "source_refs": [
+            {
+              "url": "https://www.engie.ro/doc/modalitati-de-plata-a-facturii.pdf",
+              "publisher": "ENGIE Romania S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "TREZORERIE - RO41 TREZ 7005 069X XX00 0397 - valabil doar pentru clienții noncasnici"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO41TREZ7005069XXX000397",
+          "iban_masked_for_client": "RO41 TREZ **** **** **** 0397"
+        }
+      ]
+    },
+    {
+      "brand_id": "orange_romania",
+      "display_name": "Orange România S.A.",
+      "legal_name": "Orange România S.A.",
+      "cui": "9010105",
+      "category": "telecom",
+      "collects_via": "both",
+      "source_report": "raport-cercetare-aprofundată (5).md",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "ING Bank Romania",
+          "source_refs": [
+            {
+              "url": "https://www.orange.ro/help/care-sunt-conturile-n-care-pot-face-plata-facturii-prin-virament-bancar-5568",
+              "publisher": "Orange România S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "ING Bank Romania - in contul IBAN RO91INGB0001000000011511"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO91INGB0001000000011511",
+          "iban_masked_for_client": "RO91 INGB **** **** **** 1511"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD GSG sucursala MCC",
+          "source_refs": [
+            {
+              "url": "https://www.orange.ro/help/care-sunt-conturile-n-care-pot-face-plata-facturii-prin-virament-bancar-5568",
+              "publisher": "Orange România S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "BRD GSG sucursala MCC - in contul IBAN RO33BRDE450SV01035364500"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO33BRDE450SV01035364500",
+          "iban_masked_for_client": "RO33 BRDE **** **** **** 4500"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Banca Transilvania",
+          "source_refs": [
+            {
+              "url": "https://www.orange.ro/help/care-sunt-conturile-n-care-pot-face-plata-facturii-prin-virament-bancar-5568",
+              "publisher": "Orange România S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "Banca Transilvania - in contul IBAN RO91BTRL0000160106816100"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO91BTRL0000160106816100",
+          "iban_masked_for_client": "RO91 BTRL **** **** **** 6100"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Raiffeisen Bank",
+          "source_refs": [
+            {
+              "url": "https://www.orange.ro/help/care-sunt-conturile-n-care-pot-face-plata-facturii-prin-virament-bancar-5568",
+              "publisher": "Orange România S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "Raiffeisen Bank - in contul IBAN RO20RZBR0000060003074933"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO20RZBR0000060003074933",
+          "iban_masked_for_client": "RO20 RZBR **** **** **** 4933"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Trezorerie",
+          "source_refs": [
+            {
+              "url": "https://www.orange.ro/help/care-sunt-conturile-n-care-pot-face-plata-facturii-prin-virament-bancar-5568",
+              "publisher": "Orange România S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "Trezorerie - in contul IBAN RO02TREZ7005069XXX000711 – pentru institutii bugetare"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO02TREZ7005069XXX000711",
+          "iban_masked_for_client": "RO02 TREZ **** **** **** 0711"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "CEC Bank",
+          "source_refs": [
+            {
+              "url": "https://www.orange.ro/help/care-sunt-conturile-n-care-pot-face-plata-facturii-prin-virament-bancar-5568",
+              "publisher": "Orange România S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "CEC Bank - in contul IBAN RO45CECEB10046RON0403003"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO45CECEB10046RON0403003",
+          "iban_masked_for_client": "RO45 CECE **** **** **** 3003"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "UniCredit Bank S.A.",
+          "source_refs": [
+            {
+              "url": "https://www.orange.ro/help/care-sunt-conturile-n-care-pot-face-plata-facturii-prin-virament-bancar-5568",
+              "publisher": "Orange România S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "UniCredit Bank S.A.- in contul IBAN RO08BACX0000000030877310"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO08BACX0000000030877310",
+          "iban_masked_for_client": "RO08 BACX **** **** **** 7310"
+        }
+      ]
+    },
+    {
+      "brand_id": "digi_romania",
+      "display_name": "DIGI Romania S.A.",
+      "legal_name": "DIGI Romania S.A.",
+      "cui": "5888716",
+      "category": "telecom",
+      "collects_via": "both",
+      "source_report": "raport-cercetare-aprofundată (5).md",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "ING Bank",
+          "source_refs": [
+            {
+              "url": "https://www.digi.ro/asistenta/modalitati-de-plata",
+              "publisher": "DIGI Romania S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "în contul deschis la ING Bank: RO51INGB0001000000018827"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO51INGB0001000000018827",
+          "iban_masked_for_client": "RO51 INGB **** **** **** 8827"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD - Groupe Société Générale",
+          "source_refs": [
+            {
+              "url": "https://www.digi.ro/asistenta/modalitati-de-plata",
+              "publisher": "DIGI Romania S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "în contul deschis la BRD-Groupe Société Générale: RO64BRDE450SV72419954500"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO64BRDE450SV72419954500",
+          "iban_masked_for_client": "RO64 BRDE **** **** **** 4500"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "UniCredit Țiriac Bank",
+          "source_refs": [
+            {
+              "url": "https://www.digi.ro/asistenta/modalitati-de-plata",
+              "publisher": "DIGI Romania S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "în contul deschis la UniCredit Tiriac Bank: RO94BACX0000000189518001"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO94BACX0000000189518001",
+          "iban_masked_for_client": "RO94 BACX **** **** **** 8001"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Raiffeisen Bank",
+          "source_refs": [
+            {
+              "url": "https://www.digi.ro/asistenta/modalitati-de-plata",
+              "publisher": "DIGI Romania S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "în contul deschis la Raiffeisen Bank: RO16RZBR0000060018483261"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO16RZBR0000060018483261",
+          "iban_masked_for_client": "RO16 RZBR **** **** **** 3261"
+        }
+      ]
+    },
+    {
+      "brand_id": "telekom_romania_mobile",
+      "display_name": "Telekom Romania Mobile Communications S.A.",
+      "legal_name": "Telekom Romania Mobile Communications S.A.",
+      "cui": "11952970",
+      "category": "telecom",
+      "collects_via": "both",
+      "source_report": "raport-cercetare-aprofundată (5).md",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR",
+          "source_refs": [
+            {
+              "url": "https://mobile.telekom.ro/asistenta/facturi-plati/modalitati-plata-factura/",
+              "publisher": "Telekom Romania Mobile Communications S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "BCR RO53 RNCB 0072 0496 9044 0015"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO53RNCB0072049690440015",
+          "iban_masked_for_client": "RO53 RNCB **** **** **** 0015"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD Groupe Societe Generale",
+          "source_refs": [
+            {
+              "url": "https://mobile.telekom.ro/asistenta/facturi-plati/modalitati-plata-factura/",
+              "publisher": "Telekom Romania Mobile Communications S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "BRD Group Societe Generale RO27 BRDE 450S V237 6452 4500"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO27BRDE450SV23764524500",
+          "iban_masked_for_client": "RO27 BRDE **** **** **** 4500"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Banca Transilvania",
+          "source_refs": [
+            {
+              "url": "https://mobile.telekom.ro/asistenta/facturi-plati/modalitati-plata-factura/",
+              "publisher": "Telekom Romania Mobile Communications S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "Banca Transilvania RO34 BTRL 0000 1601 0071 9900"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO34BTRL0000160100719900",
+          "iban_masked_for_client": "RO34 BTRL **** **** **** 9900"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "CEC Bank",
+          "source_refs": [
+            {
+              "url": "https://mobile.telekom.ro/asistenta/facturi-plati/modalitati-plata-factura/",
+              "publisher": "Telekom Romania Mobile Communications S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "CEC Bank RO55 CECE B315 44RO N421 3814"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO55CECEB31544RON4213814",
+          "iban_masked_for_client": "RO55 CECE **** **** **** 3814"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Banca Centrală Cooperatistă CREDITCOOP",
+          "source_refs": [
+            {
+              "url": "https://mobile.telekom.ro/asistenta/facturi-plati/modalitati-plata-factura/",
+              "publisher": "Telekom Romania Mobile Communications S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "Banca Centrală Cooperatistă CREDITCOOP RO72 CRCO X410 0410 0002 2089"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO72CRCOX410041000022089",
+          "iban_masked_for_client": "RO72 CRCO **** **** **** 2089"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "First Bank",
+          "source_refs": [
+            {
+              "url": "https://mobile.telekom.ro/asistenta/facturi-plati/modalitati-plata-factura/",
+              "publisher": "Telekom Romania Mobile Communications S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "First Bank RO98 PIRB 4228 7057 2800 2000"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO98PIRB4228705728002000",
+          "iban_masked_for_client": "RO98 PIRB **** **** **** 2000"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Garanti Bank",
+          "source_refs": [
+            {
+              "url": "https://mobile.telekom.ro/asistenta/facturi-plati/modalitati-plata-factura/",
+              "publisher": "Telekom Romania Mobile Communications S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "GarantiBank RO15 UGBI 0000 5120 0120 5RON"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO15UGBI0000512001205RON",
+          "iban_masked_for_client": "RO15 UGBI **** **** **** 5RON"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "ING Bank",
+          "source_refs": [
+            {
+              "url": "https://mobile.telekom.ro/asistenta/facturi-plati/modalitati-plata-factura/",
+              "publisher": "Telekom Romania Mobile Communications S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "ING Bank RO30 INGB 0001 0000 0001 7362"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO30INGB0001000000017362",
+          "iban_masked_for_client": "RO30 INGB **** **** **** 7362"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "both",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Raiffeisen Bank",
+          "source_refs": [
+            {
+              "url": "https://mobile.telekom.ro/asistenta/facturi-plati/modalitati-plata-factura/",
+              "publisher": "Telekom Romania Mobile Communications S.A.",
+              "accessed_at": "2026-06-14",
+              "confidence": "high",
+              "source_lines": "Raiffeisen Bank RO47 RZBR 0000 0600 1289 2302"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO47RZBR0000060012892302",
+          "iban_masked_for_client": "RO47 RZBR **** **** **** 2302"
+        }
+      ]
+    },
+    {
+      "brand_id": "aquatim",
+      "display_name": "Aquatim S.A.",
+      "legal_name": "Aquatim S.A.",
+      "cui": {
+        "value": "RO3041480",
+        "source_url": "https://www.aquatim.ro/informa%C8%9Bii-utile/tarife-%C8%99i-factur%C4%83/unde-%C8%99i-cum-pute%C8%9Bi-pl%C4%83ti/"
+      },
+      "category": "water_utility",
+      "collects_via": "fixed_public_ibans|factura|portal|casierie",
+      "source_report": "raport-cercetare-aprofundată (7).md",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|factura|portal|casierie",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Alpha Bank",
+          "source_refs": [
+            {
+              "url": "https://www.aquatim.ro/media/1302/tabel-modalitati-de-plata.jpg",
+              "publisher": "Aquatim S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO62BUCU1072235330509RON"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO62BUCU1072235330509RON",
+          "iban_masked_for_client": "RO62 BUCU **** **** **** 9RON"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|factura|portal|casierie",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Banca Transilvania",
+          "source_refs": [
+            {
+              "url": "https://www.aquatim.ro/media/1302/tabel-modalitati-de-plata.jpg",
+              "publisher": "Aquatim S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO40BTRL03601202138435XX"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO40BTRL03601202138435XX",
+          "iban_masked_for_client": "RO40 BTRL **** **** **** 35XX"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|factura|portal|casierie",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR",
+          "source_refs": [
+            {
+              "url": "https://www.aquatim.ro/media/1302/tabel-modalitati-de-plata.jpg",
+              "publisher": "Aquatim S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO65RNCB0249067529460001"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO65RNCB0249067529460001",
+          "iban_masked_for_client": "RO65 RNCB **** **** **** 0001"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|factura|portal|casierie",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD",
+          "source_refs": [
+            {
+              "url": "https://www.aquatim.ro/media/1302/tabel-modalitati-de-plata.jpg",
+              "publisher": "Aquatim S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO63BRDE360SV07245353600"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO63BRDE360SV07245353600",
+          "iban_masked_for_client": "RO63 BRDE **** **** **** 3600"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|factura|portal|casierie",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "ING Bank",
+          "source_refs": [
+            {
+              "url": "https://www.aquatim.ro/media/1302/tabel-modalitati-de-plata.jpg",
+              "publisher": "Aquatim S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO14INGB0002008201528911"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO14INGB0002008201528911",
+          "iban_masked_for_client": "RO14 INGB **** **** **** 8911"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|factura|portal|casierie",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Raiffeisen Bank",
+          "source_refs": [
+            {
+              "url": "https://www.aquatim.ro/media/1302/tabel-modalitati-de-plata.jpg",
+              "publisher": "Aquatim S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO60RZBR0000060015115017"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO60RZBR0000060015115017",
+          "iban_masked_for_client": "RO60 RZBR **** **** **** 5017"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|factura|portal|casierie",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Trezorerie",
+          "source_refs": [
+            {
+              "url": "https://www.aquatim.ro/media/1302/tabel-modalitati-de-plata.jpg",
+              "publisher": "Aquatim S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO67TREZ6215069XXX002499"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO67TREZ6215069XXX002499",
+          "iban_masked_for_client": "RO67 TREZ **** **** **** 2499"
+        }
+      ]
+    },
+    {
+      "brand_id": "apavital",
+      "display_name": "APAVITAL S.A.",
+      "legal_name": "APAVITAL S.A.",
+      "cui": {
+        "value": null,
+        "source_url": null
+      },
+      "category": "water_utility",
+      "collects_via": "fixed_public_ibans|factura|cod_client|casierie|online",
+      "source_report": "raport-cercetare-aprofundată (7).md",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|factura|cod_client|casierie|online",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD Iași",
+          "source_refs": [
+            {
+              "url": "https://www.apavital.ro/alte-modalitati-de-plata",
+              "publisher": "APAVITAL S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO37BRDE240SV47757172400"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO37BRDE240SV47757172400",
+          "iban_masked_for_client": "RO37 BRDE **** **** **** 2400"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|factura|cod_client|casierie|online",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD Iași Anastasie Panu",
+          "source_refs": [
+            {
+              "url": "https://www.apavital.ro/alte-modalitati-de-plata",
+              "publisher": "APAVITAL S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO37BRDE240SV08267502400"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO37BRDE240SV08267502400",
+          "iban_masked_for_client": "RO37 BRDE **** **** **** 2400"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|factura|cod_client|casierie|online",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Raiffeisen Bank S.A. – Agenția Iași",
+          "source_refs": [
+            {
+              "url": "https://www.apavital.ro/alte-modalitati-de-plata",
+              "publisher": "APAVITAL S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO47RZBR0000060003107233"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO47RZBR0000060003107233",
+          "iban_masked_for_client": "RO47 RZBR **** **** **** 7233"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|factura|cod_client|casierie|online",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Banca Transilvania S.A.",
+          "source_refs": [
+            {
+              "url": "https://www.apavital.ro/alte-modalitati-de-plata",
+              "publisher": "APAVITAL S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO56BTRL02401202E61068XX"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO56BTRL02401202E61068XX",
+          "iban_masked_for_client": "RO56 BTRL **** **** **** 68XX"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|factura|cod_client|casierie|online",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR Iași",
+          "source_refs": [
+            {
+              "url": "https://www.apavital.ro/alte-modalitati-de-plata",
+              "publisher": "APAVITAL S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO21RNCB0175012554420001"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO21RNCB0175012554420001",
+          "iban_masked_for_client": "RO21 RNCB **** **** **** 0001"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|factura|cod_client|casierie|online",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Trezoreria Iași",
+          "source_refs": [
+            {
+              "url": "https://www.apavital.ro/alte-modalitati-de-plata",
+              "publisher": "APAVITAL S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO17TREZ4065069XXX002179"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO17TREZ4065069XXX002179",
+          "iban_masked_for_client": "RO17 TREZ **** **** **** 2179"
+        }
+      ]
+    },
+    {
+      "brand_id": "groupama",
+      "display_name": "Groupama Asigurări",
+      "legal_name": "Groupama Asigurări",
+      "cui": {
+        "value": null,
+        "source_url": null
+      },
+      "category": "insurance",
+      "collects_via": "fixed_public_ibans|online_card|numar_polita|cod_referinta",
+      "source_report": "raport-cercetare-aprofundată (7).md",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|online_card|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BT",
+          "source_refs": [
+            {
+              "url": "https://www.groupama.ro/utile/modalitati-de-plata-primelor-de-asigurare",
+              "publisher": "Groupama Asigurări",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO53BTRL0130160100656313"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO53BTRL0130160100656313",
+          "iban_masked_for_client": "RO53 BTRL **** **** **** 6313"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|online_card|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD",
+          "source_refs": [
+            {
+              "url": "https://www.groupama.ro/utile/modalitati-de-plata-primelor-de-asigurare",
+              "publisher": "Groupama Asigurări",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO78BRDE450SV88175384500"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO78BRDE450SV88175384500",
+          "iban_masked_for_client": "RO78 BRDE **** **** **** 4500"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|online_card|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR",
+          "source_refs": [
+            {
+              "url": "https://www.groupama.ro/utile/modalitati-de-plata-primelor-de-asigurare",
+              "publisher": "Groupama Asigurări",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO54RNCB0082000537541809"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO54RNCB0082000537541809",
+          "iban_masked_for_client": "RO54 RNCB **** **** **** 1809"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|online_card|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "UniCredit",
+          "source_refs": [
+            {
+              "url": "https://www.groupama.ro/utile/modalitati-de-plata-primelor-de-asigurare",
+              "publisher": "Groupama Asigurări",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO02BACX0000000030262147"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO02BACX0000000030262147",
+          "iban_masked_for_client": "RO02 BACX **** **** **** 2147"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|online_card|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BT",
+          "source_refs": [
+            {
+              "url": "https://www.groupama.ro/utile/modalitati-de-plata-primelor-de-asigurare",
+              "publisher": "Groupama Asigurări",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO36BTRL0130460100656313"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO36BTRL0130460100656313",
+          "iban_masked_for_client": "RO36 BTRL **** **** **** 6313"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|online_card|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD",
+          "source_refs": [
+            {
+              "url": "https://www.groupama.ro/utile/modalitati-de-plata-primelor-de-asigurare",
+              "publisher": "Groupama Asigurări",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO66BRDE450SV88175624500"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO66BRDE450SV88175624500",
+          "iban_masked_for_client": "RO66 BRDE **** **** **** 4500"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|online_card|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR",
+          "source_refs": [
+            {
+              "url": "https://www.groupama.ro/utile/modalitati-de-plata-primelor-de-asigurare",
+              "publisher": "Groupama Asigurări",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO27RNCB0082000537541810"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO27RNCB0082000537541810",
+          "iban_masked_for_client": "RO27 RNCB **** **** **** 1810"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|online_card|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BT",
+          "source_refs": [
+            {
+              "url": "https://www.groupama.ro/utile/modalitati-de-plata-primelor-de-asigurare",
+              "publisher": "Groupama Asigurări",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO15BTRL0130260100656313"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO15BTRL0130260100656313",
+          "iban_masked_for_client": "RO15 BTRL **** **** **** 6313"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|online_card|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD",
+          "source_refs": [
+            {
+              "url": "https://www.groupama.ro/utile/modalitati-de-plata-primelor-de-asigurare",
+              "publisher": "Groupama Asigurări",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO40BRDE450SV31665884500"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO40BRDE450SV31665884500",
+          "iban_masked_for_client": "RO40 BRDE **** **** **** 4500"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|online_card|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BT",
+          "source_refs": [
+            {
+              "url": "https://www.groupama.ro/utile/modalitati-de-plata-primelor-de-asigurare",
+              "publisher": "Groupama Asigurări",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO48BTRL0130160100727213"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO48BTRL0130160100727213",
+          "iban_masked_for_client": "RO48 BTRL **** **** **** 7213"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|online_card|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD",
+          "source_refs": [
+            {
+              "url": "https://www.groupama.ro/utile/modalitati-de-plata-primelor-de-asigurare",
+              "publisher": "Groupama Asigurări",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO78BRDE450SV31666094500"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO78BRDE450SV31666094500",
+          "iban_masked_for_client": "RO78 BRDE **** **** **** 4500"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|online_card|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR",
+          "source_refs": [
+            {
+              "url": "https://www.groupama.ro/utile/modalitati-de-plata-primelor-de-asigurare",
+              "publisher": "Groupama Asigurări",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO70RNCB0082000537541812"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO70RNCB0082000537541812",
+          "iban_masked_for_client": "RO70 RNCB **** **** **** 1812"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|online_card|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "UniCredit",
+          "source_refs": [
+            {
+              "url": "https://www.groupama.ro/utile/modalitati-de-plata-primelor-de-asigurare",
+              "publisher": "Groupama Asigurări",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO29BACX0000000030262146"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO29BACX0000000030262146",
+          "iban_masked_for_client": "RO29 BACX **** **** **** 2146"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|online_card|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BT",
+          "source_refs": [
+            {
+              "url": "https://www.groupama.ro/utile/modalitati-de-plata-primelor-de-asigurare",
+              "publisher": "Groupama Asigurări",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO31BTRL0130460100727213"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO31BTRL0130460100727213",
+          "iban_masked_for_client": "RO31 BTRL **** **** **** 7213"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|online_card|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD",
+          "source_refs": [
+            {
+              "url": "https://www.groupama.ro/utile/modalitati-de-plata-primelor-de-asigurare",
+              "publisher": "Groupama Asigurări",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO70BRDE450SV31666254500"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO70BRDE450SV31666254500",
+          "iban_masked_for_client": "RO70 BRDE **** **** **** 4500"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|online_card|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD",
+          "source_refs": [
+            {
+              "url": "https://www.groupama.ro/utile/modalitati-de-plata-primelor-de-asigurare",
+              "publisher": "Groupama Asigurări",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO62BRDE450SV31666414500"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO62BRDE450SV31666414500",
+          "iban_masked_for_client": "RO62 BRDE **** **** **** 4500"
+        }
+      ]
+    },
+    {
+      "brand_id": "asirom",
+      "display_name": "ASIROM VIENNA INSURANCE GROUP",
+      "legal_name": "ASIROM VIENNA INSURANCE GROUP",
+      "cui": {
+        "value": "336290",
+        "source_url": "https://asirom.ro/modalitati-de-plata"
+      },
+      "category": "insurance",
+      "collects_via": "fixed_public_ibans|plata_recurenta|virament|numar_polita|cod_referinta",
+      "source_report": "raport-cercetare-aprofundată (7).md",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|plata_recurenta|virament|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR RON",
+          "source_refs": [
+            {
+              "url": "https://asirom.ro/modalitati-de-plata",
+              "publisher": "ASIROM VIENNA INSURANCE GROUP",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO76RNCB0082044182226589"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO76RNCB0082044182226589",
+          "iban_masked_for_client": "RO76 RNCB **** **** **** 6589"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|plata_recurenta|virament|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Raiffeisen Bank RON",
+          "source_refs": [
+            {
+              "url": "https://asirom.ro/modalitati-de-plata",
+              "publisher": "ASIROM VIENNA INSURANCE GROUP",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO84RZBR0000060014771690"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO84RZBR0000060014771690",
+          "iban_masked_for_client": "RO84 RZBR **** **** **** 1690"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|plata_recurenta|virament|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Banca Transilvania EUR",
+          "source_refs": [
+            {
+              "url": "https://asirom.ro/modalitati-de-plata",
+              "publisher": "ASIROM VIENNA INSURANCE GROUP",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO92BTRLEURCRT0331106601"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO92BTRLEURCRT0331106601",
+          "iban_masked_for_client": "RO92 BTRL **** **** **** 6601"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|plata_recurenta|virament|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Banca Transilvania USD",
+          "source_refs": [
+            {
+              "url": "https://asirom.ro/modalitati-de-plata",
+              "publisher": "ASIROM VIENNA INSURANCE GROUP",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO96BTRLUSDCRT0331106601"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO96BTRLUSDCRT0331106601",
+          "iban_masked_for_client": "RO96 BTRL **** **** **** 6601"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|plata_recurenta|virament|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR EUR",
+          "source_refs": [
+            {
+              "url": "https://asirom.ro/modalitati-de-plata",
+              "publisher": "ASIROM VIENNA INSURANCE GROUP",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO98RNCB0082044182221925"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO98RNCB0082044182221925",
+          "iban_masked_for_client": "RO98 RNCB **** **** **** 1925"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|plata_recurenta|virament|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR USD",
+          "source_refs": [
+            {
+              "url": "https://asirom.ro/modalitati-de-plata",
+              "publisher": "ASIROM VIENNA INSURANCE GROUP",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO71RNCB0082044182221926"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO71RNCB0082044182221926",
+          "iban_masked_for_client": "RO71 RNCB **** **** **** 1926"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|plata_recurenta|virament|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR CHF",
+          "source_refs": [
+            {
+              "url": "https://asirom.ro/modalitati-de-plata",
+              "publisher": "ASIROM VIENNA INSURANCE GROUP",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO97RNCB0082044182220003"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO97RNCB0082044182220003",
+          "iban_masked_for_client": "RO97 RNCB **** **** **** 0003"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|plata_recurenta|virament|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Raiffeisen Bank EUR",
+          "source_refs": [
+            {
+              "url": "https://asirom.ro/modalitati-de-plata",
+              "publisher": "ASIROM VIENNA INSURANCE GROUP",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO50RZBR0000060002802114"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO50RZBR0000060002802114",
+          "iban_masked_for_client": "RO50 RZBR **** **** **** 2114"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage_or_pdf",
+          "scope": "fixed_public_ibans|plata_recurenta|virament|numar_polita|cod_referinta",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Raiffeisen Bank USD",
+          "source_refs": [
+            {
+              "url": "https://asirom.ro/modalitati-de-plata",
+              "publisher": "ASIROM VIENNA INSURANCE GROUP",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "RO98RZBR0000060002802123"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO98RZBR0000060002802123",
+          "iban_masked_for_client": "RO98 RZBR **** **** **** 2123"
+        }
+      ]
+    }
+  ]
+}

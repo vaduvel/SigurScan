@@ -68,6 +68,29 @@ def test_scan_invoice_accepts_pdf_upload(monkeypatch):
     assert payload["readiness"]["blocks_safe_verdict"] is False
 
 
+def test_scan_invoice_endpoint_returns_gate_for_brand_never_asks(monkeypatch):
+    async def fake_extract_text_for_scan(filename, file_bytes, extract_fn):
+        return (
+            "SAMEDAY CUI RO21303530: taxa livrare neachitata 9.99 RON. "
+            "Plateste prin IBAN RO49AAAA1B31007593840000.",
+            None,
+        )
+
+    monkeypatch.setattr(app_main, "extract_text_for_scan", fake_extract_text_for_scan)
+    client = TestClient(app_main.app)
+
+    response = client.post(
+        "/v1/scan/invoice",
+        files={"image_file": ("invoice.jpg", b"\xff\xd8\xff\xe0fakejpeg", "image/jpeg")},
+        data={"source_channel": "sms"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["verdict_gate"]["label"] == "DANGEROUS"
+    assert "payment_request_sms" in payload["evidence_bundle"]["identity"]["violated_never_asks"]
+
+
 def test_scan_invoice_rejects_missing_file():
     client = TestClient(app_main.app)
 

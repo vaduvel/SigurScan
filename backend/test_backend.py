@@ -3640,6 +3640,59 @@ def test_orchestrated_text_only_required_timeout_returns_no_final_when_unverifie
     assert refreshed["pipeline_stage"] == "done"
 
 
+def test_orchestrated_text_only_unverified_without_url_finalizes_when_pillars_done(monkeypatch):
+    job = {
+        "scan_id": "orch_text_only_unverified_done",
+        "created_at": int(time.time()),
+        "pipeline_stage": "analysis_ready",
+        "status": "scanning",
+        "input_type": "text",
+        "source_channel": "sms",
+        "urls": [],
+        "redacted_text": "Banca Transilvania: nu comunica niciodata codul OTP sau PIN-ul.",
+        "analysis": {
+            "risk_score": 10,
+            "risk_level": "low",
+            "detected_family": "Avertizare securitate",
+            "detected_family_id": "bank_safety_warning",
+            "claimed_brand": "Banca Transilvania",
+            "reasons": [],
+            "safe_actions": [],
+            "evidence": {
+                "source_channel": "sms",
+                "external_intel_summary": {},
+                "semantic_review": {
+                    "status": "done",
+                    "risk_class": "benign",
+                    "completeness": True,
+                },
+                "offer_claim_verification": {"status": "skipped"},
+            },
+        },
+        "resolved_urls": [],
+        "urlscan": {"status": "skipped", "details": "nu exista URL pentru preview"},
+        "claim_verifier_required": False,
+        "preview": {"status": "unavailable", "reason": "no_url"},
+        "extra_fields": {},
+        "orchestration_metrics": {"poll_count": 0, "stage_sequence": [], "stage_durations_ms": {}},
+    }
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
+
+        async def fake_explanation(*args, **kwargs):
+            return {"summary": "stub"}
+
+        patched.setattr(app_main, "_build_ai_explanation_async", fake_explanation)
+
+        refreshed = asyncio.run(app_main._finalize_orchestrated_job_if_ready(job, None))
+
+    assert refreshed["result"]["is_final"] is True
+    assert refreshed["result"]["user_risk_label"] == "UNVERIFIED"
+
+
 def test_orchestrated_shortener_to_suspended_unresolved_final_url_publishes_final_suspect(monkeypatch):
     job = {
         "scan_id": "orch_final_url_unresolved_finalize",
@@ -3967,6 +4020,56 @@ def test_orchestrated_invoice_finalize_preserves_specialized_invoice_verdict(mon
     assert refreshed["result"]["user_risk_label"] == "SAFE"
     assert refreshed["result"]["risk_level"] == "low"
     assert refreshed["result"]["is_final"] is True
+
+
+def test_orchestrated_invoice_uses_unredacted_text_for_payment_destination(monkeypatch):
+    client = TestClient(app_main.app)
+
+    async def fake_check_cui(cui: str):
+        from services.anaf_cui import CuiResult
+
+        return CuiResult(
+            exists=True,
+            checked=True,
+            denumire="PPC Energie S.A.",
+            activ=True,
+            data_inactivare=None,
+            platitor_tva=True,
+            enrolled_efactura=True,
+            raw=None,
+        )
+
+    with monkeypatch.context() as patched:
+        from services import invoice_orchestrator as io
+
+        app_main._ORCHESTRATED_SCAN_JOBS.clear()
+        io._verdict_cache.clear()
+        io._cui_cache.clear()
+        patched.setattr(io, "check_cui", fake_check_cui)
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
+
+        start = client.post(
+            "/v1/scan/orchestrated",
+            json={
+                "input_type": "invoice",
+                "source_channel": "android_native",
+                "text": (
+                    "Furnizor: PPC Energie S.A.\n"
+                    "CUI: RO22000460\n"
+                    "IBAN RO49AAAA1B31007593840000\n"
+                    "Total 119 RON"
+                ),
+            },
+        ).json()
+        _, payload = _poll_orchestrated(client, start["scan_id"], count=3)
+
+    assert payload["status"] == "complete"
+    invoice = payload["result"]["evidence"]["invoice"]
+    assert invoice["fields"]["iban"] == "RO49AAAA1B31007593840000"
+    assert "UNKNOWN_PAYMENT_DESTINATION" in invoice["fraud_flags"]
+    assert payload["result"]["user_risk_label"] == "SUSPECT"
+    assert payload["result"]["is_final"] is True
 
 
 def test_orchestrated_scan_finalizes_when_urlscan_report_exists_but_screenshot_is_not_ready(monkeypatch):
@@ -6514,6 +6617,35 @@ def test_reputation_uses_phishing_database_feed_as_active_provider(monkeypatch, 
     assert result[key]["sources"]["scam_blocklist_nrd"]["consulted"] is False
     assert result[key]["sources"]["phishdestroy_destroylist"]["consulted"] is False
     assert result[key]["verdict"] == "malicious"
+
+
+def test_phishing_database_uses_local_lookalike_domains_when_remote_feed_fails(monkeypatch):
+    url = "https://ghisaul.lat/plata"
+    key = url_reputation._url_hash(url)
+
+    monkeypatch.setattr(url_reputation, "ENABLE_PHISHING_DATABASE", True)
+    monkeypatch.setattr(
+        url_reputation,
+        "_download_text_feed",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("remote_feed_down")),
+    )
+    monkeypatch.setattr(url_reputation, "_PHISHING_DATABASE_CACHE", {
+        "loaded_at": 0,
+        "domains": set(),
+        "links": set(),
+        "error": None,
+        "local_domains": set(),
+        "local_metadata": {},
+    })
+
+    result = url_reputation._fetch_phishing_database([url])
+
+    assert result[key]["status"] == "malicious"
+    assert result[key]["threat_type"] == "phishing"
+    assert result[key]["details"]["provider"] == "phishing_database"
+    assert result[key]["details"]["matched_value"] == "ghisaul.lat"
+    assert result[key]["details"]["local_source"]["source"] == "local_phishing_lookalikes"
+    assert result[key]["details"]["local_source"]["impersonates_brand"] == "ghiseul_ro"
 
 
 def test_reputation_cache_persists_only_touched_remote_entries(monkeypatch, tmp_path):

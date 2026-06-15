@@ -25,7 +25,8 @@ async def test_scan_basic_enel_invoice():
     assert result.fields.total == 245.50
     assert result.readiness.state == ReadinessState.READY
     assert result.readiness.blocks_safe_verdict is False
-    assert len(result.warnings) == 0
+    assert result.fraud_flags == ["UNKNOWN_PAYMENT_DESTINATION"]
+    assert any("destinația de plată nu este confirmată" in warning for warning in result.warnings)
 
 
 @pytest.mark.asyncio

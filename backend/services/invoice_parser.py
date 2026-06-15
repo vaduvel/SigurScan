@@ -4,11 +4,24 @@ import re
 from dataclasses import dataclass, field
 from typing import List
 
-CUI_PATTERN = re.compile(r"(?:CUI|CIF|RO)\s*[:\s]*(\d{2,10})\b", re.IGNORECASE)
+CUI_PATTERN = re.compile(
+    r"(?:\b(?:CUI|CIF)\s*[:\s]*(?:RO\s*)?(?P<label>\d{2,10})\b|"
+    r"\bRO\s*(?P<bare>\d{5,10})\b)",
+    re.IGNORECASE,
+)
 # Bug#9: IBAN-ul RO are lungime fixă de 24 caractere (RO + 2 cifre de control +
 # 20 alfanumerice). {20,24} permitea 24-28 caractere total, capturând text de
 # după IBAN ca parte din el.
 IBAN_PATTERN = re.compile(r"RO\d{2}[A-Z0-9]{20}", re.IGNORECASE)
+ANY_IBAN_PATTERN = re.compile(
+    r"\b[A-Z]{2}[ \t-]*\d{2}(?:[ \t-]*[A-Z0-9]){11,30}\b",
+    re.IGNORECASE,
+)
+BENEFICIAR_PATTERN = re.compile(
+    r"(?:beneficiar|titular(?:\s*cont)?|c[ăa]tre|in\s*contul(?:\s*lui)?|"
+    r"[iî]n\s*contul(?:\s*lui)?)\s*[:\-]?\s*(.+?)(?:\n|$|,|;)",
+    re.IGNORECASE,
+)
 MONTHS = {
     "january": "01",
     "jan": "01",
@@ -111,6 +124,8 @@ class InvoiceFields:
     currency: str | None = None
     invoice_profile: str = "ro"
     iban: str | None = None
+    all_ibans: List[str] = field(default_factory=list)
+    payment_beneficiary: str | None = None
     links: List[str] = field(default_factory=list)
     qr_payloads: List[str] = field(default_factory=list)
     lines: List[dict] = field(default_factory=list)
@@ -119,6 +134,50 @@ class InvoiceFields:
 
 def _normalize_cui(raw: str) -> str:
     return re.sub(r"\D", "", raw)
+
+
+def _cui_from_match(match: re.Match[str] | None) -> str | None:
+    if not match:
+        return None
+    return _normalize_cui(match.group("label") or match.group("bare") or "")
+
+
+def _extract_all_ibans(text: str) -> List[str]:
+    from services.iban_validator import IBAN_LENGTH_BY_COUNTRY, normalize_iban, validate_iban
+
+    seen: set[str] = set()
+    output: List[str] = []
+    for match in ANY_IBAN_PATTERN.finditer(text or ""):
+        normalized = normalize_iban(match.group(0))
+        if not normalized:
+            continue
+        candidates = [normalized]
+        expected_len = IBAN_LENGTH_BY_COUNTRY.get(normalized[:2])
+        if expected_len and len(normalized) > expected_len:
+            candidates.append(normalized[:expected_len])
+        for candidate in candidates:
+            if candidate in seen:
+                continue
+            if validate_iban(candidate).valid_structure:
+                seen.add(candidate)
+                output.append(candidate)
+                break
+    return output
+
+
+def _extract_payment_beneficiary(text: str) -> str | None:
+    match = BENEFICIAR_PATTERN.search(text or "")
+    if not match:
+        return None
+    candidate = match.group(1).strip(" \t\r\n.:-")
+    if len(candidate) < 3:
+        return None
+    if IBAN_PATTERN.search(candidate) or re.fullmatch(r"[\d\s./-]+", candidate):
+        return None
+    lower = candidate.lower()
+    if lower in {"iban", "cont", "cont bancar", "cui", "cif", "factura"}:
+        return None
+    return candidate
 
 
 def _parse_ro_amount(raw: str) -> float | None:
@@ -447,11 +506,15 @@ def parse_invoice(
 
     # CUI — group(1) e cifrele propriu-zise; group(0) include prefixul CUI/CIF/RO.
     cui_match = CUI_PATTERN.search(text)
-    cui = _normalize_cui(cui_match.group(1)) if cui_match else None
+    cui = _cui_from_match(cui_match)
 
     # IBAN
     iban_match = IBAN_PATTERN.search(text)
+    all_ibans = _extract_all_ibans(text)
     iban = iban_match.group(0).upper().replace(" ", "") if iban_match else None
+    if not iban:
+        iban = next((candidate for candidate in all_ibans if candidate.startswith("RO")), None)
+    payment_beneficiary = _extract_payment_beneficiary(text)
 
     # Emitent
     emit_match = EMITENT_LABEL.search(text)
@@ -495,6 +558,8 @@ def parse_invoice(
         currency=currency,
         invoice_profile=invoice_profile,
         iban=iban,
+        all_ibans=all_ibans,
+        payment_beneficiary=payment_beneficiary,
         links=pdf_links or [],
         qr_payloads=qr_payloads or [],
         raw_text=text,

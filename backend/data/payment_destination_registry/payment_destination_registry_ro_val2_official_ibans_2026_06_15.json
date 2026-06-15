@@ -1,0 +1,386 @@
+{
+  "version": "pdr-ro-val2-official-ibans-2026.06.15",
+  "purpose": "Val 2 official payment destination delta from user-provided public/official research. Backend-only; exact raw IBANs must not be shipped to Android.",
+  "entries": [
+    {
+      "brand_id": "cargus",
+      "display_name": "Cargus",
+      "legal_name": "CARGUS S.R.L.",
+      "cui": "3541906",
+      "category": "curier",
+      "collects_via": "iban",
+      "source_report": "pasted-text-e9d89d52-e1b5-4d42-8e94-0d58bc556af7",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "logistics_fee",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR",
+          "source_refs": [
+            {
+              "url": "https://www.cargus.ro/blog/taxa-logistica-clienti-expeditori/",
+              "publisher": "CARGUS S.R.L.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official Cargus logistics fee page lists RO75RNCB0081104613950180."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO75RNCB0081104613950180",
+          "iban_masked_for_client": "RO75 RNCB **** **** **** 0180"
+        }
+      ]
+    },
+    {
+      "brand_id": "dpd_romania",
+      "display_name": "DPD Romania",
+      "legal_name": "DYNAMIC PARCEL DISTRIBUTION S.A.",
+      "cui": "9566918",
+      "category": "curier",
+      "collects_via": "iban",
+      "source_report": "pasted-text-e9d89d52-e1b5-4d42-8e94-0d58bc556af7",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "non_eu_logistics_fee",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Raiffeisen Bank",
+          "source_refs": [
+            {
+              "url": "https://www.dpd.com/ro/ro/2025/12/22/taxa-de-25-ron-pentru-coletele-non-ue-sub-150-eur-ce-prevede-noua-lege-i-ce-impact-are-asupra-livr-rilor-prin-curier/",
+              "publisher": "DYNAMIC PARCEL DISTRIBUTION S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official DPD Romania page lists this account for Non-EU logistics fee payments."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO92RZBR0000060002951611",
+          "iban_masked_for_client": "RO92 RZBR **** **** **** 1611"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "non_eu_logistics_fee",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Raiffeisen Bank",
+          "source_refs": [
+            {
+              "url": "https://www.dpd.com/ro/ro/2025/12/22/taxa-de-25-ron-pentru-coletele-non-ue-sub-150-eur-ce-prevede-noua-lege-i-ce-impact-are-asupra-livr-rilor-prin-curier/",
+              "publisher": "DYNAMIC PARCEL DISTRIBUTION S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official DPD Romania page lists this account for Non-EU logistics fee payments."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO70RZBR0000060002406867",
+          "iban_masked_for_client": "RO70 RZBR **** **** **** 6867"
+        }
+      ]
+    },
+    {
+      "brand_id": "dedeman",
+      "display_name": "Dedeman",
+      "legal_name": "DEDEMAN S.R.L.",
+      "cui": "2816464",
+      "category": "retail",
+      "collects_via": "iban",
+      "source_report": "pasted-text-e9d89d52-e1b5-4d42-8e94-0d58bc556af7",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "online_order_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR",
+          "source_refs": [
+            {
+              "url": "https://www.dedeman.ro/ro/servicii-si-facilitati/modalitati-de-plata/plata-comenzi-online",
+              "publisher": "DEDEMAN S.R.L.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official Dedeman online-order payment page lists this RON account."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO76RNCB0279014382090139",
+          "iban_masked_for_client": "RO76 RNCB **** **** **** 0139"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "online_order_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Trezorerie",
+          "source_refs": [
+            {
+              "url": "https://www.dedeman.ro/ro/servicii-si-facilitati/modalitati-de-plata/plata-comenzi-online",
+              "publisher": "DEDEMAN S.R.L.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official Dedeman online-order payment page lists this Trezorerie account, but it contains XX and is not used for exact matching."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO75TREZ0615069XXX001476",
+          "iban_masked_for_client": "RO75 TREZ **** **** **** 1476"
+        }
+      ]
+    },
+    {
+      "brand_id": "raja",
+      "display_name": "RAJA",
+      "legal_name": "RAJA S.A.",
+      "cui": "1890420",
+      "category": "apa",
+      "collects_via": "both",
+      "source_report": "pasted-text-e9d89d52-e1b5-4d42-8e94-0d58bc556af7",
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Trezoreria Constanta",
+          "source_refs": [
+            {
+              "url": "https://rajac.ro/casierii/",
+              "publisher": "RAJA S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official RAJA collection page lists this account and asks for client code, invoice number and client name."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO70TREZ2315069XXX002278",
+          "iban_masked_for_client": "RO70 TREZ **** **** **** 2278"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BRD Constanta",
+          "source_refs": [
+            {
+              "url": "https://rajac.ro/casierii/",
+              "publisher": "RAJA S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official RAJA collection page lists this account and asks for client code, invoice number and client name."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO41BRDE140SV04836391400",
+          "iban_masked_for_client": "RO41 BRDE **** **** **** 1400"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Raiffeisen Bank",
+          "source_refs": [
+            {
+              "url": "https://rajac.ro/casierii/",
+              "publisher": "RAJA S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official RAJA collection page lists this account and asks for client code, invoice number and client name."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO07RZBR0000060001450417",
+          "iban_masked_for_client": "RO07 RZBR **** **** **** 0417"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Vista Bank",
+          "source_refs": [
+            {
+              "url": "https://rajac.ro/casierii/",
+              "publisher": "RAJA S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official RAJA collection page lists this account and asks for client code, invoice number and client name."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO46EGNA1010000000278335",
+          "iban_masked_for_client": "RO46 EGNA **** **** **** 8335"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "BCR Constanta",
+          "source_refs": [
+            {
+              "url": "https://rajac.ro/casierii/",
+              "publisher": "RAJA S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official RAJA collection page lists this account and asks for client code, invoice number and client name."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO36RNCB0114014937350001",
+          "iban_masked_for_client": "RO36 RNCB **** **** **** 0001"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "ING Bank",
+          "source_refs": [
+            {
+              "url": "https://rajac.ro/casierii/",
+              "publisher": "RAJA S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official RAJA collection page lists this account and asks for client code, invoice number and client name."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO26INGB0004008214108913",
+          "iban_masked_for_client": "RO26 INGB **** **** **** 8913"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Banca Transilvania",
+          "source_refs": [
+            {
+              "url": "https://rajac.ro/casierii/",
+              "publisher": "RAJA S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official RAJA collection page lists this account, but it contains XX and is not used for exact matching."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO23BTRL01401202T08001XX",
+          "iban_masked_for_client": "RO23 BTRL **** **** **** 01XX"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Garanti Bank",
+          "source_refs": [
+            {
+              "url": "https://rajac.ro/casierii/",
+              "publisher": "RAJA S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official RAJA collection page lists this account and asks for client code, invoice number and client name."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO04UGBI0000812000549RON",
+          "iban_masked_for_client": "RO04 UGBI **** **** **** 9RON"
+        },
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_webpage",
+          "scope": "bill_payment",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "UniCredit Bank",
+          "source_refs": [
+            {
+              "url": "https://rajac.ro/casierii/",
+              "publisher": "RAJA S.A.",
+              "accessed_at": "2026-06-15",
+              "confidence": "high",
+              "source_lines": "Official RAJA collection page lists this account and asks for client code, invoice number and client name."
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO55BACX0000000769443000",
+          "iban_masked_for_client": "RO55 BACX **** **** **** 3000"
+        }
+      ]
+    }
+  ]
+}
