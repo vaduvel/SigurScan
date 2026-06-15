@@ -5346,6 +5346,69 @@ def test_persist_orchestrated_job_merges_urlscan_uuid_after_optimistic_conflict(
     assert saved_jobs[1]["urlscan"]["uuid"] == "urlscan-keep-me"
 
 
+def test_persist_orchestrated_job_conflict_merge_keeps_urlscan_timeout_over_pending_screenshot(monkeypatch):
+    scan_id = "orch_conflict_timeout"
+    current_job = {
+        "scan_id": scan_id,
+        "created_at": 10,
+        "_storage_updated_at": "stale",
+        "pipeline_stage": "urlscan_submitted",
+        "urlscan": {
+            "uuid": "urlscan-no-shot",
+            "status": "timeout",
+            "report_url": "https://urlscan.io/result/urlscan-no-shot/",
+            "screenshot_ready": False,
+            "details": "urlscan a finalizat raportul, dar captura nu a devenit disponibila.",
+        },
+        "preview": {
+            "status": "unavailable",
+            "source": "urlscan",
+            "reason": "urlscan_screenshot_timeout",
+            "report_url": "https://urlscan.io/result/urlscan-no-shot/",
+            "screenshot_url": None,
+            "image_url": None,
+        },
+    }
+    reloaded_job = {
+        "scan_id": scan_id,
+        "created_at": 10,
+        "_storage_updated_at": "fresh",
+        "pipeline_stage": "urlscan_submitted",
+        "urlscan": {
+            "uuid": "urlscan-no-shot",
+            "status": "finished",
+            "report_url": "https://urlscan.io/result/urlscan-no-shot/",
+            "screenshot_ready": False,
+            "details": "urlscan result este gata, dar captura inca se proceseaza.",
+        },
+        "preview": {
+            "status": "pending",
+            "source": "urlscan",
+            "reason": "urlscan_screenshot_pending",
+            "report_url": "https://urlscan.io/result/urlscan-no-shot/",
+            "screenshot_url": None,
+            "image_url": None,
+        },
+    }
+    saved_jobs = []
+
+    def fake_save(job):
+        saved_jobs.append(json.loads(json.dumps(job)))
+        return len(saved_jobs) > 1
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main.supabase_store, "save_scan_job", fake_save)
+        patched.setattr(app_main.supabase_store, "load_scan_job", lambda sid: dict(reloaded_job))
+        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        merged = app_main._persist_orchestrated_job(current_job)
+
+    assert merged["urlscan"]["status"] == "timeout"
+    assert merged["preview"]["status"] == "unavailable"
+    assert merged["preview"]["reason"] == "urlscan_screenshot_timeout"
+    assert saved_jobs[-1]["urlscan"]["status"] == "timeout"
+    assert saved_jobs[-1]["preview"]["status"] == "unavailable"
+
+
 def test_persist_orchestrated_job_retries_merged_conflict_save_twice(monkeypatch):
     scan_id = "orch_conflict_retry"
     current_job = {

@@ -5866,6 +5866,55 @@ def _merge_missing_dict_values(target: Dict[str, Any], source: Dict[str, Any]) -
             target[key] = _deep_copy_jsonable(value)
 
 
+def _urlscan_merge_rank(state: Dict[str, Any]) -> int:
+    status = str((state or {}).get("status") or "").strip().lower()
+    if status == "finished" and bool((state or {}).get("screenshot_ready")):
+        return 6
+    if status == "timeout":
+        return 5
+    if status in {"error", "rate_limited", "skipped"}:
+        return 4
+    if status == "finished":
+        return 3
+    if status == "pending":
+        return 2
+    if status in {"queued", "submitting"}:
+        return 1
+    return 0
+
+
+def _preview_merge_rank(state: Dict[str, Any]) -> int:
+    status = str((state or {}).get("status") or "").strip().lower()
+    has_image = bool((state or {}).get("image_url") or (state or {}).get("screenshot_url"))
+    if status == "ready" and has_image:
+        return 4
+    if status == "unavailable":
+        return 3
+    if status == "pending":
+        return 2
+    if status == "ready":
+        return 1
+    return 0
+
+
+def _merge_progress_dict(
+    base: Dict[str, Any],
+    overlay: Dict[str, Any],
+    *,
+    ranker,
+) -> Dict[str, Any]:
+    if not base:
+        return _deep_copy_jsonable(overlay)
+    if not overlay:
+        return _deep_copy_jsonable(base)
+    base_rank = ranker(base)
+    overlay_rank = ranker(overlay)
+    winner = _deep_copy_jsonable(overlay if overlay_rank > base_rank else base)
+    loser = base if overlay_rank > base_rank else overlay
+    _merge_missing_dict_values(winner, loser)
+    return winner
+
+
 def _merge_orchestrated_conflict_job(reloaded: Dict[str, Any], local: Dict[str, Any]) -> Dict[str, Any]:
     merged = dict(reloaded)
     local_urlscan = local.get("urlscan") if isinstance(local.get("urlscan"), dict) else {}
@@ -5902,13 +5951,21 @@ def _merge_orchestrated_conflict_job(reloaded: Dict[str, Any], local: Dict[str, 
         if local_has_uuid and not merged_has_uuid:
             merged_urlscan = _deep_copy_jsonable(local_urlscan)
         else:
-            _merge_missing_dict_values(merged_urlscan, local_urlscan)
+            merged_urlscan = _merge_progress_dict(
+                merged_urlscan,
+                local_urlscan,
+                ranker=_urlscan_merge_rank,
+            )
         merged["urlscan"] = merged_urlscan
 
     local_preview = local.get("preview") if isinstance(local.get("preview"), dict) else {}
     if local_preview:
         merged_preview = dict(merged.get("preview") if isinstance(merged.get("preview"), dict) else {})
-        _merge_missing_dict_values(merged_preview, local_preview)
+        merged_preview = _merge_progress_dict(
+            merged_preview,
+            local_preview,
+            ranker=_preview_merge_rank,
+        )
         merged["preview"] = merged_preview
 
     local_metrics = local.get("orchestration_metrics") if isinstance(local.get("orchestration_metrics"), dict) else {}
