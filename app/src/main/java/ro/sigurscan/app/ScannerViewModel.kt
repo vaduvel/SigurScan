@@ -208,6 +208,17 @@ internal fun shouldContinueOrchestratedPolling(response: OrchestratedScanRespons
             status == "ready"
 }
 
+internal fun cachedPreviewNeedsRefresh(assessment: OfflineAssessment): Boolean {
+    if (assessment.finalUrl == null) return false
+    val screenshotUrl = assessment.screenshotUrl?.trim().orEmpty()
+    if (screenshotUrl.isBlank()) return true
+    val normalized = screenshotUrl.lowercase(Locale.US)
+    return normalized.startsWith("http://") ||
+        ".run.app/" in normalized ||
+        "sigurscan-backend.vercel.app" in normalized ||
+        "nudaclick-backend.vercel.app" in normalized
+}
+
 internal fun orchestratedScanServerInfo(
     statusMessage: String?,
     preview: OrchestratedPreview?,
@@ -1588,7 +1599,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     private fun cachedAssessmentFor(cacheKey: String): OfflineAssessment? {
         val now = System.currentTimeMillis()
         val cached = resultCache[cacheKey] ?: return null
-        if (cached.assessment.finalUrl != null && cached.assessment.screenshotUrl == null) {
+        if (cachedPreviewNeedsRefresh(cached.assessment)) {
             resultCache.remove(cacheKey)
             persistResultCache()
             return null

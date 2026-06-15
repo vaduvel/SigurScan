@@ -311,10 +311,17 @@ class ScannerViewModelTest {
         assertTrue("Stale cache eviction must be persisted.", cacheFlow.contains("persistResultCache()"))
         assertTrue("Cache hits must be visible to the user.", cacheFlow.contains("Verificat anterior"))
         assertTrue(
-            "Cached URL results without a screenshot must be evicted so Android can refresh a late urlscan preview.",
-            cacheFlow.contains("cached.assessment.finalUrl != null") &&
-                cacheFlow.contains("cached.assessment.screenshotUrl == null")
+            "Cached URL preview records that need refresh must be evicted before serving stale UI.",
+            cacheFlow.contains("cachedPreviewNeedsRefresh(cached.assessment)")
         )
+
+        val helperStart = viewModelSource.indexOf("internal fun cachedPreviewNeedsRefresh")
+        val helperEnd = viewModelSource.indexOf("internal fun orchestratedScanServerInfo", helperStart)
+        assertTrue("cachedPreviewNeedsRefresh must exist.", helperStart >= 0 && helperEnd > helperStart)
+        val helperFlow = viewModelSource.substring(helperStart, helperEnd)
+        assertTrue("URL results without screenshots must refresh.", helperFlow.contains("screenshotUrl.isBlank()"))
+        assertTrue("Cleartext screenshot URLs must refresh.", helperFlow.contains("startsWith(\"http://\")"))
+        assertTrue("Internal Cloud Run screenshot URLs must refresh.", helperFlow.contains("\".run.app/\""))
     }
 
     @Test
