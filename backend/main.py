@@ -6323,7 +6323,11 @@ def _urlscan_finished_with_risk(job: Dict[str, Any]) -> bool:
     )
 
 
-def _official_clean_can_finalize_before_urlscan(job: Dict[str, Any], analysis: Dict[str, Any]) -> bool:
+def _official_clean_can_finalize_before_urlscan(
+    job: Dict[str, Any],
+    analysis: Dict[str, Any],
+    pillars: Optional[Dict[str, Dict[str, Any]]] = None,
+) -> bool:
     if not isinstance(analysis, dict):
         return False
     evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
@@ -6339,7 +6343,11 @@ def _official_clean_can_finalize_before_urlscan(job: Dict[str, Any], analysis: D
         or gate.get("detected_family_id")
         or ""
     )
-    provider_projection = _provider_verdict_for_decision_bundle(summary, has_urls=bool(raw_urls or resolved_urls))
+    provider_projection = _provider_verdict_for_decision_bundle(
+        summary,
+        has_urls=bool(raw_urls or resolved_urls),
+        pillars=pillars,
+    )
     return (
         str(gate.get("label") or "").upper() == "SAFE"
         and family_id == "provider-gate-official-clean"
@@ -6975,7 +6983,7 @@ async def _finalize_orchestrated_job_if_ready(job: Dict[str, Any], request: Requ
         _orchestrated_result_is_final(job, analysis)
         and (
             _urlscan_result_ready_for_verdict(job)
-            or _official_clean_can_finalize_before_urlscan(job, analysis)
+            or _official_clean_can_finalize_before_urlscan(job, analysis, pillars)
         )
         and not deferred_explanation
     )
