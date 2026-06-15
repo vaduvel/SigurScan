@@ -153,6 +153,16 @@ def _beneficiary_mismatch(beneficiary: Optional[str], issuer: Optional[str]) -> 
     return True
 
 
+def _anaf_identity_matches_invoice(anaf: Optional[dict], issuer: Optional[str]) -> bool:
+    if not anaf or anaf.get("checked") is False or not anaf.get("exists") or not anaf.get("activ"):
+        return False
+    anaf_tokens = _name_tokens(str(anaf.get("denumire") or ""))
+    issuer_tokens = _name_tokens(issuer or "")
+    if not anaf_tokens or not issuer_tokens:
+        return False
+    return bool(anaf_tokens & issuer_tokens)
+
+
 def _fields_to_coherence(fields: InvoiceFields) -> CoherenceResult:
     return check_coherence(
         subtotal=fields.subtotal,
@@ -282,11 +292,12 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
                 fraud_flags.append("PAYMENT_DESTINATION_BRAND_MISMATCH")
                 warnings.append("IBAN-ul este oficial pentru alt furnizor, nu pentru emitentul declarat.")
             elif payment_destination.get("matched") is False and iban_valid and iban_valid.valid_structure:
-                fraud_flags.append("UNKNOWN_PAYMENT_DESTINATION")
-                warnings.append(
-                    "IBAN-ul este valid, dar destinația de plată nu este confirmată ca oficială. "
-                    "Verifică în portalul/aplicația furnizorului înainte de plată."
-                )
+                if payment_destination.get("registry_has_brand_destinations") is True:
+                    fraud_flags.append("UNKNOWN_PAYMENT_DESTINATION")
+                    warnings.append(
+                        "IBAN-ul este valid, dar nu apare între destinațiile oficiale cunoscute "
+                        "pentru acest furnizor."
+                    )
         except Exception:
             payment_destination = None
 
@@ -436,7 +447,7 @@ async def scan_offer(
 # Maparea InvoiceScanResult -> Evidence Bundle v2 + reduce_verdict. Sursă unică
 # de adevăr, refolosită de /v1/scan/invoice ȘI de fast-lane-ul orchestrat.
 # ─────────────────────────────────────────────────────────────────────────────
-_UNTRUSTED_INTAKE = {"whatsapp", "sms", "social_dm", "messenger", "telegram", "unknown"}
+_UNTRUSTED_INTAKE = {"whatsapp", "sms", "phone", "social_dm", "messenger", "telegram", "unknown"}
 
 
 def _intake_trusted(source_channel: Optional[str]) -> bool:
@@ -482,6 +493,7 @@ def build_invoice_evidence_bundle(
             source_channel=source_channel,
             fraud_flags=fraud_flags,
             payment_destination=payment_destination,
+            include_text_candidates=not _intake_trusted(source_channel),
         )
     except Exception:
         pass
@@ -496,9 +508,29 @@ def build_invoice_evidence_bundle(
         getattr(result.fields, "iban", None)
         and payment_destination.get("registry_has_brand_destinations") is True
     )
+    anaf_identity_match = _anaf_identity_matches_invoice(anaf, getattr(result.fields, "emitent", None))
+    hard_or_contextual_flags = {
+        flag for flag in fraud_flags
+        if flag not in {"UNKNOWN_PAYMENT_DESTINATION"}
+    }
+    coherent_generic_invoice_identity = bool(
+        not destination_required
+        and not hard_or_contextual_flags
+        and _intake_trusted(source_channel)
+        and anaf_identity_match
+        and iban_result
+        and iban_result.valid_structure
+        and coherence
+        and coherence.all_ok
+        and readiness
+        and not readiness.blocks_safe_verdict
+    )
+    benign_unknown_destination = bool(unknown_destination and coherent_generic_invoice_identity)
     weak_fraud_flag = any(
         flag in fraud_flags
-        for flag in ("FOREIGN_IBAN", "ACCOUNT_CHANGE_LANGUAGE", "IBAN_CHANGED_VS_HISTORY", "UNKNOWN_PAYMENT_DESTINATION")
+        for flag in ("FOREIGN_IBAN", "ACCOUNT_CHANGE_LANGUAGE", "IBAN_CHANGED_VS_HISTORY")
+    ) or (
+        unknown_destination and not benign_unknown_destination
     )
     sensitive_requested = "SENSITIVE_DATA_REQUESTED" in fraud_flags
     strong_bec_combo = "FOREIGN_IBAN" in fraud_flags and "ACCOUNT_CHANGE_LANGUAGE" in fraud_flags
@@ -571,7 +603,7 @@ def build_invoice_evidence_bundle(
                 "brand_matches": True,
                 "iban_masked_for_client": payment_destination.get("iban_masked_for_client"),
             }
-        elif destination_required or unknown_destination:
+        elif destination_required or (unknown_destination and not benign_unknown_destination):
             provider_section["payment_destination"] = {
                 "status": "unknown",
                 "verdict": "unknown",
@@ -599,6 +631,9 @@ def build_invoice_evidence_bundle(
     elif cui_matches and destination_required and not destination_trusted:
         identity_status = "unknown"
         identity_reason = "IBAN valid, dar nu este confirmat în registry-ul oficial al furnizorului"
+    elif coherent_generic_invoice_identity:
+        identity_status = "coherent"
+        identity_reason = "CUI activ la ANAF, numele emitentului se potrivește, IBAN valid și document coerent"
     elif claimed_brand != "Nespecificat":
         identity_status = "unknown"
         identity_reason = "Brand declarat dar neverificat complet"
@@ -625,6 +660,7 @@ def build_invoice_evidence_bundle(
             or destination_mismatch
             or unknown_destination
             or destination_trusted
+            or coherent_generic_invoice_identity
             or bool(violated_never_asks)
         ),
         "violated_never_asks": violated_never_asks,

@@ -180,6 +180,44 @@ class TestInvoiceFraudSignals:
         assert "SENSITIVE_DATA_REQUESTED" not in result.fraud_flags
 
     @pytest.mark.asyncio
+    async def test_invoice_bank_name_does_not_trigger_bank_never_asks(self, monkeypatch):
+        from services.invoice_orchestrator import evaluate_invoice_verdict
+
+        async def fake_cui(_cui):
+            return type(
+                "CuiResult",
+                (),
+                {
+                    "exists": True,
+                    "checked": True,
+                    "denumire": "MARKETING GROWTH HUB S.R.L.",
+                    "activ": True,
+                    "platitor_tva": False,
+                },
+            )()
+
+        monkeypatch.setattr("services.invoice_orchestrator.check_cui", fake_cui)
+        result = await scan_invoice(
+            "Furnizor:\n"
+            "MARKETING GROWTH HUB S.R.L.\n"
+            "CIF:\n"
+            "45758405\n"
+            "IBAN (RON):\n"
+            "R042INGB0000999912242622\n"
+            "Banca:\n"
+            "ING BANK NV\n"
+            "Total plata 200.00 RON\n"
+            "Date privind expeditia:\n"
+            "CNP: -"
+        )
+        verdict = evaluate_invoice_verdict(result, result.raw_text, source_channel="android_native")
+
+        assert result.fields.cui == "45758405"
+        assert result.fields.iban == "RO42INGB0000999912242622"
+        assert verdict["bundle"]["identity"]["violated_never_asks"] == []
+        assert verdict["gate"]["label"] != "DANGEROUS"
+
+    @pytest.mark.asyncio
     async def test_card_cvv_otp_request_on_invoice_is_dangerous(self):
         from services.invoice_orchestrator import evaluate_invoice_verdict
 
@@ -223,8 +261,8 @@ class TestVendorIbanMemory:
             f"Furnizor: SC X SRL CUI RO12345678\nIBAN {self.IBAN_A}\nTotal 100 RON"
         )
 
-        assert result.fraud_flags == ["UNKNOWN_PAYMENT_DESTINATION"]
-        assert vm.known_ibans_for_cui("RO12345678") == set()
+        assert result.fraud_flags == []
+        assert vm.known_ibans_for_cui("RO12345678") == {self.IBAN_A}
 
     @pytest.mark.asyncio
     async def test_changed_vendor_iban_is_flagged_but_not_memorized(self, anaf_ok):

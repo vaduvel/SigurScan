@@ -108,6 +108,8 @@ def _candidate_brand_ids(
     claimed_brand: Optional[str],
     text: str,
     payment_destination: Optional[dict[str, Any]],
+    *,
+    include_text_candidates: bool = True,
 ) -> list[str]:
     candidates: list[str] = []
     destination_brand = None
@@ -118,10 +120,11 @@ def _candidate_brand_ids(
         for brand_id, aliases in _BRAND_ALIASES.items():
             if normalized == brand_id or normalized in aliases:
                 candidates.append(brand_id)
-    normalized_text = _norm(text)
-    for brand_id, aliases in _BRAND_ALIASES.items():
-        if any(re.search(rf"\b{re.escape(alias)}\b", normalized_text) for alias in aliases):
-            candidates.append(brand_id)
+    if include_text_candidates:
+        normalized_text = _norm(text)
+        for brand_id, aliases in _BRAND_ALIASES.items():
+            if any(re.search(rf"\b{re.escape(alias)}\b", normalized_text) for alias in aliases):
+                candidates.append(brand_id)
     seen: set[str] = set()
     return [brand for brand in candidates if not (brand in seen or seen.add(brand))]
 
@@ -133,6 +136,7 @@ def evaluate_brand_never_asks(
     source_channel: Optional[str],
     fraud_flags: Optional[list[str]] = None,
     payment_destination: Optional[dict[str, Any]] = None,
+    include_text_candidates: bool = True,
 ) -> dict[str, Any]:
     registry = _registry()
     normalized_channel = normalize_source_channel(source_channel)
@@ -141,7 +145,12 @@ def evaluate_brand_never_asks(
     refs: list[dict[str, str]] = []
     matched_brands: list[str] = []
     normalized_text = _norm(text)
-    candidate_brand_ids = _candidate_brand_ids(claimed_brand, text, payment_destination)
+    candidate_brand_ids = _candidate_brand_ids(
+        claimed_brand,
+        text,
+        payment_destination,
+        include_text_candidates=include_text_candidates,
+    )
     if _SAFETY_EDUCATION_RE.search(normalized_text):
         return {
             "brand_ids": candidate_brand_ids,

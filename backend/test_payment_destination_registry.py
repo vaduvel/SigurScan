@@ -9,9 +9,21 @@ def _clean_invoice_state(monkeypatch):
 
     io._verdict_cache.clear()
     io._cui_cache.clear()
+    try:
+        from services import vendor_memory as vm
+
+        vm._memory.clear()
+    except Exception:
+        pass
     yield
     io._verdict_cache.clear()
     io._cui_cache.clear()
+    try:
+        from services import vendor_memory as vm
+
+        vm._memory.clear()
+    except Exception:
+        pass
 
 
 def test_registry_loads_ppc_official_destination():
@@ -500,7 +512,7 @@ async def test_destination_official_for_other_brand_is_dangerous_mismatch():
 
 
 @pytest.mark.asyncio
-async def test_generic_real_company_unknown_payment_destination_is_suspect_final():
+async def test_generic_real_company_unknown_payment_destination_can_be_safe_when_identity_is_coherent():
     from services.anaf_cui import CuiResult
     from services.invoice_orchestrator import evaluate_invoice_verdict, scan_invoice
 
@@ -520,14 +532,17 @@ async def test_generic_real_company_unknown_payment_destination_is_suspect_final
             "Furnizor: SC REAL SRL\n"
             "CUI: RO12345678\n"
             "IBAN RO49AAAA1B31007593840000\n"
+            "Data emiterii: 01.06.2026\n"
+            "Scadenta: 15.06.2026\n"
             "Total 8500 RON"
         )
 
     verdict = evaluate_invoice_verdict(result, result.raw_text, source_channel="android_native")
 
-    assert "UNKNOWN_PAYMENT_DESTINATION" in result.fraud_flags
+    assert "UNKNOWN_PAYMENT_DESTINATION" not in result.fraud_flags
     assert result.payment_destination["matched"] is False
-    assert verdict["gate"]["label"] == "SUSPECT"
+    assert verdict["bundle"]["identity"]["status"] == "coherent"
+    assert verdict["gate"]["label"] == "SAFE"
     assert verdict["gate"]["is_final"] is True
 
 
@@ -542,7 +557,6 @@ async def test_sameday_payment_request_by_sms_violates_never_asks():
 
     verdict = evaluate_invoice_verdict(result, result.raw_text, source_channel="sms")
 
-    assert "UNKNOWN_PAYMENT_DESTINATION" in result.fraud_flags
     assert "payment_request_sms" in verdict["bundle"]["identity"]["violated_never_asks"]
     assert verdict["gate"]["label"] == "DANGEROUS"
     assert "never_asks_violated:payment_request_sms" in verdict["gate"]["reason_codes"]

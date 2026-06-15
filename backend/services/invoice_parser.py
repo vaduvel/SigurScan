@@ -17,6 +17,10 @@ ANY_IBAN_PATTERN = re.compile(
     r"\b[A-Z]{2}[ \t-]*\d{2}(?:[ \t-]*[A-Z0-9]){11,30}\b",
     re.IGNORECASE,
 )
+RO_IBAN_OCR_PATTERN = re.compile(
+    r"\bR[0O][ \t-]*\d{2}(?:[ \t-]*[A-Z0-9]){20}\b",
+    re.IGNORECASE,
+)
 BENEFICIAR_PATTERN = re.compile(
     r"(?:beneficiar|titular(?:\s*cont)?|c[ăa]tre|in\s*contul(?:\s*lui)?|"
     r"[iî]n\s*contul(?:\s*lui)?)\s*[:\-]?\s*(.+?)(?:\n|$|,|;)",
@@ -147,8 +151,14 @@ def _extract_all_ibans(text: str) -> List[str]:
 
     seen: set[str] = set()
     output: List[str] = []
-    for match in ANY_IBAN_PATTERN.finditer(text or ""):
-        normalized = normalize_iban(match.group(0))
+    candidates_raw = [match.group(0) for match in ANY_IBAN_PATTERN.finditer(text or "")]
+    for match in RO_IBAN_OCR_PATTERN.finditer(text or ""):
+        raw = match.group(0)
+        normalized_raw = re.sub(r"[\s-]+", "", raw).upper()
+        if normalized_raw.startswith("R0"):
+            candidates_raw.append("RO" + normalized_raw[2:])
+    for raw in candidates_raw:
+        normalized = normalize_iban(raw)
         if not normalized:
             continue
         candidates = [normalized]
@@ -163,6 +173,26 @@ def _extract_all_ibans(text: str) -> List[str]:
                 output.append(candidate)
                 break
     return output
+
+
+def _extract_cui(text: str) -> str | None:
+    cui = _cui_from_match(CUI_PATTERN.search(text))
+    if cui:
+        return cui
+
+    lines = [line.strip() for line in (text or "").splitlines()]
+    label_re = re.compile(r"^(?:CUI|CIF)\s*:?\s*$", re.IGNORECASE)
+    numeric_re = re.compile(r"^(?:RO\s*)?(\d{2,10})\b", re.IGNORECASE)
+    for i, line in enumerate(lines[:-1]):
+        if not label_re.match(line):
+            continue
+        for next_line in lines[i + 1 : i + 4]:
+            match = numeric_re.search(next_line)
+            if match:
+                return _normalize_cui(match.group(1))
+            if next_line and not re.match(r"^(?:reg\.?\s*com|adres[ăa]|iban|banca|swift)\b", next_line, re.IGNORECASE):
+                break
+    return None
 
 
 def _extract_payment_beneficiary(text: str) -> str | None:
@@ -504,9 +534,8 @@ def parse_invoice(
     if not text:
         return InvoiceFields(raw_text="")
 
-    # CUI — group(1) e cifrele propriu-zise; group(0) include prefixul CUI/CIF/RO.
-    cui_match = CUI_PATTERN.search(text)
-    cui = _cui_from_match(cui_match)
+    # CUI — Google Vision may split "CIF:" and the numeric value on adjacent lines.
+    cui = _extract_cui(text)
 
     # IBAN
     iban_match = IBAN_PATTERN.search(text)

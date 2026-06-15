@@ -119,6 +119,27 @@ class TestParseInvoice:
         assert result.cui == "12345678"
         assert result.iban == "RO33RNCB1234567890123456"
 
+    def test_google_vision_split_cif_and_ocr_ro_iban(self):
+        text = """
+        Furnizor:
+        MARKETING GROWTH HUB S.R.L.
+        Reg. com.:
+        CIF:
+        45758405
+        IBAN (RON):
+        R042INGB0000999912242622
+        Banca:
+        ING BANK NV
+        Total plata
+        200.00 RON
+        CNP: -
+        """
+        result = parse_invoice(text)
+        assert result.emitent == "MARKETING GROWTH HUB S.R.L."
+        assert result.cui == "45758405"
+        assert result.iban == "RO42INGB0000999912242622"
+        assert result.all_ibans == ["RO42INGB0000999912242622"]
+
     def test_emitent_fallback_first_line(self):
         result = parse_invoice("ENEL Energie SA\nCUI: 14345906\nTotal: 100 RON")
         assert result.emitent == "ENEL Energie SA"

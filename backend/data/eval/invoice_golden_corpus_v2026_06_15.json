@@ -160,8 +160,7 @@
         "payment_beneficiary": "Popescu Ion Marian"
       },
       "expected_flags": [
-        "BENEFICIARY_PERSON_MISMATCH",
-        "UNKNOWN_PAYMENT_DESTINATION"
+        "BENEFICIARY_PERSON_MISMATCH"
       ],
       "expected_gate_labels": [
         "DANGEROUS"
@@ -207,8 +206,7 @@
         "iban": "RO83BTRLRONCRT0299335701"
       },
       "expected_flags": [
-        "IBAN_CHANGED_VS_HISTORY",
-        "UNKNOWN_PAYMENT_DESTINATION"
+        "IBAN_CHANGED_VS_HISTORY"
       ],
       "expected_gate_labels": [
         "SUSPECT",
@@ -238,8 +236,7 @@
         "iban": "RO49AAAA1B31007593840000"
       },
       "expected_flags": [
-        "MULTIPLE_IBANS",
-        "UNKNOWN_PAYMENT_DESTINATION"
+        "MULTIPLE_IBANS"
       ],
       "expected_gate_labels": [
         "SUSPECT",
@@ -367,14 +364,12 @@
         "cui": "12345678",
         "iban": "RO49AAAA1B31007593840000"
       },
-      "expected_flags": [
-        "UNKNOWN_PAYMENT_DESTINATION"
-      ],
       "forbidden_flags": [
+        "UNKNOWN_PAYMENT_DESTINATION",
         "SENSITIVE_DATA_REQUESTED"
       ],
       "expected_gate_labels": [
-        "SUSPECT"
+        "UNVERIFIED"
       ],
       "forbidden_gate_labels": [
         "DANGEROUS",
