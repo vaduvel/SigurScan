@@ -156,6 +156,19 @@ ADMIN_ONLY_PATHS = {
     "/v1/feedback/summary",
     "/v1/adjudication/shadow",
     "/v1/adjudication/dashboard",
+    "/v1/intel/ingest",
+    "/v1/intel/moderate",
+    "/v1/intel/moderation-queue",
+    "/v1/intel/sources",
+    "/v1/campaign/active",
+    "/v1/campaign/families",
+    "/v1/campaign/match",
+    "/v1/evaluation/feedback",
+    "/v1/evaluation/run",
+    "/v1/feedback/samples",
+    "/v1/feedback/quality",
+    "/v1/evaluation/feedback/trend",
+    "/v1/evaluation/readiness",
 }
 
 PUBLIC_PATHS = {"/", "/health", "/healthz", "/privacy", "/privacy-policy", "/docs", "/openapi.json", "/redoc"}
@@ -334,6 +347,7 @@ TRACKING_QUERY_PARAMS = {
 }
 _BACKEND_DIR = Path(__file__).resolve().parent
 EVAL_DATASET_DEFAULT_PATH = _BACKEND_DIR / "data" / "eval_dataset.jsonl"
+EVAL_DATASET_ALLOWED_ROOT = (_BACKEND_DIR / "data").resolve()
 if PRIVACY_SAFE_MODE:
     logger.warning("SIGURSCAN_SAFE_MODE activ: verificările externe pentru URL/reputație și Gemini sunt dezactivate.")
 
@@ -1886,6 +1900,11 @@ def _resolve_eval_dataset_path(dataset_path: Optional[str]) -> Path:
                 candidate = (_BACKEND_DIR / candidate)
 
     resolved = candidate.expanduser().resolve()
+    if resolved != EVAL_DATASET_ALLOWED_ROOT and EVAL_DATASET_ALLOWED_ROOT not in resolved.parents:
+        raise HTTPException(
+            status_code=400,
+            detail="Dataset file must be inside backend/data.",
+        )
     if not resolved.exists() or not resolved.is_file():
         raise HTTPException(
             status_code=404,

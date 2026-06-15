@@ -3,6 +3,7 @@ import sys
 import time
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -21,6 +22,19 @@ ADMIN_ENDPOINTS = (
     "/v1/feedback/summary",
     "/v1/adjudication/shadow",
     "/v1/adjudication/dashboard",
+    "/v1/intel/ingest",
+    "/v1/intel/moderate",
+    "/v1/intel/moderation-queue",
+    "/v1/intel/sources",
+    "/v1/campaign/active",
+    "/v1/campaign/families",
+    "/v1/campaign/match",
+    "/v1/evaluation/feedback",
+    "/v1/evaluation/run",
+    "/v1/feedback/samples",
+    "/v1/feedback/quality",
+    "/v1/evaluation/feedback/trend",
+    "/v1/evaluation/readiness",
 )
 
 CHEAP_CLIENT_ENDPOINT = "/v1/reputation/cache/stats"
@@ -112,6 +126,16 @@ def test_admin_key_also_works_on_client_routes(monkeypatch):
     client = TestClient(app_main.app)
 
     assert client.get(CHEAP_CLIENT_ENDPOINT, headers={"X-API-KEY": ADMIN_KEY}).status_code == 200
+
+
+def test_evaluation_dataset_path_is_limited_to_backend_data(tmp_path):
+    outside_dataset = tmp_path / "external_eval.jsonl"
+    outside_dataset.write_text("{}\n", encoding="utf-8")
+
+    with pytest.raises(HTTPException) as exc:
+        app_main._resolve_eval_dataset_path(str(outside_dataset))
+
+    assert getattr(exc.value, "status_code", None) == 400
 
 
 def test_screenshot_proxy_stays_loadable_without_headers(monkeypatch):

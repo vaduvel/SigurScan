@@ -344,6 +344,45 @@ def test_value_transfer_without_provenance_is_suspect():
     assert "value_request_needs_verification" in r["reason_codes"]
 
 
+def test_coherent_identity_with_checked_unknown_payment_destination_is_suspect():
+    b = _bundle(
+        identity_status="coherent",
+        providers_verdict="clean",
+        sensitive="transfer",
+        channel="invoice",
+        semantic_risk="low",
+    )
+    b["providers"]["payment_destination"] = {
+        "status": "unknown",
+        "verdict": "unknown",
+        "matched": False,
+        "brand_matches": None,
+        "registry_has_brand_destinations": True,
+        "trust_tier": "T4_STRUCTURALLY_VALID_UNKNOWN",
+        "can_contribute_to_safe": False,
+    }
+
+    r = verdict(b)
+
+    assert r["label"] == "SUSPECT"
+    assert "value_request_needs_verification" in r["reason_codes"]
+
+
+def test_coherent_generic_invoice_without_payment_registry_coverage_can_stay_safe():
+    b = _bundle(
+        identity_status="coherent",
+        providers_verdict="clean",
+        sensitive="transfer",
+        channel="invoice",
+        semantic_risk="low",
+    )
+
+    r = verdict(b)
+
+    assert r["label"] == "SAFE"
+    assert r["reason_codes"] == ["positive_provenance_clean"]
+
+
 # ─── Rule 11: Residual → UNVERIFIED ──────────────────────────────────────
 
 def test_no_signals_at_all_is_unverified():

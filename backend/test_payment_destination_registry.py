@@ -384,6 +384,22 @@ def test_registry_loads_compania_apa_brasov_official_destination_but_not_masked_
     assert masked_trezorerie["matched"] is False
 
 
+def test_registry_knows_brand_destinations_by_cui_when_brand_detection_misses():
+    from services.payment_destination_registry import match_payment_destination
+
+    match = match_payment_destination(
+        "RO49AAAA1B31007593840000",
+        claimed_brand=None,
+        cui="1096128",
+        issuer_name="Compania Apa Brasov",
+    )
+
+    assert match["matched"] is False
+    assert match["registry_has_brand_destinations"] is True
+    assert match["trust_tier"] == "T4_STRUCTURALLY_VALID_UNKNOWN"
+    assert match["can_contribute_to_safe"] is False
+
+
 @pytest.mark.asyncio
 async def test_cui_official_destination_can_confirm_brand_not_in_static_registry():
     from services.anaf_cui import CuiResult
@@ -414,6 +430,42 @@ async def test_cui_official_destination_can_confirm_brand_not_in_static_registry
     assert result.payment_destination["matched"] is True
     assert result.payment_destination["cui_matches"] is True
     assert verdict["gate"]["label"] == "SAFE"
+
+
+@pytest.mark.asyncio
+async def test_known_cui_unknown_payment_destination_does_not_become_safe_when_brand_detection_misses():
+    from services.anaf_cui import CuiResult
+    from services.invoice_orchestrator import evaluate_invoice_verdict, scan_invoice
+
+    cui = CuiResult(
+        exists=True,
+        checked=True,
+        denumire="Compania Apa Brasov",
+        activ=True,
+        data_inactivare=None,
+        platitor_tva=True,
+        enrolled_efactura=True,
+        raw=None,
+    )
+    with patch("services.invoice_orchestrator.check_cui", new_callable=AsyncMock) as mock_cui:
+        mock_cui.return_value = cui
+        result = await scan_invoice(
+            "Furnizor: Compania Apa Brasov\n"
+            "CUI: RO1096128\n"
+            "IBAN RO49AAAA1B31007593840000\n"
+            "Data emiterii: 01.06.2026\n"
+            "Scadenta: 15.06.2026\n"
+            "Total 8500 RON"
+        )
+
+    verdict = evaluate_invoice_verdict(result, result.raw_text, source_channel="android_native")
+
+    assert result.brand is None
+    assert result.payment_destination["matched"] is False
+    assert result.payment_destination["registry_has_brand_destinations"] is True
+    assert "UNKNOWN_PAYMENT_DESTINATION" in result.fraud_flags
+    assert verdict["bundle"]["identity"]["status"] == "unknown"
+    assert verdict["gate"]["label"] == "SUSPECT"
 
 
 @pytest.mark.asyncio

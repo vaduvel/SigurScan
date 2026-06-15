@@ -13,12 +13,14 @@ import logging
 import os
 import sys
 import time
+import json
 from typing import List
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from services.campaign_intel import CampaignStore
 from services.urechea_ingester import UrecheaIngester, SEED_SOURCES
+from services import supabase_store
 
 logging.basicConfig(
     level=logging.INFO,
@@ -53,12 +55,13 @@ def run(source_names: List[str] | None = None) -> int:
         ingested = 0
         for entry in entries:
             try:
-                ingester.ingest_raw(
+                intel = ingester.ingest_raw(
                     title=entry.get("title", ""),
                     body=entry.get("body", ""),
                     source_url=entry.get("link", ""),
                     source_kind=next((s.kind for s in SEED_SOURCES if s.name == name), "press_context"),
                 )
+                supabase_store.save_campaign_intel(intel.to_dict())
                 ingested += 1
             except Exception as e:
                 logger.warning("Failed to ingest entry from %s: %s", name, e)
@@ -70,11 +73,7 @@ def run(source_names: List[str] | None = None) -> int:
 if __name__ == "__main__":
     logger.info("Urechea RSS worker starting")
     start = time.time()
-    count = run()
+    count = run(sys.argv[1:] or None)
     elapsed = time.time() - start
-    try:
-        import requests
-        requests.post("http://localhost:8000/v1/urechea/status", json={}, timeout=2)
-    except Exception:
-        pass
+    print(json.dumps({"ingested": count, "elapsed_seconds": round(elapsed, 3)}, sort_keys=True))
     logger.info("Worker finished: %d entries ingested in %.2fs", count, elapsed)

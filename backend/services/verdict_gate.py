@@ -193,6 +193,23 @@ def _has_trusted_payment_destination(providers: Dict[str, Any]) -> bool:
     )
 
 
+def _has_checked_payment_destination(providers: Dict[str, Any]) -> bool:
+    payment = providers.get("payment_destination")
+    if not isinstance(payment, dict):
+        return False
+    return any(
+        key in payment
+        for key in (
+            "matched",
+            "brand_matches",
+            "cui_matches",
+            "registry_has_brand_destinations",
+            "trust_tier",
+            "can_contribute_to_safe",
+        )
+    )
+
+
 def _campaign_match_high_enough(campaign: Dict[str, Any]) -> bool:
     """Campaign fingerprint match solo -> max SUSPECT."""
     status = _norm(campaign.get("status"))
@@ -340,7 +357,10 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
     if (
         value_sensitive
         and has_provenance
-        and identity_status != "coherent"
+        and (
+            _has_checked_payment_destination(providers)
+            or identity_status != "coherent"
+        )
         and not _has_trusted_payment_destination(providers)
     ):
         return _result("SUSPECT", ["value_request_needs_verification"], confidence=70)

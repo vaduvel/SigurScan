@@ -465,6 +465,7 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
                 fields.iban,
                 claimed_brand=claimed_brand,
                 cui=fields.cui,
+                issuer_name=fields.emitent,
             )
             if payment_destination.get("matched") and payment_destination.get("brand_matches") is False:
                 fraud_flags.append("PAYMENT_DESTINATION_BRAND_MISMATCH")
@@ -711,7 +712,8 @@ def build_invoice_evidence_bundle(
         if flag not in {"UNKNOWN_PAYMENT_DESTINATION"}
     }
     coherent_generic_invoice_identity = bool(
-        not destination_required
+        claimed_brand == "Nespecificat"
+        and not destination_required
         and not hard_or_contextual_flags
         and _intake_trusted(source_channel)
         and anaf_identity_match
