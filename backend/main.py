@@ -8459,9 +8459,18 @@ async def _refresh_orchestrated_job_impl(job: Dict[str, Any], request: Request) 
             if str(result.get("status") or "").lower() != "pending":
                 result = _sanitize_urlscan_result_payload(result)
                 result_screenshot_url = _normalize_screenshot_proxy_url(result.get("screenshot_url"))
+                timeout_screenshot_ready = False
+                if urlscan_status == "timeout" and result_screenshot_url:
+                    started_at = time.perf_counter()
+                    try:
+                        timeout_screenshot_ready = await _urlscan_screenshot_is_ready(str(urlscan_state["uuid"]))
+                    except Exception:
+                        timeout_screenshot_ready = False
+                    finally:
+                        _record_orchestrated_component_duration(job, "urlscan.screenshot_probe", started_at)
                 if (
                     urlscan_status == "timeout"
-                    and not result_screenshot_url
+                    and not timeout_screenshot_ready
                     and not (job.get("preview") if isinstance(job.get("preview"), dict) else {}).get("image_url")
                 ):
                     job["urlscan"] = urlscan_state
@@ -8477,6 +8486,8 @@ async def _refresh_orchestrated_job_impl(job: Dict[str, Any], request: Request) 
                 else:
                     if result_screenshot_url:
                         result["screenshot_url"] = result_screenshot_url
+                    if timeout_screenshot_ready:
+                        result["screenshot_ready"] = True
             if result is not None and str(result.get("status") or "").lower() != "pending":
                 result_privacy = (
                     result.get("url_privacy")
@@ -8484,9 +8495,12 @@ async def _refresh_orchestrated_job_impl(job: Dict[str, Any], request: Request) 
                     else {}
                 )
                 urlscan_state.update(result)
-                urlscan_state["screenshot_ready"] = False
+                urlscan_state["screenshot_ready"] = bool(result.get("screenshot_ready"))
                 urlscan_state["status"] = "finished"
-                urlscan_state["details"] = "urlscan result este gata, dar captura inca se proceseaza."
+                if urlscan_state["screenshot_ready"]:
+                    urlscan_state["details"] = str(result.get("details") or urlscan_state.get("verdict") or "urlscan result este gata")
+                else:
+                    urlscan_state["details"] = "urlscan result este gata, dar captura inca se proceseaza."
                 job["urlscan"] = urlscan_state
                 preview = job.setdefault("preview", {})
                 preview["report_url"] = result.get("report_url") or preview.get("report_url")
@@ -8502,7 +8516,13 @@ async def _refresh_orchestrated_job_impl(job: Dict[str, Any], request: Request) 
                     has_ready_visual = preview.get("status") == "ready" and bool(
                         preview.get("image_url") or preview.get("screenshot_url")
                     )
-                    if not has_ready_visual:
+                    if urlscan_state["screenshot_ready"] and result.get("screenshot_url"):
+                        preview["status"] = "ready"
+                        preview["source"] = "urlscan"
+                        preview["screenshot_url"] = result.get("screenshot_url")
+                        preview["image_url"] = result.get("screenshot_url")
+                        preview["reason"] = None
+                    elif not has_ready_visual:
                         preview["status"] = "pending"
                         preview["source"] = "urlscan"
                         preview["screenshot_url"] = None

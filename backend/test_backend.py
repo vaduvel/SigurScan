@@ -5775,14 +5775,14 @@ def test_orchestrated_urlscan_timeout_without_screenshot_stays_unavailable(monke
             "details": "urlscan verdict=No malicious classification; score=0",
             "final_url": "https://www.revolut.com/ro-RO/security/",
             "report_url": "https://urlscan.io/result/urlscan-no-shot/",
-            "screenshot_url": None,
+            "screenshot_url": "https://api.sigurscan.com/v1/sandbox/urlscan/urlscan-no-shot/screenshot",
             "score": 0,
             "categories": [],
             "brands": [],
         }
 
-    async def fail_screenshot_probe(uuid):
-        raise AssertionError("timeout job without a fresh screenshot must not be downgraded to pending")
+    async def fake_screenshot_not_ready(uuid):
+        return False
 
     async def fake_ai_explanation(*args, **kwargs):
         return {"verdict_summary": "", "explanation": ""}
@@ -5846,7 +5846,7 @@ def test_orchestrated_urlscan_timeout_without_screenshot_stays_unavailable(monke
 
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "get_urlscan_result", fake_get_urlscan_result)
-        patched.setattr(app_main, "_urlscan_screenshot_is_ready", fail_screenshot_probe)
+        patched.setattr(app_main, "_urlscan_screenshot_is_ready", fake_screenshot_not_ready)
         patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
         patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
