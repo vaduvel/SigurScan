@@ -453,6 +453,15 @@ data class InvoiceBrandMatchResponse(
     @SerializedName("impersonation_risk") val impersonationRisk: Boolean,
 )
 
+data class SanbCheckResponse(
+    @SerializedName("payee_bank_participant") val payeeBankParticipant: Boolean = false,
+    @SerializedName("participant_name") val participantName: String? = null,
+    val bic: String? = null,
+    val source: String? = null,
+    @SerializedName("source_accessed_at") val sourceAccessedAt: String? = null,
+    @SerializedName("requires_payer_bank_participation") val requiresPayerBankParticipation: Boolean = true,
+)
+
 data class BeneficiaryNameCheckResponse(
     val recommended: Boolean = false,
     val method: String? = null,
@@ -461,7 +470,9 @@ data class BeneficiaryNameCheckResponse(
     val reason: String? = null,
     @SerializedName("expected_beneficiary") val expectedBeneficiary: String? = null,
     @SerializedName("iban_masked_for_client") val ibanMaskedForClient: String? = null,
+    @SerializedName("bank_code") val bankCode: String? = null,
     val bank: String? = null,
+    val sanb: SanbCheckResponse? = null,
     val steps: List<String> = emptyList(),
     @SerializedName("privacy_note") val privacyNote: String? = null,
 )

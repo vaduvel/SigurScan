@@ -5627,12 +5627,27 @@ private fun InvoiceBeneficiaryNameCheck(check: BeneficiaryNameCheckResponse) {
         }
         val contextLine = listOfNotNull(
             check.ibanMaskedForClient?.takeIf { it.isNotBlank() }?.let { "IBAN $it" },
-            check.bank?.takeIf { it.isNotBlank() },
+            check.bank?.takeIf { it.isNotBlank() } ?: check.bankCode?.takeIf { it.isNotBlank() },
             check.localServiceHint?.takeIf { it.isNotBlank() },
         ).joinToString(" · ")
         if (contextLine.isNotBlank()) {
             Spacer(modifier = Modifier.height(4.dp))
             Text(contextLine, fontSize = 12.sp, color = SigurColors.TextSecondary)
+        }
+        check.sanb?.let { sanb ->
+            Spacer(modifier = Modifier.height(6.dp))
+            DSChip(
+                text = if (sanb.payeeBankParticipant) "BANCA BENEFICIARULUI: SANB" else "SANB NECONFIRMAT",
+                tone = if (sanb.payeeBankParticipant) DSChipTone.Safe else DSChipTone.Pending
+            )
+            sanb.participantName?.takeIf { it.isNotBlank() }?.let {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    listOfNotNull(it, sanb.bic?.takeIf { bic -> bic.isNotBlank() }).joinToString(" · "),
+                    fontSize = 11.sp,
+                    color = SigurColors.TextSecondary
+                )
+            }
         }
         check.steps.take(4).forEachIndexed { index, step ->
             Spacer(modifier = Modifier.height(6.dp))

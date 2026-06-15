@@ -64,6 +64,10 @@ async def test_scan_recommends_bank_beneficiary_name_check_for_unknown_valid_iba
     assert result.beneficiary_name_check["recommended"] is True
     assert result.beneficiary_name_check["method"] == "bank_app_beneficiary_name_check"
     assert result.beneficiary_name_check["expected_beneficiary"] == "ATELIER DIGITAL SIBIU SRL"
+    assert result.beneficiary_name_check["bank_code"] == "RNCB"
+    assert result.beneficiary_name_check["sanb"]["payee_bank_participant"] is True
+    assert result.beneficiary_name_check["sanb"]["bic"] == "RNCBROBU"
+    assert result.beneficiary_name_check["sanb"]["requires_payer_bank_participation"] is True
     assert "parolă" in result.beneficiary_name_check["privacy_note"]
 
 

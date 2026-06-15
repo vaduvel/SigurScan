@@ -208,6 +208,14 @@ def _build_beneficiary_name_check(
     if destination_confirmed:
         return None
 
+    sanb_participant = None
+    try:
+        from services.sanb_registry import lookup_sanb_participant
+
+        sanb_participant = lookup_sanb_participant(iban_valid.bank_code)
+    except Exception:
+        sanb_participant = None
+
     expected_name = (
         str(anaf_check.get("denumire")).strip()
         if anaf_check and anaf_check.get("checked") and anaf_check.get("exists") and anaf_check.get("denumire")
@@ -219,21 +227,39 @@ def _build_beneficiary_name_check(
         reasons.append("IBAN-ul nu apare între destinațiile oficiale cunoscute pentru acest furnizor.")
     else:
         reasons.append("Nu avem o sursă publică suficientă care să confirme proprietarul IBAN-ului.")
+    if sanb_participant:
+        reasons.append(
+            "Banca beneficiarului apare în lista Transfond SANB; afișarea depinde și de banca din care plătești."
+        )
+    else:
+        reasons.append(
+            "Nu am confirmat banca beneficiarului în lista Transfond SANB, deci banca ta poate să nu afișeze numele."
+        )
 
     return {
         "recommended": True,
         "method": "bank_app_beneficiary_name_check",
-        "local_service_hint": "SANB/BNDS dacă banca ta îl afișează",
+        "local_service_hint": "SANB/BNDS dacă ambele bănci îl oferă",
         "title": "Verifică numele beneficiarului în aplicația băncii",
         "reason": " ".join(reasons),
         "expected_beneficiary": expected_name or None,
         "iban_masked_for_client": iban_masked,
+        "bank_code": iban_valid.bank_code,
         "bank": iban_valid.bank_name,
+        "sanb": {
+            "payee_bank_participant": sanb_participant is not None,
+            "participant_name": sanb_participant.institution if sanb_participant else None,
+            "bic": sanb_participant.bic if sanb_participant else None,
+            "source": sanb_participant.source_url if sanb_participant else "https://www.transfond.ro/",
+            "source_accessed_at": sanb_participant.source_accessed_at if sanb_participant else None,
+            "requires_payer_bank_participation": True,
+        },
         "steps": [
             "În aplicația băncii, începe o plată nouă către IBAN-ul de pe factură.",
             "Înainte să autorizezi plata, verifică numele beneficiarului afișat de bancă.",
             "Continuă doar dacă numele afișat seamănă clar cu firma emitentă de pe factură.",
-            "Dacă banca nu afișează numele sau numele nu se potrivește, oprește plata și confirmă direct cu furnizorul pe un canal oficial.",
+            "Dacă banca nu afișează numele, banca ta sau banca beneficiarului poate să nu ofere SANB; confirmă direct cu furnizorul pe un canal oficial.",
+            "Dacă numele afișat nu se potrivește, oprește plata.",
         ],
         "privacy_note": "SigurScan nu îți cere acces la banca ta, parolă, OTP, PIN sau captură de ecran.",
     }

@@ -24,7 +24,16 @@ class InvoiceModelTest {
                 "reason": "Nu avem o sursă publică suficientă care să confirme proprietarul IBAN-ului.",
                 "expected_beneficiary": "ATELIER DIGITAL SIBIU SRL",
                 "iban_masked_for_client": "RO33...3456",
+                "bank_code": "RNCB",
                 "bank": "BCR",
+                "sanb": {
+                  "payee_bank_participant": true,
+                  "participant_name": "BANCA COMERCIALA ROMANA S.A.",
+                  "bic": "RNCBROBU",
+                  "source": "https://www.transfond.ro/pdf/Lista_bancilor_care_ofera_SANB.pdf",
+                  "source_accessed_at": "2026-06-15",
+                  "requires_payer_bank_participation": true
+                },
                 "steps": ["Începe o plată nouă.", "Verifică numele beneficiarului."],
                 "privacy_note": "SigurScan nu îți cere acces la banca ta, parolă, OTP, PIN sau captură de ecran."
               }
@@ -37,6 +46,9 @@ class InvoiceModelTest {
         assertEquals(true, response.beneficiaryNameCheck?.recommended)
         assertEquals("ATELIER DIGITAL SIBIU SRL", response.beneficiaryNameCheck?.expectedBeneficiary)
         assertEquals("RO33...3456", response.beneficiaryNameCheck?.ibanMaskedForClient)
+        assertEquals("RNCB", response.beneficiaryNameCheck?.bankCode)
+        assertEquals(true, response.beneficiaryNameCheck?.sanb?.payeeBankParticipant)
+        assertEquals("RNCBROBU", response.beneficiaryNameCheck?.sanb?.bic)
         assertTrue(response.beneficiaryNameCheck?.privacyNote.orEmpty().contains("OTP"))
     }
 }
