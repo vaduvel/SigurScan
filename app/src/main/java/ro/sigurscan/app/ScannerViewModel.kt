@@ -5,6 +5,7 @@ import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
@@ -47,6 +48,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.io.File
+import java.io.ByteArrayOutputStream
 import java.io.FileOutputStream
 import java.net.URI
 import java.net.URLDecoder
@@ -56,6 +58,7 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 import kotlin.math.roundToInt
+import kotlin.math.max
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
@@ -407,6 +410,8 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
 
     private companion object {
         private const val MAX_UPLOAD_BYTES = 25L * 1024L * 1024L
+        private const val MAX_INVOICE_IMAGE_EDGE_PX = 1800
+        private const val INVOICE_IMAGE_JPEG_QUALITY = 88
         private const val TMP_UPLOAD_PREFIX = "temp_upload_"
         private const val WEB_RISK_NO_THREAT_CACHE_MS = 10L * 60L * 1000L
         private const val WEB_RISK_THREAT_FALLBACK_CACHE_MS = 5L * 60L * 1000L
@@ -2752,9 +2757,9 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                     return@launch
                 }
 
-                loadingMsg = if (isPdf) "Scanăm factura PDF..." else "Scanăm factura prin OCR..."
-                file = uriToFile(uri, context, MAX_UPLOAD_BYTES)
-                val mediaType = if (isPdf) "application/pdf" else (mimeType.ifBlank { "image/*" })
+                loadingMsg = if (isPdf) "Scanăm factura PDF..." else "Optimizăm poza facturii..."
+                file = if (isPdf) uriToFile(uri, context, MAX_UPLOAD_BYTES) else prepareInvoiceImageUpload(uri, context)
+                val mediaType = if (isPdf) "application/pdf" else "image/jpeg"
                 val partName = if (isPdf) "pdf_file" else "image_file"
                 val requestFile = file.asRequestBody(mediaType.toMediaTypeOrNull())
                 val body = MultipartBody.Part.createFormData(partName, fileName, requestFile)
@@ -4098,6 +4103,68 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
 
     private fun decodeHtmlForParser(input: String): String {
         return Html.fromHtml(input, Html.FROM_HTML_MODE_LEGACY).toString()
+    }
+
+    private fun prepareInvoiceImageUpload(uri: Uri, context: Context): File {
+        val sourceSize = queryContentSize(uri, context)
+        val normalized = runCatching { normalizeInvoiceImageToJpeg(uri, context) }.getOrNull()
+        if (normalized != null && normalized.length() > 0L) {
+            if (normalized.length() <= MAX_UPLOAD_BYTES) {
+                return normalized
+            }
+            normalized.delete()
+            throw UploadSizeExceededException("Imaginea facturii este prea mare pentru upload.")
+        }
+        if (sourceSize != null && sourceSize > MAX_UPLOAD_BYTES) {
+            throw UploadSizeExceededException("Imaginea facturii este prea mare pentru upload.")
+        }
+        return uriToFile(uri, context, MAX_UPLOAD_BYTES)
+    }
+
+    private fun normalizeInvoiceImageToJpeg(uri: Uri, context: Context): File? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            BitmapFactory.decodeStream(input, null, bounds)
+        } ?: return null
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+        val decodeOptions = BitmapFactory.Options().apply {
+            inSampleSize = invoiceImageSampleSize(bounds.outWidth, bounds.outHeight)
+            inPreferredConfig = Bitmap.Config.RGB_565
+        }
+        val bitmap = context.contentResolver.openInputStream(uri)?.use { input ->
+            BitmapFactory.decodeStream(input, null, decodeOptions)
+        } ?: return null
+
+        val file = File(context.cacheDir, "${TMP_UPLOAD_PREFIX}invoice_${System.currentTimeMillis()}.jpg")
+        try {
+            ByteArrayOutputStream().use { buffer ->
+                if (!bitmap.compress(Bitmap.CompressFormat.JPEG, INVOICE_IMAGE_JPEG_QUALITY, buffer)) {
+                    return null
+                }
+                val bytes = buffer.toByteArray()
+                if (bytes.size.toLong() > MAX_UPLOAD_BYTES) {
+                    throw UploadSizeExceededException("Imaginea facturii este prea mare pentru upload.")
+                }
+                FileOutputStream(file).use { it.write(bytes) }
+            }
+            return file
+        } catch (e: Exception) {
+            file.delete()
+            throw e
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    private fun invoiceImageSampleSize(width: Int, height: Int): Int {
+        var sampleSize = 1
+        var longest = max(width, height)
+        while (longest / 2 >= MAX_INVOICE_IMAGE_EDGE_PX) {
+            sampleSize *= 2
+            longest /= 2
+        }
+        return sampleSize
     }
 
     private fun uriToFile(uri: Uri, context: Context, maxBytes: Long = MAX_UPLOAD_BYTES): File {

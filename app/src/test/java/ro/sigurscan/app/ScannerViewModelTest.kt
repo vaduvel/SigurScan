@@ -504,6 +504,12 @@ class ScannerViewModelTest {
                 viewModelSource.contains("officialXmlUri: Uri? = null") &&
                 viewModelSource.contains("""createFormData("official_xml_file"""")
         )
+        assertTrue(
+            "Large invoice images must be normalized before upload so Cloud OCR does not receive raw multi-megabyte camera files.",
+            viewModelSource.contains("prepareInvoiceImageUpload(uri, context)") &&
+                viewModelSource.contains("MAX_INVOICE_IMAGE_EDGE_PX") &&
+                viewModelSource.contains("image/jpeg")
+        )
         assertFalse(
             "Invoice camera must not be a second standalone tile next to Scanează Factură.",
             activitySource.contains("InvoiceCaptureEntryCard")
