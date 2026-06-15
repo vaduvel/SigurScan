@@ -31,6 +31,7 @@ _BRAND_ALIASES = {
     "ghiseul_ro": {"ghiseul.ro", "ghiseul", "snep"},
     "fan_courier": {"fan courier", "fancourier", "fan"},
     "posta_romana": {"posta romana", "posta", "postaromana"},
+    "dhl": {"dhl", "dhl express"},
     "raiffeisen": {"raiffeisen", "raiffeisen bank"},
     "cec": {"cec", "cec bank"},
     "revolut_ro": {"revolut"},
@@ -53,6 +54,7 @@ _EXTRA_FEE_RE = re.compile(
     r"\b(livrare|colet|transport)\b.*\b(taxa|fee|comision|cost|suplimentar|extra|neachitat)\b",
     re.IGNORECASE,
 )
+_CUSTOMS_FEE_RE = re.compile(r"\b(taxe?\s+vamale?|vama|vam[ăa]|customs|import\s+dut(y|ies))\b", re.IGNORECASE)
 _CARD_CVV_RE = re.compile(r"\b(cvv|cvc|codul\s+de\s+pe\s+spate|numarul\s+cardului|datele\s+cardului)\b", re.IGNORECASE)
 _PIN_RE = re.compile(r"\b(pin|cod\s+pin)\b", re.IGNORECASE)
 _PASSWORD_RE = re.compile(r"\b(parola|password|user(name)?|utilizator|token\s+password)\b", re.IGNORECASE)
@@ -273,6 +275,22 @@ def evaluate_brand_never_asks(
             if _OTP_RE.search(text or ""):
                 brand_violations.extend(item for item in ("otp", "whatsapp_code") if item in allowed)
 
+        if brand_id == "dhl":
+            delivery_payment = bool(
+                _PAYMENT_RE.search(text or "")
+                and re.search(r"\b(colet|livrare|awb|curier|expediere|transport)\b", normalized_text)
+            )
+            customs_payment = bool(_CUSTOMS_FEE_RE.search(text or ""))
+            wrong_message_channel = normalized_channel in {"sms", "email", "whatsapp", "social_dm", "messenger", "telegram"}
+            if wrong_message_channel and delivery_payment and not customs_payment:
+                if "delivery_fee_sms" in allowed:
+                    brand_violations.append("delivery_fee_sms")
+            if normalized_channel in _WRONG_SOCIAL_CHANNELS and _PAYMENT_RE.search(text or ""):
+                if "payment_request_social_media" in allowed:
+                    brand_violations.append("payment_request_social_media")
+            if _CARD_CVV_RE.search(text or ""):
+                brand_violations.extend(item for item in ("card_number", "cvv") if item in allowed)
+
         if brand_id == "aquatim" and _CASH_FIELD_RE.search(text or "") and "cash_collection_on_field" in allowed:
             brand_violations.append("cash_collection_on_field")
 
@@ -287,6 +305,7 @@ def evaluate_brand_never_asks(
             "revolut_ro",
             "fan_courier",
             "posta_romana",
+            "dhl",
             "orange",
             "vodafone",
             "digi",

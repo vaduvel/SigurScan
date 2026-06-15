@@ -740,3 +740,47 @@ async def test_dhl_customs_payment_sms_is_not_never_asks_violation():
     verdict = evaluate_invoice_verdict(result, result.raw_text, source_channel="sms")
 
     assert verdict["bundle"]["identity"]["violated_never_asks"] == []
+
+
+@pytest.mark.asyncio
+async def test_dhl_non_customs_delivery_fee_sms_violates_never_asks():
+    from services.invoice_orchestrator import evaluate_invoice_verdict, scan_invoice
+
+    result = await scan_invoice(
+        "DHL: coletul tau este blocat. Achita taxa de livrare suplimentara "
+        "si confirma datele cardului."
+    )
+
+    verdict = evaluate_invoice_verdict(result, result.raw_text, source_channel="sms")
+
+    assert "delivery_fee_sms" in verdict["bundle"]["identity"]["violated_never_asks"]
+    assert "card_number" in verdict["bundle"]["identity"]["violated_never_asks"]
+    assert verdict["gate"]["label"] == "DANGEROUS"
+
+
+@pytest.mark.asyncio
+async def test_orange_card_and_otp_request_uses_official_audit_delta():
+    from services.invoice_orchestrator import evaluate_invoice_verdict, scan_invoice
+
+    result = await scan_invoice(
+        "Orange: pentru reactivarea contului confirma numarul cardului si codul OTP."
+    )
+
+    verdict = evaluate_invoice_verdict(result, result.raw_text, source_channel="sms")
+
+    assert {"card_number", "otp"} <= set(verdict["bundle"]["identity"]["violated_never_asks"])
+    assert verdict["gate"]["label"] == "DANGEROUS"
+
+
+@pytest.mark.asyncio
+async def test_brd_otp_and_remote_access_use_official_audit_delta():
+    from services.invoice_orchestrator import evaluate_invoice_verdict, scan_invoice
+
+    result = await scan_invoice(
+        "BRD securitate: instaleaza AnyDesk si comunica OTP-ul pentru verificare."
+    )
+
+    verdict = evaluate_invoice_verdict(result, result.raw_text, source_channel="sms")
+
+    assert {"otp", "remote_access"} <= set(verdict["bundle"]["identity"]["violated_never_asks"])
+    assert verdict["gate"]["label"] == "DANGEROUS"

@@ -31,11 +31,13 @@
         "card_number",
         "expiry_date",
         "cvv",
-        "pin"
+        "pin",
+        "otp",
+        "remote_access"
       ],
       "official_statement_url": "https://www.brd.ro/",
       "verified_at": "2026-06-15",
-      "evidence_quote": "nu a solicitat si nu va solicita niciodata datele de autentificare",
+      "evidence_quote": "BRD nu solicita date de autentificare, date confidentiale de card si avertizeaza asupra linkurilor catre aplicatii de control la distanta.",
       "confidence": "high"
     },
     {
@@ -47,13 +49,16 @@
         "card_number",
         "cvv",
         "pin",
+        "otp",
+        "remote_access",
+        "whatsapp_code",
         "3d_secure_password",
         "card_data_for_receiving_money",
         "credit_cancel_by_phone"
       ],
       "official_statement_url": "https://www.unicredit.ro/ro/persoane-fizice/Diverse/securitate.html",
       "verified_at": "2026-06-15",
-      "evidence_quote": "Banca nu solicita niciodata informatii privind parole de acces",
+      "evidence_quote": "UniCredit avertizeaza sa nu oferi date bancare, coduri SMS/WhatsApp sau acces prin aplicatii sugerate.",
       "confidence": "high"
     },
     {
@@ -108,6 +113,27 @@
       "verified_at": "2026-06-15",
       "evidence_quote": "FAN Courier nu solicita prin SMS parole, coduri de verificare, coduri WhatsApp sau date de card.",
       "confidence": "high"
+    },
+    {
+      "brand_id": "dhl",
+      "type": "curier",
+      "never_asks": [
+        "delivery_fee_sms",
+        "payment_request_social_media",
+        "card_number",
+        "cvv"
+      ],
+      "official_statement_url": "https://www.dhl.com/ro-ro/home/subsol/constientizare-frauda.html",
+      "verified_at": "2026-06-15",
+      "evidence_quote": "DHL poate solicita prin e-mail sau SMS doar plati pentru taxe vamale; alte solicitari de plata sau conturi sociale/WhatsApp necesita suspiciune.",
+      "confidence": "medium",
+      "allowed_payment_exception": {
+        "channel": [
+          "sms",
+          "email"
+        ],
+        "purpose": "customs_duties_only"
+      }
     },
     {
       "brand_id": "posta_romana",
@@ -189,12 +215,14 @@
       "type": "banca",
       "never_asks": [
         "otp",
+        "pin",
+        "password",
         "remote_access",
         "safe_account_transfer"
       ],
       "official_statement_url": "https://help.revolut.com/ro-RO/help/security-logging-in/how-do-i-protect-myself-from-fraudsters/fraud-education-vishing-impersonation/",
       "verified_at": "2026-06-15",
-      "evidence_quote": "Revolut nu cere coduri la telefon, remote access sau transfer catre cont nou/securizat.",
+      "evidence_quote": "Revolut nu cere PIN, parola sau coduri prin telefon si nu cere transfer catre cont sigur.",
       "confidence": "high"
     },
     {
@@ -234,13 +262,15 @@
       "brand_id": "orange",
       "type": "telecom",
       "never_asks": [
+        "card_number",
         "pin",
+        "otp",
         "password",
         "financial_data"
       ],
       "official_statement_url": "https://www.orange.ro/prevenire-frauda/",
       "verified_at": "2026-06-15",
-      "evidence_quote": "Orange nu solicita informatii legate de conturi bancare, parole, PIN-uri sau coduri de reincarcare.",
+      "evidence_quote": "Orange nu solicita prin e-mail, SMS, apel sau social date bancare, parole, PIN-uri, coduri sau informatii de card.",
       "confidence": "high"
     },
     {
