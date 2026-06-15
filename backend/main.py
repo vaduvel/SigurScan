@@ -6304,6 +6304,54 @@ def _urlscan_result_ready_for_verdict(job: Dict[str, Any]) -> bool:
     return status in {"finished", "error", "timeout", "rate_limited", "skipped"}
 
 
+def _urlscan_finished_with_risk(job: Dict[str, Any]) -> bool:
+    urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
+    if str(urlscan_state.get("status") or "").strip().lower() != "finished":
+        return False
+    verdict = str(urlscan_state.get("verdict") or "").strip().lower()
+    severity = str(urlscan_state.get("severity") or "").strip().lower()
+    try:
+        score = int(urlscan_state.get("score") or 0)
+    except Exception:
+        score = 0
+    return (
+        "malicious" in verdict
+        or "phishing" in verdict
+        or "suspicious" in verdict
+        or severity in {"high", "critical", "medium"}
+        or score >= 50
+    )
+
+
+def _official_clean_can_finalize_before_urlscan(job: Dict[str, Any], analysis: Dict[str, Any]) -> bool:
+    if not isinstance(analysis, dict):
+        return False
+    evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
+    gate = evidence.get("verdict_gate") if isinstance(evidence.get("verdict_gate"), dict) else {}
+    provider_gate = evidence.get("provider_gate") if isinstance(evidence.get("provider_gate"), dict) else {}
+    summary = evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {}
+    resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
+    raw_urls = job.get("urls") if isinstance(job.get("urls"), list) else []
+    claimed_brand = str(analysis.get("claimed_brand") or "Nespecificat")
+    family_id = str(
+        analysis.get("detected_family_id")
+        or provider_gate.get("detected_family_id")
+        or gate.get("detected_family_id")
+        or ""
+    )
+    provider_projection = _provider_verdict_for_decision_bundle(summary, has_urls=bool(raw_urls or resolved_urls))
+    return (
+        str(gate.get("label") or "").upper() == "SAFE"
+        and family_id == "provider-gate-official-clean"
+        and (
+            provider_gate.get("official_destination") is True
+            or _official_destination_confirmed(resolved_urls, claimed_brand)
+        )
+        and str(provider_projection.get("verdict") or "").strip().lower() == "clean"
+        and not _has_bad_provider_verdict(summary)
+    )
+
+
 def _baseline_pillars_ready_without_urlscan(pillars: Dict[str, Dict[str, Any]]) -> bool:
     required_names = ("final_url", "google_web_risk", "phishing_database", "claim_verifier")
     for name in required_names:
@@ -6839,7 +6887,7 @@ async def _finalize_orchestrated_job_if_ready(job: Dict[str, Any], request: Requ
     pillars = _build_orchestrated_pillars(job)
     existing_result = job.get("result") if isinstance(job.get("result"), dict) else None
     if existing_result and existing_result.get("is_final", True) is not False:
-        if not _urlscan_enhancement_done(job):
+        if not _urlscan_enhancement_done(job) and not _urlscan_finished_with_risk(job):
             return job
     if not _orchestrated_can_finalize_result(job, pillars):
         return job
@@ -6925,7 +6973,10 @@ async def _finalize_orchestrated_job_if_ready(job: Dict[str, Any], request: Requ
     }
     response_payload["is_final"] = (
         _orchestrated_result_is_final(job, analysis)
-        and _urlscan_result_ready_for_verdict(job)
+        and (
+            _urlscan_result_ready_for_verdict(job)
+            or _official_clean_can_finalize_before_urlscan(job, analysis)
+        )
         and not deferred_explanation
     )
     job["result"] = response_payload
