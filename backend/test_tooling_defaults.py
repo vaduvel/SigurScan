@@ -92,3 +92,20 @@ def test_supabase_logical_backup_script_is_secret_safe_and_restore_verified():
     assert 'echo "$SUPABASE_DB_URL"' not in script
     assert "sha256sum" in script
     assert "shasum -a 256" in script
+
+
+def test_android_ci_workflow_builds_with_jdk_and_recursive_submodules():
+    workflow_path = ROOT_DIR / ".github" / "workflows" / "android-ci.yml"
+    assert workflow_path.exists()
+    workflow = workflow_path.read_text(encoding="utf-8")
+
+    assert "workflow_dispatch:" in workflow
+    assert "pull_request:" in workflow
+    assert "push:" in workflow
+    assert "submodules: recursive" in workflow
+    assert "actions/setup-java" in workflow
+    assert "distribution: temurin" in workflow
+    assert 'java-version: "21"' in workflow
+    assert "actions/setup-android" in workflow
+    assert "./gradlew testDebugUnitTest" in workflow
+    assert "./gradlew assembleRelease" in workflow

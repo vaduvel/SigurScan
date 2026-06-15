@@ -9,7 +9,7 @@ Rollout modes (PLAY_INTEGRITY_MODE):
 - "off"     (default): nothing is checked.
 - "monitor": tokens are decoded and logged when present; nothing is blocked.
              Use this first to measure pass rates before enforcing.
-- "enforce": scan routes without a valid token are rejected with 401.
+- "enforce": scan routes without a server-validated valid token are rejected with 401.
 
 Rollout requirements:
 1. Create a Google Cloud service account with the Play Integrity API enabled
@@ -161,12 +161,11 @@ def evaluate_request_token(token: str, api_key: str = "") -> Dict[str, Any]:
             logger.info("play_integrity monitor: %s", json.dumps(result, default=str))
         return {"block": False, "result": result}
 
-    # enforce: reject only hard client failures. Transient Google/API errors or
-    # missing server credentials must not turn into a global production outage.
+    # enforce: reject every non-valid result. Missing server credentials or
+    # Google/API errors mean the server cannot validate app integrity, so the
+    # route must fail closed instead of silently disabling protection.
     status = result.get("status")
     if status in {"valid"}:
         return {"block": False, "result": result}
-    if status in {"missing", "invalid"}:
-        return {"block": True, "result": result}
-    logger.warning("play_integrity enforce fail-open: %s", json.dumps(result, default=str))
-    return {"block": False, "result": result}
+    logger.warning("play_integrity enforce blocked: %s", json.dumps(result, default=str))
+    return {"block": True, "result": result}

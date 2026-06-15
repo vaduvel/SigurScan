@@ -6,9 +6,10 @@ used when Upstash is not configured or unreachable. The active backend is
 reported in /health as `rate_limit_backend` so the fallback is never silent.
 
 Limits are enforced per identity and per path:
-- identity "key:<sha256-prefix>" when the request carries an API key
-  (the raw key never reaches Redis), plus
 - identity "ip:<client-ip>" always.
+- identity "key:<sha256-prefix>" only for operator/admin keys or other
+  non-shared credentials. The public Android app key is shared by every install,
+  so using it as a global bucket would rate-limit legitimate users together.
 """
 
 import hashlib
@@ -57,9 +58,14 @@ def _hash_api_key(api_key: str) -> str:
     return hashlib.sha256(api_key.encode("utf-8")).hexdigest()[:16]
 
 
-def _identities(api_key: Optional[str], client_ip: str) -> List[str]:
+def _identities(
+    api_key: Optional[str],
+    client_ip: str,
+    *,
+    include_api_key_identity: bool = True,
+) -> List[str]:
     identities = []
-    if api_key:
+    if api_key and include_api_key_identity:
         identities.append(f"key:{_hash_api_key(api_key)}")
     identities.append(f"ip:{client_ip or 'anonymous'}")
     return identities
@@ -110,6 +116,7 @@ def check_sync(
     client_ip: str,
     path: str,
     limit_per_minute: int,
+    include_api_key_identity: bool = True,
 ) -> RateLimitDecision:
     """Checks every applicable identity; the most restrictive answer wins.
 
@@ -117,7 +124,11 @@ def check_sync(
     slow abuse response but never block legitimate scans.
     """
     used_memory_fallback = False
-    for identity in _identities(api_key, client_ip):
+    for identity in _identities(
+        api_key,
+        client_ip,
+        include_api_key_identity=include_api_key_identity,
+    ):
         if is_upstash_configured():
             try:
                 if not _check_upstash(identity, path, limit_per_minute):

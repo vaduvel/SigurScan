@@ -27,6 +27,7 @@ def _clean_invoice_state(monkeypatch):
         from services import vendor_memory as vm
 
         vm._memory.clear()
+        vm._last_reload_at = 0.0
     except Exception:
         pass
     yield
@@ -285,6 +286,26 @@ class TestVendorIbanMemory:
         from services import vendor_memory as vm
 
         vm.remember_invoice_iban("RO12345678", self.IBAN_A)
+        result = await scan_invoice(
+            f"Furnizor: SC X SRL CUI RO12345678\nIBAN {self.IBAN_B}\nTotal 200 RON luna iunie"
+        )
+
+        assert "IBAN_CHANGED_VS_HISTORY" in result.fraud_flags
+        assert vm.known_ibans_for_cui("RO12345678") == {self.IBAN_A}
+
+    @pytest.mark.asyncio
+    async def test_changed_vendor_iban_is_flagged_after_supabase_reload(self, anaf_ok, monkeypatch):
+        from services import vendor_memory as vm
+        from services import supabase_store
+
+        vm._memory.clear()
+        vm._last_reload_at = 0.0
+        monkeypatch.setattr(
+            supabase_store,
+            "load_vendor_ibans",
+            lambda: [{"cui": "12345678", "iban": self.IBAN_A}],
+        )
+
         result = await scan_invoice(
             f"Furnizor: SC X SRL CUI RO12345678\nIBAN {self.IBAN_B}\nTotal 200 RON luna iunie"
         )

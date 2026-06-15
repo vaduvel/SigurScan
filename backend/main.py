@@ -419,6 +419,7 @@ async def security_guard(request: Request, call_next):
             request.client.host if request.client else "anonymous",
             path,
             RATE_LIMIT_PER_MINUTE,
+            api_key in ADMIN_API_KEYS,
         )
         if not decision.allowed:
             return JSONResponse(
@@ -7814,6 +7815,26 @@ async def _run_orchestrated_invoice_fast_lane(job: Dict[str, Any], request: Requ
                     "impersonation_risk": impersonation_risk,
                 },
                 "payment_destination": getattr(result, "payment_destination", None) if result else None,
+                "beneficiary_name_check": getattr(result, "beneficiary_name_check", None) if result else None,
+                "anaf": {
+                    "checked": anaf.get("checked"),
+                    "exists": anaf.get("exists"),
+                    "denumire": anaf.get("denumire"),
+                    "activ": anaf.get("activ"),
+                    "platitor_tva": anaf.get("platitor_tva"),
+                    "enrolled_efactura": anaf.get("enrolled_efactura"),
+                } if anaf else None,
+                "coherence": {
+                    "totals_match": coherence.totals_match if coherence else None,
+                    "tva_rate_plausible": coherence.tva_rate_plausible if coherence else None,
+                    "dates_plausible": coherence.dates_plausible if coherence else None,
+                    "all_ok": coherence.all_ok if coherence else None,
+                },
+                "iban": {
+                    "valid": iban_result.valid_structure,
+                    "bank": iban_result.bank_name,
+                    "is_trezorerie": iban_result.is_trezorerie,
+                } if iban_result else None,
                 "readiness": {
                     "state": readiness.state.value if readiness else None,
                     "blocks_safe_verdict": readiness_blocks_safe,

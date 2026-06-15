@@ -176,6 +176,62 @@ def test_rate_limiter_memory_fallback_when_upstash_unconfigured(monkeypatch):
     assert decision.backend == "memory_best_effort"
 
 
+def test_shared_client_api_key_does_not_create_global_rate_limit_bucket(monkeypatch):
+    monkeypatch.setattr(rate_limiter, "UPSTASH_REDIS_REST_URL", "")
+    monkeypatch.setattr(rate_limiter, "UPSTASH_REDIS_REST_TOKEN", "")
+
+    first = rate_limiter.check_sync(
+        api_key=CLIENT_KEY,
+        client_ip="10.0.0.10",
+        path="/v1/scan/orchestrated",
+        limit_per_minute=1,
+        include_api_key_identity=False,
+    )
+    second_ip_same_key = rate_limiter.check_sync(
+        api_key=CLIENT_KEY,
+        client_ip="10.0.0.11",
+        path="/v1/scan/orchestrated",
+        limit_per_minute=1,
+        include_api_key_identity=False,
+    )
+    same_ip_again = rate_limiter.check_sync(
+        api_key=CLIENT_KEY,
+        client_ip="10.0.0.10",
+        path="/v1/scan/orchestrated",
+        limit_per_minute=1,
+        include_api_key_identity=False,
+    )
+
+    assert first.allowed is True
+    assert second_ip_same_key.allowed is True
+    assert same_ip_again.allowed is False
+    assert same_ip_again.identity == "ip:10.0.0.10"
+
+
+def test_operator_api_key_can_still_be_rate_limited_across_ips(monkeypatch):
+    monkeypatch.setattr(rate_limiter, "UPSTASH_REDIS_REST_URL", "")
+    monkeypatch.setattr(rate_limiter, "UPSTASH_REDIS_REST_TOKEN", "")
+
+    first = rate_limiter.check_sync(
+        api_key=ADMIN_KEY,
+        client_ip="10.0.0.20",
+        path="/v1/orchestration/dashboard",
+        limit_per_minute=1,
+        include_api_key_identity=True,
+    )
+    second_ip_same_key = rate_limiter.check_sync(
+        api_key=ADMIN_KEY,
+        client_ip="10.0.0.21",
+        path="/v1/orchestration/dashboard",
+        limit_per_minute=1,
+        include_api_key_identity=True,
+    )
+
+    assert first.allowed is True
+    assert second_ip_same_key.allowed is False
+    assert second_ip_same_key.identity.startswith("key:")
+
+
 def test_rate_limiter_uses_upstash_pipeline_when_configured(monkeypatch):
     monkeypatch.setattr(rate_limiter, "UPSTASH_REDIS_REST_URL", "https://fake-upstash.example")
     monkeypatch.setattr(rate_limiter, "UPSTASH_REDIS_REST_TOKEN", "fake-token")
@@ -250,21 +306,21 @@ def test_play_integrity_enforce_allows_valid_token(monkeypatch):
     assert response.status_code != 401
 
 
-def test_play_integrity_enforce_fails_open_for_unconfigured_or_transient_error(monkeypatch):
+def test_play_integrity_enforce_blocks_unconfigured_or_transient_error(monkeypatch):
     monkeypatch.setattr(play_integrity, "PLAY_INTEGRITY_MODE", "enforce")
     monkeypatch.setattr(
         play_integrity,
         "verify_token",
         lambda token, api_key="": {"status": "unconfigured"},
     )
-    assert play_integrity.evaluate_request_token("fake-token", CLIENT_KEY)["block"] is False
+    assert play_integrity.evaluate_request_token("fake-token", CLIENT_KEY)["block"] is True
 
     monkeypatch.setattr(
         play_integrity,
         "verify_token",
         lambda token, api_key="": {"status": "error", "detail": "google timeout"},
     )
-    assert play_integrity.evaluate_request_token("fake-token", CLIENT_KEY)["block"] is False
+    assert play_integrity.evaluate_request_token("fake-token", CLIENT_KEY)["block"] is True
 
     monkeypatch.setattr(
         play_integrity,

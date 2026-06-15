@@ -410,6 +410,8 @@ data class InvoiceFieldsResponse(
     val emitent: String? = null,
     val cui: String? = null,
     val iban: String? = null,
+    @SerializedName("all_ibans") val allIbans: List<String> = emptyList(),
+    @SerializedName("payment_beneficiary") val paymentBeneficiary: String? = null,
     @SerializedName("nr_factura") val nrFactura: String? = null,
     @SerializedName("data_emitere") val dataEmitere: String? = null,
     val scadenta: String? = null,

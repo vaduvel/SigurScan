@@ -4127,6 +4127,11 @@ def test_orchestrated_invoice_uses_unredacted_text_for_payment_destination(monke
     invoice = payload["result"]["evidence"]["invoice"]
     assert invoice["fields"]["iban"] == "RO49AAAA1B31007593840000"
     assert "UNKNOWN_PAYMENT_DESTINATION" in invoice["fraud_flags"]
+    beneficiary_check = invoice["beneficiary_name_check"]
+    assert beneficiary_check["recommended"] is True
+    assert beneficiary_check["method"] == "bank_app_beneficiary_name_check"
+    assert beneficiary_check["expected_beneficiary"] == "PPC Energie S.A."
+    assert beneficiary_check["iban_masked_for_client"] == "RO49...0000"
     assert payload["result"]["user_risk_label"] == "SUSPECT"
     assert payload["result"]["is_final"] is True
 

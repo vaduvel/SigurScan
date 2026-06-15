@@ -201,6 +201,28 @@ internal fun orchestratedPreviewStillPending(preview: OrchestratedPreview?): Boo
         reason in setOf("urlscan_pending", "urlscan_screenshot_pending")
 }
 
+internal fun orchestratedEvidenceCompleteness(
+    preview: OrchestratedPreview?,
+    providerStates: Map<ProviderId, ProviderState>,
+    finalUrl: String?
+): EvidenceCompleteness {
+    if (orchestratedPreviewStillPending(preview)) return EvidenceCompleteness.PARTIAL_ONLINE
+    if (providerStates.values.any {
+            it.status in setOf(
+                ProviderStatus.PENDING,
+                ProviderStatus.TIMEOUT,
+                ProviderStatus.RATE_LIMITED,
+                ProviderStatus.ERROR
+            )
+        }
+    ) {
+        return EvidenceCompleteness.PARTIAL_ONLINE
+    }
+    if (!finalUrl.isNullOrBlank()) return EvidenceCompleteness.FULL
+    if (providerStates.values.any { it.status == ProviderStatus.OK }) return EvidenceCompleteness.PARTIAL_ONLINE
+    return EvidenceCompleteness.LOCAL_ONLY
+}
+
 internal fun shouldContinueOrchestratedPolling(response: OrchestratedScanResponse): Boolean {
     val status = response.status?.lowercase(Locale.US)
     if (response.result == null) return true
@@ -1879,8 +1901,13 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 redirectChain = chain,
                 threatIntel = threatIntel,
                 providerStates = providerStates,
+                backendEvidence = evidence,
                 backendReasons = response.reasons ?: emptyList(),
-                completeness = EvidenceCompleteness.FULL,
+                completeness = orchestratedEvidenceCompleteness(
+                    preview = preview,
+                    providerStates = providerStates,
+                    finalUrl = visualEvidenceUrl.takeIf { it.isNotBlank() }
+                ),
                 registryVersion = BrandKnowledgeRegistry.registryVersion(),
                 corpusVersion = BrandKnowledgeRegistry.corpusVersion(),
                 phishingDatabaseConfigured = true

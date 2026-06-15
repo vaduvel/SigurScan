@@ -9,6 +9,33 @@ import org.junit.Test
 
 class InvoiceModelTest {
     @Test
+    fun invoiceResponseParsesAllIbansAndPaymentBeneficiary() {
+        val json = """
+            {
+              "fields": {
+                "emitent": "ATELIER DIGITAL SIBIU SRL",
+                "cui": "12345678",
+                "iban": "RO33RNCB1234567890123456",
+                "all_ibans": [
+                  "RO33RNCB1234567890123456",
+                  "RO83BTRLRONCRT0299335701"
+                ],
+                "payment_beneficiary": "ION POPESCU"
+              },
+              "fraud_flags": ["MULTIPLE_IBANS", "BENEFICIARY_PERSON_MISMATCH"]
+            }
+        """.trimIndent()
+
+        val response = Gson().fromJson(json, InvoiceScanResponse::class.java)
+
+        assertEquals("ION POPESCU", response.fields?.paymentBeneficiary)
+        assertEquals(
+            listOf("RO33RNCB1234567890123456", "RO83BTRLRONCRT0299335701"),
+            response.fields?.allIbans
+        )
+    }
+
+    @Test
     fun invoiceResponseParsesBeneficiaryNameCheckGuidance() {
         val json = """
             {

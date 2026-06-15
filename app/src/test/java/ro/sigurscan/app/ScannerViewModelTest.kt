@@ -98,6 +98,38 @@ class ScannerViewModelTest {
     }
 
     @Test
+    fun finalPendingPreviewKeepsEvidenceCompletenessPartial() {
+        val completeness = orchestratedEvidenceCompleteness(
+            preview = OrchestratedPreview(
+                status = "pending",
+                reason = "urlscan_screenshot_pending",
+                finalUrl = "https://reconditionate.yoxo.ro/oferte-speciale"
+            ),
+            providerStates = mapOf(
+                ProviderId.WEB_RISK to ProviderState(ProviderId.WEB_RISK, ProviderStatus.OK),
+                ProviderId.URLSCAN to ProviderState(ProviderId.URLSCAN, ProviderStatus.PENDING)
+            ),
+            finalUrl = "https://reconditionate.yoxo.ro/oferte-speciale"
+        )
+
+        assertEquals(EvidenceCompleteness.PARTIAL_ONLINE, completeness)
+    }
+
+    @Test
+    fun backendEvidenceIsPassedToEvidenceNormalizerForOrchestratedResults() {
+        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val mapperStart = viewModelSource.indexOf("private fun buildAssessmentFromBackendScanResponse")
+        val mapperEnd = viewModelSource.indexOf("private fun buildPendingAssessmentFromOrchestratedResponse", mapperStart)
+        assertTrue("buildAssessmentFromBackendScanResponse must exist.", mapperStart >= 0 && mapperEnd > mapperStart)
+
+        val mapperBody = viewModelSource.substring(mapperStart, mapperEnd)
+        assertTrue(
+            "Backend evidence must be forwarded so infra DNS/RDAP/transport signals are not dropped.",
+            mapperBody.contains("backendEvidence = evidence")
+        )
+    }
+
+    @Test
     fun readyPreviewStopsPollingAfterFinalVerdict() {
         val response = OrchestratedScanResponse(
             scanId = "orch-yoxo-preview-ready",

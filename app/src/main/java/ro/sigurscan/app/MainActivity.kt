@@ -5434,6 +5434,17 @@ fun InvoiceResultCard(result: InvoiceScanResponse, onBack: () -> Unit) {
                 InvoiceFieldRow("Tip factură", profileLabel)
                 InvoiceFieldRow("CUI", f.cui ?: "—")
                 InvoiceFieldRow("IBAN", f.iban ?: "—")
+                f.paymentBeneficiary?.takeIf { it.isNotBlank() }?.let {
+                    InvoiceFieldRow("Beneficiar plată", it)
+                }
+                f.allIbans
+                    .filter { it.isNotBlank() }
+                    .distinct()
+                    .filter { it != f.iban }
+                    .takeIf { it.isNotEmpty() }
+                    ?.let { ibans ->
+                        InvoiceFieldRow("Alte IBAN-uri", ibans.joinToString(" · "))
+                    }
                 InvoiceFieldRow("Nr. Factură", f.nrFactura ?: "—")
                 InvoiceFieldRow("Data", f.dataEmitere ?: "—")
                 InvoiceFieldRow("Scadența", f.scadenta ?: "—")

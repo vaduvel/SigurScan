@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import re
+import time
 from typing import Dict, Optional, Set
 
 from services.iban_validator import normalize_iban, validate_iban
 
 _memory: Dict[str, Set[str]] = {}
+_last_reload_at = 0.0
+RELOAD_TTL_SECONDS = 300
 
 
 def _norm_cui(cui: Optional[str]) -> str:
@@ -13,16 +16,19 @@ def _norm_cui(cui: Optional[str]) -> str:
 
 
 def known_ibans_for_cui(cui: Optional[str]) -> Set[str]:
+    _ensure_loaded()
     return set(_memory.get(_norm_cui(cui), set()))
 
 
 def iban_changed_for_cui(cui: Optional[str], iban: Optional[str]) -> bool:
+    _ensure_loaded()
     known = _memory.get(_norm_cui(cui))
     norm = normalize_iban(iban or "")
     return bool(known) and bool(norm) and norm not in known
 
 
 def remember_invoice_iban(cui: Optional[str], iban: Optional[str]) -> bool:
+    _ensure_loaded()
     normalized_cui = _norm_cui(cui)
     norm = normalize_iban(iban or "")
     if not normalized_cui or not norm or not validate_iban(norm).valid_structure:
@@ -37,16 +43,29 @@ def remember_invoice_iban(cui: Optional[str], iban: Optional[str]) -> bool:
     return True
 
 
+def _ensure_loaded() -> None:
+    global _last_reload_at
+    now = time.time()
+    if _memory and now - _last_reload_at < RELOAD_TTL_SECONDS:
+        return
+    if not _memory or now - _last_reload_at >= RELOAD_TTL_SECONDS:
+        reload()
+
+
 def reload() -> None:
-    _memory.clear()
+    global _last_reload_at
     try:
         from services import supabase_store
 
         rows = supabase_store.load_vendor_ibans()
     except Exception:
         return
+    loaded: Dict[str, Set[str]] = {}
     for row in rows or []:
         normalized_cui = _norm_cui(row.get("cui"))
         norm = normalize_iban(str(row.get("iban") or ""))
         if normalized_cui and norm and validate_iban(norm).valid_structure:
-            _memory.setdefault(normalized_cui, set()).add(norm)
+            loaded.setdefault(normalized_cui, set()).add(norm)
+    _memory.clear()
+    _memory.update(loaded)
+    _last_reload_at = time.time()
