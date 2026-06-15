@@ -1,7 +1,7 @@
 """URL reputation aggregation service with multi-source support.
 
 This module performs:
-- multi-source lookups (Google Web Risk, Phishing.Database, URLhaus);
+- multi-source lookups (Google Web Risk, Phishing.Database, URLhaus, Scam-Blocklist NRD);
 - per-source confidence scoring;
 - cache-safe persistence with source metadata;
 - aggregated verdict/reputation payload used by ScamAtlas.
@@ -25,16 +25,19 @@ from services.google_web_risk import check_urls_against_web_risk, has_web_risk_k
 WEB_RISK_SOURCE = "google_web_risk"
 PHISHING_DATABASE_SOURCE = "phishing_database"
 URLHAUS_SOURCE = "urlhaus"
+SCAM_BLOCKLIST_NRD_SOURCE = "scam_blocklist_nrd"
 
 WEB_RISK_WEIGHT = 60
 PHISHING_DATABASE_WEIGHT = 80
 URLHAUS_WEIGHT = 55
-SOURCE_ORDER = [WEB_RISK_SOURCE, PHISHING_DATABASE_SOURCE, URLHAUS_SOURCE]
+SCAM_BLOCKLIST_NRD_WEIGHT = 70
+SOURCE_ORDER = [WEB_RISK_SOURCE, PHISHING_DATABASE_SOURCE, URLHAUS_SOURCE, SCAM_BLOCKLIST_NRD_SOURCE]
 
 SOURCE_WEIGHTS = {
     WEB_RISK_SOURCE: WEB_RISK_WEIGHT,
     PHISHING_DATABASE_SOURCE: PHISHING_DATABASE_WEIGHT,
     URLHAUS_SOURCE: URLHAUS_WEIGHT,
+    SCAM_BLOCKLIST_NRD_SOURCE: SCAM_BLOCKLIST_NRD_WEIGHT,
 }
 
 SOURCE_STATUS_WEIGHTS = {
@@ -45,7 +48,7 @@ SOURCE_STATUS_WEIGHTS = {
     "error": 0.0,
 }
 
-REPUTATION_CACHE_VERSION = 3
+REPUTATION_CACHE_VERSION = 4
 PHISHING_DATABASE_DOMAINS_URL = os.getenv(
     "PHISHING_DATABASE_DOMAINS_URL",
     "https://raw.githubusercontent.com/Phishing-Database/Phishing.Database/master/phishing-domains-ACTIVE.txt",
@@ -55,8 +58,15 @@ PHISHING_DATABASE_LINKS_URL = os.getenv(
     "https://phish.co.za/latest/phishing-links-ACTIVE.txt",
 )
 URLHAUS_API_URL = "https://urlhaus-api.abuse.ch/v1/url/"
+SCAM_BLOCKLIST_NRD_URL = os.getenv(
+    "SCAM_BLOCKLIST_NRD_URL",
+    "https://raw.githubusercontent.com/jarelllama/Scam-Blocklist/main/lists/wildcard_domains/scams.txt",
+)
+SCAM_BLOCKLIST_NRD_LICENSE = "GPL-3.0"
 PHISHING_DATABASE_TIMEOUT_SECONDS = float(os.getenv("PHISHING_DATABASE_TIMEOUT_SECONDS", "4.0"))
 PHISHING_DATABASE_FEED_TTL_SECONDS = int(os.getenv("PHISHING_DATABASE_FEED_TTL_SECONDS", "3600"))
+SCAM_BLOCKLIST_NRD_TIMEOUT_SECONDS = float(os.getenv("SCAM_BLOCKLIST_NRD_TIMEOUT_SECONDS", "4.0"))
+SCAM_BLOCKLIST_NRD_FEED_TTL_SECONDS = int(os.getenv("SCAM_BLOCKLIST_NRD_FEED_TTL_SECONDS", "21600"))
 URLHAUS_TIMEOUT_SECONDS = float(os.getenv("URLHAUS_TIMEOUT_SECONDS", "3.0"))
 URLHAUS_AUTH_KEY = (
     os.getenv("URLHAUS_AUTH_KEY", "").strip()
@@ -69,13 +79,27 @@ ENABLE_PHISHING_DATABASE = os.getenv("ENABLE_PHISHING_DATABASE", "true").strip()
     "yes",
     "on",
 }
+ENABLE_SCAM_BLOCKLIST_NRD = os.getenv("ENABLE_SCAM_BLOCKLIST_NRD", "false").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 PHISHING_DATABASE_MAX_FEED_BYTES = int(os.getenv("PHISHING_DATABASE_MAX_FEED_BYTES", "20000000"))
+SCAM_BLOCKLIST_NRD_MAX_FEED_BYTES = int(os.getenv("SCAM_BLOCKLIST_NRD_MAX_FEED_BYTES", "30000000"))
 
 _PHISHING_DATABASE_CACHE: Dict[str, Any] = {
     "loaded_at": 0,
     "domains": set(),
     "links": set(),
     "error": None,
+}
+_SCAM_BLOCKLIST_NRD_CACHE: Dict[str, Any] = {
+    "loaded_at": 0,
+    "domains": set(),
+    "error": None,
+    "source_url": SCAM_BLOCKLIST_NRD_URL,
+    "license": SCAM_BLOCKLIST_NRD_LICENSE,
 }
 
 DEFAULT_CACHE_TTL_SECONDS = int(os.getenv("URL_REPUTATION_CACHE_TTL_SECONDS", "43200"))
@@ -246,6 +270,7 @@ def _cache_entry_covers_requested_sources(
     *,
     include_phishing_database: bool,
     include_urlhaus: bool,
+    include_scam_blocklist_nrd: bool,
     urlhaus_key: str,
     web_risk_enabled: bool,
 ) -> bool:
@@ -260,6 +285,8 @@ def _cache_entry_covers_requested_sources(
         required_sources.append(PHISHING_DATABASE_SOURCE)
     if include_urlhaus and urlhaus_key:
         required_sources.append(URLHAUS_SOURCE)
+    if include_scam_blocklist_nrd and ENABLE_SCAM_BLOCKLIST_NRD:
+        required_sources.append(SCAM_BLOCKLIST_NRD_SOURCE)
 
     for source_name in required_sources:
         source_payload = sources.get(source_name)
@@ -511,11 +538,16 @@ def _parse_urlhaus_record(payload: Dict[str, Any]) -> Dict[str, Any]:
     return {}
 
 
-def _download_text_feed(url: str) -> str:
-    response = requests.get(url, timeout=PHISHING_DATABASE_TIMEOUT_SECONDS)
+def _download_text_feed(
+    url: str,
+    *,
+    timeout_seconds: float = PHISHING_DATABASE_TIMEOUT_SECONDS,
+    max_bytes: int = PHISHING_DATABASE_MAX_FEED_BYTES,
+) -> str:
+    response = requests.get(url, timeout=timeout_seconds)
     response.raise_for_status()
-    content = response.content[:PHISHING_DATABASE_MAX_FEED_BYTES + 1]
-    if len(content) > PHISHING_DATABASE_MAX_FEED_BYTES:
+    content = response.content[:max_bytes + 1]
+    if len(content) > max_bytes:
         raise ValueError(f"feed_too_large:{url}")
     return content.decode("utf-8", errors="ignore")
 
@@ -528,6 +560,28 @@ def _feed_lines(text: str) -> set[str]:
             continue
         values.add(line.lower())
     return values
+
+
+def _scam_blocklist_domain_lines(text: str) -> set[str]:
+    domains: set[str] = set()
+    for raw_line in text.splitlines():
+        line = raw_line.strip().lower()
+        if not line or line.startswith("#") or line.startswith("!"):
+            continue
+        if line.startswith("0.0.0.0 ") or line.startswith("127.0.0.1 "):
+            parts = line.split()
+            line = parts[1] if len(parts) > 1 else ""
+        if line.startswith("||"):
+            line = line[2:]
+        if line.startswith("*."):
+            line = line[2:]
+        line = line.rstrip("^").strip(".")
+        if not line or "/" in line or "$" in line or "[" in line or "]" in line:
+            continue
+        if " " in line or "\t" in line or "." not in line:
+            continue
+        domains.add(line)
+    return domains
 
 
 def _load_phishing_database_feeds() -> Dict[str, Any]:
@@ -566,6 +620,47 @@ def _load_phishing_database_feeds() -> Dict[str, Any]:
             })
         _PHISHING_DATABASE_CACHE["error"] = str(exc)
     return _PHISHING_DATABASE_CACHE
+
+
+def _load_scam_blocklist_nrd_feed() -> Dict[str, Any]:
+    now = int(time.time())
+    cached_at = _coerce_int(_SCAM_BLOCKLIST_NRD_CACHE.get("loaded_at", 0), 0)
+    if cached_at and now - cached_at < SCAM_BLOCKLIST_NRD_FEED_TTL_SECONDS:
+        return _SCAM_BLOCKLIST_NRD_CACHE
+
+    if not ENABLE_SCAM_BLOCKLIST_NRD:
+        _SCAM_BLOCKLIST_NRD_CACHE.update({
+            "loaded_at": now,
+            "domains": set(),
+            "error": "disabled",
+            "source_url": SCAM_BLOCKLIST_NRD_URL,
+            "license": SCAM_BLOCKLIST_NRD_LICENSE,
+        })
+        return _SCAM_BLOCKLIST_NRD_CACHE
+
+    try:
+        text = _download_text_feed(
+            SCAM_BLOCKLIST_NRD_URL,
+            timeout_seconds=SCAM_BLOCKLIST_NRD_TIMEOUT_SECONDS,
+            max_bytes=SCAM_BLOCKLIST_NRD_MAX_FEED_BYTES,
+        )
+        _SCAM_BLOCKLIST_NRD_CACHE.update({
+            "loaded_at": now,
+            "domains": _scam_blocklist_domain_lines(text),
+            "error": None,
+            "source_url": SCAM_BLOCKLIST_NRD_URL,
+            "license": SCAM_BLOCKLIST_NRD_LICENSE,
+        })
+    except Exception as exc:
+        if not _SCAM_BLOCKLIST_NRD_CACHE.get("domains"):
+            _SCAM_BLOCKLIST_NRD_CACHE.update({
+                "loaded_at": now,
+                "domains": set(),
+                "source_url": SCAM_BLOCKLIST_NRD_URL,
+                "license": SCAM_BLOCKLIST_NRD_LICENSE,
+            })
+        _SCAM_BLOCKLIST_NRD_CACHE["error"] = str(exc)
+    return _SCAM_BLOCKLIST_NRD_CACHE
 
 
 def _canonical_url_variants(url: str) -> set[str]:
@@ -664,6 +759,89 @@ def _fetch_phishing_database(urls: List[str]) -> Dict[str, Dict[str, Any]]:
                 "provider": "phishing_database",
                 "domains_loaded": len(domains),
                 "links_loaded": len(links),
+            },
+            "query_ms": query_ms,
+        }
+    return output
+
+
+def _fetch_scam_blocklist_nrd(urls: List[str]) -> Dict[str, Dict[str, Any]]:
+    output: Dict[str, Dict[str, Any]] = {}
+    if not ENABLE_SCAM_BLOCKLIST_NRD:
+        for url in urls:
+            output[_url_hash(url)] = {
+                "status": "unknown",
+                "consulted": False,
+                "threat_type": "unknown",
+                "score": 0,
+                "details": {
+                    "status": "disabled",
+                    "provider": SCAM_BLOCKLIST_NRD_SOURCE,
+                    "source_url": SCAM_BLOCKLIST_NRD_URL,
+                    "license": SCAM_BLOCKLIST_NRD_LICENSE,
+                },
+                "query_ms": 0,
+            }
+        return output
+
+    start = time.perf_counter()
+    feed = _load_scam_blocklist_nrd_feed()
+    query_ms = int((time.perf_counter() - start) * 1000)
+    domains = feed.get("domains") if isinstance(feed.get("domains"), set) else set()
+    error = feed.get("error")
+    source_url = str(feed.get("source_url") or SCAM_BLOCKLIST_NRD_URL)
+    license_name = str(feed.get("license") or SCAM_BLOCKLIST_NRD_LICENSE)
+
+    for url in urls:
+        key = _url_hash(url)
+        if error and not domains:
+            output[key] = {
+                "status": "error",
+                "consulted": True,
+                "threat_type": "error",
+                "score": 0,
+                "details": {
+                    "error": str(error),
+                    "provider": SCAM_BLOCKLIST_NRD_SOURCE,
+                    "source_url": source_url,
+                    "license": license_name,
+                },
+                "query_ms": query_ms,
+            }
+            continue
+
+        matched_domain = _domain_matches_feed(_host_from_url(url), domains)
+        if matched_domain:
+            output[key] = {
+                "status": "suspicious",
+                "consulted": True,
+                "threat_type": "scam_nrd",
+                "score": 60,
+                "details": {
+                    "provider": SCAM_BLOCKLIST_NRD_SOURCE,
+                    "status": "listed",
+                    "match_type": "domain",
+                    "matched_value": matched_domain,
+                    "domains_loaded": len(domains),
+                    "feed_version_loaded_at": _coerce_int(feed.get("loaded_at", 0), 0),
+                    "source_url": source_url,
+                    "license": license_name,
+                },
+                "query_ms": query_ms,
+            }
+            continue
+
+        output[key] = {
+            "status": "clean",
+            "consulted": True,
+            "threat_type": "unknown",
+            "score": 0,
+            "details": {
+                "status": "not_listed",
+                "provider": SCAM_BLOCKLIST_NRD_SOURCE,
+                "domains_loaded": len(domains),
+                "source_url": source_url,
+                "license": license_name,
             },
             "query_ms": query_ms,
         }
@@ -820,6 +998,7 @@ def get_reputation_for_urls(
     *,
     include_phishing_database: bool = True,
     include_urlhaus: bool = True,
+    include_scam_blocklist_nrd: bool = False,
     persist_partial: bool = False,
 ) -> Dict[str, Dict[str, Any]]:
     """
@@ -860,6 +1039,7 @@ def get_reputation_for_urls(
                 cached_entry,
                 include_phishing_database=bool(include_phishing_database),
                 include_urlhaus=include_urlhaus,
+                include_scam_blocklist_nrd=include_scam_blocklist_nrd,
                 urlhaus_key=urlhaus_key,
                 web_risk_enabled=web_risk_enabled,
             )
@@ -872,7 +1052,14 @@ def get_reputation_for_urls(
         web_risk_matches = check_urls_against_web_risk(need_fetch) if web_risk_enabled else {}
         phishing_database_matches = _fetch_phishing_database(need_fetch) if include_phishing_database else {}
         urlhaus_matches = _fetch_urlhaus(need_fetch, urlhaus_key) if include_urlhaus else {}
-        should_persist_results = persist_partial or (bool(include_phishing_database) and include_urlhaus)
+        scam_blocklist_nrd_matches = (
+            _fetch_scam_blocklist_nrd(need_fetch) if include_scam_blocklist_nrd else {}
+        )
+        should_persist_results = persist_partial or (
+            bool(include_phishing_database)
+            and include_urlhaus
+            and (not include_scam_blocklist_nrd or ENABLE_SCAM_BLOCKLIST_NRD)
+        )
 
         for url in need_fetch:
             key = _url_hash(url)
@@ -923,6 +1110,30 @@ def get_reputation_for_urls(
                 "details": urlhaus_entry.get("details", {}),
                 "score": _coerce_int(urlhaus_entry.get("score", 0), 0),
                 "query_ms": _coerce_int(urlhaus_entry.get("query_ms", 0), 0),
+            }
+
+            scam_blocklist_default_error = "skipped_fast_scan" if not include_scam_blocklist_nrd else "not_scanned"
+            scam_blocklist_nrd_entry = scam_blocklist_nrd_matches.get(key, {
+                "status": "unknown" if not include_scam_blocklist_nrd else "error",
+                "threat_type": "unknown" if not include_scam_blocklist_nrd else "error",
+                "score": 0,
+                "details": {
+                    "status": (
+                        "disabled"
+                        if include_scam_blocklist_nrd and not ENABLE_SCAM_BLOCKLIST_NRD
+                        else scam_blocklist_default_error
+                    ),
+                    "provider": SCAM_BLOCKLIST_NRD_SOURCE,
+                },
+                "query_ms": 0,
+            })
+            per_source[SCAM_BLOCKLIST_NRD_SOURCE] = {
+                "status": scam_blocklist_nrd_entry.get("status", "unknown"),
+                "consulted": bool(include_scam_blocklist_nrd and ENABLE_SCAM_BLOCKLIST_NRD),
+                "threat_type": scam_blocklist_nrd_entry.get("threat_type", "unknown"),
+                "details": scam_blocklist_nrd_entry.get("details", {}),
+                "score": _coerce_int(scam_blocklist_nrd_entry.get("score", 0), 0),
+                "query_ms": _coerce_int(scam_blocklist_nrd_entry.get("query_ms", 0), 0),
             }
 
             aggregated = _aggregate_reputation(url, per_source)

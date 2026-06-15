@@ -3230,6 +3230,7 @@ def test_orchestrated_urlhaus_stage_collects_urlhaus_once(monkeypatch):
         {
             "include_phishing_database": False,
             "include_urlhaus": True,
+            "include_scam_blocklist_nrd": False,
             "persist_partial": False,
         }
     ]
@@ -6397,7 +6398,13 @@ def test_reputation_uses_phishing_database_feed_as_active_provider(monkeypatch, 
 
     assert result[key]["sources"]["phishing_database"]["consulted"] is True
     assert result[key]["sources"]["phishing_database"]["status"] == "malicious"
-    assert set(result[key]["sources"]) == {"google_web_risk", "phishing_database", "urlhaus"}
+    assert set(result[key]["sources"]) == {
+        "google_web_risk",
+        "phishing_database",
+        "urlhaus",
+        "scam_blocklist_nrd",
+    }
+    assert result[key]["sources"]["scam_blocklist_nrd"]["consulted"] is False
     assert result[key]["verdict"] == "malicious"
 
 
@@ -6574,6 +6581,116 @@ def test_urlhaus_uses_auth_key_header_and_form_payload(monkeypatch):
     assert captured["data"] == {"url": "https://example.com/path"}
     assert result[key]["status"] == "clean"
     assert result[key]["details"]["status"] == "not_listed"
+
+
+def test_scam_blocklist_nrd_marks_listed_domain_suspicious(monkeypatch):
+    monkeypatch.setattr(url_reputation, "ENABLE_SCAM_BLOCKLIST_NRD", True)
+    monkeypatch.setattr(
+        url_reputation,
+        "_load_scam_blocklist_nrd_feed",
+        lambda: {
+            "loaded_at": int(time.time()),
+            "domains": {"new-scam.example"},
+            "error": None,
+            "source_url": "https://raw.githubusercontent.com/jarelllama/Scam-Blocklist/main/lists/wildcard_domains/scams.txt",
+            "license": "GPL-3.0",
+        },
+    )
+
+    result = url_reputation._fetch_scam_blocklist_nrd(["https://new-scam.example/login"])
+    key = url_reputation._url_hash("https://new-scam.example/login")
+
+    assert result[key]["status"] == "suspicious"
+    assert result[key]["threat_type"] == "scam_nrd"
+    assert result[key]["details"]["provider"] == "scam_blocklist_nrd"
+    assert result[key]["details"]["match_type"] == "domain"
+    assert result[key]["details"]["license"] == "GPL-3.0"
+
+
+def test_scam_blocklist_nrd_clean_when_disabled(monkeypatch):
+    monkeypatch.setattr(url_reputation, "ENABLE_SCAM_BLOCKLIST_NRD", False)
+
+    result = url_reputation._fetch_scam_blocklist_nrd(["https://example.com/path"])
+    key = url_reputation._url_hash("https://example.com/path")
+
+    assert result[key]["status"] == "unknown"
+    assert result[key]["consulted"] is False
+    assert result[key]["details"]["status"] == "disabled"
+
+
+def test_reputation_uses_scam_blocklist_nrd_as_separate_provider(monkeypatch, tmp_path):
+    cache_path = tmp_path / "url_reputation_cache.json"
+    url = "https://fresh-fraud.example/login"
+    key = url_reputation._url_hash(url)
+
+    monkeypatch.setattr(url_reputation, "ENABLE_URL_REPUTATION", True)
+    monkeypatch.setattr(url_reputation, "ENABLE_SCAM_BLOCKLIST_NRD", True)
+    monkeypatch.setattr(url_reputation, "REPUTATION_CACHE_PATH", cache_path)
+    monkeypatch.setattr(url_reputation, "_load_cache", lambda path: {})
+    monkeypatch.setattr(url_reputation, "_save_cache", lambda path, data, remote_subset=None: None)
+    monkeypatch.setattr(url_reputation, "has_web_risk_key", lambda: True)
+    monkeypatch.setattr(url_reputation, "check_urls_against_web_risk", lambda urls: {})
+    monkeypatch.setattr(
+        url_reputation,
+        "_fetch_phishing_database",
+        lambda urls: {
+            key: {"status": "clean", "threat_type": "unknown", "score": 0, "details": {"status": "not_listed"}}
+        },
+    )
+    monkeypatch.setattr(
+        url_reputation,
+        "_fetch_urlhaus",
+        lambda urls, auth_key=None: {
+            key: {"status": "clean", "threat_type": "unknown", "score": 0, "details": {"status": "not_listed"}}
+        },
+    )
+    monkeypatch.setattr(
+        url_reputation,
+        "_fetch_scam_blocklist_nrd",
+        lambda urls: {
+            key: {
+                "status": "suspicious",
+                "threat_type": "scam_nrd",
+                "score": 60,
+                "details": {"provider": "scam_blocklist_nrd", "matched_value": "fresh-fraud.example"},
+            }
+        },
+    )
+
+    result = url_reputation.get_reputation_for_urls(
+        [url],
+        include_phishing_database=True,
+        include_urlhaus=True,
+        include_scam_blocklist_nrd=True,
+    )
+
+    assert result[key]["sources"]["scam_blocklist_nrd"]["consulted"] is True
+    assert result[key]["sources"]["scam_blocklist_nrd"]["status"] == "suspicious"
+    assert "scam_blocklist_nrd" in result[key]["active_sources"]
+    assert result[key]["verdict"] == "suspicious"
+
+
+def test_external_intel_summary_marks_scam_blocklist_nrd_hit():
+    summary = app_main._external_intel_summary_from_threat_intel(
+        {
+            "https://fresh-fraud.example/": {
+                "verdict": "suspicious",
+                "risk_score": 60,
+                "sources": {
+                    "scam_blocklist_nrd": {
+                        "status": "suspicious",
+                        "consulted": True,
+                        "score": 60,
+                        "threat_type": "scam_nrd",
+                        "details": {"provider": "scam_blocklist_nrd"},
+                    }
+                },
+            }
+        }
+    )
+
+    assert summary["scam_blocklist_nrd"]["status"] == "suspicious"
+    assert summary["scam_blocklist_nrd"]["malicious_hit_count"] == 0
 
 
 def test_local_reputation_cache_is_lru_capped(monkeypatch):
@@ -7867,6 +7984,7 @@ def test_health_reports_provider_config_without_secrets(monkeypatch):
         patched.setenv("GOOGLE_WEB_RISK_API_KEY", "super-secret-webrisk")
         patched.setenv("URLHAUS_AUTH_KEY", "super-secret-urlhaus")
         patched.setenv("ENABLE_PHISHING_DATABASE", "true")
+        patched.setenv("ENABLE_SCAM_BLOCKLIST_NRD", "true")
         patched.setattr(app_main, "URLSCAN_API_KEY", "super-secret-urlscan")
         patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
         payload = app_main.read_health()
@@ -7876,6 +7994,8 @@ def test_health_reports_provider_config_without_secrets(monkeypatch):
     assert payload["config"]["providers"]["google_web_risk"]["configured"] is True
     assert payload["config"]["providers"]["phishing_database"]["configured"] is True
     assert payload["config"]["providers"]["urlhaus"]["configured"] is True
+    assert payload["config"]["providers"]["scam_blocklist_nrd"]["configured"] is True
+    assert payload["config"]["providers"]["scam_blocklist_nrd"]["source"] == "jarelllama/Scam-Blocklist"
     assert payload["config"]["providers"]["ai_explanation"]["configured"] is True
     assert "super-secret" not in serialized
 
