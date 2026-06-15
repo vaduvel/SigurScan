@@ -2903,6 +2903,23 @@ def test_orchestrated_post_accepts_without_running_providers(monkeypatch):
     assert payload["preview"]["screenshot_url"] is None
 
 
+def test_url_input_type_with_message_extracts_embedded_urls_instead_of_whole_text():
+    message = (
+        "Upgrade fara regrete. In YOXO Shop ai telefoane & gadgeturi noi sau reconditionate. "
+        "Vezi ofertele pe https://www.yoxo.ro/ si pe https://reconditionate.yoxo.ro/"
+    )
+
+    context = app_main._build_orchestrated_text_context(
+        app_main.OrchestratedScanRequest(input_type="url", text=message, source_channel="android_native")
+    )
+
+    assert context["input_type"] == "url"
+    assert context["raw_text"] == message
+    assert context["urls"] == ["https://www.yoxo.ro/", "https://reconditionate.yoxo.ro/"]
+    assert context["extra_fields"]["input_url"] == message
+    assert context["extra_fields"]["canonical_url"] == "https://www.yoxo.ro/"
+
+
 def test_orchestrated_first_poll_runs_fast_lane_without_publishing_final_verdict(monkeypatch):
     calls = []
     job = {

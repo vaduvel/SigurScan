@@ -6994,7 +6994,20 @@ def _build_orchestrated_text_context(payload: OrchestratedScanRequest) -> Dict[s
     source_channel = payload.source_channel or "android_native"
 
     if input_type == "url":
-        url = _canonicalize_url(_normalise_obfuscated_text(payload.url or payload.text or ""))
+        raw_input = _normalise_obfuscated_text(payload.url or payload.text or "").strip()
+        embedded_urls = extract_urls(raw_input)
+        if embedded_urls:
+            first_url = embedded_urls[0]
+            raw_text = raw_input if payload.text else f"Link: {first_url}"
+            return {
+                "input_type": "url",
+                "source_channel": source_channel,
+                "raw_text": raw_text,
+                "urls": embedded_urls,
+                "extra_fields": {"input_url": payload.url or payload.text, "canonical_url": first_url},
+            }
+
+        url = _canonicalize_url(raw_input)
         if not url:
             raise HTTPException(status_code=400, detail="URL invalid sau format neacceptat.")
         return {
