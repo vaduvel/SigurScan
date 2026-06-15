@@ -6,6 +6,28 @@ Main remote: `origin/main` este aliniat cu branch-ul verificat; commit-urile ult
 Production Cloud Run: `sigurscan-api-00053-d9d`
 Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:893832e`
 
+## Addendum 2026-06-15 — post provider expansion + YOXO parser fix
+
+- Branch verificat: `feature/osint-intel-pipeline`, commit live `e5a5e16`.
+- Cloud Run live: `sigurscan-api-00057-mfc`, 100% trafic, image `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/sigurscan/sigurscan-api:e5a5e16`.
+- Env live confirma `ENABLE_DNS_REPUTATION=true`, `ENABLE_SCAM_BLOCKLIST_NRD=true`, `ENABLE_PHISHDESTROY=true`.
+- Fix live: `input_type=url` cu mesaj complet extrage URL-urile reale din text in loc sa trateze tot mesajul ca un URL.
+- Backend full: `INVOICE_CACHE_HMAC_KEY=testkey PRIVACY_SAFE_MODE=false /opt/homebrew/bin/python3 -m pytest backend -q` -> `942 passed, 1 warning`.
+- Android JVM/debug: `JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew testDebugUnitTest assembleDebug` -> `BUILD SUCCESSFUL`.
+- Android release: `JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew assembleRelease bundleRelease` -> `BUILD SUCCESSFUL`.
+- Release APK: `app/build/outputs/apk/release/app-release.apk`, `63M`, SHA-256 `cb4da87feac38d404c1fd1401b4d084c4b20de9ca34335ea97a282731834d41d`.
+- Release AAB: `app/build/outputs/bundle/release/app-release.aab`, `61M`, SHA-256 `99deae719f22b522ac03185e3cd360082ce1f25591fdd851ef728cc1a1834d2d`.
+- Secret audit release APK/AAB: provider/admin/service secrets `embedded=false`; client API key warning ramane explicit pentru cheia client publica a aplicatiei.
+- Live YOXO exact (`www.yoxo.ro` + `reconditionate.yoxo.ro` in acelasi mesaj): `SAFE`, score `10`, `provider-gate-official-clean`, preview `ready`, URL-uri rezolvate corect la domenii `yoxo.ro`.
+- Live provider smoke post-deploy: `build/reports/live_provider_smoke_2026-06-15_after_e5a5e16.json` -> `5/5 passed`, `0 failed`.
+- Live contract smoke post-deploy: `build/reports/live_contract_smoke_2026-06-15_after_e5a5e16.json` -> `10/10 passed`, `0 failed`.
+- Edge/security post-deploy: `https://api.sigurscan.com/health` -> HTTP 200 cu `strict-transport-security`, `cache-control: no-store`, `x-sigurscan-edge: cloudflare`; `http://api.sigurscan.com/health` -> HTTP 308 spre HTTPS; scan fara API key -> HTTP 401.
+- Cloud Run logs pe revizia `sigurscan-api-00057-mfc`, `severity>=ERROR`, `freshness=2h`: `[]`.
+- Nokia C22 Android 13 vazut prin ADB (`3Z01Z3268Y392400836`). Instrumented tests reale pe device:
+  `JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=ro.sigurscan.app.AndroidUrlExtractorCompatibilityTest,ro.sigurscan.app.SharedIntentStreamExtractorInstrumentedTest,ro.sigurscan.app.SigurScanFixturePackDeviceE2ETest,ro.sigurscan.app.WhisperNativeRuntimeInstrumentedTest` -> `26/26`, `BUILD SUCCESSFUL`.
+- Dupa instrumented tests, release APK a fost reinstalat pe Nokia C22: `versionCode=1`, `versionName=1.0`, `targetSdk=36`, `lastUpdateTime=2026-06-15 08:12:13`.
+- Brutal de sincer: PR-0..PR-8 + provider expansion sunt live/testate pe backend, domeniu oficial si Android build/device. PR-9/PR-10 ramane corect numit Speaker Guard best-effort pentru apel pe difuzor, nu interceptare audio de apel si nu ASR real-time strict. CallScreening are in continuare nevoie de proba cu apel carrier real pentru semnatura finala “100% telefon fizic in conditii de retea”.
+
 ## Rezumat Brutal
 
 - Backend PR-5..PR-8 este deployat live si verificat pe endpoint-uri reale.
