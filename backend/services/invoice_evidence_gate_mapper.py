@@ -83,6 +83,8 @@ def build_invoice_bundle(result, redacted_text: str = "", source_channel: Option
         f in fraud_flags
         for f in ("FOREIGN_IBAN", "ACCOUNT_CHANGE_LANGUAGE", "IBAN_CHANGED_VS_HISTORY")
     )
+    # Factura cere card/CVV/OTP = cerere sensibilă HARD (nicio firmă reală nu o face).
+    sensitive_requested = "SENSITIVE_DATA_REQUESTED" in fraud_flags
     strong_fraud_combo = ("FOREIGN_IBAN" in fraud_flags) and ("ACCOUNT_CHANGE_LANGUAGE" in fraud_flags)
 
     provider_section = _provider_section(result)
@@ -127,10 +129,16 @@ def build_invoice_bundle(result, redacted_text: str = "", source_channel: Option
         # Completeness = am putut evalua. Un semnal de fraudă clar ÎNSEAMNĂ că am
         # evaluat (și am găsit o problemă) — altfel Rule 4 „insufficient_evidence"
         # ar înghiți semnalul de destinație la UNVERIFIED pe facturi fără brand.
-        "completeness": (brand_match is not None) or beneficiary_mismatch_flag or weak_fraud_flag,
+        "completeness": (brand_match is not None) or beneficiary_mismatch_flag
+        or weak_fraud_flag or sensitive_requested,
     }
 
-    request_section = {"sensitive": "transfer", "channel": "invoice", "completeness": True}
+    # Cerere de card/CVV/OTP pe factură → sensitive HARD; altfel transfer (valoare).
+    request_section = {
+        "sensitive": "card" if sensitive_requested else "transfer",
+        "channel": "invoice",
+        "completeness": True,
+    }
 
     # Semantic: nivelurile „medium" (readiness/fraudă slabă) se aplică întâi, iar
     # „high" (impersonare/beneficiar/combo BEC) se setează ULTIMUL ca să câștige —
@@ -142,7 +150,7 @@ def build_invoice_bundle(result, redacted_text: str = "", source_channel: Option
     if weak_fraud_flag:
         semantic_risk = "medium"
         semantic_reasons.append("Semnal de fraudă pe destinația plății")
-    if impersonation_risk or beneficiary_mismatch_flag or strong_fraud_combo:
+    if impersonation_risk or beneficiary_mismatch_flag or strong_fraud_combo or sensitive_requested:
         semantic_risk = "high"
         semantic_reasons.append("Impersonation risk detected")
     if coherence and not coherence.all_ok:

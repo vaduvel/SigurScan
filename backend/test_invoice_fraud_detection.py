@@ -381,3 +381,33 @@ class TestWhitelistRefinement:
         nir.reload_registry()
         assert nir.is_reported_fraud("SK0711110000001329100001")
         assert nir.is_reported_fraud("PL27114020040000300280926524")
+
+
+class TestSensitiveDataOnInvoice:
+    """Factura care cere card/CVV/OTP = cerere HARD (corpus RO: RO_SCN_016/F22
+    utility-bill «confirmă card»). Detector PARTAJAT cu ruta ofertă → DANGEROUS."""
+
+    @pytest.fixture(autouse=True)
+    def _clean(self):
+        from services import invoice_orchestrator as io
+        io._verdict_cache.clear()
+        yield
+
+    @pytest.mark.asyncio
+    async def test_factura_cere_card_e_periculos(self):
+        from services.invoice_evidence_gate_mapper import evaluate_invoice_verdict
+        r = await scan_invoice(
+            "Factura restanta Digi. Pentru a evita deconectarea, confirma datele "
+            "cardului si codul CVV pe link. Total 89 lei"
+        )
+        assert "SENSITIVE_DATA_REQUESTED" in r.fraud_flags
+        _, gate = evaluate_invoice_verdict(r, r.raw_text)
+        assert gate["label"] == "DANGEROUS"
+
+    @pytest.mark.asyncio
+    async def test_plata_cu_cardul_pe_portal_nu_e_fals_pozitiv(self):
+        r = await scan_invoice(
+            "Factura fiscala SC REAL SRL CUI RO12345678 IBAN RO49AAAA1B31007593840000 "
+            "Total 119 plata cu cardul pe portal sau virament"
+        )
+        assert "SENSITIVE_DATA_REQUESTED" not in r.fraud_flags

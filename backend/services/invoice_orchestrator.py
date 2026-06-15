@@ -281,6 +281,19 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
         fraud_flags.append("PAYMENT_PRESSURE")
     if len(fields.all_ibans or []) >= 2:
         fraud_flags.append("MULTIPLE_IBANS")
+    # Cerere de date sensibile pe o factură (card/CVV/OTP) — nicio firmă reală nu
+    # cere asta în factură. Detector PARTAJAT cu ruta ofertă (zero cod nou).
+    # Ancorat pe corpusul RO (RO_SCN_016/F22 utility-bill: «confirmă card», CARD_DATA_REQUEST).
+    try:
+        from services.offer_signals import CARD_CVV_OTP
+        if CARD_CVV_OTP.search(ocr_text or ""):
+            fraud_flags.append("SENSITIVE_DATA_REQUESTED")
+            warnings.append(
+                "Factura cere date de card/CVV/OTP — nicio firmă reală nu cere asta "
+                "într-o factură. NU completa și NU plăti."
+            )
+    except Exception:
+        pass
 
     # Vendor memory: IBAN schimbat față de istoricul curat al firmei (semnal BEC #1).
     from services import vendor_memory
