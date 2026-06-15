@@ -5299,13 +5299,32 @@ fun InvoiceResultCard(result: InvoiceScanResponse, onBack: () -> Unit) {
     val isError = result.error != null
     val hasWarnings = result.warnings?.isNotEmpty() == true
     val impersonation = result.brandMatch?.impersonationRisk == true
+    val gateLabel = result.verdictGate?.label?.uppercase(Locale.getDefault())
+    val fraudFlags = result.fraudFlags.orEmpty()
+    val reasonCodes = result.verdictGate?.reasonCodes.orEmpty()
 
     val tone = when {
         isError -> DSChipTone.Danger
+        gateLabel == "DANGEROUS" -> DSChipTone.Danger
+        gateLabel == "SUSPECT" -> DSChipTone.Suspect
+        gateLabel == "UNVERIFIED" -> DSChipTone.Pending
+        gateLabel == "SAFE" -> DSChipTone.Safe
         impersonation -> DSChipTone.Danger
+        fraudFlags.isNotEmpty() -> DSChipTone.Suspect
         hasWarnings -> DSChipTone.Suspect
         isReady -> DSChipTone.Safe
         else -> DSChipTone.Pending
+    }
+    val verdictText = when {
+        isError -> "Eroare"
+        gateLabel == "DANGEROUS" -> "Periculos"
+        gateLabel == "SUSPECT" -> "Suspect"
+        gateLabel == "UNVERIFIED" -> "Neverificat"
+        gateLabel == "SAFE" -> "Sigur"
+        impersonation -> "Pericol"
+        fraudFlags.isNotEmpty() || hasWarnings -> "Atenție"
+        isReady -> "Verificat"
+        else -> "Incert"
     }
 
     Card(
@@ -5319,16 +5338,7 @@ fun InvoiceResultCard(result: InvoiceScanResponse, onBack: () -> Unit) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Scanare Factură", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = SigurColors.TextPrimary)
                 Spacer(modifier = Modifier.weight(1f))
-                DSChip(
-                    when {
-                        isError -> "Eroare"
-                        impersonation -> "Pericol"
-                        hasWarnings -> "Atenție"
-                        isReady -> "Verificat"
-                        else -> "Incert"
-                    },
-                    tone = tone
-                )
+                DSChip(verdictText, tone = tone)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -5362,6 +5372,36 @@ fun InvoiceResultCard(result: InvoiceScanResponse, onBack: () -> Unit) {
                 InvoiceFieldRow("Brand detectat", brand, DSChipTone.Brand)
             }
 
+            result.verdictGate?.let { gate ->
+                Spacer(modifier = Modifier.height(8.dp))
+                InvoiceFieldRow(
+                    "Verdict final",
+                    listOfNotNull(verdictText, gate.riskScore?.let { "$it/100" }).joinToString(" · "),
+                    tone
+                )
+            }
+
+            result.paymentDestination?.let { destination ->
+                Spacer(modifier = Modifier.height(8.dp))
+                val destinationTone = when {
+                    destination.canContributeToSafe == true -> DSChipTone.Safe
+                    destination.brandMatches == false || destination.ibanMatches == false -> DSChipTone.Danger
+                    destination.matched == false -> DSChipTone.Pending
+                    else -> DSChipTone.Neutral
+                }
+                val destinationLabel = when {
+                    destination.canContributeToSafe == true -> "confirmată"
+                    destination.brandMatches == false -> "nu corespunde brandului"
+                    destination.ibanMatches == false -> "IBAN diferit"
+                    destination.matched == false -> "neconfirmată public"
+                    else -> destination.matchReason ?: "verificată parțial"
+                }
+                InvoiceFieldRow("Destinație plată", destinationLabel, destinationTone)
+                destination.matchedEntity?.takeIf { it.isNotBlank() }?.let {
+                    InvoiceFieldRow("Entitate găsită", it)
+                }
+            }
+
             result.iban?.let { iban ->
                 if (iban.valid != null) {
                     Spacer(modifier = Modifier.height(8.dp))
@@ -5372,6 +5412,22 @@ fun InvoiceResultCard(result: InvoiceScanResponse, onBack: () -> Unit) {
 
             result.beneficiaryNameCheck?.takeIf { it.recommended }?.let { check ->
                 InvoiceBeneficiaryNameCheck(check)
+            }
+
+            fraudFlags.takeIf { it.isNotEmpty() }?.let { flags ->
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("Semnale detectate:", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = SigurColors.Suspect)
+                flags.take(5).forEach { flag ->
+                    Text("• ${invoiceSignalLabel(flag)}", fontSize = 12.sp, color = SigurColors.TextSecondary, modifier = Modifier.padding(start = 8.dp, top = 4.dp))
+                }
+            }
+
+            reasonCodes.takeIf { it.isNotEmpty() }?.let { reasons ->
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("Motive verdict:", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = SigurColors.TextSecondary)
+                reasons.take(3).forEach { reason ->
+                    Text("• ${invoiceReasonLabel(reason)}", fontSize = 12.sp, color = SigurColors.TextSecondary, modifier = Modifier.padding(start = 8.dp, top = 4.dp))
+                }
             }
 
             result.warnings?.takeIf { it.isNotEmpty() }?.let { warnings ->
@@ -5393,6 +5449,36 @@ fun InvoiceResultCard(result: InvoiceScanResponse, onBack: () -> Unit) {
             }
         }
     }
+}
+
+private fun invoiceSignalLabel(code: String): String = when (code) {
+    "REPORTED_FRAUD_IBAN" -> "IBAN raportat în fraude"
+    "PAYMENT_DESTINATION_BRAND_MISMATCH" -> "Destinația plății nu corespunde brandului"
+    "UNKNOWN_PAYMENT_DESTINATION" -> "IBAN-ul nu este confirmat ca destinație oficială"
+    "BENEFICIARY_PERSON_MISMATCH" -> "Beneficiar persoană fizică pentru emitent firmă"
+    "FOREIGN_IBAN" -> "IBAN străin pentru o factură locală"
+    "ACCOUNT_CHANGE_LANGUAGE" -> "Text de schimbare cont bancar"
+    "PAYMENT_PRESSURE" -> "Presiune de plată rapidă"
+    "MULTIPLE_IBANS" -> "Mai multe IBAN-uri în document"
+    "OSIM_TRADEMARK_FEE_UNOFFICIAL_SENDER" -> "Taxă marcă/OSIM de la expeditor neoficial"
+    "OFFICIAL_REGISTRY_CLAIM_BUT_NO_PROVENANCE" -> "Pretinde registru oficial fără proveniență"
+    "URGENT_PAYMENT_OVERRIDE_NO_TICKET" -> "Plată urgentă fără comandă/tichet intern"
+    "LEGAL_DEMAND_PAYMENT_TO_NEW_IBAN" -> "Cerere legală/plată către IBAN nou"
+    "DOMAIN_RENEWAL_INVOICE_NO_EXISTING_VENDOR" -> "Factură domeniu/hosting de la furnizor necunoscut"
+    "SAAS_LICENSE_AUDIT_URGENT_PAYMENT" -> "Audit licențe/SaaS cu plată urgentă"
+    "PO_OR_OVERPAYMENT_RETURN_REQUEST" -> "PO/supraplată cu cerere de returnare"
+    "PAYROLL_OR_EMPLOYEE_DATA_REQUEST_VIA_INVOICE_THREAD" -> "Cerere date angajați în fir de factură"
+    "NEW_VENDOR_PUBLIC_PROCUREMENT_FEE" -> "Taxă achiziție publică/furnizor nou"
+    else -> code.replace('_', ' ').lowercase(Locale.getDefault()).replaceFirstChar { it.titlecase(Locale.getDefault()) }
+}
+
+private fun invoiceReasonLabel(code: String): String = when (code) {
+    "value_request_needs_verification" -> "Plata trebuie verificată înainte de transfer"
+    "semantic_high_risk_match" -> "Textul seamănă cu un tipar cunoscut de fraudă"
+    "positive_provenance_clean" -> "Proveniență pozitivă și semnale curate"
+    "provider_malicious" -> "Provider extern a raportat risc"
+    "provider_suspicious" -> "Provider extern a raportat suspiciuni"
+    else -> code.replace('_', ' ').lowercase(Locale.getDefault()).replaceFirstChar { it.titlecase(Locale.getDefault()) }
 }
 
 @Composable

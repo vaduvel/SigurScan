@@ -447,10 +447,27 @@ data class InvoiceIbanResponse(
 )
 
 data class InvoiceBrandMatchResponse(
-    @SerializedName("domain_matches") val domainMatches: Boolean,
-    @SerializedName("cui_matches") val cuiMatches: Boolean,
-    @SerializedName("iban_matches") val ibanMatches: Boolean,
-    @SerializedName("impersonation_risk") val impersonationRisk: Boolean,
+    @SerializedName("domain_matches") val domainMatches: Boolean? = null,
+    @SerializedName("cui_matches") val cuiMatches: Boolean? = null,
+    @SerializedName("iban_matches") val ibanMatches: Boolean? = null,
+    @SerializedName("impersonation_risk") val impersonationRisk: Boolean = false,
+)
+
+data class InvoicePaymentDestinationResponse(
+    val matched: Boolean? = null,
+    @SerializedName("brand_matches") val brandMatches: Boolean? = null,
+    @SerializedName("cui_matches") val cuiMatches: Boolean? = null,
+    @SerializedName("iban_matches") val ibanMatches: Boolean? = null,
+    @SerializedName("can_contribute_to_safe") val canContributeToSafe: Boolean? = null,
+    @SerializedName("matched_entity") val matchedEntity: String? = null,
+    @SerializedName("match_reason") val matchReason: String? = null,
+)
+
+data class InvoiceVerdictGateResponse(
+    val label: String? = null,
+    @SerializedName("risk_level") val riskLevel: String? = null,
+    @SerializedName("risk_score") val riskScore: Int? = null,
+    @SerializedName("reason_codes") val reasonCodes: List<String>? = null,
 )
 
 data class SanbCheckResponse(
@@ -484,8 +501,11 @@ data class InvoiceScanResponse(
     val iban: InvoiceIbanResponse? = null,
     val brand: String? = null,
     @SerializedName("brand_match") val brandMatch: InvoiceBrandMatchResponse? = null,
+    @SerializedName("payment_destination") val paymentDestination: InvoicePaymentDestinationResponse? = null,
     @SerializedName("beneficiary_name_check") val beneficiaryNameCheck: BeneficiaryNameCheckResponse? = null,
     val anaf: Map<String, Any>? = null,
+    @SerializedName("fraud_flags") val fraudFlags: List<String>? = null,
+    @SerializedName("verdict_gate") val verdictGate: InvoiceVerdictGateResponse? = null,
     val warnings: List<String>? = null,
     val error: String? = null,
     @SerializedName("ocr_warning") val ocrWarning: String? = null,

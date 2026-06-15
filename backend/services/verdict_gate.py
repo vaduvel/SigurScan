@@ -337,7 +337,12 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
         return _result("SUSPECT", ["community_report_only"], confidence=64)
 
     # ─── Rule 8c: Money transfer needs confirmed destination ───────────────
-    if value_sensitive and has_provenance and not _has_trusted_payment_destination(providers):
+    if (
+        value_sensitive
+        and has_provenance
+        and identity_status != "coherent"
+        and not _has_trusted_payment_destination(providers)
+    ):
         return _result("SUSPECT", ["value_request_needs_verification"], confidence=70)
 
     # ─── Rule 9: SAFE via positive provenance ──────────────────────────────

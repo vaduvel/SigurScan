@@ -3,6 +3,7 @@ package ro.sigurscan.app
 import com.google.gson.Gson
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -50,5 +51,49 @@ class InvoiceModelTest {
         assertEquals(true, response.beneficiaryNameCheck?.sanb?.payeeBankParticipant)
         assertEquals("RNCBROBU", response.beneficiaryNameCheck?.sanb?.bic)
         assertTrue(response.beneficiaryNameCheck?.privacyNote.orEmpty().contains("OTP"))
+    }
+
+    @Test
+    fun invoiceResponseParsesGateFlagsAndUnknownPaymentDestination() {
+        val json = """
+            {
+              "brand": "DIGI",
+              "brand_match": {
+                "domain_matches": null,
+                "cui_matches": true,
+                "iban_matches": null,
+                "impersonation_risk": false
+              },
+              "payment_destination": {
+                "matched": false,
+                "brand_matches": null,
+                "cui_matches": null,
+                "iban_matches": null,
+                "can_contribute_to_safe": false,
+                "matched_entity": null,
+                "match_reason": "unknown_payment_destination"
+              },
+              "fraud_flags": ["UNKNOWN_PAYMENT_DESTINATION"],
+              "verdict_gate": {
+                "label": "SUSPECT",
+                "risk_level": "medium",
+                "risk_score": 55,
+                "reason_codes": ["value_request_needs_verification"]
+              }
+            }
+        """.trimIndent()
+
+        val response = Gson().fromJson(json, InvoiceScanResponse::class.java)
+
+        assertNotNull(response.brandMatch)
+        assertNull(response.brandMatch?.domainMatches)
+        assertEquals(true, response.brandMatch?.cuiMatches)
+        assertNull(response.brandMatch?.ibanMatches)
+        assertEquals(false, response.paymentDestination?.matched)
+        assertEquals(false, response.paymentDestination?.canContributeToSafe)
+        assertEquals(listOf("UNKNOWN_PAYMENT_DESTINATION"), response.fraudFlags)
+        assertEquals("SUSPECT", response.verdictGate?.label)
+        assertEquals(55, response.verdictGate?.riskScore)
+        assertEquals(listOf("value_request_needs_verification"), response.verdictGate?.reasonCodes)
     }
 }
