@@ -1,12 +1,18 @@
 {
   "version": "2026-06-15",
-  "description": "Registru NEGATIV de IBAN-uri raportate ca fraudă (catâri/complici). Prinde cazul «firmă reală + IBAN complice» de la a doua victimă, determinist. Alimentat din alerte DNSC + rapoarte comunitare (Radar /v1/report) + cercetare (surse oficiale citate). În producție IBAN-urile se pot stoca hash-uite.",
+  "description": "Registru NEGATIV de IBAN-uri raportate ca fraudă (catâri/complici). Prinde cazul «firmă reală + IBAN complice» de la a doua victimă, determinist. Alimentat din alerte DNSC + rapoarte comunitare (Radar /v1/report) + cercetare (surse citate). În producție IBAN-urile se pot stoca hash-uite.",
   "source_kinds": ["dnsc_alert", "community_report", "press", "official_ip_office", "court"],
   "reported_ibans": [
     "MD40VI022512600001135EUR",
     "MD45ML022580000000013566",
     "EG490036000100011019780033566",
     "SK0711110000001329100001",
-    "PL27114020040000300280926524"
+    "PL27114020040000300280926524",
+    "RO80BACX0000000870599000",
+    "RO39CECEB20508RON3395189",
+    "RO12CECEC001946311534411",
+    "RO65RZBR0000060015648621",
+    "RO68BRDE080SV18429540800",
+    "RO88RNCB0075047497820001"
   ]
 }

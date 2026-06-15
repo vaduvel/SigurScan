@@ -149,7 +149,7 @@ BRAND_REGISTRY: Dict[str, BrandEntry] = {
         domains=["apanovabucuresti.ro"],
         cuis=["12276949"],
         trezorerie_only=False,
-        official_ibans=[],
+        official_ibans=["RO33BRDE450SV01059614500"],  # apanovabucuresti.ro contract (2026-06-15); incompletă → boost
     ),
     "cnadnr": BrandEntry(
         aliases=["cnadnr", "compania nationala de drumuri", "rovignieta"],
@@ -178,7 +178,7 @@ BRAND_REGISTRY: Dict[str, BrandEntry] = {
         domains=["posta-romana.ro", "ropost.ro"],
         cuis=["427130"],
         trezorerie_only=False,
-        official_ibans=[],
+        official_ibans=["RO23BPOS85002717790ROL02"],  # posta-romana.ro (2026-06-15); incompletă → boost
     ),
     "sameday": BrandEntry(
         aliases=["sameday", "sdy", "easybox"],
@@ -192,7 +192,7 @@ BRAND_REGISTRY: Dict[str, BrandEntry] = {
         domains=["cargus.ro"],
         cuis=["14533640"],
         trezorerie_only=False,
-        official_ibans=[],
+        official_ibans=["RO75RNCB0081104613950180"],  # cargus.ro taxa logistica (2026-06-15); incompletă → boost
     ),
     "dhl": BrandEntry(
         aliases=["dhl"],
@@ -236,7 +236,7 @@ BRAND_REGISTRY: Dict[str, BrandEntry] = {
         domains=["dedeman.ro"],
         cuis=["2816464"],
         trezorerie_only=False,
-        official_ibans=[],
+        official_ibans=["RO76RNCB0279014382090139", "RO75TREZ0615069XXX001476"],  # dedeman.ro plata online (2026-06-15)
     ),
     "kaufland": BrandEntry(
         aliases=["kaufland"],
@@ -351,7 +351,13 @@ BRAND_REGISTRY: Dict[str, BrandEntry] = {
         domains=["groupama.ro"],
         cuis=["6291812"],
         trezorerie_only=False,
-        official_ibans=[],
+        official_ibans=[
+            "RO53BTRL0130160100656313", "RO78BRDE450SV88175384500",
+            "RO54RNCB0082000537541809", "RO02BACX0000000030262147",
+            "RO36BTRL0130460100656313", "RO66BRDE450SV88175624500",
+            "RO27RNCB0082000537541810", "RO15BTRL0130260100656313",
+            "RO40BRDE450SV31665884500",
+        ],  # groupama.ro modalitati-de-plata (2026-06-15); incompletă → boost
     ),
     "allianz_tiriac": BrandEntry(
         aliases=["allianz", "allianz tiriac", "allianz-țiriac"],
@@ -365,7 +371,12 @@ BRAND_REGISTRY: Dict[str, BrandEntry] = {
         domains=["asirom.ro"],
         cuis=["26371010"],
         trezorerie_only=False,
-        official_ibans=[],
+        official_ibans=[
+            "RO92BTRLEURCRT0331106601", "RO96BTRLUSDCRT0331106601",
+            "RO98RNCB0082044182221925", "RO71RNCB0082044182221926",
+            "RO97RNCB0082044182220003", "RO50RZBR0000060002802114",
+            "RO98RZBR0000060002802123",
+        ],  # asirom.ro modalitati-de-plata (2026-06-15); incompletă → boost
     ),
     "omniasig": BrandEntry(
         aliases=["omniasig"],
