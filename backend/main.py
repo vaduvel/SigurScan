@@ -256,6 +256,12 @@ def _provider_config_status() -> Dict[str, Any]:
         "yes",
         "on",
     }
+    phishdestroy_enabled = os.getenv("ENABLE_PHISHDESTROY", "false").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
     urlhaus_configured = _env_present("URLHAUS_AUTH_KEY", "URLHAUS_API_KEY", "ABUSECH_AUTH_KEY")
     mistral_configured = _env_present("MISTRAL_API_KEY")
     gemini_configured = _env_present("GEMINI_API_KEY")
@@ -290,6 +296,13 @@ def _provider_config_status() -> Dict[str, Any]:
                 "policy": "open_feed_runtime_reputation",
                 "source": "jarelllama/Scam-Blocklist",
                 "license": "GPL-3.0",
+            },
+            "phishdestroy_destroylist": {
+                "configured": phishdestroy_enabled and not PRIVACY_SAFE_MODE,
+                "policy": "open_feed_runtime_reputation",
+                "source": "phishdestroy/destroylist",
+                "license": "MIT",
+                "api": "https://api.destroy.tools/v1",
             },
             "ai_explanation": {
                 "configured": (mistral_configured or gemini_configured) and ENABLE_CLOUD_AI_EXPLANATION,
@@ -1875,6 +1888,7 @@ def _gather_external_intel(
     include_phishing_database: bool = True,
     include_urlhaus: bool = True,
     include_scam_blocklist_nrd: bool = True,
+    include_phishdestroy: bool = True,
     persist_partial: bool = False,
 ) -> Dict[str, Dict[str, Any]]:
     if PRIVACY_SAFE_MODE:
@@ -1890,6 +1904,7 @@ def _gather_external_intel(
         include_phishing_database=include_phishing_database,
         include_urlhaus=include_urlhaus,
         include_scam_blocklist_nrd=include_scam_blocklist_nrd,
+        include_phishdestroy=include_phishdestroy,
         persist_partial=persist_partial,
     )
 
@@ -1901,6 +1916,7 @@ def _external_intel_provider_error(
     include_phishing_database: bool,
     include_urlhaus: bool,
     include_scam_blocklist_nrd: bool,
+    include_phishdestroy: bool,
 ) -> Dict[str, Dict[str, Any]]:
     safe_resolved_urls = sanitize_resolved_url_entries(resolved_urls)
     final_urls = [
@@ -1962,6 +1978,18 @@ def _external_intel_provider_error(
                     "error": error_message,
                 },
             }
+        if include_phishdestroy:
+            sources["phishdestroy_destroylist"] = {
+                "status": "error",
+                "consulted": True,
+                "threat_type": "error",
+                "score": 0,
+                "details": {
+                    "provider": "phishdestroy_destroylist",
+                    "error_type": error_type,
+                    "error": error_message,
+                },
+            }
         output[key] = {
             "url": final_url,
             "verdict": "unknown",
@@ -1985,6 +2013,7 @@ def _gather_external_intel_safe(
     include_phishing_database: bool,
     include_urlhaus: bool,
     include_scam_blocklist_nrd: bool = True,
+    include_phishdestroy: bool = True,
     persist_partial: bool = False,
 ) -> Dict[str, Dict[str, Any]]:
     try:
@@ -1993,6 +2022,7 @@ def _gather_external_intel_safe(
             include_phishing_database=include_phishing_database,
             include_urlhaus=include_urlhaus,
             include_scam_blocklist_nrd=include_scam_blocklist_nrd,
+            include_phishdestroy=include_phishdestroy,
             persist_partial=persist_partial,
         )
     except TypeError:
@@ -2007,6 +2037,7 @@ def _gather_external_intel_safe(
                 include_phishing_database=include_phishing_database,
                 include_urlhaus=include_urlhaus,
                 include_scam_blocklist_nrd=include_scam_blocklist_nrd,
+                include_phishdestroy=include_phishdestroy,
             )
     except Exception as exc:
         return _external_intel_provider_error(
@@ -2015,6 +2046,7 @@ def _gather_external_intel_safe(
             include_phishing_database=include_phishing_database,
             include_urlhaus=include_urlhaus,
             include_scam_blocklist_nrd=include_scam_blocklist_nrd,
+            include_phishdestroy=include_phishdestroy,
         )
 
 
@@ -2732,7 +2764,7 @@ def _provider_verdict_for_decision_bundle(
 
     suspicious_hits = [
         name
-        for name in ("scam_blocklist_nrd",)
+        for name in ("scam_blocklist_nrd", "phishdestroy_destroylist")
         if _source_consulted(summary, name) and _source_status(summary, name) == "suspicious"
     ]
     if suspicious_hits:
@@ -2770,6 +2802,7 @@ def _provider_verdict_for_decision_bundle(
         "urlscan.io",
         "urlhaus",
         "scam_blocklist_nrd",
+        "phishdestroy_destroylist",
         "ai_offer_web_check",
     ):
         raw = summary.get(name)
@@ -3619,7 +3652,15 @@ def _apply_provider_gate_verdict(
         missing_required_pillars.append("verificare oferta/claim")
     consulted_sources = [
         name
-        for name in ("google_web_risk", "phishing_database", "urlscan", "urlscan.io", "urlhaus", "scam_blocklist_nrd")
+        for name in (
+            "google_web_risk",
+            "phishing_database",
+            "urlscan",
+            "urlscan.io",
+            "urlhaus",
+            "scam_blocklist_nrd",
+            "phishdestroy_destroylist",
+        )
         if _source_ready(summary, name)
     ]
     consulted_sources = sorted(set(consulted_sources))
@@ -7960,6 +8001,7 @@ async def _refresh_orchestrated_job_impl(job: Dict[str, Any], request: Request) 
             include_phishing_database=False,
             include_urlhaus=True,
             include_scam_blocklist_nrd=False,
+            include_phishdestroy=False,
             persist_partial=False,
         )
         threat_intel = _merge_threat_intel_sources(existing_intel, urlhaus_intel)

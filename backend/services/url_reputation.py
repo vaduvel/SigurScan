@@ -1,7 +1,7 @@
 """URL reputation aggregation service with multi-source support.
 
 This module performs:
-- multi-source lookups (Google Web Risk, Phishing.Database, URLhaus, Scam-Blocklist NRD);
+- multi-source lookups (Google Web Risk, Phishing.Database, URLhaus, Scam-Blocklist NRD, PhishDestroy);
 - per-source confidence scoring;
 - cache-safe persistence with source metadata;
 - aggregated verdict/reputation payload used by ScamAtlas.
@@ -26,18 +26,27 @@ WEB_RISK_SOURCE = "google_web_risk"
 PHISHING_DATABASE_SOURCE = "phishing_database"
 URLHAUS_SOURCE = "urlhaus"
 SCAM_BLOCKLIST_NRD_SOURCE = "scam_blocklist_nrd"
+PHISHDESTROY_SOURCE = "phishdestroy_destroylist"
 
 WEB_RISK_WEIGHT = 60
 PHISHING_DATABASE_WEIGHT = 80
 URLHAUS_WEIGHT = 55
 SCAM_BLOCKLIST_NRD_WEIGHT = 70
-SOURCE_ORDER = [WEB_RISK_SOURCE, PHISHING_DATABASE_SOURCE, URLHAUS_SOURCE, SCAM_BLOCKLIST_NRD_SOURCE]
+PHISHDESTROY_WEIGHT = 70
+SOURCE_ORDER = [
+    WEB_RISK_SOURCE,
+    PHISHING_DATABASE_SOURCE,
+    URLHAUS_SOURCE,
+    SCAM_BLOCKLIST_NRD_SOURCE,
+    PHISHDESTROY_SOURCE,
+]
 
 SOURCE_WEIGHTS = {
     WEB_RISK_SOURCE: WEB_RISK_WEIGHT,
     PHISHING_DATABASE_SOURCE: PHISHING_DATABASE_WEIGHT,
     URLHAUS_SOURCE: URLHAUS_WEIGHT,
     SCAM_BLOCKLIST_NRD_SOURCE: SCAM_BLOCKLIST_NRD_WEIGHT,
+    PHISHDESTROY_SOURCE: PHISHDESTROY_WEIGHT,
 }
 
 SOURCE_STATUS_WEIGHTS = {
@@ -48,7 +57,7 @@ SOURCE_STATUS_WEIGHTS = {
     "error": 0.0,
 }
 
-REPUTATION_CACHE_VERSION = 4
+REPUTATION_CACHE_VERSION = 5
 PHISHING_DATABASE_DOMAINS_URL = os.getenv(
     "PHISHING_DATABASE_DOMAINS_URL",
     "https://raw.githubusercontent.com/Phishing-Database/Phishing.Database/master/phishing-domains-ACTIVE.txt",
@@ -63,10 +72,18 @@ SCAM_BLOCKLIST_NRD_URL = os.getenv(
     "https://raw.githubusercontent.com/jarelllama/Scam-Blocklist/main/lists/wildcard_domains/scams.txt",
 )
 SCAM_BLOCKLIST_NRD_LICENSE = "GPL-3.0"
+PHISHDESTROY_URL = os.getenv(
+    "PHISHDESTROY_URL",
+    "https://raw.githubusercontent.com/phishdestroy/destroylist/main/rootlist/formats/primary_active/domains.txt",
+)
+PHISHDESTROY_API_URL = os.getenv("PHISHDESTROY_API_URL", "https://api.destroy.tools/v1")
+PHISHDESTROY_LICENSE = "MIT"
 PHISHING_DATABASE_TIMEOUT_SECONDS = float(os.getenv("PHISHING_DATABASE_TIMEOUT_SECONDS", "4.0"))
 PHISHING_DATABASE_FEED_TTL_SECONDS = int(os.getenv("PHISHING_DATABASE_FEED_TTL_SECONDS", "3600"))
 SCAM_BLOCKLIST_NRD_TIMEOUT_SECONDS = float(os.getenv("SCAM_BLOCKLIST_NRD_TIMEOUT_SECONDS", "4.0"))
 SCAM_BLOCKLIST_NRD_FEED_TTL_SECONDS = int(os.getenv("SCAM_BLOCKLIST_NRD_FEED_TTL_SECONDS", "21600"))
+PHISHDESTROY_TIMEOUT_SECONDS = float(os.getenv("PHISHDESTROY_TIMEOUT_SECONDS", "4.0"))
+PHISHDESTROY_FEED_TTL_SECONDS = int(os.getenv("PHISHDESTROY_FEED_TTL_SECONDS", "7200"))
 URLHAUS_TIMEOUT_SECONDS = float(os.getenv("URLHAUS_TIMEOUT_SECONDS", "3.0"))
 URLHAUS_AUTH_KEY = (
     os.getenv("URLHAUS_AUTH_KEY", "").strip()
@@ -85,8 +102,15 @@ ENABLE_SCAM_BLOCKLIST_NRD = os.getenv("ENABLE_SCAM_BLOCKLIST_NRD", "false").stri
     "yes",
     "on",
 }
+ENABLE_PHISHDESTROY = os.getenv("ENABLE_PHISHDESTROY", "false").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 PHISHING_DATABASE_MAX_FEED_BYTES = int(os.getenv("PHISHING_DATABASE_MAX_FEED_BYTES", "20000000"))
 SCAM_BLOCKLIST_NRD_MAX_FEED_BYTES = int(os.getenv("SCAM_BLOCKLIST_NRD_MAX_FEED_BYTES", "30000000"))
+PHISHDESTROY_MAX_FEED_BYTES = int(os.getenv("PHISHDESTROY_MAX_FEED_BYTES", "10000000"))
 
 _PHISHING_DATABASE_CACHE: Dict[str, Any] = {
     "loaded_at": 0,
@@ -100,6 +124,14 @@ _SCAM_BLOCKLIST_NRD_CACHE: Dict[str, Any] = {
     "error": None,
     "source_url": SCAM_BLOCKLIST_NRD_URL,
     "license": SCAM_BLOCKLIST_NRD_LICENSE,
+}
+_PHISHDESTROY_CACHE: Dict[str, Any] = {
+    "loaded_at": 0,
+    "domains": set(),
+    "error": None,
+    "source_url": PHISHDESTROY_URL,
+    "api_url": PHISHDESTROY_API_URL,
+    "license": PHISHDESTROY_LICENSE,
 }
 
 DEFAULT_CACHE_TTL_SECONDS = int(os.getenv("URL_REPUTATION_CACHE_TTL_SECONDS", "43200"))
@@ -271,6 +303,7 @@ def _cache_entry_covers_requested_sources(
     include_phishing_database: bool,
     include_urlhaus: bool,
     include_scam_blocklist_nrd: bool,
+    include_phishdestroy: bool,
     urlhaus_key: str,
     web_risk_enabled: bool,
 ) -> bool:
@@ -287,6 +320,8 @@ def _cache_entry_covers_requested_sources(
         required_sources.append(URLHAUS_SOURCE)
     if include_scam_blocklist_nrd and ENABLE_SCAM_BLOCKLIST_NRD:
         required_sources.append(SCAM_BLOCKLIST_NRD_SOURCE)
+    if include_phishdestroy and ENABLE_PHISHDESTROY:
+        required_sources.append(PHISHDESTROY_SOURCE)
 
     for source_name in required_sources:
         source_payload = sources.get(source_name)
@@ -663,6 +698,50 @@ def _load_scam_blocklist_nrd_feed() -> Dict[str, Any]:
     return _SCAM_BLOCKLIST_NRD_CACHE
 
 
+def _load_phishdestroy_feed() -> Dict[str, Any]:
+    now = int(time.time())
+    cached_at = _coerce_int(_PHISHDESTROY_CACHE.get("loaded_at", 0), 0)
+    if cached_at and now - cached_at < PHISHDESTROY_FEED_TTL_SECONDS:
+        return _PHISHDESTROY_CACHE
+
+    if not ENABLE_PHISHDESTROY:
+        _PHISHDESTROY_CACHE.update({
+            "loaded_at": now,
+            "domains": set(),
+            "error": "disabled",
+            "source_url": PHISHDESTROY_URL,
+            "api_url": PHISHDESTROY_API_URL,
+            "license": PHISHDESTROY_LICENSE,
+        })
+        return _PHISHDESTROY_CACHE
+
+    try:
+        text = _download_text_feed(
+            PHISHDESTROY_URL,
+            timeout_seconds=PHISHDESTROY_TIMEOUT_SECONDS,
+            max_bytes=PHISHDESTROY_MAX_FEED_BYTES,
+        )
+        _PHISHDESTROY_CACHE.update({
+            "loaded_at": now,
+            "domains": _scam_blocklist_domain_lines(text),
+            "error": None,
+            "source_url": PHISHDESTROY_URL,
+            "api_url": PHISHDESTROY_API_URL,
+            "license": PHISHDESTROY_LICENSE,
+        })
+    except Exception as exc:
+        if not _PHISHDESTROY_CACHE.get("domains"):
+            _PHISHDESTROY_CACHE.update({
+                "loaded_at": now,
+                "domains": set(),
+                "source_url": PHISHDESTROY_URL,
+                "api_url": PHISHDESTROY_API_URL,
+                "license": PHISHDESTROY_LICENSE,
+            })
+        _PHISHDESTROY_CACHE["error"] = str(exc)
+    return _PHISHDESTROY_CACHE
+
+
 def _canonical_url_variants(url: str) -> set[str]:
     parsed = urlparse(url.strip())
     if not parsed.scheme or not parsed.netloc:
@@ -848,6 +927,94 @@ def _fetch_scam_blocklist_nrd(urls: List[str]) -> Dict[str, Dict[str, Any]]:
     return output
 
 
+def _fetch_phishdestroy(urls: List[str]) -> Dict[str, Dict[str, Any]]:
+    output: Dict[str, Dict[str, Any]] = {}
+    if not ENABLE_PHISHDESTROY:
+        for url in urls:
+            output[_url_hash(url)] = {
+                "status": "unknown",
+                "consulted": False,
+                "threat_type": "unknown",
+                "score": 0,
+                "details": {
+                    "status": "disabled",
+                    "provider": PHISHDESTROY_SOURCE,
+                    "source_url": PHISHDESTROY_URL,
+                    "api_url": PHISHDESTROY_API_URL,
+                    "license": PHISHDESTROY_LICENSE,
+                },
+                "query_ms": 0,
+            }
+        return output
+
+    start = time.perf_counter()
+    feed = _load_phishdestroy_feed()
+    query_ms = int((time.perf_counter() - start) * 1000)
+    domains = feed.get("domains") if isinstance(feed.get("domains"), set) else set()
+    error = feed.get("error")
+    source_url = str(feed.get("source_url") or PHISHDESTROY_URL)
+    api_url = str(feed.get("api_url") or PHISHDESTROY_API_URL)
+    license_name = str(feed.get("license") or PHISHDESTROY_LICENSE)
+
+    for url in urls:
+        key = _url_hash(url)
+        if error and not domains:
+            output[key] = {
+                "status": "error",
+                "consulted": True,
+                "threat_type": "error",
+                "score": 0,
+                "details": {
+                    "error": str(error),
+                    "provider": PHISHDESTROY_SOURCE,
+                    "source_url": source_url,
+                    "api_url": api_url,
+                    "license": license_name,
+                },
+                "query_ms": query_ms,
+            }
+            continue
+
+        matched_domain = _domain_matches_feed(_host_from_url(url), domains)
+        if matched_domain:
+            output[key] = {
+                "status": "suspicious",
+                "consulted": True,
+                "threat_type": "phishing_or_scam",
+                "score": 60,
+                "details": {
+                    "provider": PHISHDESTROY_SOURCE,
+                    "status": "listed",
+                    "match_type": "domain",
+                    "matched_value": matched_domain,
+                    "domains_loaded": len(domains),
+                    "feed_version_loaded_at": _coerce_int(feed.get("loaded_at", 0), 0),
+                    "source_url": source_url,
+                    "api_url": api_url,
+                    "license": license_name,
+                },
+                "query_ms": query_ms,
+            }
+            continue
+
+        output[key] = {
+            "status": "clean",
+            "consulted": True,
+            "threat_type": "unknown",
+            "score": 0,
+            "details": {
+                "status": "not_listed",
+                "provider": PHISHDESTROY_SOURCE,
+                "domains_loaded": len(domains),
+                "source_url": source_url,
+                "api_url": api_url,
+                "license": license_name,
+            },
+            "query_ms": query_ms,
+        }
+    return output
+
+
 def _urlhaus_auth_key() -> str:
     return URLHAUS_AUTH_KEY
 
@@ -999,6 +1166,7 @@ def get_reputation_for_urls(
     include_phishing_database: bool = True,
     include_urlhaus: bool = True,
     include_scam_blocklist_nrd: bool = False,
+    include_phishdestroy: bool = False,
     persist_partial: bool = False,
 ) -> Dict[str, Dict[str, Any]]:
     """
@@ -1040,6 +1208,7 @@ def get_reputation_for_urls(
                 include_phishing_database=bool(include_phishing_database),
                 include_urlhaus=include_urlhaus,
                 include_scam_blocklist_nrd=include_scam_blocklist_nrd,
+                include_phishdestroy=include_phishdestroy,
                 urlhaus_key=urlhaus_key,
                 web_risk_enabled=web_risk_enabled,
             )
@@ -1055,10 +1224,12 @@ def get_reputation_for_urls(
         scam_blocklist_nrd_matches = (
             _fetch_scam_blocklist_nrd(need_fetch) if include_scam_blocklist_nrd else {}
         )
+        phishdestroy_matches = _fetch_phishdestroy(need_fetch) if include_phishdestroy else {}
         should_persist_results = persist_partial or (
             bool(include_phishing_database)
             and include_urlhaus
             and (not include_scam_blocklist_nrd or ENABLE_SCAM_BLOCKLIST_NRD)
+            and (not include_phishdestroy or ENABLE_PHISHDESTROY)
         )
 
         for url in need_fetch:
@@ -1134,6 +1305,30 @@ def get_reputation_for_urls(
                 "details": scam_blocklist_nrd_entry.get("details", {}),
                 "score": _coerce_int(scam_blocklist_nrd_entry.get("score", 0), 0),
                 "query_ms": _coerce_int(scam_blocklist_nrd_entry.get("query_ms", 0), 0),
+            }
+
+            phishdestroy_default_error = "skipped_fast_scan" if not include_phishdestroy else "not_scanned"
+            phishdestroy_entry = phishdestroy_matches.get(key, {
+                "status": "unknown" if not include_phishdestroy else "error",
+                "threat_type": "unknown" if not include_phishdestroy else "error",
+                "score": 0,
+                "details": {
+                    "status": (
+                        "disabled"
+                        if include_phishdestroy and not ENABLE_PHISHDESTROY
+                        else phishdestroy_default_error
+                    ),
+                    "provider": PHISHDESTROY_SOURCE,
+                },
+                "query_ms": 0,
+            })
+            per_source[PHISHDESTROY_SOURCE] = {
+                "status": phishdestroy_entry.get("status", "unknown"),
+                "consulted": bool(include_phishdestroy and ENABLE_PHISHDESTROY),
+                "threat_type": phishdestroy_entry.get("threat_type", "unknown"),
+                "details": phishdestroy_entry.get("details", {}),
+                "score": _coerce_int(phishdestroy_entry.get("score", 0), 0),
+                "query_ms": _coerce_int(phishdestroy_entry.get("query_ms", 0), 0),
             }
 
             aggregated = _aggregate_reputation(url, per_source)

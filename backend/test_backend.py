@@ -1964,6 +1964,50 @@ def test_provider_gate_scam_blocklist_nrd_suspicious_is_user_facing_suspect():
     assert "scam_blocklist_nrd" in result["evidence"]["provider_gate"]["consulted_sources"]
 
 
+def test_provider_gate_phishdestroy_suspicious_is_user_facing_suspect():
+    analysis = {
+        "claimed_brand": "Nespecificat",
+        "risk_level": "low",
+        "risk_score": 5,
+        "detected_family": "Necunoscut",
+        "evidence": {
+            "external_intel_summary": {
+                "google_web_risk": {"status": "clean", "verdict": "clean", "consulted": True},
+                "phishing_database": {"status": "clean", "verdict": "clean", "consulted": True},
+                "urlscan": {"status": "clean", "verdict": "clean", "consulted": True},
+                "urlhaus": {"status": "clean", "verdict": "clean", "consulted": True},
+                "phishdestroy_destroylist": {
+                    "status": "suspicious",
+                    "verdict": "suspicious",
+                    "consulted": True,
+                    "risk_score": 60,
+                    "threat_type": "phishing_or_scam",
+                    "details": {"provider": "phishdestroy_destroylist", "matched_value": "wallet-drainer.example"},
+                },
+            }
+        },
+    }
+    resolved_urls = [
+        {
+            "url": "https://wallet-drainer.example/",
+            "final_url": "https://wallet-drainer.example/",
+            "hostname": "wallet-drainer.example",
+            "final_hostname": "wallet-drainer.example",
+            "registered_domain": "wallet-drainer.example",
+            "final_registered_domain": "wallet-drainer.example",
+        }
+    ]
+
+    result = _apply_provider_gate_verdict(analysis, resolved_urls)
+
+    assert result["risk_level"] == "medium"
+    assert result["risk_score"] == 55
+    assert result["evidence"]["verdict_gate"]["label"] == "SUSPECT"
+    assert result["evidence"]["verdict_gate"]["reason_codes"] == ["provider_suspicious"]
+    assert result["evidence"]["decision_bundle"]["providers"]["verdict"] == "suspicious"
+    assert "phishdestroy_destroylist" in result["evidence"]["provider_gate"]["consulted_sources"]
+
+
 def test_scam_atlas_text_only_social_fraud_escalates_to_high_risk():
     local_engine = ScamAtlasEngine()
     samples = [
@@ -3275,6 +3319,7 @@ def test_orchestrated_urlhaus_stage_collects_urlhaus_once(monkeypatch):
             "include_phishing_database": False,
             "include_urlhaus": True,
             "include_scam_blocklist_nrd": False,
+            "include_phishdestroy": False,
             "persist_partial": False,
         }
     ]
@@ -6447,8 +6492,10 @@ def test_reputation_uses_phishing_database_feed_as_active_provider(monkeypatch, 
         "phishing_database",
         "urlhaus",
         "scam_blocklist_nrd",
+        "phishdestroy_destroylist",
     }
     assert result[key]["sources"]["scam_blocklist_nrd"]["consulted"] is False
+    assert result[key]["sources"]["phishdestroy_destroylist"]["consulted"] is False
     assert result[key]["verdict"] == "malicious"
 
 
@@ -6735,6 +6782,126 @@ def test_external_intel_summary_marks_scam_blocklist_nrd_hit():
 
     assert summary["scam_blocklist_nrd"]["status"] == "suspicious"
     assert summary["scam_blocklist_nrd"]["malicious_hit_count"] == 0
+
+
+def test_phishdestroy_marks_listed_domain_suspicious(monkeypatch):
+    monkeypatch.setattr(url_reputation, "ENABLE_PHISHDESTROY", True)
+    monkeypatch.setattr(
+        url_reputation,
+        "_load_phishdestroy_feed",
+        lambda: {
+            "loaded_at": int(time.time()),
+            "domains": {"wallet-drainer.example"},
+            "error": None,
+            "source_url": "https://raw.githubusercontent.com/phishdestroy/destroylist/main/rootlist/formats/primary_active/domains.txt",
+            "api_url": "https://api.destroy.tools/v1",
+            "license": "MIT",
+        },
+    )
+
+    result = url_reputation._fetch_phishdestroy(["https://wallet-drainer.example/login"])
+    key = url_reputation._url_hash("https://wallet-drainer.example/login")
+
+    assert result[key]["status"] == "suspicious"
+    assert result[key]["threat_type"] == "phishing_or_scam"
+    assert result[key]["details"]["provider"] == "phishdestroy_destroylist"
+    assert result[key]["details"]["match_type"] == "domain"
+    assert result[key]["details"]["license"] == "MIT"
+    assert result[key]["details"]["api_url"] == "https://api.destroy.tools/v1"
+
+
+def test_phishdestroy_clean_when_disabled(monkeypatch):
+    monkeypatch.setattr(url_reputation, "ENABLE_PHISHDESTROY", False)
+
+    result = url_reputation._fetch_phishdestroy(["https://example.com/path"])
+    key = url_reputation._url_hash("https://example.com/path")
+
+    assert result[key]["status"] == "unknown"
+    assert result[key]["consulted"] is False
+    assert result[key]["details"]["status"] == "disabled"
+
+
+def test_reputation_uses_phishdestroy_as_separate_provider(monkeypatch, tmp_path):
+    cache_path = tmp_path / "url_reputation_cache.json"
+    url = "https://wallet-drainer.example/login"
+    key = url_reputation._url_hash(url)
+
+    monkeypatch.setattr(url_reputation, "ENABLE_URL_REPUTATION", True)
+    monkeypatch.setattr(url_reputation, "ENABLE_PHISHDESTROY", True)
+    monkeypatch.setattr(url_reputation, "REPUTATION_CACHE_PATH", cache_path)
+    monkeypatch.setattr(url_reputation, "_load_cache", lambda path: {})
+    monkeypatch.setattr(url_reputation, "_save_cache", lambda path, data, remote_subset=None: None)
+    monkeypatch.setattr(url_reputation, "has_web_risk_key", lambda: True)
+    monkeypatch.setattr(url_reputation, "check_urls_against_web_risk", lambda urls: {})
+    monkeypatch.setattr(
+        url_reputation,
+        "_fetch_phishing_database",
+        lambda urls: {
+            key: {"status": "clean", "threat_type": "unknown", "score": 0, "details": {"status": "not_listed"}}
+        },
+    )
+    monkeypatch.setattr(
+        url_reputation,
+        "_fetch_urlhaus",
+        lambda urls, auth_key=None: {
+            key: {"status": "clean", "threat_type": "unknown", "score": 0, "details": {"status": "not_listed"}}
+        },
+    )
+    monkeypatch.setattr(
+        url_reputation,
+        "_fetch_scam_blocklist_nrd",
+        lambda urls: {
+            key: {"status": "clean", "threat_type": "unknown", "score": 0, "details": {"status": "not_listed"}}
+        },
+    )
+    monkeypatch.setattr(
+        url_reputation,
+        "_fetch_phishdestroy",
+        lambda urls: {
+            key: {
+                "status": "suspicious",
+                "threat_type": "phishing_or_scam",
+                "score": 60,
+                "details": {"provider": "phishdestroy_destroylist", "matched_value": "wallet-drainer.example"},
+            }
+        },
+    )
+
+    result = url_reputation.get_reputation_for_urls(
+        [url],
+        include_phishing_database=True,
+        include_urlhaus=True,
+        include_scam_blocklist_nrd=True,
+        include_phishdestroy=True,
+    )
+
+    assert result[key]["sources"]["phishdestroy_destroylist"]["consulted"] is True
+    assert result[key]["sources"]["phishdestroy_destroylist"]["status"] == "suspicious"
+    assert "phishdestroy_destroylist" in result[key]["active_sources"]
+    assert result[key]["verdict"] == "suspicious"
+
+
+def test_external_intel_summary_marks_phishdestroy_hit():
+    summary = app_main._external_intel_summary_from_threat_intel(
+        {
+            "https://wallet-drainer.example/": {
+                "verdict": "suspicious",
+                "risk_score": 60,
+                "sources": {
+                    "phishdestroy_destroylist": {
+                        "status": "suspicious",
+                        "consulted": True,
+                        "score": 60,
+                        "threat_type": "phishing_or_scam",
+                        "details": {"provider": "phishdestroy_destroylist"},
+                    }
+                },
+            }
+        }
+    )
+
+    assert summary["phishdestroy_destroylist"]["status"] == "suspicious"
+    assert summary["phishdestroy_destroylist"]["malicious_hit_count"] == 0
 
 
 def test_local_reputation_cache_is_lru_capped(monkeypatch):
@@ -8029,6 +8196,7 @@ def test_health_reports_provider_config_without_secrets(monkeypatch):
         patched.setenv("URLHAUS_AUTH_KEY", "super-secret-urlhaus")
         patched.setenv("ENABLE_PHISHING_DATABASE", "true")
         patched.setenv("ENABLE_SCAM_BLOCKLIST_NRD", "true")
+        patched.setenv("ENABLE_PHISHDESTROY", "true")
         patched.setattr(app_main, "URLSCAN_API_KEY", "super-secret-urlscan")
         patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
         payload = app_main.read_health()
@@ -8040,6 +8208,8 @@ def test_health_reports_provider_config_without_secrets(monkeypatch):
     assert payload["config"]["providers"]["urlhaus"]["configured"] is True
     assert payload["config"]["providers"]["scam_blocklist_nrd"]["configured"] is True
     assert payload["config"]["providers"]["scam_blocklist_nrd"]["source"] == "jarelllama/Scam-Blocklist"
+    assert payload["config"]["providers"]["phishdestroy_destroylist"]["configured"] is True
+    assert payload["config"]["providers"]["phishdestroy_destroylist"]["source"] == "phishdestroy/destroylist"
     assert payload["config"]["providers"]["ai_explanation"]["configured"] is True
     assert "super-secret" not in serialized
 
