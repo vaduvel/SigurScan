@@ -19,3 +19,10 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Retrofit/Gson and the local persisted caches deserialize several Kotlin data
+# classes reflectively, and not every field has an explicit @SerializedName yet.
+# Keep the app package stable while still enabling R8/resource shrinking for the
+# release pipeline; this avoids silent JSON contract regressions.
+-keepattributes Signature,*Annotation*
+-keep class ro.sigurscan.app.** { *; }

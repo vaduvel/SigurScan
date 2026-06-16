@@ -1,0 +1,68 @@
+name: Supabase migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Apply pending migrations. Leave false for dry-run only."
+        type: boolean
+        required: false
+        default: false
+  push:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/**"
+      - ".github/workflows/supabase-migrations.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-migrations-production
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Apply Supabase migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v2
+        with:
+          version: 2.101.0
+
+      - name: Validate secret configuration
+        shell: bash
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SUPABASE_DB_URL:-}" ]]; then
+            echo "::error::GitHub secret SUPABASE_DB_URL is not configured."
+            exit 2
+          fi
+          echo "SUPABASE_DB_URL: SET length=${#SUPABASE_DB_URL}"
+
+      - name: Show migration state and dry-run
+        shell: bash
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          supabase migration list --db-url "$SUPABASE_DB_URL"
+          supabase db push --db-url "$SUPABASE_DB_URL" --dry-run
+
+      - name: Apply pending migrations
+        if: ${{ github.event_name == 'push' || github.event.inputs.apply == 'true' }}
+        shell: bash
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          supabase db push --db-url "$SUPABASE_DB_URL"

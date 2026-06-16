@@ -5371,6 +5371,7 @@ FAST_PREVIEW_CACHE_MAX_ENTRIES = int(os.getenv("FAST_PREVIEW_CACHE_MAX_ENTRIES",
 FAST_PREVIEW_SIGNED_URL_TTL_SECONDS = int(os.getenv("FAST_PREVIEW_SIGNED_URL_TTL_SECONDS", "900"))
 _ORCHESTRATED_SCAN_JOBS: Dict[str, Dict[str, Any]] = {}
 _ORCHESTRATED_SCAN_LOCKS: Dict[str, asyncio.Lock] = {}
+ORCHESTRATED_REFRESH_LOCK_TTL_SECONDS = int(os.getenv("ORCHESTRATED_REFRESH_LOCK_TTL_SECONDS", "90"))
 _URLSCAN_PREVIEW_CACHE: Dict[str, Dict[str, Any]] = {}
 _FAST_PREVIEW_CACHE: Dict[str, Dict[str, Any]] = {}
 
@@ -6203,6 +6204,31 @@ def _load_orchestrated_job(scan_id: str) -> Optional[Dict[str, Any]]:
     if isinstance(job, dict):
         return job
     return None
+
+
+def _orchestrated_lock_owner(scan_id: str) -> str:
+    return f"cloudrun:{os.getenv('K_REVISION', 'local')}:{os.getpid()}:{scan_id}:{time.time_ns()}"
+
+
+def _claim_distributed_orchestrated_refresh(job: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    revision = job.get("_storage_revision")
+    scan_id = str(job.get("scan_id") or "")
+    if not scan_id or not isinstance(revision, int):
+        return None
+    claimed = supabase_store.claim_scan_job(
+        scan_id,
+        expected_revision=revision,
+        owner=_orchestrated_lock_owner(scan_id),
+        active_step=str(job.get("pipeline_stage") or "queued"),
+        lock_seconds=ORCHESTRATED_REFRESH_LOCK_TTL_SECONDS,
+    )
+    if not isinstance(claimed, dict):
+        return None
+    claimed_job = supabase_store.scan_job_from_record(claimed)
+    if isinstance(claimed_job, dict):
+        _ORCHESTRATED_SCAN_JOBS[scan_id] = claimed_job
+        return claimed_job
+    return job
 
 
 def _prune_orchestrated_jobs() -> None:
@@ -8714,6 +8740,14 @@ async def get_orchestrated_scan(scan_id: str, request: Request):
         job = _load_orchestrated_job(scan_id)
         if not job:
             raise HTTPException(status_code=404, detail="Scanarea nu a fost gasita sau a expirat.")
+        if isinstance(job.get("_storage_revision"), int):
+            claimed_job = _claim_distributed_orchestrated_refresh(job)
+            if claimed_job is None:
+                latest = _load_orchestrated_job(scan_id)
+                if isinstance(latest, dict):
+                    job = latest
+                return _orchestrated_status_payload(job)
+            job = claimed_job
         job = await _refresh_orchestrated_job(job, request)
         response = _orchestrated_status_payload(job)
         job = _persist_orchestrated_job(job)

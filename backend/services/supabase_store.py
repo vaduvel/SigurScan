@@ -1,6 +1,6 @@
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -13,6 +13,15 @@ SUPABASE_SERVICE_ROLE_KEY = (
     or ""
 ).strip()
 SUPABASE_TIMEOUT_SECONDS = float(os.getenv("SUPABASE_TIMEOUT_SECONDS") or "4.0")
+
+_SCAN_JOB_STORAGE_KEYS = {
+    "_storage_updated_at",
+    "_storage_revision",
+    "_storage_locked_until",
+    "_storage_active_step",
+    "_storage_lock_owner",
+    "_storage_lock_acquired_at",
+}
 
 
 def is_supabase_enabled() -> bool:
@@ -52,6 +61,13 @@ def _iso_to_ts(value: Any) -> Optional[int]:
         return int(datetime.fromisoformat(normalized).timestamp())
     except Exception:
         return None
+
+
+def _utc_iso(value: Optional[datetime] = None) -> str:
+    candidate = value or datetime.now(timezone.utc)
+    if candidate.tzinfo is None:
+        candidate = candidate.replace(tzinfo=timezone.utc)
+    return candidate.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _post_json(table: str, payload: Dict[str, Any], prefer: str = "return=minimal") -> None:
@@ -489,8 +505,10 @@ def save_scan_job(job: Dict[str, Any]) -> bool:
     if not scan_id:
         return False
     storage_updated_at = job.get("_storage_updated_at")
+    storage_revision = job.get("_storage_revision")
     persisted_payload = dict(job)
-    persisted_payload.pop("_storage_updated_at", None)
+    for key in _SCAN_JOB_STORAGE_KEYS:
+        persisted_payload.pop(key, None)
     expires_at = _ts_to_iso(job.get("expires_at"))
     row = {
         "scan_id": scan_id,
@@ -501,6 +519,29 @@ def save_scan_job(job: Dict[str, Any]) -> bool:
     }
     if expires_at:
         row["expires_at"] = expires_at
+    if isinstance(storage_revision, int):
+        row.update(
+            {
+                "revision": storage_revision + 1,
+                "locked_until": None,
+                "active_step": None,
+                "lock_owner": None,
+                "lock_acquired_at": None,
+            }
+        )
+        rows = _patch_json(
+            "scan_jobs",
+            row,
+            {
+                "scan_id": f"eq.{scan_id}",
+                "revision": f"eq.{storage_revision}",
+            },
+            "return=representation",
+        )
+        if not rows:
+            return False
+        _attach_scan_job_storage_metadata(job, rows[0])
+        return True
     if isinstance(storage_updated_at, str) and storage_updated_at.strip():
         rows = _patch_json(
             "scan_jobs",
@@ -513,9 +554,7 @@ def save_scan_job(job: Dict[str, Any]) -> bool:
         )
         if not rows:
             return False
-        updated_at = rows[0].get("updated_at")
-        if isinstance(updated_at, str):
-            job["_storage_updated_at"] = updated_at
+        _attach_scan_job_storage_metadata(job, rows[0])
         return True
 
     try:
@@ -528,17 +567,69 @@ def save_scan_job(job: Dict[str, Any]) -> bool:
         response.raise_for_status()
         data = response.json() if response.content else []
         if isinstance(data, list) and data:
-            updated_at = data[0].get("updated_at")
-            if isinstance(updated_at, str):
-                job["_storage_updated_at"] = updated_at
+            _attach_scan_job_storage_metadata(job, data[0])
         return True
     except Exception:
         return False
 
 
+def _attach_scan_job_storage_metadata(job: Dict[str, Any], row: Dict[str, Any]) -> Dict[str, Any]:
+    updated_at = row.get("updated_at")
+    if isinstance(updated_at, str):
+        job["_storage_updated_at"] = updated_at
+    revision = row.get("revision")
+    if isinstance(revision, int):
+        job["_storage_revision"] = revision
+    locked_until = row.get("locked_until")
+    if isinstance(locked_until, str):
+        job["_storage_locked_until"] = locked_until
+    active_step = row.get("active_step")
+    if isinstance(active_step, str):
+        job["_storage_active_step"] = active_step
+    lock_owner = row.get("lock_owner")
+    if isinstance(lock_owner, str):
+        job["_storage_lock_owner"] = lock_owner
+    lock_acquired_at = row.get("lock_acquired_at")
+    if isinstance(lock_acquired_at, str):
+        job["_storage_lock_acquired_at"] = lock_acquired_at
+    return job
+
+
+def scan_job_from_record(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    payload = row.get("payload") if isinstance(row, dict) else None
+    if not isinstance(payload, dict):
+        return None
+    job = dict(payload)
+    return _attach_scan_job_storage_metadata(job, row)
+
+
+def load_scan_job_record(scan_id: str) -> Optional[Dict[str, Any]]:
+    if not scan_id or not is_supabase_enabled():
+        return None
+    rows = _get_json(
+        "scan_jobs",
+        {
+            "select": "payload,updated_at,revision,locked_until,active_step,lock_owner,lock_acquired_at",
+            "scan_id": f"eq.{scan_id}",
+            "limit": "1",
+        },
+    )
+    if not rows:
+        return None
+    return rows[0]
+
+
 def load_scan_job(scan_id: str) -> Optional[Dict[str, Any]]:
     if not scan_id or not is_supabase_enabled():
         return None
+    record = load_scan_job_record(scan_id)
+    job = scan_job_from_record(record) if isinstance(record, dict) else None
+    if isinstance(job, dict):
+        return job
+
+    # Backward-compatible fallback for projects where the CAS migration has not
+    # been applied yet. Once the migration is live, load_scan_job_record handles
+    # the normal path and includes revision/lock metadata.
     rows = _get_json(
         "scan_jobs",
         {
@@ -549,13 +640,38 @@ def load_scan_job(scan_id: str) -> Optional[Dict[str, Any]]:
     )
     if not rows:
         return None
-    payload = rows[0].get("payload")
-    if not isinstance(payload, dict):
+    return scan_job_from_record(rows[0])
+
+
+def claim_scan_job(
+    scan_id: str,
+    *,
+    expected_revision: int,
+    owner: str,
+    active_step: str,
+    lock_seconds: int = 90,
+) -> Optional[Dict[str, Any]]:
+    if not scan_id or not is_supabase_enabled() or not isinstance(expected_revision, int):
         return None
-    updated_at = rows[0].get("updated_at")
-    if isinstance(updated_at, str):
-        payload["_storage_updated_at"] = updated_at
-    return payload
+    now_iso = _utc_iso()
+    locked_until = _utc_iso(datetime.now(timezone.utc) + timedelta(seconds=max(5, int(lock_seconds))))
+    rows = _patch_json(
+        "scan_jobs",
+        {
+            "revision": expected_revision + 1,
+            "locked_until": locked_until,
+            "active_step": str(active_step or "polling")[:80],
+            "lock_owner": str(owner or "unknown")[:120],
+            "lock_acquired_at": now_iso,
+        },
+        {
+            "scan_id": f"eq.{scan_id}",
+            "revision": f"eq.{expected_revision}",
+            "or": f"(locked_until.is.null,locked_until.lt.{now_iso})",
+        },
+        "return=representation",
+    )
+    return rows[0] if rows else None
 
 
 # ─── PR-6 — Cercul: persistență durabilă (write-through, best-effort) ─────────

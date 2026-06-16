@@ -9613,6 +9613,10 @@ def test_supabase_scan_job_load_attaches_storage_timestamp(monkeypatch):
                     {
                         "payload": {"scan_id": "orch_test", "status": "scanning"},
                         "updated_at": "2026-06-04T10:00:00+00:00",
+                        "revision": 7,
+                        "locked_until": "2026-06-04T10:01:00+00:00",
+                        "active_step": "resolved",
+                        "lock_owner": "worker-a",
                     }
                 ]
             ),
@@ -9622,6 +9626,10 @@ def test_supabase_scan_job_load_attaches_storage_timestamp(monkeypatch):
 
     assert job["scan_id"] == "orch_test"
     assert job["_storage_updated_at"] == "2026-06-04T10:00:00+00:00"
+    assert job["_storage_revision"] == 7
+    assert job["_storage_locked_until"] == "2026-06-04T10:01:00+00:00"
+    assert job["_storage_active_step"] == "resolved"
+    assert job["_storage_lock_owner"] == "worker-a"
 
 
 def test_supabase_scan_job_save_uses_optimistic_concurrency(monkeypatch):
@@ -9651,6 +9659,88 @@ def test_supabase_scan_job_save_uses_optimistic_concurrency(monkeypatch):
     assert job["_storage_updated_at"] == "2026-06-04T10:00:01+00:00"
 
 
+def test_supabase_scan_job_save_uses_revision_lock_concurrency(monkeypatch):
+    calls = []
+
+    def fake_patch(*args, **kwargs):
+        calls.append(kwargs)
+        return _FakeSupabaseResponse(
+            [
+                {
+                    "updated_at": "2026-06-04T10:00:02+00:00",
+                    "revision": 12,
+                    "payload": {"scan_id": "orch_test"},
+                }
+            ]
+        )
+
+    with monkeypatch.context() as patched:
+        patched.setattr(supabase_store, "SUPABASE_URL", "https://example.supabase.co")
+        patched.setattr(supabase_store, "SUPABASE_SERVICE_ROLE_KEY", "server-only-key")
+        patched.setattr(supabase_store.requests, "patch", fake_patch)
+
+        job = {
+            "scan_id": "orch_test",
+            "status": "scanning",
+            "_storage_revision": 11,
+            "_storage_updated_at": "2026-06-04T10:00:01+00:00",
+            "_storage_lock_owner": "worker-a",
+        }
+        saved = supabase_store.save_scan_job(job)
+
+    assert saved is True
+    assert calls[0]["params"]["scan_id"] == "eq.orch_test"
+    assert calls[0]["params"]["revision"] == "eq.11"
+    assert calls[0]["json"]["revision"] == 12
+    assert calls[0]["json"]["locked_until"] is None
+    assert calls[0]["json"]["lock_owner"] is None
+    assert "_storage_revision" not in calls[0]["json"]["payload"]
+    assert "_storage_lock_owner" not in calls[0]["json"]["payload"]
+    assert job["_storage_revision"] == 12
+    assert job["_storage_updated_at"] == "2026-06-04T10:00:02+00:00"
+
+
+def test_supabase_scan_job_claim_uses_revision_and_unexpired_lock_guard(monkeypatch):
+    calls = []
+
+    def fake_patch(*args, **kwargs):
+        calls.append(kwargs)
+        return _FakeSupabaseResponse(
+            [
+                {
+                    "payload": {"scan_id": "orch_test", "pipeline_stage": "resolved"},
+                    "updated_at": "2026-06-04T10:00:03+00:00",
+                    "revision": 6,
+                    "active_step": "resolved",
+                    "lock_owner": "worker-a",
+                    "locked_until": "2026-06-04T10:01:33+00:00",
+                }
+            ]
+        )
+
+    with monkeypatch.context() as patched:
+        patched.setattr(supabase_store, "SUPABASE_URL", "https://example.supabase.co")
+        patched.setattr(supabase_store, "SUPABASE_SERVICE_ROLE_KEY", "server-only-key")
+        patched.setattr(supabase_store.requests, "patch", fake_patch)
+
+        row = supabase_store.claim_scan_job(
+            "orch_test",
+            expected_revision=5,
+            owner="worker-a",
+            active_step="resolved",
+            lock_seconds=30,
+        )
+
+    assert row["revision"] == 6
+    assert calls[0]["params"]["scan_id"] == "eq.orch_test"
+    assert calls[0]["params"]["revision"] == "eq.5"
+    assert "locked_until.is.null" in calls[0]["params"]["or"]
+    assert "locked_until.lt." in calls[0]["params"]["or"]
+    assert calls[0]["json"]["revision"] == 6
+    assert calls[0]["json"]["active_step"] == "resolved"
+    assert calls[0]["json"]["lock_owner"] == "worker-a"
+
+
 def test_supabase_scan_job_save_reports_concurrency_conflict(monkeypatch):
     with monkeypatch.context() as patched:
         patched.setattr(supabase_store, "SUPABASE_URL", "https://example.supabase.co")
@@ -9670,6 +9760,33 @@ def test_supabase_scan_job_save_reports_concurrency_conflict(monkeypatch):
         )
 
     assert saved is False
+
+
+def test_orchestrated_poll_does_not_refresh_when_distributed_lock_is_held(monkeypatch):
+    scan_id = "orch_lock_held"
+    stored_job = {
+        "scan_id": scan_id,
+        "created_at": int(time.time()),
+        "status": "scanning",
+        "pipeline_stage": "resolved",
+        "input_type": "text",
+        "urls": [],
+        "preview": {"status": "unavailable", "reason": "no_url"},
+        "urlscan": {"status": "skipped"},
+        "_storage_revision": 3,
+    }
+
+    async def fail_refresh(job, request):
+        raise AssertionError("refresh must not run while another worker holds the distributed lock")
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main.supabase_store, "load_scan_job", lambda sid: dict(stored_job))
+        patched.setattr(app_main.supabase_store, "claim_scan_job", lambda *args, **kwargs: None)
+        patched.setattr(app_main, "_refresh_orchestrated_job", fail_refresh)
+        response = asyncio.run(app_main.get_orchestrated_scan(scan_id, None))
+
+    assert response["scan_id"] == scan_id
+    assert response["status"] == "scanning"
 
 
 def test_backend_security_defaults_are_launch_safe():

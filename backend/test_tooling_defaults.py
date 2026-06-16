@@ -55,6 +55,13 @@ def test_cloud_run_deploy_preserves_safe_concurrency_default():
     assert "--concurrency 40" not in script
 
 
+def test_cloud_run_deploy_enables_play_integrity_monitor_rollout():
+    script = (ROOT_DIR / "tools" / "deploy_cloud_run_backend.sh").read_text(encoding="utf-8")
+
+    assert "PLAY_INTEGRITY_MODE=monitor" in script
+    assert "PLAY_INTEGRITY_MODE=enforce" not in script
+
+
 def test_cloud_run_deploy_routes_traffic_to_latest_revision():
     script = (ROOT_DIR / "tools" / "deploy_cloud_run_backend.sh").read_text(encoding="utf-8")
 
@@ -94,6 +101,20 @@ def test_supabase_logical_backup_script_is_secret_safe_and_restore_verified():
     assert "shasum -a 256" in script
 
 
+def test_supabase_migration_workflow_uses_db_url_secret_and_dry_run_guard():
+    workflow = (ROOT_DIR / ".github" / "workflows" / "supabase-migrations.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "workflow_dispatch:" in workflow
+    assert "push:" in workflow
+    assert "supabase/setup-cli@v2" in workflow
+    assert "SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}" in workflow
+    assert "supabase db push --db-url \"$SUPABASE_DB_URL\" --dry-run" in workflow
+    assert "github.event_name == 'push' || github.event.inputs.apply == 'true'" in workflow
+    assert 'echo "$SUPABASE_DB_URL"' not in workflow
+
+
 def test_android_ci_workflow_builds_with_jdk_and_recursive_submodules():
     workflow_path = ROOT_DIR / ".github" / "workflows" / "android-ci.yml"
     assert workflow_path.exists()
@@ -109,3 +130,12 @@ def test_android_ci_workflow_builds_with_jdk_and_recursive_submodules():
     assert "actions/setup-android" in workflow
     assert "./gradlew testDebugUnitTest" in workflow
     assert "./gradlew assembleRelease" in workflow
+
+
+def test_android_release_enables_r8_with_safe_keep_rules():
+    gradle = (ROOT_DIR / "app" / "build.gradle.kts").read_text(encoding="utf-8")
+    proguard = (ROOT_DIR / "app" / "proguard-rules.pro").read_text(encoding="utf-8")
+
+    assert "isMinifyEnabled = true" in gradle
+    assert "isShrinkResources = true" in gradle
+    assert "-keep class ro.sigurscan.app.** { *; }" in proguard
