@@ -14,7 +14,7 @@ def btr():
 
 class TestLoadAndVersion:
     def test_loads_all_manifests(self, btr):
-        assert len(btr.all()) == 18
+        assert len(btr.all()) >= 29
 
     def test_version_format(self, btr):
         assert btr.version.startswith("btr-ro-")
@@ -47,8 +47,8 @@ class TestLoadAndVersion:
 
 
 class TestBrandCount:
-    def test_17_brands_plus_1_person(self, btr):
-        assert len(btr.brands()) == 17
+    def test_active_romania_research_expands_brands_without_quarantine_people(self, btr):
+        assert len(btr.brands()) >= 29
         assert len(btr.persons()) == 1
 
     def test_person_is_isarescu(self, btr):
@@ -60,10 +60,15 @@ class TestBrandCount:
     def test_key_brands_present(self, btr):
         expected = {"bnr", "anaf", "dnsc", "politia_mai", "olx", "emag",
                     "fan_courier", "sameday", "cargus", "posta_romana",
-                    "bt", "bcr", "ing", "electrica_ppc", "orange_vodafone_digi",
-                    "yoxo", "wipo"}
+                    "bt", "bcr", "brd", "ing", "raiffeisen", "unicredit",
+                    "revolut_ro", "garanti", "dpd_romania", "gls_romania",
+                    "electrica_ppc", "orange_vodafone_digi", "orange",
+                    "vodafone", "digi", "yoxo", "wipo"}
         found = {m.manifest_id for m in btr.brands()}
-        assert found == expected
+        assert expected.issubset(found)
+        assert "alpha_bank_legacy" not in found
+        assert "otp_bank_legacy" not in found
+        assert "ion_tiriac" not in found
 
 
 class TestMatchByDomain:
@@ -107,6 +112,12 @@ class TestMatchByDomain:
 
     def test_match_wipo_official_domain(self, btr):
         assert btr.match_brand_by_domain("www.wipo.int").manifest_id == "wipo"
+
+    def test_match_new_bank_and_courier_domains_from_official_research(self, btr):
+        assert btr.match_brand_by_domain("www.brd.ro").manifest_id == "brd"
+        assert btr.match_brand_by_domain("www.unicredit.ro").manifest_id == "unicredit"
+        assert btr.match_brand_by_domain("www.dpd.com").manifest_id == "dpd_romania"
+        assert btr.match_brand_by_domain("gls-group.eu").manifest_id == "gls_romania"
 
 
 class TestMatchByName:
@@ -269,9 +280,10 @@ class TestProvenanceCheck:
             final_url=None,
         )
 
-        assert result.provenance == "match"
-        assert result.official_match is True
+        assert result.provenance == "partial"
+        assert result.official_match is False
         assert "BTR_PHONE_MATCH" in result.reason_codes
+        assert "BTR_PHONE_MATCH_SPOOFABLE" in result.reason_codes
 
     def test_sms_channel_can_match_official_shortcode(self, tmp_path):
         path = tmp_path / "btr_shortcode.json"
@@ -317,6 +329,41 @@ class TestProvenanceCheck:
         assert result.provenance == "match"
         assert result.official_match is True
         assert "BTR_SHORTCODE_MATCH" in result.reason_codes
+
+    def test_scoped_sms_shortcode_does_not_raise_safe_generically(self, btr):
+        result = btr.provenance_check(
+            claimed_brand="BCR",
+            observed_channel="sms",
+            observed_domain=None,
+            observed_phone_e164=None,
+            observed_shortcode="3761",
+            sensitive_asks=[],
+            payment_method=None,
+            final_url=None,
+        )
+
+        assert result.manifest_id == "bcr"
+        assert result.provenance == "partial"
+        assert result.official_match is False
+        assert "BTR_SHORTCODE_MATCH" in result.reason_codes
+        assert "BTR_SHORTCODE_MATCH_SCOPED" in result.reason_codes
+
+    def test_brd_fake_domain_with_card_data_is_decisive(self, btr):
+        result = btr.provenance_check(
+            claimed_brand="BRD",
+            observed_channel="sms",
+            observed_domain="brd-secure-card.example",
+            observed_phone_e164=None,
+            sensitive_asks=["card_number", "cvv"],
+            payment_method="card_form",
+            final_url="https://brd-secure-card.example/confirmare",
+        )
+
+        assert result.manifest_id == "brd"
+        assert result.provenance == "mismatch"
+        assert result.evidence_power == "decisive"
+        assert "card_number" in result.violated_never_asks
+        assert "cvv" in result.violated_never_asks
 
     def test_wipo_lookalike_domain_is_not_official(self, btr):
         result = btr.provenance_check(

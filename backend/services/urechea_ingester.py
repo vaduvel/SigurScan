@@ -7,6 +7,7 @@ import os
 import re
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -15,6 +16,9 @@ from services.campaign_intel import CampaignIntel, CampaignStore, FAMILY_TAXONOM
 
 
 logger = logging.getLogger("urechea")
+ROMANIA_OFFICIAL_RESEARCH_PATH = (
+    Path(__file__).resolve().parents[1] / "data" / "romania_official_research_2026_06_16.json"
+)
 
 
 @dataclass
@@ -63,6 +67,7 @@ class UrecheaIngester:
     def __init__(self, store: CampaignStore):
         self._store = store
         self._sources = {s.name: s for s in SEED_SOURCES}
+        self._load_romania_official_research_sources()
         self._moderation_queue: List[CampaignIntel] = []
 
     @property
@@ -72,6 +77,43 @@ class UrecheaIngester:
     @property
     def moderation_queue(self) -> List[CampaignIntel]:
         return list(self._moderation_queue)
+
+    def _load_romania_official_research_sources(self) -> None:
+        if not ROMANIA_OFFICIAL_RESEARCH_PATH.exists():
+            return
+        try:
+            with open(ROMANIA_OFFICIAL_RESEARCH_PATH, "r", encoding="utf-8") as handle:
+                raw = json.load(handle)
+        except Exception as exc:
+            logger.warning("Romania OSINT source load failed: %s", exc)
+            return
+        for item in raw.get("osint_sources", []):
+            if not isinstance(item, dict):
+                continue
+            source_id = str(item.get("source_id") or "").strip()
+            url = str(item.get("url") or "").strip()
+            if not source_id:
+                continue
+            assessment = str(item.get("monitoring_permitted_assessment") or "").lower()
+            source_type = str(item.get("type") or "").lower()
+            disabled = "do_not_scrape" in assessment or not url.startswith("http")
+            fetch_strategy = "manual" if disabled or source_type in {"reporting_portal", "curated_watchlist"} else "html"
+            self._sources[source_id] = OsintSource(
+                name=source_id,
+                kind="official_alert",
+                feed_url=url if url.startswith("http") else None,
+                fetch_strategy=fetch_strategy,
+                confidence=self._source_confidence(item),
+                enabled=not disabled,
+            )
+
+    def _source_confidence(self, item: Dict[str, Any]) -> str:
+        refs = item.get("source_refs")
+        if isinstance(refs, list):
+            for ref in refs:
+                if isinstance(ref, dict) and ref.get("confidence"):
+                    return str(ref.get("confidence"))
+        return "medium"
 
     @staticmethod
     def _normalize(text: str) -> str:

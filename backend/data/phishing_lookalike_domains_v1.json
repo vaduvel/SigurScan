@@ -73,10 +73,10 @@
       "impersonates_brand": "anaf",
       "scam_type": "phishing_login_tax",
       "source": "official_institution",
-      "source_url": "https://www.anaf.ro/",
-      "source_publisher": "Agenția Națională de Administrare Fiscală",
+      "source_url": "https://www.dnsc.ro/citeste/alerta-phishing-e-mail-anaf",
+      "source_publisher": "DNSC",
       "reported_at": "2026-06-16",
-      "evidence_quote": "ANAF a avertizat că anaf-ro.web.app nu aparține instituției; pagina oficială este anaf.ro.",
+      "evidence_quote": "DNSC reported a phishing e-mail ANAF that redirected victims to https://anaf-ro.web.app.",
       "confidence": "high"
     },
     {

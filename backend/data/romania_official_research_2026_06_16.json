@@ -1,0 +1,4270 @@
+{
+  "metadata": {
+    "dataset_id": "sigurscan_romania_official_public_seed_2026_06_16",
+    "generated_at": "2026-06-16",
+    "scope": "Romania anti-scam manifest seed: phone, SMS, links, apps, invoices/fake IBAN/BEC, public-person investment scams.",
+    "source_policy": "Only official/public sources. Press/fact-check sources are allowed only for public-person scam context or quarantine, not hard brand identity verification.",
+    "confidence_policy": {
+      "high": "official page or reputable source directly confirms field",
+      "medium": "official/public source confirms pattern but field needs revalidation before hard verdict",
+      "needs_confirmation": "source did not clearly confirm, source blocked crawler, brand in transition, or value requires direct brand confirmation"
+    },
+    "verdict_policy": {
+      "active_verified": "can influence verdict when the exact feature is present and source_refs validate the assertion",
+      "active_verified_for_contact_only": "contacts/domain can be used; anti-fraud rule needs revalidation",
+      "identity_only": "can help display/verification but should not create danger verdict alone",
+      "quarantine_identity_transition": "research/transition only; route to current owner brand",
+      "quarantine_context_only": "context/explanation only; no hard block from this alone"
+    },
+    "strict_exclusions": [
+      "No obscure forums.",
+      "No unverified user-reported phone numbers or IBANs.",
+      "No inferred SMS shortcodes.",
+      "No raw IBAN fraud IOC included without official/public source evidence."
+    ]
+  },
+  "brand_manifests": [
+    {
+      "manifest_id": "bank_bt",
+      "type": "brand",
+      "category": "bank",
+      "display_name": "Banca Transilvania",
+      "official_domains": [
+        "bancatransilvania.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "bancatransilvania.ro",
+          "source_url": "https://www.bancatransilvania.ro/siguranta-online/siguranta-aplicatiile-bt",
+          "publisher": "Banca Transilvania",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [
+        "+40264303003",
+        "+40264308000",
+        "+40264308028",
+        "+40264308055"
+      ],
+      "official_contacts": [
+        {
+          "value": "+40264308028",
+          "label": "Call Center / *8028",
+          "channel": "phone",
+          "source_url": "https://www.bancatransilvania.ro/siguranta-online/siguranta-aplicatiile-bt",
+          "publisher": "Banca Transilvania",
+          "confidence": "high"
+        },
+        {
+          "value": "+40264303003",
+          "label": "linie români plecați din țară",
+          "channel": "phone",
+          "source_url": "https://www.bancatransilvania.ro/siguranta-online/siguranta-aplicatiile-bt",
+          "publisher": "Banca Transilvania",
+          "confidence": "high"
+        },
+        {
+          "value": "+40264308055",
+          "label": "asistență fraude",
+          "channel": "phone",
+          "source_url": "https://www.bancatransilvania.ro/siguranta-online/siguranta-aplicatiile-bt",
+          "publisher": "Banca Transilvania",
+          "confidence": "high"
+        },
+        {
+          "value": "+40264308000",
+          "label": "BT Visual Help — apel inițiat de client, primește SMS cu link",
+          "channel": "phone",
+          "source_url": "https://www.bancatransilvania.ro/siguranta-online/siguranta-aplicatiile-bt",
+          "publisher": "Banca Transilvania",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [
+        {
+          "value": "*8028",
+          "channel": "voice",
+          "label": "Call Center BT",
+          "source_url": "https://www.bancatransilvania.ro/siguranta-online/siguranta-aplicatiile-bt",
+          "publisher": "Banca Transilvania",
+          "confidence": "high"
+        }
+      ],
+      "official_apps": [
+        {
+          "name": "BT Pay",
+          "platforms": [
+            "iOS",
+            "Android"
+          ],
+          "source_url": "https://www.bancatransilvania.ro/siguranta-online/siguranta-aplicatiile-bt",
+          "publisher": "Banca Transilvania",
+          "confidence": "high"
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "card_number",
+          "claim": "Banca nu cere datele cardului prin e-mail, SMS sau telefon.",
+          "source_url": "https://www.bancatransilvania.ro/siguranta-online/siguranta-aplicatiile-bt",
+          "publisher": "Banca Transilvania",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "email",
+            "sms",
+            "phone"
+          ],
+          "exact_extract": "nu îți cere niciodată datele cardului"
+        },
+        {
+          "token": "cvv",
+          "claim": "Codul CVV trebuie introdus doar în BT Pay la înrolare, nu comunicat altora.",
+          "source_url": "https://www.bancatransilvania.ro/siguranta-online/siguranta-aplicatiile-bt",
+          "publisher": "Banca Transilvania",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "email",
+            "sms",
+            "phone"
+          ],
+          "exact_extract": "CVV ... doar în BT Pay"
+        },
+        {
+          "token": "otp",
+          "claim": "OTP primit de la bancă se introduce doar în BT Pay pentru fluxul legitim.",
+          "source_url": "https://www.bancatransilvania.ro/siguranta-online/siguranta-aplicatiile-bt",
+          "publisher": "Banca Transilvania",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "sms",
+            "app"
+          ],
+          "exact_extract": "codurile OTP ... doar în BT Pay"
+        },
+        {
+          "token": "password",
+          "claim": "Parolele de autentificare nu sunt cerute prin e-mail, SMS sau telefon.",
+          "source_url": "https://www.bancatransilvania.ro/siguranta-online/siguranta-aplicatiile-bt",
+          "publisher": "Banca Transilvania",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "email",
+            "sms",
+            "phone"
+          ]
+        }
+      ],
+      "never_does": [
+        {
+          "token": "external_otp_entry",
+          "claim": "Nu tratează OTP introdus în afara BT Pay drept legitim pentru înrolarea cardului.",
+          "source_url": "https://www.bancatransilvania.ro/siguranta-online/siguranta-aplicatiile-bt",
+          "publisher": "Banca Transilvania",
+          "confidence": "high",
+          "severity": "decisive"
+        }
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.bancatransilvania.ro/siguranta-online/siguranta-aplicatiile-bt",
+          "publisher": "Banca Transilvania",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "bank_bcr",
+      "type": "brand",
+      "category": "bank",
+      "display_name": "BCR / George",
+      "official_domains": [
+        "bcr.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "bcr.ro",
+          "source_url": "https://www.bcr.ro/ro/persoane-fizice/informatii-utile/securitate/sfaturi-de-securitate",
+          "publisher": "BCR",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [
+        "+40214074200"
+      ],
+      "official_contacts": [
+        {
+          "value": "+40214074200",
+          "label": "Contact Center / blocare George ID, apelabil din străinătate",
+          "channel": "phone",
+          "source_url": "https://www.bcr.ro/ro/persoane-fizice/help-center/cum-blochez-George-ID",
+          "publisher": "BCR",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [
+        {
+          "value": "*2227",
+          "channel": "voice",
+          "label": "Contact Center BCR",
+          "source_url": "https://www.bcr.ro/ro/persoane-fizice/help-center/cum-blochez-George-ID",
+          "publisher": "BCR",
+          "confidence": "high"
+        },
+        {
+          "value": "3761",
+          "channel": "sms",
+          "label": "PIN card prin George; doar contextul oficial PIN",
+          "source_url": "https://www.bcr.ro/ro/persoane-fizice/conturi-si-operatiuni/carduri-de-debit/pin-prin-george",
+          "publisher": "BCR",
+          "confidence": "high",
+          "scope": "PIN card; parola conform instrucțiunilor BCR"
+        },
+        {
+          "value": "+40783900317",
+          "channel": "sms",
+          "label": "PIN card prin George; doar contextul oficial PIN",
+          "source_url": "https://www.bcr.ro/ro/persoane-fizice/conturi-si-operatiuni/carduri-de-debit/pin-prin-george",
+          "publisher": "BCR",
+          "confidence": "high",
+          "scope": "PIN card"
+        },
+        {
+          "value": "+447860065119",
+          "channel": "sms",
+          "label": "PIN card pentru numere internaționale",
+          "source_url": "https://www.bcr.ro/ro/persoane-fizice/conturi-si-operatiuni/carduri-de-debit/pin-prin-george",
+          "publisher": "BCR",
+          "confidence": "high",
+          "scope": "PIN card"
+        }
+      ],
+      "official_apps": [
+        {
+          "name": "George",
+          "platforms": [
+            "iOS",
+            "Android"
+          ],
+          "source_url": "https://www.bcr.ro/ro/persoane-fizice/conturi-si-operatiuni/carduri-de-debit/pin-prin-george",
+          "publisher": "BCR",
+          "confidence": "high",
+          "notes": "Sursa confirmă funcționalitatea George pentru card/PIN; linkurile de store trebuie verificate la build."
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "card_number",
+          "claim": "BCR avertizează să nu furnizezi date de card cerute prin e-mail/telefon/SMS/WhatsApp/social.",
+          "source_url": "https://www.bcr.ro/ro/persoane-fizice/informatii-utile/securitate/sfaturi-de-securitate",
+          "publisher": "BCR",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "email",
+            "phone",
+            "sms",
+            "whatsapp",
+            "social"
+          ]
+        },
+        {
+          "token": "cvv",
+          "claim": "BCR include CVV/CVC în datele care nu trebuie furnizate la cereri neconfirmate.",
+          "source_url": "https://www.bcr.ro/ro/persoane-fizice/informatii-utile/securitate/sfaturi-de-securitate",
+          "publisher": "BCR",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "pin",
+          "claim": "PIN-ul nu se furnizează la cereri nesigure; există flux oficial separat pentru PIN card.",
+          "source_url": "https://www.bcr.ro/ro/persoane-fizice/conturi-si-operatiuni/carduri-de-debit/pin-prin-george",
+          "publisher": "BCR",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "otp",
+          "claim": "Codurile de autorizare/eToken nu se divulgă prin linkuri sau cereri nesigure.",
+          "source_url": "https://www.bcr.ro/ro/persoane-fizice/informatii-utile/securitate/sfaturi-de-securitate",
+          "publisher": "BCR",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "password",
+          "claim": "Datele George/eToken user/parolă nu se furnizează la cereri prin link/canal extern.",
+          "source_url": "https://www.bcr.ro/ro/persoane-fizice/informatii-utile/securitate/sfaturi-de-securitate",
+          "publisher": "BCR",
+          "confidence": "high",
+          "severity": "decisive"
+        }
+      ],
+      "never_does": [
+        {
+          "token": "remote_access",
+          "claim": "BCR avertizează să nu instalezi aplicații de control la distanță la cererea necunoscuților.",
+          "source_url": "https://www.bcr.ro/ro/persoane-fizice/informatii-utile/securitate/cele-mai-frecvente-fraude",
+          "publisher": "BCR",
+          "confidence": "high",
+          "severity": "decisive",
+          "exact_extract": "AnyDesk/TeamViewer/ZenDesk"
+        }
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.bcr.ro/ro/persoane-fizice/informatii-utile/securitate/sfaturi-de-securitate",
+          "publisher": "BCR",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.bcr.ro/ro/persoane-fizice/informatii-utile/securitate/cele-mai-frecvente-fraude",
+          "publisher": "BCR",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.bcr.ro/ro/persoane-fizice/conturi-si-operatiuni/carduri-de-debit/pin-prin-george",
+          "publisher": "BCR",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.bcr.ro/ro/persoane-fizice/help-center/cum-blochez-George-ID",
+          "publisher": "BCR",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "bank_brd",
+      "type": "brand",
+      "category": "bank",
+      "display_name": "BRD Groupe Société Générale",
+      "official_domains": [
+        "brd.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "brd.ro",
+          "source_url": "https://www.brd.ro/atentie-atacuri-informatice",
+          "publisher": "BRD",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [
+        "+40213026161",
+        "+40800803803"
+      ],
+      "official_contacts": [
+        {
+          "value": "+40213026161",
+          "label": "MyBRD Contact",
+          "channel": "phone",
+          "source_url": "https://www.brd.ro/contact",
+          "publisher": "BRD",
+          "confidence": "high"
+        },
+        {
+          "value": "0800803803",
+          "label": "MyBRD Contact — fix Telekom only / toll-free",
+          "channel": "phone",
+          "source_url": "https://www.brd.ro/contact",
+          "publisher": "BRD",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [
+        {
+          "value": "*22622",
+          "channel": "voice",
+          "label": "*BANCA",
+          "source_url": "https://www.brd.ro/contact",
+          "publisher": "BRD",
+          "confidence": "high"
+        },
+        {
+          "value": "3896",
+          "channel": "sms",
+          "label": "PIN prin SMS; gratuit în rețele RO",
+          "source_url": "https://www.brd.ro/node/1302",
+          "publisher": "BRD",
+          "confidence": "high",
+          "scope": "PIN card"
+        },
+        {
+          "value": "+447491163052",
+          "channel": "sms",
+          "label": "PIN prin SMS pentru telefoane internaționale",
+          "source_url": "https://www.brd.ro/node/1302",
+          "publisher": "BRD",
+          "confidence": "high",
+          "scope": "PIN card"
+        },
+        {
+          "value": "1739",
+          "channel": "sms",
+          "label": "Legacy PIN pentru carduri/PIN mai vechi de 13.12.2023",
+          "source_url": "https://www.brd.ro/node/1302",
+          "publisher": "BRD",
+          "confidence": "high",
+          "scope": "legacy PIN card"
+        }
+      ],
+      "official_apps": [
+        {
+          "name": "YOU BRD",
+          "platforms": [
+            "iOS",
+            "Android",
+            "Huawei"
+          ],
+          "source_url": "https://www.brd.ro/atentie-atacuri-informatice",
+          "publisher": "BRD",
+          "confidence": "high"
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "otp",
+          "claim": "BRD descrie phishingul care fură OTP-uri de validare pentru activări neautorizate.",
+          "source_url": "https://www.brd.ro/atentie-atacuri-informatice",
+          "publisher": "BRD",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "email",
+            "sms"
+          ],
+          "exact_extract": "date de card și coduri OTP"
+        },
+        {
+          "token": "card_number",
+          "claim": "BRD spune că nu cere telefonic/e-mail/SMS date confidențiale de card.",
+          "source_url": "https://www.brd.ro/atentie-atacuri-informatice",
+          "publisher": "BRD",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "phone",
+            "email",
+            "sms"
+          ]
+        },
+        {
+          "token": "pin",
+          "claim": "PIN-ul este confidențial; BRD nu îl cere prin SMS/telefon/e-mail.",
+          "source_url": "https://www.brd.ro/atentie-atacuri-informatice",
+          "publisher": "BRD",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "cvv",
+          "claim": "CVV/CVC nu trebuie furnizat în răspuns la SMS/cereri false.",
+          "source_url": "https://www.brd.ro/node/1302",
+          "publisher": "BRD",
+          "confidence": "high",
+          "severity": "decisive"
+        }
+      ],
+      "never_does": [
+        {
+          "token": "modified_invoice_payment",
+          "claim": "BRD descrie BEC/manipularea plătitorului: factură modificată sau cont furnizor nou; cere verificare pe canal separat.",
+          "source_url": "https://www.brd.ro/atentie-atacuri-informatice",
+          "publisher": "BRD",
+          "confidence": "high",
+          "severity": "decisive"
+        }
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.brd.ro/atentie-atacuri-informatice",
+          "publisher": "BRD",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.brd.ro/node/1302",
+          "publisher": "BRD",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.brd.ro/persoane-fizice/online-banking/you",
+          "publisher": "BRD",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.brd.ro/contact",
+          "publisher": "BRD",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "bank_ing",
+      "type": "brand",
+      "category": "bank",
+      "display_name": "ING Bank România",
+      "official_domains": [
+        "ing.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "ing.ro",
+          "source_url": "https://ing.ro/ing-in-romania/informatii-utile/securitate",
+          "publisher": "ING Bank România",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [
+        "+40214028599",
+        "+40314062464"
+      ],
+      "official_contacts": [
+        {
+          "value": "+40314062464",
+          "label": "Contact Center / *2ING / *2464",
+          "channel": "phone",
+          "source_url": "https://ing.ro/persoane-fizice/contact",
+          "publisher": "ING Bank România",
+          "confidence": "high"
+        },
+        {
+          "value": "+40214028599",
+          "label": "Card Stop",
+          "channel": "phone",
+          "source_url": "https://ing.ro/ing-in-romania/informatii-utile/securitate",
+          "publisher": "ING Bank România",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [
+        {
+          "value": "*2ING",
+          "channel": "voice",
+          "label": "Contact ING",
+          "source_url": "https://ing.ro/persoane-fizice/contact",
+          "publisher": "ING Bank România",
+          "confidence": "high"
+        },
+        {
+          "value": "*2464",
+          "channel": "voice",
+          "label": "Contact ING",
+          "source_url": "https://ing.ro/persoane-fizice/contact",
+          "publisher": "ING Bank România",
+          "confidence": "high"
+        }
+      ],
+      "official_apps": [
+        {
+          "name": "ING Home'Bank",
+          "platforms": [
+            "iOS",
+            "Android"
+          ],
+          "source_url": "https://ing.ro/persoane-fizice/ing-homebank",
+          "publisher": "ING Bank România",
+          "confidence": "high"
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "pin",
+          "claim": "Un reprezentant ING nu cere PIN-ul cardului.",
+          "source_url": "https://ing.ro/ing-in-romania/informatii-utile/securitate",
+          "publisher": "ING Bank România",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "phone",
+            "sms",
+            "social"
+          ],
+          "exact_extract": "nu ... divulgi PIN-ul"
+        },
+        {
+          "token": "cvv",
+          "claim": "Un reprezentant ING nu cere CVV-ul cardului.",
+          "source_url": "https://ing.ro/ing-in-romania/informatii-utile/securitate",
+          "publisher": "ING Bank România",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "phone",
+            "sms",
+            "social"
+          ],
+          "exact_extract": "codul CVV"
+        },
+        {
+          "token": "password",
+          "claim": "Nu te loghezi în Home’Bank prin link primit anterior.",
+          "source_url": "https://ing.ro/ing-in-romania/informatii-utile/securitate",
+          "publisher": "ING Bank România",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "sms",
+            "social",
+            "email"
+          ]
+        },
+        {
+          "token": "safe_account_transfer",
+          "claim": "ING avertizează împotriva transferului către conturi de tip seif/safe account.",
+          "source_url": "https://ing.ro/ing-in-romania/informatii-utile/securitate",
+          "publisher": "ING Bank România",
+          "confidence": "high",
+          "severity": "decisive"
+        }
+      ],
+      "never_does": [
+        {
+          "token": "login_via_link",
+          "claim": "ING nu cere autentificare Home’Bank prin link transmis pe SMS/social.",
+          "source_url": "https://ing.ro/ing-in-romania/informatii-utile/securitate",
+          "publisher": "ING Bank România",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "card_for_receiving_money",
+          "claim": "Cardul este instrument de plată, nu de încasare; nu oferi detalii card pentru a primi bani.",
+          "source_url": "https://ing.ro/ing-in-romania/informatii-utile/securitate",
+          "publisher": "ING Bank România",
+          "confidence": "high",
+          "severity": "decisive"
+        }
+      ],
+      "source_refs": [
+        {
+          "url": "https://ing.ro/ing-in-romania/informatii-utile/securitate",
+          "publisher": "ING Bank România",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://ing.ro/persoane-fizice/contact",
+          "publisher": "ING Bank România",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://ing.ro/persoane-fizice/ing-homebank",
+          "publisher": "ING Bank România",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "bank_raiffeisen",
+      "type": "brand",
+      "category": "bank",
+      "display_name": "Raiffeisen Bank România",
+      "official_domains": [
+        "raiffeisen.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "raiffeisen.ro",
+          "source_url": "https://www.raiffeisen.ro/ro/despre-noi/politica-de-confidentialitate.html",
+          "publisher": "Raiffeisen Bank",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [
+        "+40213063002",
+        "+40800800555"
+      ],
+      "official_contacts": [
+        {
+          "value": "+40213063002",
+          "label": "Call Center / asistență",
+          "channel": "phone",
+          "source_url": "https://www.raiffeisen.ro/ro/despre-noi/politica-de-confidentialitate.html",
+          "publisher": "Raiffeisen Bank",
+          "confidence": "high"
+        },
+        {
+          "value": "0800800555",
+          "label": "linia 0800 listată oficial",
+          "channel": "phone",
+          "source_url": "https://www.raiffeisen.ro/ro/despre-noi/politica-de-confidentialitate.html",
+          "publisher": "Raiffeisen Bank",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [
+        {
+          "value": "*2000",
+          "channel": "voice",
+          "label": "Call Center Raiffeisen",
+          "source_url": "https://www.raiffeisen.ro/ro/despre-noi/politica-de-confidentialitate.html",
+          "publisher": "Raiffeisen Bank",
+          "confidence": "high"
+        }
+      ],
+      "official_apps": [
+        {
+          "name": "Smart Mobile",
+          "platforms": [
+            "iOS",
+            "Android"
+          ],
+          "source_url": "https://www.raiffeisen.ro/ro/despre-noi/politica-de-confidentialitate.html",
+          "publisher": "Raiffeisen Bank",
+          "confidence": "medium",
+          "notes": "App confirmed in prior official pages; store-link refresh recommended."
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "card_number",
+          "claim": "Condițiile Raiffeisen interzic comunicarea datelor cardului ca răspuns la e-mailuri/cereri nesigure.",
+          "source_url": "https://www.raiffeisen.ro/content/dam/rbi/rairom/pdf/persoane-fizice/propuneri_cgb/CGC-PF-12122023.pdf.coredownload.inline.pdf",
+          "publisher": "Raiffeisen Bank",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "email"
+          ]
+        },
+        {
+          "token": "cvv",
+          "claim": "CVV/CVC nu se furnizează în răspuns la solicitări nesigure.",
+          "source_url": "https://www.raiffeisen.ro/content/dam/rbi/rairom/pdf/persoane-fizice/propuneri_cgb/CGC-PF-12122023.pdf.coredownload.inline.pdf",
+          "publisher": "Raiffeisen Bank",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "pin",
+          "claim": "PIN-ul cardului nu se comunică.",
+          "source_url": "https://www.raiffeisen.ro/content/dam/rbi/rairom/pdf/persoane-fizice/propuneri_cgb/CGC-PF-12122023.pdf.coredownload.inline.pdf",
+          "publisher": "Raiffeisen Bank",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "otp",
+          "claim": "OTP/parola statică nu se furnizează în răspuns la e-mailuri.",
+          "source_url": "https://www.raiffeisen.ro/content/dam/rbi/rairom/pdf/persoane-fizice/propuneri_cgb/CGC-PF-12122023.pdf.coredownload.inline.pdf",
+          "publisher": "Raiffeisen Bank",
+          "confidence": "high",
+          "severity": "decisive"
+        }
+      ],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://www.raiffeisen.ro/ro/despre-noi/politica-de-confidentialitate.html",
+          "publisher": "Raiffeisen Bank",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.raiffeisen.ro/content/dam/rbi/rairom/pdf/persoane-fizice/propuneri_cgb/CGC-PF-12122023.pdf.coredownload.inline.pdf",
+          "publisher": "Raiffeisen Bank",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "bank_unicredit",
+      "type": "brand",
+      "category": "bank",
+      "display_name": "UniCredit Bank România",
+      "official_domains": [
+        "unicredit.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "unicredit.ro",
+          "source_url": "https://www.unicredit.ro/ro/persoane-fizice/Diverse/securitate.html",
+          "publisher": "UniCredit Bank",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [
+        "+40212002020",
+        "+40800888111"
+      ],
+      "official_contacts": [
+        {
+          "value": "+40212002020",
+          "label": "InfoCenter",
+          "channel": "phone",
+          "source_url": "https://www.unicredit.ro/ro/persoane-fizice/asistenta/contact.html",
+          "publisher": "UniCredit Bank",
+          "confidence": "high"
+        },
+        {
+          "value": "0800888111",
+          "label": "blocare card",
+          "channel": "phone",
+          "source_url": "https://www.unicredit.ro/ro/persoane-fizice/asistenta/card-de-debit.html",
+          "publisher": "UniCredit Bank",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [
+        {
+          "value": "*2020",
+          "channel": "voice",
+          "label": "InfoCenter",
+          "source_url": "https://www.unicredit.ro/ro/persoane-fizice/asistenta/card-de-debit.html",
+          "publisher": "UniCredit Bank",
+          "confidence": "high",
+          "scope": "apelabil conform paginilor de asistență"
+        }
+      ],
+      "official_apps": [
+        {
+          "name": "UniCredit Mobile Banking",
+          "platforms": [
+            "iOS",
+            "Android"
+          ],
+          "source_url": "https://www.unicredit.ro/ro/persoane-fizice/Diverse/securitate.html",
+          "publisher": "UniCredit Bank",
+          "confidence": "medium",
+          "notes": "Refresh link store/app page înainte de includere în manifest final."
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "card_number",
+          "claim": "UniCredit spune să nu furnizezi numărul cardului/date bancare la apeluri suspecte.",
+          "source_url": "https://www.unicredit.ro/ro/persoane-fizice/Diverse/securitate.html",
+          "publisher": "UniCredit Bank",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "phone",
+            "email"
+          ]
+        },
+        {
+          "token": "cvv",
+          "claim": "Codul de securitate de pe spatele cardului nu se furnizează la apeluri suspecte.",
+          "source_url": "https://www.unicredit.ro/ro/persoane-fizice/Diverse/securitate.html",
+          "publisher": "UniCredit Bank",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "pin",
+          "claim": "PIN-ul nu se furnizează; banca nu cere date card/autorizare plăți.",
+          "source_url": "https://www.unicredit.ro/ro/persoane-fizice/Diverse/securitate.html",
+          "publisher": "UniCredit Bank",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "password",
+          "claim": "Parola Mobile/Internet Banking nu se comunică la telefon/e-mail.",
+          "source_url": "https://www.unicredit.ro/ro/persoane-fizice/Diverse/securitate.html",
+          "publisher": "UniCredit Bank",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "remote_access",
+          "claim": "Avertizează asupra apelurilor false care cer instalarea AnyDesk/RustDesk/Signal Desktop.",
+          "source_url": "https://www.unicredit.ro/ro/persoane-fizice/Diverse/securitate.html",
+          "publisher": "UniCredit Bank",
+          "confidence": "high",
+          "severity": "decisive"
+        }
+      ],
+      "never_does": [
+        {
+          "token": "cancel_credit_by_phone",
+          "claim": "UniCredit spune că banca nu sună pentru anularea creditelor sau promisiuni de recuperare bani.",
+          "source_url": "https://www.unicredit.ro/ro/persoane-fizice/Diverse/securitate.html",
+          "publisher": "UniCredit Bank",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "card_for_receiving_money",
+          "claim": "Pentru a primi bani se folosește IBAN, nu datele cardului.",
+          "source_url": "https://www.unicredit.ro/ro/persoane-fizice/Diverse/securitate.html",
+          "publisher": "UniCredit Bank",
+          "confidence": "high",
+          "severity": "decisive"
+        }
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.unicredit.ro/ro/persoane-fizice/Diverse/securitate.html",
+          "publisher": "UniCredit Bank",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.unicredit.ro/ro/persoane-fizice/asistenta/contact.html",
+          "publisher": "UniCredit Bank",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "bank_cec",
+      "type": "brand",
+      "category": "bank",
+      "display_name": "CEC Bank",
+      "official_domains": [
+        "cec.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "cec.ro",
+          "source_url": "https://www.cec.ro/contact",
+          "publisher": "CEC Bank",
+          "confidence": "medium"
+        }
+      ],
+      "official_phones_e164": [
+        "+40212026999",
+        "+40213517100",
+        "+40800800848"
+      ],
+      "official_contacts": [
+        {
+          "value": "0800800848",
+          "label": "Call Center",
+          "channel": "phone",
+          "source_url": "https://www.cec.ro/contact",
+          "publisher": "CEC Bank",
+          "confidence": "high"
+        },
+        {
+          "value": "+40212026999",
+          "label": "Call Center",
+          "channel": "phone",
+          "source_url": "https://www.cec.ro/contact",
+          "publisher": "CEC Bank",
+          "confidence": "high"
+        },
+        {
+          "value": "+40213517100",
+          "label": "Call Center",
+          "channel": "phone",
+          "source_url": "https://www.cec.ro/contact",
+          "publisher": "CEC Bank",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [],
+      "official_apps": [
+        {
+          "name": "CEC app / Mobile Banking",
+          "platforms": [
+            "iOS",
+            "Android"
+          ],
+          "source_url": "https://www.cec.ro/contact",
+          "publisher": "CEC Bank",
+          "confidence": "needs_confirmation",
+          "notes": "Verifică pagina oficială de aplicație înainte de whitelist."
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "modified_invoice_payment",
+          "claim": "Pagina CEC de securitate descrie BEC: partenerul cere cont nou de plată; verificare directă cu partenerul.",
+          "source_url": "https://www.cec.ro/securitatea-tranzactiilor",
+          "publisher": "CEC Bank",
+          "confidence": "medium",
+          "severity": "decisive",
+          "channels": [
+            "email"
+          ]
+        }
+      ],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://www.cec.ro/contact",
+          "publisher": "CEC Bank",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.cec.ro/securitatea-tranzactiilor",
+          "publisher": "CEC Bank",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium",
+          "note": "Pagina a returnat 403 la open; confirmare prin index oficial/search snippet. Revalidare obligatorie înainte de verdict dur."
+        }
+      ],
+      "confidence": "medium",
+      "verdict_policy": "active_verified_for_contact_only",
+      "notes": [
+        "Regulile anti-BEC sunt utile, dar pagina de securitate trebuie recitită dintr-un crawler acceptat înainte de verdict automat."
+      ]
+    },
+    {
+      "manifest_id": "bank_alpha_legacy",
+      "type": "brand",
+      "category": "bank",
+      "display_name": "Alpha Bank România — legacy / integrată UniCredit",
+      "official_domains": [
+        "alphabank.ro",
+        "unicredit.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "alphabank.ro",
+          "source_url": "https://www.alphabank.ro/en/security",
+          "publisher": "Alpha Bank",
+          "confidence": "needs_confirmation"
+        },
+        {
+          "domain": "unicredit.ro",
+          "source_url": "https://www.alphabank.ro/en/security",
+          "publisher": "Alpha Bank",
+          "confidence": "needs_confirmation"
+        }
+      ],
+      "official_phones_e164": [
+        "+40212002752",
+        "+40214559998"
+      ],
+      "official_contacts": [
+        {
+          "value": "+40214559998",
+          "label": "telefon legacy Alpha Bank",
+          "channel": "phone",
+          "source_url": "https://www.alphabank.ro/en/security",
+          "publisher": "Alpha Bank",
+          "confidence": "medium"
+        },
+        {
+          "value": "+40212002752",
+          "label": "linie dedicată integrare Alpha/UniCredit",
+          "channel": "phone",
+          "source_url": "https://www.unicredit.ro/ro/persoane-fizice/Diverse/alphabank.html",
+          "publisher": "UniCredit Bank",
+          "confidence": "medium"
+        }
+      ],
+      "official_shortcodes": [],
+      "official_apps": [
+        {
+          "name": "myAlpha Mobile",
+          "platforms": [
+            "iOS",
+            "Android"
+          ],
+          "source_url": "https://www.alphabank.ro/en/security",
+          "publisher": "Alpha Bank",
+          "confidence": "medium",
+          "notes": "Legacy; brand integrat în UniCredit."
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "pin",
+          "claim": "Alpha Bank afirmă că nu cere PIN-ul cardului prin e-mail/SMS/Viber/telefon/comunicări similare.",
+          "source_url": "https://www.alphabank.ro/en/security",
+          "publisher": "Alpha Bank",
+          "confidence": "medium",
+          "severity": "decisive",
+          "channels": [
+            "email",
+            "sms",
+            "phone",
+            "messaging"
+          ]
+        },
+        {
+          "token": "password",
+          "claim": "Alpha Bank afirmă că nu cere credențiale e-Banking prin canale externe.",
+          "source_url": "https://www.alphabank.ro/en/security",
+          "publisher": "Alpha Bank",
+          "confidence": "medium",
+          "severity": "decisive",
+          "channels": [
+            "email",
+            "sms",
+            "phone",
+            "messaging"
+          ]
+        }
+      ],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://www.alphabank.ro/en/security",
+          "publisher": "Alpha Bank",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        },
+        {
+          "url": "https://www.unicredit.ro/ro/persoane-fizice/Diverse/alphabank.html",
+          "publisher": "UniCredit Bank",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        }
+      ],
+      "confidence": "needs_confirmation",
+      "verdict_policy": "quarantine_identity_transition",
+      "notes": [
+        "Status de tranziție/integrare. Pentru verdict de brand activ folosește manifestul UniCredit."
+      ]
+    },
+    {
+      "manifest_id": "bank_revolut_ro",
+      "type": "brand",
+      "category": "bank",
+      "display_name": "Revolut România / Revolut Bank UAB branch",
+      "official_domains": [
+        "revolut.com"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "revolut.com",
+          "source_url": "https://www.revolut.com/ro-RO/blog/post/how-to-know-its-really-revolut-calling/",
+          "publisher": "Revolut",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [
+        "+442033228352"
+      ],
+      "official_contacts": [
+        {
+          "value": "+442033228352",
+          "label": "linie automatizată card block/support global",
+          "channel": "phone",
+          "source_url": "https://www.revolut.com/ro-RO/contact-us/",
+          "publisher": "Revolut",
+          "confidence": "medium"
+        }
+      ],
+      "official_shortcodes": [],
+      "official_apps": [
+        {
+          "name": "Revolut",
+          "platforms": [
+            "iOS",
+            "Android"
+          ],
+          "source_url": "https://www.revolut.com/ro-RO/contact-us/",
+          "publisher": "Revolut",
+          "confidence": "high"
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "pin",
+          "claim": "Revolut spune că nu cere PIN-ul prin telefon/e-mail/text.",
+          "source_url": "https://www.revolut.com/en-RO/legal/privacy/",
+          "publisher": "Revolut",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "phone",
+            "email",
+            "sms"
+          ]
+        },
+        {
+          "token": "password",
+          "claim": "Revolut spune că nu cere parole/OTP prin apeluri/e-mailuri/mesaje.",
+          "source_url": "https://www.revolut.com/en-RO/legal/privacy/",
+          "publisher": "Revolut",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "phone",
+            "email",
+            "sms"
+          ]
+        },
+        {
+          "token": "otp",
+          "claim": "Cererile de OTP/cod de verificare în timpul unui apel sunt red flags.",
+          "source_url": "https://www.revolut.com/ro-RO/blog/post/how-to-know-its-really-revolut-calling/",
+          "publisher": "Revolut",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "phone"
+          ]
+        },
+        {
+          "token": "safe_account_transfer",
+          "claim": "Revolut avertizează împotriva cererilor de a muta bani într-un cont «safe».",
+          "source_url": "https://www.revolut.com/ro-RO/blog/post/how-to-know-its-really-revolut-calling/",
+          "publisher": "Revolut",
+          "confidence": "high",
+          "severity": "decisive"
+        }
+      ],
+      "never_does": [
+        {
+          "token": "approve_in_app_for_caller",
+          "claim": "Nu aproba acțiuni în aplicație cerute de un apelant neconfirmat.",
+          "source_url": "https://www.revolut.com/ro-RO/blog/post/how-to-know-its-really-revolut-calling/",
+          "publisher": "Revolut",
+          "confidence": "high",
+          "severity": "decisive"
+        }
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.revolut.com/ro-RO/blog/post/how-to-know-its-really-revolut-calling/",
+          "publisher": "Revolut",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.revolut.com/en-RO/legal/privacy/",
+          "publisher": "Revolut",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.revolut.com/ro-RO/contact-us/",
+          "publisher": "Revolut",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "bank_libra",
+      "type": "brand",
+      "category": "bank",
+      "display_name": "Libra Internet Bank",
+      "official_domains": [
+        "librabank.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "librabank.ro",
+          "source_url": "https://www.librabank.ro/contact",
+          "publisher": "Libra Internet Bank",
+          "confidence": "medium"
+        }
+      ],
+      "official_phones_e164": [
+        "+40212026999",
+        "+40212088088"
+      ],
+      "official_contacts": [
+        {
+          "value": "+40212088088",
+          "label": "Call Center",
+          "channel": "phone",
+          "source_url": "https://www.librabank.ro/contact",
+          "publisher": "Libra Internet Bank",
+          "confidence": "high"
+        },
+        {
+          "value": "+40212026999",
+          "label": "urgențe card",
+          "channel": "phone",
+          "source_url": "https://www.librabank.ro/contact",
+          "publisher": "Libra Internet Bank",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [],
+      "official_apps": [],
+      "never_asks": [
+        {
+          "token": "sensitive_data_unsolicited",
+          "claim": "Libra recomandă verificarea sursei comunicării și contactarea băncii dacă apar suspiciuni.",
+          "source_url": "https://www.librabank.ro/informatii-securitate-bancara",
+          "publisher": "Libra Internet Bank",
+          "confidence": "medium",
+          "severity": "medium"
+        }
+      ],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://www.librabank.ro/contact",
+          "publisher": "Libra Internet Bank",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.librabank.ro/informatii-securitate-bancara",
+          "publisher": "Libra Internet Bank",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        }
+      ],
+      "confidence": "medium",
+      "verdict_policy": "identity_only",
+      "notes": [
+        "Nu am confirmat o pagină oficială clară de tip «nu cerem niciodată» pentru toate tokenurile cerute. Folosește doar ca identity/contact manifest."
+      ]
+    },
+    {
+      "manifest_id": "bank_otp_legacy",
+      "type": "brand",
+      "category": "bank",
+      "display_name": "OTP Bank România — legacy / migrat BT",
+      "official_domains": [
+        "otpbank.ro",
+        "bancatransilvania.ro",
+        "btrl.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "otpbank.ro",
+          "source_url": "https://www.bancatransilvania.ro/newsroom/stiri/bt-clienti-otp-bank-romania",
+          "publisher": "Banca Transilvania",
+          "confidence": "needs_confirmation"
+        },
+        {
+          "domain": "bancatransilvania.ro",
+          "source_url": "https://www.bancatransilvania.ro/newsroom/stiri/bt-clienti-otp-bank-romania",
+          "publisher": "Banca Transilvania",
+          "confidence": "needs_confirmation"
+        },
+        {
+          "domain": "btrl.ro",
+          "source_url": "https://www.bancatransilvania.ro/newsroom/stiri/bt-clienti-otp-bank-romania",
+          "publisher": "Banca Transilvania",
+          "confidence": "needs_confirmation"
+        }
+      ],
+      "official_phones_e164": [
+        "+40213085710",
+        "+40264308014",
+        "+40800800800881"
+      ],
+      "official_contacts": [
+        {
+          "value": "0800800800881",
+          "label": "linie comunicată de BT pentru clienți OTP în tranziție",
+          "channel": "phone",
+          "source_url": "https://www.bancatransilvania.ro/newsroom/stiri/bt-clienti-otp-bank-romania",
+          "publisher": "Banca Transilvania",
+          "confidence": "medium"
+        },
+        {
+          "value": "+40264308014",
+          "label": "linie comunicată de BT pentru clienți OTP în tranziție",
+          "channel": "phone",
+          "source_url": "https://www.bancatransilvania.ro/newsroom/stiri/bt-clienti-otp-bank-romania",
+          "publisher": "Banca Transilvania",
+          "confidence": "medium"
+        },
+        {
+          "value": "+40213085710",
+          "label": "telefon legacy OTP Bank România",
+          "channel": "phone",
+          "source_url": "https://www.bancatransilvania.ro/newsroom/stiri/bt-clienti-otp-bank-romania",
+          "publisher": "Banca Transilvania",
+          "confidence": "medium"
+        }
+      ],
+      "official_shortcodes": [],
+      "official_apps": [],
+      "never_asks": [],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://www.bancatransilvania.ro/newsroom/stiri/bt-clienti-otp-bank-romania",
+          "publisher": "Banca Transilvania",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        },
+        {
+          "url": "https://www.otpbank.hu/portal/en/News/OTP_Bank_Romania_sale_closed",
+          "publisher": "OTP Group",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        }
+      ],
+      "confidence": "needs_confirmation",
+      "verdict_policy": "quarantine_identity_transition",
+      "notes": [
+        "OTP Bank România a fost cumpărată de BT; nu folosi ca brand activ fără confirmare curentă pe fluxul BT."
+      ]
+    },
+    {
+      "manifest_id": "bank_vista",
+      "type": "brand",
+      "category": "bank",
+      "display_name": "Vista Bank România",
+      "official_domains": [
+        "vistabank.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "vistabank.ro",
+          "source_url": "https://www.vistabank.ro/securitate",
+          "publisher": "Vista Bank",
+          "confidence": "needs_confirmation"
+        }
+      ],
+      "official_phones_e164": [],
+      "official_contacts": [],
+      "official_shortcodes": [],
+      "official_apps": [],
+      "never_asks": [
+        {
+          "token": "card_number",
+          "claim": "Pagina de securitate Vista descrie phishing/smishing care urmărește date de card/credențiale.",
+          "source_url": "https://www.vistabank.ro/securitate",
+          "publisher": "Vista Bank",
+          "confidence": "medium",
+          "severity": "decisive"
+        },
+        {
+          "token": "pin",
+          "claim": "Sursa oficială de securitate Vista trebuie revalidată pentru interdicții exacte.",
+          "source_url": "https://www.vistabank.ro/securitate",
+          "publisher": "Vista Bank",
+          "confidence": "needs_confirmation",
+          "severity": "decisive"
+        }
+      ],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://www.vistabank.ro/securitate",
+          "publisher": "Vista Bank",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        },
+        {
+          "url": "https://www.vistabank.ro/contact",
+          "publisher": "Vista Bank",
+          "accessed_at": "2026-06-16",
+          "confidence": "needs_confirmation"
+        }
+      ],
+      "confidence": "needs_confirmation",
+      "verdict_policy": "identity_only",
+      "notes": [
+        "Contactele și app-urile nu au fost confirmate suficient în această rundă pentru whitelist activ."
+      ]
+    },
+    {
+      "manifest_id": "bank_garanti",
+      "type": "brand",
+      "category": "bank",
+      "display_name": "Garanti BBVA România",
+      "official_domains": [
+        "garantibbva.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "garantibbva.ro",
+          "source_url": "https://www.garantibbva.ro/persoane-fizice/online-banking/informatii-securitate/",
+          "publisher": "Garanti BBVA",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [
+        "+40212009494",
+        "+40800801234"
+      ],
+      "official_contacts": [
+        {
+          "value": "0800801234",
+          "label": "Relații Clienți",
+          "channel": "phone",
+          "source_url": "https://www.garantibbva.ro/persoane-fizice/online-banking/informatii-securitate/",
+          "publisher": "Garanti BBVA",
+          "confidence": "high"
+        },
+        {
+          "value": "+40212009494",
+          "label": "Relații Clienți",
+          "channel": "phone",
+          "source_url": "https://www.garantibbva.ro/persoane-fizice/online-banking/informatii-securitate/",
+          "publisher": "Garanti BBVA",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [],
+      "official_apps": [
+        {
+          "name": "Garanti BBVA Mobile",
+          "platforms": [
+            "iOS",
+            "Android"
+          ],
+          "source_url": "https://www.garantibbva.ro/persoane-fizice/online-banking/informatii-securitate/",
+          "publisher": "Garanti BBVA",
+          "confidence": "high"
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "password",
+          "claim": "Garanti afirmă că nu cere parole/date personale prin e-mail.",
+          "source_url": "https://www.garantibbva.ro/persoane-fizice/online-banking/informatii-securitate/",
+          "publisher": "Garanti BBVA",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "email"
+          ]
+        },
+        {
+          "token": "remote_access",
+          "claim": "Nu permite acces remote pe dispozitive și nu instala aplicații la cererea unor persoane insuficient cunoscute.",
+          "source_url": "https://www.garantibbva.ro/persoane-fizice/online-banking/informatii-securitate/",
+          "publisher": "Garanti BBVA",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "otp",
+          "claim": "Nu divulga date de autorizare tranzacții/coduri unice/3D Secure.",
+          "source_url": "https://www.garantibbva.ro/persoane-fizice/online-banking/informatii-securitate/",
+          "publisher": "Garanti BBVA",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "card_number",
+          "claim": "Nu divulga date de internet-banking/card în comunicări nesigure.",
+          "source_url": "https://www.garantibbva.ro/persoane-fizice/online-banking/informatii-securitate/",
+          "publisher": "Garanti BBVA",
+          "confidence": "high",
+          "severity": "decisive"
+        }
+      ],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://www.garantibbva.ro/persoane-fizice/online-banking/informatii-securitate/",
+          "publisher": "Garanti BBVA",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.garantibbva.ro/contact/",
+          "publisher": "Garanti BBVA",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "bank_first_legacy",
+      "type": "brand",
+      "category": "bank",
+      "display_name": "First Bank — integrată Intesa Sanpaolo Bank România",
+      "official_domains": [
+        "firstbank.ro",
+        "intesasanpaolobank.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "firstbank.ro",
+          "source_url": "https://www.intesasanpaolobank.ro/document/documents/ISPROMANIA/Integrare/Ghidul-de-Bun-Venit.pdf",
+          "publisher": "Intesa Sanpaolo Bank România",
+          "confidence": "needs_confirmation"
+        },
+        {
+          "domain": "intesasanpaolobank.ro",
+          "source_url": "https://www.intesasanpaolobank.ro/document/documents/ISPROMANIA/Integrare/Ghidul-de-Bun-Venit.pdf",
+          "publisher": "Intesa Sanpaolo Bank România",
+          "confidence": "needs_confirmation"
+        }
+      ],
+      "official_phones_e164": [
+        "+40213036969",
+        "+40800801802"
+      ],
+      "official_contacts": [
+        {
+          "value": "+40213036969",
+          "label": "Call Center legacy First Bank",
+          "channel": "phone",
+          "source_url": "https://www.intesasanpaolobank.ro/persoane-fizice/integrare-first-bank/",
+          "publisher": "Intesa Sanpaolo Bank România",
+          "confidence": "medium"
+        },
+        {
+          "value": "0800801802",
+          "label": "Call Center legacy First Bank",
+          "channel": "phone",
+          "source_url": "https://www.intesasanpaolobank.ro/persoane-fizice/integrare-first-bank/",
+          "publisher": "Intesa Sanpaolo Bank România",
+          "confidence": "medium"
+        }
+      ],
+      "official_shortcodes": [],
+      "official_apps": [],
+      "never_asks": [
+        {
+          "token": "iban_change_transition",
+          "claim": "Integrarea First Bank a inclus alocarea de IBAN-uri noi; orice IBAN comunicat trebuie verificat în canalele Intesa.",
+          "source_url": "https://www.intesasanpaolobank.ro/document/documents/ISPROMANIA/Integrare/Ghidul-de-Bun-Venit.pdf",
+          "publisher": "Intesa Sanpaolo Bank România",
+          "confidence": "medium",
+          "severity": "decisive"
+        }
+      ],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://www.intesasanpaolobank.ro/document/documents/ISPROMANIA/Integrare/Ghidul-de-Bun-Venit.pdf",
+          "publisher": "Intesa Sanpaolo Bank România",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        },
+        {
+          "url": "https://www.intesasanpaolobank.ro/persoane-fizice/integrare-first-bank/",
+          "publisher": "Intesa Sanpaolo Bank România",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        }
+      ],
+      "confidence": "needs_confirmation",
+      "verdict_policy": "quarantine_identity_transition",
+      "notes": [
+        "Brand migrat. Pentru verdict activ cere confirmare în canale Intesa; atenție la false positive pe IBAN-uri vechi/noi."
+      ]
+    },
+    {
+      "manifest_id": "inst_anaf",
+      "type": "brand",
+      "category": "institution",
+      "display_name": "ANAF",
+      "official_domains": [
+        "anaf.ro",
+        "static.anaf.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "anaf.ro",
+          "source_url": "https://www.anaf.ro/anaf/internet/ANAF/contact/call_center",
+          "publisher": "ANAF",
+          "confidence": "high"
+        },
+        {
+          "domain": "static.anaf.ro",
+          "source_url": "https://www.anaf.ro/anaf/internet/ANAF/contact/call_center",
+          "publisher": "ANAF",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [
+        "+40314039160"
+      ],
+      "official_contacts": [
+        {
+          "value": "+40314039160",
+          "label": "Call Center ANAF",
+          "channel": "phone",
+          "source_url": "https://www.anaf.ro/anaf/internet/ANAF/contact/call_center",
+          "publisher": "ANAF",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [],
+      "official_apps": [
+        {
+          "name": "iBon",
+          "platforms": [
+            "iOS",
+            "Android"
+          ],
+          "source_url": "https://www.anaf.ro/anaf/internet/ANAF/despre_anaf/strategii_anaf/proiecte_digitalizare/iBON/",
+          "publisher": "ANAF",
+          "confidence": "high"
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "banking_data_by_phone",
+          "claim": "ANAF avertizează asupra apelurilor false care urmăresc date personale și bancare.",
+          "source_url": "https://www.anaf.ro/anaf/internet/ANAF/acasa/!ut/p/a1/04_Sj9CPykssy0xPLMnMz0vMAfGjzOI9DD3MPIwsjLwMPAINDAJNnTyDTN0DDAzcTYAKIoEKDHAARwNC-sP1o_AqMTCDKsBjRUFuhEGmo6IiADoY7eA!/dl5/d5/L0lDU0lKSWdrbUNTUS9JUFJBQUlpQ2dBek15cXpHWUEhIS80SkNoRG9NZHRCZ2NobkFWR0ZjUi9aN19IMUg2SDI4MkowSFEwMFE1QklSNUdQMDBPMS8wL3NhLnNwZl9BY3Rpb25MaXN0ZW5lcg!!/?PC_Z7_H1H6H282J0HQ00Q5BIR5GP00O1000000_spf_strutsAction=%212fsearchStiri.do",
+          "publisher": "ANAF",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "phone"
+          ]
+        },
+        {
+          "token": "app_installation",
+          "claim": "Avertismente ANAF/DNSC recomandă să nu instalezi aplicații din cereri suspecte.",
+          "source_url": "https://www.anaf.ro/anaf/internet/ANAF/acasa/!ut/p/a1/04_Sj9CPykssy0xPLMnMz0vMAfGjzOI9DD3MPIwsjLwMPAINDAJNnTyDTN0DDAzcTYAKIoEKDHAARwNC-sP1o_AqMTCDKsBjRUFuhEGmo6IiADoY7eA!/dl5/d5/L0lDU0lKSWdrbUNTUS9JUFJBQUlpQ2dBek15cXpHWUEhIS80SkNoRG9NZHRCZ2NobkFWR0ZjUi9aN19IMUg2SDI4MkowSFEwMFE1QklSNUdQMDBPMS8wL3NhLnNwZl9BY3Rpb25MaXN0ZW5lcg!!/?PC_Z7_H1H6H282J0HQ00Q5BIR5GP00O1000000_spf_strutsAction=%212fsearchStiri.do",
+          "publisher": "ANAF",
+          "confidence": "medium",
+          "severity": "decisive"
+        }
+      ],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://www.anaf.ro/anaf/internet/ANAF/contact/call_center",
+          "publisher": "ANAF",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.anaf.ro/anaf/internet/ANAF/acasa/!ut/p/a1/04_Sj9CPykssy0xPLMnMz0vMAfGjzOI9DD3MPIwsjLwMPAINDAJNnTyDTN0DDAzcTYAKIoEKDHAARwNC-sP1o_AqMTCDKsBjRUFuhEGmo6IiADoY7eA!/dl5/d5/L0lDU0lKSWdrbUNTUS9JUFJBQUlpQ2dBek15cXpHWUEhIS80SkNoRG9NZHRCZ2NobkFWR0ZjUi9aN19IMUg2SDI4MkowSFEwMFE1QklSNUdQMDBPMS8wL3NhLnNwZl9BY3Rpb25MaXN0ZW5lcg!!/?PC_Z7_H1H6H282J0HQ00Q5BIR5GP00O1000000_spf_strutsAction=%212fsearchStiri.do",
+          "publisher": "ANAF",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.anaf.ro/anaf/internet/ANAF/despre_anaf/strategii_anaf/proiecte_digitalizare/iBON/",
+          "publisher": "ANAF",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "inst_dnsc",
+      "type": "brand",
+      "category": "institution",
+      "display_name": "DNSC",
+      "official_domains": [
+        "dnsc.ro",
+        "pnrisc.dnsc.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "dnsc.ro",
+          "source_url": "https://www.dnsc.ro/contact",
+          "publisher": "DNSC",
+          "confidence": "high"
+        },
+        {
+          "domain": "pnrisc.dnsc.ro",
+          "source_url": "https://www.dnsc.ro/contact",
+          "publisher": "DNSC",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [],
+      "official_contacts": [
+        {
+          "value": "1911",
+          "label": "număr unic raportare incidente cibernetice — apelabil din România",
+          "channel": "phone_short",
+          "source_url": "https://www.dnsc.ro/contact",
+          "publisher": "DNSC",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [
+        {
+          "value": "1911",
+          "channel": "voice",
+          "label": "PNRISC / raportare incidente cibernetice",
+          "source_url": "https://www.dnsc.ro/contact",
+          "publisher": "DNSC",
+          "confidence": "high"
+        }
+      ],
+      "official_apps": [],
+      "never_asks": [
+        {
+          "token": "card_data",
+          "claim": "DNSC/Siguranța Online recomandă să nu comunici date de card la apel/SMS/e-mail neașteptat.",
+          "source_url": "https://sigurantaonline.ro/lpfraude/",
+          "publisher": "Siguranța Online / DNSC",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "phone",
+            "sms",
+            "email"
+          ]
+        },
+        {
+          "token": "password",
+          "claim": "DNSC/Siguranța Online tratează parolele și datele bancare ca informații sensibile care nu se furnizează în phishing.",
+          "source_url": "https://sigurantaonline.ro/lpfraude/",
+          "publisher": "Siguranța Online / DNSC",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "remote_access",
+          "claim": "DNSC avertizează în scheme investiționale asupra aplicațiilor remote precum AnyDesk/TeamViewer.",
+          "source_url": "https://www.dnsc.ro/citeste/alerta-txex-frauda-investitii",
+          "publisher": "DNSC",
+          "confidence": "medium",
+          "severity": "decisive"
+        }
+      ],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://www.dnsc.ro/contact",
+          "publisher": "DNSC",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://pnrisc.dnsc.ro/",
+          "publisher": "DNSC",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://sigurantaonline.ro/lpfraude/",
+          "publisher": "Siguranța Online / DNSC",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "inst_politia_mai",
+      "type": "brand",
+      "category": "institution",
+      "display_name": "Poliția Română / MAI",
+      "official_domains": [
+        "politiaromana.ro",
+        "mai.gov.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "politiaromana.ro",
+          "source_url": "https://www.mai.gov.ro/politia-romana-directoratul-national-de-securitate-cibernetica-si-asociatia-romana-a-bancilor-avertizeaza-asupra-riscului-de-frauda-de-tip-spoofing/",
+          "publisher": "MAI",
+          "confidence": "high"
+        },
+        {
+          "domain": "mai.gov.ro",
+          "source_url": "https://www.mai.gov.ro/politia-romana-directoratul-national-de-securitate-cibernetica-si-asociatia-romana-a-bancilor-avertizeaza-asupra-riscului-de-frauda-de-tip-spoofing/",
+          "publisher": "MAI",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [],
+      "official_contacts": [
+        {
+          "value": "112",
+          "label": "urgențe; nu folosi ca suport scam general",
+          "channel": "emergency",
+          "source_url": "https://www.politiaromana.ro/ro/utile/telefon-de-urgenta-112",
+          "publisher": "Poliția Română",
+          "confidence": "medium"
+        }
+      ],
+      "official_shortcodes": [
+        {
+          "value": "112",
+          "channel": "voice",
+          "label": "urgențe",
+          "source_url": "https://www.politiaromana.ro/ro/utile/telefon-de-urgenta-112",
+          "publisher": "Poliția Română",
+          "confidence": "high",
+          "scope": "urgențe"
+        }
+      ],
+      "official_apps": [],
+      "never_asks": [
+        {
+          "token": "bank_data",
+          "claim": "MAI/Poliția/DNSC/ARB avertizează: nu oferi date personale/bancare la apeluri spoofed.",
+          "source_url": "https://www.mai.gov.ro/politia-romana-directoratul-national-de-securitate-cibernetica-si-asociatia-romana-a-bancilor-avertizeaza-asupra-riscului-de-frauda-de-tip-spoofing/",
+          "publisher": "MAI / Poliția Română / DNSC / ARB",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "phone"
+          ]
+        },
+        {
+          "token": "loan_cancel_phone",
+          "claim": "Schema de spoofing pretinde credite aprobate/anulare; verifică separat la instituție.",
+          "source_url": "https://www.mai.gov.ro/politia-romana-directoratul-national-de-securitate-cibernetica-si-asociatia-romana-a-bancilor-avertizeaza-asupra-riscului-de-frauda-de-tip-spoofing/",
+          "publisher": "MAI / Poliția Română / DNSC / ARB",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "phone"
+          ]
+        }
+      ],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://www.mai.gov.ro/politia-romana-directoratul-national-de-securitate-cibernetica-si-asociatia-romana-a-bancilor-avertizeaza-asupra-riscului-de-frauda-de-tip-spoofing/",
+          "publisher": "MAI",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.politiaromana.ro/",
+          "publisher": "Poliția Română",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "inst_bnr",
+      "type": "brand",
+      "category": "institution",
+      "display_name": "Banca Națională a României",
+      "official_domains": [
+        "bnr.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "bnr.ro",
+          "source_url": "https://www.bnr.ro/24948-avertisment-cu-privire-la-campanii-de-dezinformare-si-tentative-de-frauda-in-numele-bnr",
+          "publisher": "BNR",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [
+        "+40213130410",
+        "+40213152750"
+      ],
+      "official_contacts": [
+        {
+          "value": "+40213130410",
+          "label": "centrală BNR",
+          "channel": "phone",
+          "source_url": "https://www.bnr.ro/Contact-3471.aspx",
+          "publisher": "BNR",
+          "confidence": "high"
+        },
+        {
+          "value": "+40213152750",
+          "label": "centrală BNR",
+          "channel": "phone",
+          "source_url": "https://www.bnr.ro/Contact-3471.aspx",
+          "publisher": "BNR",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [],
+      "official_apps": [
+        {
+          "name": "BNR Direct",
+          "platforms": [
+            "iOS",
+            "Android"
+          ],
+          "source_url": "https://www.bnr.ro/BNR-Direct-28029.aspx",
+          "publisher": "BNR",
+          "confidence": "medium"
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "sensitive_data",
+          "claim": "BNR declară că nu cere date sensibile prin telefon, SMS, WhatsApp sau rețele sociale.",
+          "source_url": "https://www.bnr.ro/24948-avertisment-cu-privire-la-campanii-de-dezinformare-si-tentative-de-frauda-in-numele-bnr",
+          "publisher": "BNR",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "phone",
+            "sms",
+            "whatsapp",
+            "social"
+          ]
+        },
+        {
+          "token": "urgent_payment_link",
+          "claim": "BNR declară că nu solicită plăți urgente prin linkuri.",
+          "source_url": "https://www.bnr.ro/24948-avertisment-cu-privire-la-campanii-de-dezinformare-si-tentative-de-frauda-in-numele-bnr",
+          "publisher": "BNR",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "link",
+            "email",
+            "sms"
+          ]
+        }
+      ],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://www.bnr.ro/24948-avertisment-cu-privire-la-campanii-de-dezinformare-si-tentative-de-frauda-in-numele-bnr",
+          "publisher": "BNR",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.bnr.ro/Contact-3471.aspx",
+          "publisher": "BNR",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "inst_anpc",
+      "type": "brand",
+      "category": "institution",
+      "display_name": "ANPC",
+      "official_domains": [
+        "anpc.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "anpc.ro",
+          "source_url": "https://anpc.ro/",
+          "publisher": "ANPC",
+          "confidence": "needs_confirmation"
+        }
+      ],
+      "official_phones_e164": [
+        "+40377755100"
+      ],
+      "official_contacts": [
+        {
+          "value": "+40377755100",
+          "label": "telefon cabinet / contact e-servicii",
+          "channel": "phone",
+          "source_url": "https://eservicii.anpc.ro/",
+          "publisher": "ANPC",
+          "confidence": "medium"
+        }
+      ],
+      "official_shortcodes": [],
+      "official_apps": [],
+      "never_asks": [],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://anpc.ro/",
+          "publisher": "ANPC",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://eservicii.anpc.ro/",
+          "publisher": "ANPC",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        }
+      ],
+      "confidence": "needs_confirmation",
+      "verdict_policy": "identity_only",
+      "notes": [
+        "Nu am confirmat o pagină oficială ANPC cu reguli «nu cerem niciodată». Folosește doar domeniu/contact ca identitate."
+      ]
+    },
+    {
+      "manifest_id": "courier_fan",
+      "type": "brand",
+      "category": "courier",
+      "display_name": "FAN Courier",
+      "official_domains": [
+        "fancourier.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "fancourier.ro",
+          "source_url": "https://www.fancourier.ro/en/contact-us/",
+          "publisher": "FAN Courier",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [
+        "+40219336",
+        "+40723552233",
+        "+40742552233"
+      ],
+      "official_contacts": [
+        {
+          "value": "+40219336",
+          "label": "support FAN",
+          "channel": "phone",
+          "source_url": "https://www.fancourier.ro/en/contact-us/",
+          "publisher": "FAN Courier",
+          "confidence": "high"
+        },
+        {
+          "value": "+40723552233",
+          "label": "support FAN din Vodafone/Orange",
+          "channel": "phone",
+          "source_url": "https://www.fancourier.ro/en/contact-us/",
+          "publisher": "FAN Courier",
+          "confidence": "high"
+        },
+        {
+          "value": "+40742552233",
+          "label": "support FAN din Vodafone/Orange",
+          "channel": "phone",
+          "source_url": "https://www.fancourier.ro/en/contact-us/",
+          "publisher": "FAN Courier",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [
+        {
+          "value": "*9336",
+          "channel": "voice",
+          "label": "support FAN",
+          "source_url": "https://www.fancourier.ro/en/contact-us/",
+          "publisher": "FAN Courier",
+          "confidence": "high"
+        }
+      ],
+      "official_apps": [
+        {
+          "name": "FAN Courier app",
+          "platforms": [
+            "iOS",
+            "Android"
+          ],
+          "source_url": "https://www.fancourier.ro/atentie-tentativa-de-phishing-prin-sms-2/",
+          "publisher": "FAN Courier",
+          "confidence": "medium"
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "personal_data_update_sms",
+          "claim": "FAN spune că nu solicită actualizarea datelor personale prin SMS/linkuri externe.",
+          "source_url": "https://www.fancourier.ro/atentie-tentativa-de-phishing-prin-sms-2/",
+          "publisher": "FAN Courier",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "sms"
+          ]
+        },
+        {
+          "token": "external_locker_link",
+          "claim": "FAN avertizează asupra SMS-urilor false pentru alegere locker; verificarea se face pe site oficial/app.",
+          "source_url": "https://www.fancourier.ro/atentie-tentativa-de-phishing-prin-sms/",
+          "publisher": "FAN Courier",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "sms"
+          ]
+        }
+      ],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://www.fancourier.ro/en/contact-us/",
+          "publisher": "FAN Courier",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.fancourier.ro/atentie-tentativa-de-phishing-prin-sms-2/",
+          "publisher": "FAN Courier",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.fancourier.ro/atentie-tentativa-de-phishing-prin-sms/",
+          "publisher": "FAN Courier",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "courier_sameday",
+      "type": "brand",
+      "category": "courier",
+      "display_name": "SAMEDAY / easybox",
+      "official_domains": [
+        "sameday.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "sameday.ro",
+          "source_url": "https://sameday.ro/contact/",
+          "publisher": "SAMEDAY",
+          "confidence": "medium"
+        }
+      ],
+      "official_phones_e164": [
+        "+40216370660"
+      ],
+      "official_contacts": [
+        {
+          "value": "+40216370660",
+          "label": "Contact SAMEDAY",
+          "channel": "phone",
+          "source_url": "https://sameday.ro/contact/",
+          "publisher": "SAMEDAY",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [],
+      "official_apps": [
+        {
+          "name": "SAMEDAY App",
+          "platforms": [
+            "iOS",
+            "Android"
+          ],
+          "source_url": "https://sameday.ro/sameday-app/",
+          "publisher": "SAMEDAY",
+          "confidence": "high"
+        }
+      ],
+      "never_asks": [],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://sameday.ro/contact/",
+          "publisher": "SAMEDAY",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://sameday.ro/sameday-app/",
+          "publisher": "SAMEDAY",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "medium",
+      "verdict_policy": "identity_only",
+      "notes": [
+        "Nu am confirmat o pagină oficială clară anti-phishing/«nu cerem niciodată». Plățile cu cardul în app sunt legitime conform paginii app, deci nu marca orice plată card drept fraudă."
+      ]
+    },
+    {
+      "manifest_id": "courier_cargus",
+      "type": "brand",
+      "category": "courier",
+      "display_name": "Cargus",
+      "official_domains": [
+        "cargus.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "cargus.ro",
+          "source_url": "https://www.cargus.ro/blog/recomandari-cargus-cu-privire-la-eventuale-fraude-electronice/",
+          "publisher": "Cargus",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [
+        "+40219330"
+      ],
+      "official_contacts": [
+        {
+          "value": "+40219330",
+          "label": "Contact Cargus",
+          "channel": "phone",
+          "source_url": "https://www.cargus.ro/blog/recomandari-cargus-cu-privire-la-eventuale-fraude-electronice/",
+          "publisher": "Cargus",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [],
+      "official_apps": [
+        {
+          "name": "Cargus Mobile App",
+          "platforms": [
+            "iOS",
+            "Android",
+            "Huawei"
+          ],
+          "source_url": "https://www.cargus.ro/blog/recomandari-cargus-cu-privire-la-eventuale-fraude-electronice/",
+          "publisher": "Cargus",
+          "confidence": "high"
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "money_transfer_from_sms_email",
+          "claim": "Cargus recomandă să nu răspunzi mesajelor care amenință/direcționează către transfer de bani.",
+          "source_url": "https://www.cargus.ro/blog/recomandari-cargus-cu-privire-la-eventuale-fraude-electronice/",
+          "publisher": "Cargus",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "sms",
+            "email"
+          ]
+        },
+        {
+          "token": "suspicious_attachments_links",
+          "claim": "Cargus recomandă să nu deschizi atașamente/linkuri dacă sursa nu este cunoscută.",
+          "source_url": "https://www.cargus.ro/blog/recomandari-cargus-cu-privire-la-eventuale-fraude-electronice/",
+          "publisher": "Cargus",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "email",
+            "sms"
+          ]
+        }
+      ],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://www.cargus.ro/blog/recomandari-cargus-cu-privire-la-eventuale-fraude-electronice/",
+          "publisher": "Cargus",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.cargus.ro/contact/",
+          "publisher": "Cargus",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "courier_dpd",
+      "type": "brand",
+      "category": "courier",
+      "display_name": "DPD România",
+      "official_domains": [
+        "dpd.com"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "dpd.com",
+          "source_url": "https://www.dpd.com/ro/ro/suport-dpd/contact/",
+          "publisher": "DPD România",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [
+        "+40318249032",
+        "+40318249090"
+      ],
+      "official_contacts": [
+        {
+          "value": "+40318249090",
+          "label": "expedieri naționale / suport",
+          "channel": "phone",
+          "source_url": "https://www.dpd.com/ro/ro/suport-dpd/contact/",
+          "publisher": "DPD România",
+          "confidence": "high"
+        },
+        {
+          "value": "+40318249032",
+          "label": "expedieri internaționale",
+          "channel": "phone",
+          "source_url": "https://www.dpd.com/ro/ro/suport-dpd/contact/",
+          "publisher": "DPD România",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [],
+      "official_apps": [
+        {
+          "name": "myDPD",
+          "platforms": [
+            "iOS",
+            "Android"
+          ],
+          "source_url": "https://www.dpd.com/ro/ro/mydpd-app/",
+          "publisher": "DPD România",
+          "confidence": "medium"
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "bank_data_sms_email",
+          "claim": "DPD România nu solicită date bancare prin SMS sau e-mail.",
+          "source_url": "https://www.dpd.com/ro/ro/2025/08/01/campanie-de-informare-phishing/",
+          "publisher": "DPD România",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "sms",
+            "email"
+          ],
+          "exact_extract": "nu solicită niciodată date bancare"
+        },
+        {
+          "token": "card_data_fake_site",
+          "claim": "Mesajele false DPD trimit spre site-uri care cer plată/date card.",
+          "source_url": "https://www.dpd.com/ro/ro/2025/08/01/campanie-de-informare-phishing/",
+          "publisher": "DPD România",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "sms",
+            "email",
+            "web"
+          ]
+        }
+      ],
+      "never_does": [
+        {
+          "token": "suspicious_payment_link",
+          "claim": "Nu accesa linkuri suspecte și nu oferi date personale/financiare.",
+          "source_url": "https://www.dpd.com/ro/ro/2025/08/01/campanie-de-informare-phishing/",
+          "publisher": "DPD România",
+          "confidence": "high",
+          "severity": "decisive"
+        }
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.dpd.com/ro/ro/suport-dpd/contact/",
+          "publisher": "DPD România",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.dpd.com/ro/ro/2025/08/01/campanie-de-informare-phishing/",
+          "publisher": "DPD România",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.dpd.com/ro/ro/mydpd-app/",
+          "publisher": "DPD România",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "courier_gls",
+      "type": "brand",
+      "category": "courier",
+      "display_name": "GLS România",
+      "official_domains": [
+        "gls-group.eu"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "gls-group.eu",
+          "source_url": "https://gls-group.eu/RO/ro/sfaturi-de-securitate/",
+          "publisher": "GLS România",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [
+        "+40269501900"
+      ],
+      "official_contacts": [
+        {
+          "value": "+40269501900",
+          "label": "relații clienți GLS",
+          "channel": "phone",
+          "source_url": "https://gls-group.eu/RO/ro/contact/",
+          "publisher": "GLS România",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [],
+      "official_apps": [
+        {
+          "name": "GLS App",
+          "platforms": [
+            "iOS",
+            "Android"
+          ],
+          "source_url": "https://gls-group.eu/RO/ro/sfaturi-de-securitate/",
+          "publisher": "GLS România",
+          "confidence": "medium"
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "payment_by_email_card_transfer",
+          "claim": "GLS declară că nu solicită plată prin e-mail cu cardul sau transfer bancar.",
+          "source_url": "https://gls-group.eu/RO/ro/sfaturi-de-securitate/",
+          "publisher": "GLS România",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "email"
+          ]
+        },
+        {
+          "token": "payment_details_sms_email_for_account",
+          "claim": "GLS spune că nu solicită detalii de plată prin e-mail/SMS pentru cont client.",
+          "source_url": "https://gls-group.eu/RO/ro/sfaturi-de-securitate/",
+          "publisher": "GLS România",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "email",
+            "sms"
+          ]
+        }
+      ],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://gls-group.eu/RO/ro/sfaturi-de-securitate/",
+          "publisher": "GLS România",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://gls-group.eu/RO/ro/contact/",
+          "publisher": "GLS România",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "courier_posta_romana",
+      "type": "brand",
+      "category": "courier",
+      "display_name": "Poșta Română",
+      "official_domains": [
+        "posta-romana.ro",
+        "ropost.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "posta-romana.ro",
+          "source_url": "https://www.posta-romana.ro/a1742/stiri/noi-actiuni-de-inselaciune-online-in-numele-postei-romane.html",
+          "publisher": "Poșta Română",
+          "confidence": "high"
+        },
+        {
+          "domain": "ropost.ro",
+          "source_url": "https://www.posta-romana.ro/a1742/stiri/noi-actiuni-de-inselaciune-online-in-numele-postei-romane.html",
+          "publisher": "Poșta Română",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [
+        "+40219393"
+      ],
+      "official_contacts": [
+        {
+          "value": "+40219393",
+          "label": "Call Center Poșta Română",
+          "channel": "phone",
+          "source_url": "https://www.posta-romana.ro/a1742/stiri/noi-actiuni-de-inselaciune-online-in-numele-postei-romane.html",
+          "publisher": "Poșta Română",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [],
+      "official_apps": [],
+      "never_asks": [
+        {
+          "token": "personal_data",
+          "claim": "Poșta Română spune că nu solicită date cu caracter personal prin astfel de mesaje.",
+          "source_url": "https://www.posta-romana.ro/a1742/stiri/noi-actiuni-de-inselaciune-online-in-numele-postei-romane.html",
+          "publisher": "Poșta Română",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "email",
+            "sms"
+          ]
+        },
+        {
+          "token": "bank_info",
+          "claim": "Poșta Română spune că nu solicită informații bancare confidențiale/date cont.",
+          "source_url": "https://www.posta-romana.ro/a1742/stiri/noi-actiuni-de-inselaciune-online-in-numele-postei-romane.html",
+          "publisher": "Poșta Română",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "email",
+            "sms"
+          ]
+        },
+        {
+          "token": "card_number",
+          "claim": "Poșta Română nu solicită numere de card.",
+          "source_url": "https://www.posta-romana.ro/a1742/stiri/noi-actiuni-de-inselaciune-online-in-numele-postei-romane.html",
+          "publisher": "Poșta Română",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "email",
+            "sms"
+          ]
+        },
+        {
+          "token": "pin",
+          "claim": "Poșta Română nu solicită coduri PIN.",
+          "source_url": "https://www.posta-romana.ro/a1742/stiri/noi-actiuni-de-inselaciune-online-in-numele-postei-romane.html",
+          "publisher": "Poșta Română",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "email",
+            "sms"
+          ]
+        },
+        {
+          "token": "customs_online_payment",
+          "claim": "Poșta Română nu solicită plăți online ale taxelor vamale în aceste mesaje.",
+          "source_url": "https://www.posta-romana.ro/a1742/stiri/noi-actiuni-de-inselaciune-online-in-numele-postei-romane.html",
+          "publisher": "Poșta Română",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "email",
+            "sms"
+          ]
+        }
+      ],
+      "never_does": [
+        {
+          "token": "sms_payment_request",
+          "claim": "SMS-urile Poștei sunt strict informative despre colet/program/taxe eventuale, nu linkuri de plată.",
+          "source_url": "https://www.posta-romana.ro/a1742/stiri/noi-actiuni-de-inselaciune-online-in-numele-postei-romane.html",
+          "publisher": "Poșta Română",
+          "confidence": "high",
+          "severity": "decisive"
+        }
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.posta-romana.ro/a1742/stiri/noi-actiuni-de-inselaciune-online-in-numele-postei-romane.html",
+          "publisher": "Poșta Română",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.posta-romana.ro/",
+          "publisher": "Poșta Română",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "telco_orange",
+      "type": "brand",
+      "category": "telco",
+      "display_name": "Orange România",
+      "official_domains": [
+        "orange.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "orange.ro",
+          "source_url": "https://www.orange.ro/help/articole/prevenire-frauda",
+          "publisher": "Orange România",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [
+        "+40374300300"
+      ],
+      "official_contacts": [
+        {
+          "value": "300",
+          "label": "Serviciu Clienți Orange din rețea",
+          "channel": "phone_short",
+          "source_url": "https://www.orange.ro/contact/",
+          "publisher": "Orange România",
+          "confidence": "high"
+        },
+        {
+          "value": "+40374300300",
+          "label": "Serviciu Clienți Orange",
+          "channel": "phone",
+          "source_url": "https://www.orange.ro/contact/",
+          "publisher": "Orange România",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [
+        {
+          "value": "300",
+          "channel": "voice",
+          "label": "Serviciu Clienți Orange",
+          "source_url": "https://www.orange.ro/contact/",
+          "publisher": "Orange România",
+          "confidence": "high"
+        }
+      ],
+      "official_apps": [
+        {
+          "name": "My Orange",
+          "platforms": [
+            "iOS",
+            "Android",
+            "Huawei"
+          ],
+          "source_url": "https://www.orange.ro/myorange/",
+          "publisher": "Orange România",
+          "confidence": "high"
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "pin",
+          "claim": "Orange spune să nu divulgi PIN-ul.",
+          "source_url": "https://www.orange.ro/help/articole/prevenire-frauda",
+          "publisher": "Orange România",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "password",
+          "claim": "Orange spune să nu divulgi parola.",
+          "source_url": "https://www.orange.ro/help/articole/prevenire-frauda",
+          "publisher": "Orange România",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "card_number",
+          "claim": "Orange spune să nu divulgi numărul cardului.",
+          "source_url": "https://www.orange.ro/help/articole/prevenire-frauda",
+          "publisher": "Orange România",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "bank_payment_to_phone_only_beneficiary",
+          "claim": "Orange recomandă să nu faci plăți către beneficiari cunoscuți doar telefonic.",
+          "source_url": "https://www.orange.ro/help/articole/prevenire-frauda",
+          "publisher": "Orange România",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "phone"
+          ]
+        }
+      ],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://www.orange.ro/help/articole/prevenire-frauda",
+          "publisher": "Orange România",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.orange.ro/contact/",
+          "publisher": "Orange România",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.orange.ro/myorange/",
+          "publisher": "Orange România",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "telco_yoxo",
+      "type": "brand",
+      "category": "telco",
+      "display_name": "YOXO by Orange",
+      "official_domains": [
+        "yoxo.ro",
+        "orange.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "yoxo.ro",
+          "source_url": "https://www.yoxo.ro/frauda",
+          "publisher": "YOXO / Orange",
+          "confidence": "high"
+        },
+        {
+          "domain": "orange.ro",
+          "source_url": "https://www.yoxo.ro/frauda",
+          "publisher": "YOXO / Orange",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [
+        "+40374300300"
+      ],
+      "official_contacts": [
+        {
+          "value": "300",
+          "label": "Serviciu Clienți Orange/YOXO din abonament",
+          "channel": "phone_short",
+          "source_url": "https://www.yoxo.ro/frauda",
+          "publisher": "YOXO / Orange",
+          "confidence": "high"
+        },
+        {
+          "value": "+40374300300",
+          "label": "Serviciu Clienți Orange/YOXO",
+          "channel": "phone",
+          "source_url": "https://www.yoxo.ro/frauda",
+          "publisher": "YOXO / Orange",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [
+        {
+          "value": "300",
+          "channel": "voice",
+          "label": "Serviciu Clienți YOXO/Orange",
+          "source_url": "https://www.yoxo.ro/frauda",
+          "publisher": "YOXO / Orange",
+          "confidence": "high"
+        }
+      ],
+      "official_apps": [
+        {
+          "name": "YOXO",
+          "platforms": [
+            "iOS",
+            "Android",
+            "Huawei"
+          ],
+          "source_url": "https://www.yoxo.ro/",
+          "publisher": "YOXO / Orange",
+          "confidence": "high"
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "bank_account",
+          "claim": "YOXO/Orange nu solicită prin canale externe informații despre conturi bancare.",
+          "source_url": "https://www.yoxo.ro/frauda",
+          "publisher": "YOXO / Orange",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "email",
+            "sms",
+            "phone",
+            "whatsapp",
+            "social"
+          ]
+        },
+        {
+          "token": "password",
+          "claim": "YOXO/Orange nu solicită parole personale prin aceste canale.",
+          "source_url": "https://www.yoxo.ro/frauda",
+          "publisher": "YOXO / Orange",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "pin",
+          "claim": "YOXO/Orange nu solicită PIN-uri.",
+          "source_url": "https://www.yoxo.ro/frauda",
+          "publisher": "YOXO / Orange",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "recharge_code",
+          "claim": "YOXO/Orange nu solicită coduri de reîncărcare.",
+          "source_url": "https://www.yoxo.ro/frauda",
+          "publisher": "YOXO / Orange",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "app_installation",
+          "claim": "Nu instala aplicații din linkuri de SMS; folosește magazinele oficiale.",
+          "source_url": "https://www.yoxo.ro/frauda",
+          "publisher": "YOXO / Orange",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "sms",
+            "web"
+          ]
+        }
+      ],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://www.yoxo.ro/frauda",
+          "publisher": "YOXO / Orange",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.yoxo.ro/",
+          "publisher": "YOXO / Orange",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "telco_vodafone",
+      "type": "brand",
+      "category": "telco",
+      "display_name": "Vodafone România",
+      "official_domains": [
+        "vodafone.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "vodafone.ro",
+          "source_url": "https://m.vodafone.ro/frauda/index.htm",
+          "publisher": "Vodafone România",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [
+        "+40372022222",
+        "+40372022258"
+      ],
+      "official_contacts": [
+        {
+          "value": "+40372022222",
+          "label": "Contact Vodafone",
+          "channel": "phone",
+          "source_url": "https://www.vodafone.ro/contact",
+          "publisher": "Vodafone România",
+          "confidence": "high"
+        },
+        {
+          "value": "+40372022258",
+          "label": "urgențe SIM/PUK în afara programului",
+          "channel": "phone",
+          "source_url": "https://www.vodafone.ro/contact",
+          "publisher": "Vodafone România",
+          "confidence": "medium"
+        }
+      ],
+      "official_shortcodes": [
+        {
+          "value": "*222",
+          "channel": "voice",
+          "label": "Contact Vodafone",
+          "source_url": "https://www.vodafone.ro/contact",
+          "publisher": "Vodafone România",
+          "confidence": "high"
+        },
+        {
+          "value": "*555",
+          "channel": "voice",
+          "label": "Contact Vodafone",
+          "source_url": "https://www.vodafone.ro/contact",
+          "publisher": "Vodafone România",
+          "confidence": "high"
+        },
+        {
+          "value": "*228",
+          "channel": "voice",
+          "label": "Contact Vodafone",
+          "source_url": "https://www.vodafone.ro/contact",
+          "publisher": "Vodafone România",
+          "confidence": "high"
+        }
+      ],
+      "official_apps": [
+        {
+          "name": "My Vodafone",
+          "platforms": [
+            "iOS",
+            "Android"
+          ],
+          "source_url": "https://www.vodafone.ro/asistenta/myvodafone",
+          "publisher": "Vodafone România",
+          "confidence": "high"
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "cnp",
+          "claim": "Vodafone recomandă să nu furnizezi date confidențiale precum CNP.",
+          "source_url": "https://m.vodafone.ro/frauda/index.htm",
+          "publisher": "Vodafone România",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "bank_account",
+          "claim": "Vodafone recomandă să nu furnizezi conturi bancare.",
+          "source_url": "https://m.vodafone.ro/frauda/index.htm",
+          "publisher": "Vodafone România",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "password",
+          "claim": "Vodafone recomandă să nu furnizezi parole.",
+          "source_url": "https://m.vodafone.ro/frauda/index.htm",
+          "publisher": "Vodafone România",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "recharge_code",
+          "claim": "Vodafone recomandă să nu furnizezi coduri de reîncărcare.",
+          "source_url": "https://m.vodafone.ro/frauda/index.htm",
+          "publisher": "Vodafone România",
+          "confidence": "high",
+          "severity": "decisive"
+        }
+      ],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://m.vodafone.ro/frauda/index.htm",
+          "publisher": "Vodafone România",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.vodafone.ro/contact",
+          "publisher": "Vodafone România",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.vodafone.ro/asistenta/myvodafone",
+          "publisher": "Vodafone România",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "telco_digi",
+      "type": "brand",
+      "category": "telco",
+      "display_name": "Digi / RCS-RDS",
+      "official_domains": [
+        "digi.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "digi.ro",
+          "source_url": "https://www.digi.ro/ghid-clienti",
+          "publisher": "DIGI Romania",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [
+        "+40314007777"
+      ],
+      "official_contacts": [
+        {
+          "value": "+40314007777",
+          "label": "Digi Mobil Prepaid informații",
+          "channel": "phone",
+          "source_url": "https://www.digi.ro/asistenta/contact",
+          "publisher": "DIGI Romania",
+          "confidence": "medium"
+        }
+      ],
+      "official_shortcodes": [
+        {
+          "value": "*777",
+          "channel": "voice",
+          "label": "Digi Mobil Prepaid informații",
+          "source_url": "https://www.digi.ro/asistenta/contact",
+          "publisher": "DIGI Romania",
+          "confidence": "medium",
+          "scope": "Digi Mobil only"
+        }
+      ],
+      "official_apps": [
+        {
+          "name": "DIGI.ro",
+          "platforms": [
+            "iOS",
+            "Android",
+            "Huawei"
+          ],
+          "source_url": "https://www.digi.ro/aplicatia-digi-ro",
+          "publisher": "DIGI Romania",
+          "confidence": "medium"
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "login_via_sms_link",
+          "claim": "Digi recomandă să nu accesezi site-ul/aplicația digi.ro din linkuri SMS sau pagini neoficiale.",
+          "source_url": "https://www.digi.ro/ghid-clienti",
+          "publisher": "DIGI Romania",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "sms",
+            "web"
+          ]
+        },
+        {
+          "token": "app_installation",
+          "claim": "Digi recomandă să nu instalezi aplicații/site-uri recomandate de surse necunoscute.",
+          "source_url": "https://www.digi.ro/ghid-clienti",
+          "publisher": "DIGI Romania",
+          "confidence": "high",
+          "severity": "decisive"
+        },
+        {
+          "token": "bank_data_for_prize",
+          "claim": "Digi spune că nu cere date bancare pentru revendicarea unor premii/studii de piață.",
+          "source_url": "https://www.digi.ro/plata",
+          "publisher": "DIGI Romania",
+          "confidence": "medium",
+          "severity": "decisive"
+        }
+      ],
+      "never_does": [
+        {
+          "token": "false_positive_digi_payment",
+          "claim": "Digi are flux oficial de plată factură din e-mail/SMS lunar; verdictul trebuie să valideze domeniul final, nu să blocheze automat orice SMS de plată.",
+          "source_url": "https://www.digi.ro/plata",
+          "publisher": "DIGI Romania",
+          "confidence": "high",
+          "severity": "guardrail"
+        }
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.digi.ro/ghid-clienti",
+          "publisher": "DIGI Romania",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.digi.ro/plata",
+          "publisher": "DIGI Romania",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.digi.ro/asistenta/contact",
+          "publisher": "DIGI Romania",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        },
+        {
+          "url": "https://www.digi.ro/aplicatia-digi-ro",
+          "publisher": "DIGI Romania",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "telco_telekom_mobile",
+      "type": "brand",
+      "category": "telco",
+      "display_name": "Telekom Mobile România",
+      "official_domains": [
+        "mobile.telekom.ro",
+        "telekom.ro"
+      ],
+      "official_domain_evidence": [
+        {
+          "domain": "mobile.telekom.ro",
+          "source_url": "https://mobile.telekom.ro/informare-practici-frauduloase/",
+          "publisher": "Telekom Mobile",
+          "confidence": "high"
+        },
+        {
+          "domain": "telekom.ro",
+          "source_url": "https://mobile.telekom.ro/informare-practici-frauduloase/",
+          "publisher": "Telekom Mobile",
+          "confidence": "high"
+        }
+      ],
+      "official_phones_e164": [
+        "+40214041234",
+        "+40766121234"
+      ],
+      "official_contacts": [
+        {
+          "value": "1234",
+          "label": "contact oficial din rețea",
+          "channel": "phone_short",
+          "source_url": "https://mobile.telekom.ro/contact/",
+          "publisher": "Telekom Mobile",
+          "confidence": "high"
+        },
+        {
+          "value": "+40766121234",
+          "label": "contact oficial",
+          "channel": "phone",
+          "source_url": "https://mobile.telekom.ro/contact/",
+          "publisher": "Telekom Mobile",
+          "confidence": "high"
+        },
+        {
+          "value": "+40214041234",
+          "label": "contact oficial",
+          "channel": "phone",
+          "source_url": "https://mobile.telekom.ro/contact/",
+          "publisher": "Telekom Mobile",
+          "confidence": "high"
+        }
+      ],
+      "official_shortcodes": [
+        {
+          "value": "1234",
+          "channel": "voice",
+          "label": "contact oficial",
+          "source_url": "https://mobile.telekom.ro/informare-practici-frauduloase/",
+          "publisher": "Telekom Mobile",
+          "confidence": "high"
+        },
+        {
+          "value": "1933",
+          "channel": "voice",
+          "label": "business",
+          "source_url": "https://mobile.telekom.ro/contact/",
+          "publisher": "Telekom Mobile",
+          "confidence": "medium"
+        },
+        {
+          "value": "1944",
+          "channel": "voice",
+          "label": "personal",
+          "source_url": "https://mobile.telekom.ro/contact/",
+          "publisher": "Telekom Mobile",
+          "confidence": "medium"
+        }
+      ],
+      "official_apps": [
+        {
+          "name": "MyAccount Telekom Mobile",
+          "platforms": [
+            "iOS",
+            "Android"
+          ],
+          "source_url": "https://mobile.telekom.ro/aplicatia-mobile-myaccount/",
+          "publisher": "Telekom Mobile",
+          "confidence": "medium"
+        }
+      ],
+      "never_asks": [
+        {
+          "token": "personal_data_unofficial_channel",
+          "claim": "Telekom spune că nu cere date personale prin e-mail/scrisori/SMS/apeluri de pe numere neoficiale sau site-uri non-telekom.ro.",
+          "source_url": "https://mobile.telekom.ro/informare-practici-frauduloase/",
+          "publisher": "Telekom Mobile",
+          "confidence": "high",
+          "severity": "decisive",
+          "channels": [
+            "email",
+            "sms",
+            "phone",
+            "web"
+          ]
+        }
+      ],
+      "never_does": [],
+      "source_refs": [
+        {
+          "url": "https://mobile.telekom.ro/informare-practici-frauduloase/",
+          "publisher": "Telekom Mobile",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://mobile.telekom.ro/contact/",
+          "publisher": "Telekom Mobile",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://mobile.telekom.ro/aplicatia-mobile-myaccount/",
+          "publisher": "Telekom Mobile",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        }
+      ],
+      "confidence": "high",
+      "verdict_policy": "active_verified",
+      "notes": []
+    },
+    {
+      "manifest_id": "person_ion_tiriac",
+      "type": "person",
+      "category": "public_person_investment_scam_abuse",
+      "display_name": "Ion Țiriac",
+      "role": "om de afaceri / personalitate publică",
+      "official_domains": [],
+      "official_phones_e164": [],
+      "official_shortcodes": [],
+      "official_apps": [],
+      "never_asks": [
+        {
+          "token": "investment_endorsement_not_proof",
+          "claim": "Folosirea imaginii persoanei publice NU este dovadă de legitimitate; cere validare a entității/licenței/domeniului.",
+          "source_url": "https://www.factual.ro/dezinformari-rs/scam-deepfake-cu-ion-tiriac/",
+          "publisher": "Factual.ro",
+          "confidence": "medium",
+          "severity": "medium"
+        }
+      ],
+      "never_does": [],
+      "scam_claims": [
+        {
+          "type": "deepfake_investment_ad",
+          "claim": "Deepfake pe Facebook a folosit imaginea lui Ion Țiriac pentru promovarea unei platforme de investiții.",
+          "source_url": "https://www.factual.ro/dezinformari-rs/scam-deepfake-cu-ion-tiriac/",
+          "publisher": "Factual.ro",
+          "confidence": "high"
+        }
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.factual.ro/dezinformari-rs/scam-deepfake-cu-ion-tiriac/",
+          "publisher": "Factual.ro",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://context.ro/cum-sa-recunosti-si-sa-eviti-fraudele-online-ghidul-care-iti-protejeaza-banii-si-linistea-p/",
+          "publisher": "Context.ro",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        }
+      ],
+      "confidence": "medium",
+      "verdict_policy": "quarantine_context_only",
+      "notes": [
+        "Nu produce verdict dur doar pe numele persoanei; folosește ca feature de context/explicație plus verificare de domeniu și licență."
+      ]
+    },
+    {
+      "manifest_id": "person_ilie_bolojan",
+      "type": "person",
+      "category": "public_person_investment_scam_abuse",
+      "display_name": "Ilie Bolojan",
+      "role": "politician / personalitate publică",
+      "official_domains": [],
+      "official_phones_e164": [],
+      "official_shortcodes": [],
+      "official_apps": [],
+      "never_asks": [
+        {
+          "token": "investment_endorsement_not_proof",
+          "claim": "Folosirea imaginii persoanei publice NU este dovadă de legitimitate; cere validare a entității/licenței/domeniului.",
+          "source_url": "https://hotnews.ro/deepfake-cu-imaginea-lui-ilie-bolojan-care-indeamna-la-investitii-in-neptun-deep-cum-functioneaza-schema-de-frauda-1991707",
+          "publisher": "HotNews.ro",
+          "confidence": "medium",
+          "severity": "medium"
+        }
+      ],
+      "never_does": [],
+      "scam_claims": [
+        {
+          "type": "deepfake_investment_ad",
+          "claim": "Imaginea lui Ilie Bolojan a fost folosită în deepfake pentru investiții false în Neptun Deep.",
+          "source_url": "https://hotnews.ro/deepfake-cu-imaginea-lui-ilie-bolojan-care-indeamna-la-investitii-in-neptun-deep-cum-functioneaza-schema-de-frauda-1991707",
+          "publisher": "HotNews.ro",
+          "confidence": "high"
+        }
+      ],
+      "source_refs": [
+        {
+          "url": "https://hotnews.ro/deepfake-cu-imaginea-lui-ilie-bolojan-care-indeamna-la-investitii-in-neptun-deep-cum-functioneaza-schema-de-frauda-1991707",
+          "publisher": "HotNews.ro",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.digi24.ro/stiri/actualitate/dnsc-au-revenit-videoclipurile-deepfake-in-care-persoane-cu-notorietate-par-ca-gireaza-oportunitati-de-investitii-3267291",
+          "publisher": "Digi24",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "medium",
+      "verdict_policy": "quarantine_context_only",
+      "notes": [
+        "Nu produce verdict dur doar pe numele persoanei; folosește ca feature de context/explicație plus verificare de domeniu și licență."
+      ]
+    },
+    {
+      "manifest_id": "person_nicusor_dan",
+      "type": "person",
+      "category": "public_person_investment_scam_abuse",
+      "display_name": "Nicușor Dan",
+      "role": "politician / personalitate publică",
+      "official_domains": [],
+      "official_phones_e164": [],
+      "official_shortcodes": [],
+      "official_apps": [],
+      "never_asks": [
+        {
+          "token": "investment_endorsement_not_proof",
+          "claim": "Folosirea imaginii persoanei publice NU este dovadă de legitimitate; cere validare a entității/licenței/domeniului.",
+          "source_url": "https://hotnews.ro/deepfake-cu-nicusor-dan-imaginea-presedintelui-folosita-fraudulos-pentru-a-promova-investitii-rapide-2048937",
+          "publisher": "HotNews.ro",
+          "confidence": "medium",
+          "severity": "medium"
+        }
+      ],
+      "never_does": [],
+      "scam_claims": [
+        {
+          "type": "deepfake_investment_ad",
+          "claim": "Imaginea lui Nicușor Dan a fost folosită fraudulos pentru promovarea unor investiții rapide.",
+          "source_url": "https://hotnews.ro/deepfake-cu-nicusor-dan-imaginea-presedintelui-folosita-fraudulos-pentru-a-promova-investitii-rapide-2048937",
+          "publisher": "HotNews.ro",
+          "confidence": "high"
+        }
+      ],
+      "source_refs": [
+        {
+          "url": "https://hotnews.ro/deepfake-cu-nicusor-dan-imaginea-presedintelui-folosita-fraudulos-pentru-a-promova-investitii-rapide-2048937",
+          "publisher": "HotNews.ro",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.digi24.ro/stiri/actualitate/dnsc-au-revenit-videoclipurile-deepfake-in-care-persoane-cu-notorietate-par-ca-gireaza-oportunitati-de-investitii-3267291",
+          "publisher": "Digi24",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "medium",
+      "verdict_policy": "quarantine_context_only",
+      "notes": [
+        "Nu produce verdict dur doar pe numele persoanei; folosește ca feature de context/explicație plus verificare de domeniu și licență."
+      ]
+    },
+    {
+      "manifest_id": "person_andreea_esca",
+      "type": "person",
+      "category": "public_person_investment_scam_abuse",
+      "display_name": "Andreea Esca",
+      "role": "jurnalistă / prezentatoare TV",
+      "official_domains": [],
+      "official_phones_e164": [],
+      "official_shortcodes": [],
+      "official_apps": [],
+      "never_asks": [
+        {
+          "token": "investment_endorsement_not_proof",
+          "claim": "Folosirea imaginii persoanei publice NU este dovadă de legitimitate; cere validare a entității/licenței/domeniului.",
+          "source_url": "https://context.ro/cum-sa-recunosti-si-sa-eviti-fraudele-online-ghidul-care-iti-protejeaza-banii-si-linistea-p/",
+          "publisher": "Context.ro",
+          "confidence": "medium",
+          "severity": "medium"
+        }
+      ],
+      "never_does": [],
+      "scam_claims": [
+        {
+          "type": "fake_news_page_investment",
+          "claim": "Context.ro menționează folosirea imaginii Andreei Esca în pagini/reclame false de investiții.",
+          "source_url": "https://context.ro/cum-sa-recunosti-si-sa-eviti-fraudele-online-ghidul-care-iti-protejeaza-banii-si-linistea-p/",
+          "publisher": "Context.ro",
+          "confidence": "medium"
+        }
+      ],
+      "source_refs": [
+        {
+          "url": "https://context.ro/cum-sa-recunosti-si-sa-eviti-fraudele-online-ghidul-care-iti-protejeaza-banii-si-linistea-p/",
+          "publisher": "Context.ro",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        }
+      ],
+      "confidence": "medium",
+      "verdict_policy": "quarantine_context_only",
+      "notes": [
+        "Nu produce verdict dur doar pe numele persoanei; folosește ca feature de context/explicație plus verificare de domeniu și licență."
+      ]
+    },
+    {
+      "manifest_id": "person_mugur_isarescu_bnr",
+      "type": "person",
+      "category": "public_person_investment_scam_abuse",
+      "display_name": "Mugur Isărescu / imagine BNR",
+      "role": "guvernator BNR / instituție financiară publică",
+      "official_domains": [],
+      "official_phones_e164": [],
+      "official_shortcodes": [],
+      "official_apps": [],
+      "never_asks": [
+        {
+          "token": "investment_endorsement_not_proof",
+          "claim": "Folosirea imaginii persoanei publice NU este dovadă de legitimitate; cere validare a entității/licenței/domeniului.",
+          "source_url": "https://www.bnr.ro/24948-avertisment-cu-privire-la-campanii-de-dezinformare-si-tentative-de-frauda-in-numele-bnr",
+          "publisher": "BNR",
+          "confidence": "medium",
+          "severity": "medium"
+        }
+      ],
+      "never_does": [],
+      "scam_claims": [
+        {
+          "type": "investment_scam_authority_abuse",
+          "claim": "Escrocheriile folosesc uneori autoritate financiară/BNR pentru credibilitate; BNR are avertisment oficial anti-fraudă în numele instituției.",
+          "source_url": "https://www.bnr.ro/24948-avertisment-cu-privire-la-campanii-de-dezinformare-si-tentative-de-frauda-in-numele-bnr",
+          "publisher": "BNR",
+          "confidence": "high"
+        }
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.bnr.ro/24948-avertisment-cu-privire-la-campanii-de-dezinformare-si-tentative-de-frauda-in-numele-bnr",
+          "publisher": "BNR",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://context.ro/cum-sa-recunosti-si-sa-eviti-fraudele-online-ghidul-care-iti-protejeaza-banii-si-linistea-p/",
+          "publisher": "Context.ro",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        }
+      ],
+      "confidence": "medium",
+      "verdict_policy": "quarantine_context_only",
+      "notes": [
+        "Nu produce verdict dur doar pe numele persoanei; folosește ca feature de context/explicație plus verificare de domeniu și licență."
+      ]
+    }
+  ],
+  "osint_sources": [
+    {
+      "source_id": "osint_dnsc_news",
+      "publisher": "DNSC",
+      "url": "https://www.dnsc.ro/citeste",
+      "type": "news_page",
+      "format": "HTML",
+      "rss_or_api": null,
+      "rss_status": "not_confirmed_in_this_pass",
+      "estimated_update_frequency": "daily_to_weekly",
+      "monitoring_permitted_assessment": "public_html_likely_ok_with_rate_limit_and_robots_check",
+      "use_for": "active_verified alerts; phishing/vishing/malware/scam warnings",
+      "source_refs": [
+        {
+          "url": "https://www.dnsc.ro/citeste",
+          "publisher": "DNSC",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "source_id": "osint_dnsc_phishing_tag",
+      "publisher": "DNSC",
+      "url": "https://www.dnsc.ro/tag/phishing",
+      "type": "tag_page",
+      "format": "HTML",
+      "rss_or_api": null,
+      "rss_status": "not_confirmed_in_this_pass",
+      "estimated_update_frequency": "weekly",
+      "monitoring_permitted_assessment": "public_html_likely_ok_with_rate_limit_and_robots_check",
+      "use_for": "phishing alerts, domain/brand impersonation",
+      "source_refs": [
+        {
+          "url": "https://www.dnsc.ro/tag/phishing",
+          "publisher": "DNSC",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "source_id": "osint_pnrisc",
+      "publisher": "DNSC",
+      "url": "https://pnrisc.dnsc.ro/",
+      "type": "reporting_portal",
+      "format": "HTML/form",
+      "rss_or_api": null,
+      "estimated_update_frequency": "not_a_feed",
+      "monitoring_permitted_assessment": "do_not_scrape_as_feed; use for user reporting/deeplink",
+      "use_for": "report flow, not OSINT ingest",
+      "source_refs": [
+        {
+          "url": "https://pnrisc.dnsc.ro/",
+          "publisher": "DNSC",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "source_id": "osint_sigurantaonline_fraude",
+      "publisher": "Siguranța Online / Poliția Română / DNSC / ARB",
+      "url": "https://sigurantaonline.ro/category/fraude-online/",
+      "type": "category_page",
+      "format": "HTML",
+      "rss_or_api": null,
+      "rss_status": "not_confirmed_in_this_pass",
+      "estimated_update_frequency": "weekly_to_monthly",
+      "monitoring_permitted_assessment": "public_html_likely_ok_with_rate_limit_and_cookie/robots_check",
+      "use_for": "education, scam taxonomy, new fraud patterns",
+      "source_refs": [
+        {
+          "url": "https://sigurantaonline.ro/category/fraude-online/",
+          "publisher": "Siguranța Online",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "source_id": "osint_mai_press",
+      "publisher": "MAI",
+      "url": "https://www.mai.gov.ro/category/comunicate-de-presa/",
+      "type": "press_release_page",
+      "format": "HTML",
+      "rss_or_api": null,
+      "estimated_update_frequency": "daily_to_weekly",
+      "monitoring_permitted_assessment": "public_html_likely_ok_with_rate_limit_and_robots_check",
+      "use_for": "official Police/MAI scam warnings",
+      "source_refs": [
+        {
+          "url": "https://www.mai.gov.ro/politia-romana-directoratul-national-de-securitate-cibernetica-si-asociatia-romana-a-bancilor-avertizeaza-asupra-riscului-de-frauda-de-tip-spoofing/",
+          "publisher": "MAI",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "source_id": "osint_politia_news",
+      "publisher": "Poliția Română",
+      "url": "https://www.politiaromana.ro/ro/stiri-si-media/stiri",
+      "type": "news_page",
+      "format": "HTML",
+      "rss_or_api": null,
+      "estimated_update_frequency": "daily_to_weekly",
+      "monitoring_permitted_assessment": "public_html_likely_ok_with_rate_limit_and_robots_check",
+      "use_for": "public fraud warnings, campaigns",
+      "source_refs": [
+        {
+          "url": "https://www.politiaromana.ro/",
+          "publisher": "Poliția Română",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "source_id": "osint_bnr_warnings",
+      "publisher": "BNR",
+      "url": "https://www.bnr.ro/",
+      "type": "institution_news/warnings",
+      "format": "HTML/PDF",
+      "rss_or_api": null,
+      "estimated_update_frequency": "monthly_or_event_driven",
+      "monitoring_permitted_assessment": "public_html_likely_ok_with_rate_limit_and_robots_check",
+      "use_for": "BNR impersonation, financial/crypto scam warnings",
+      "source_refs": [
+        {
+          "url": "https://www.bnr.ro/24948-avertisment-cu-privire-la-campanii-de-dezinformare-si-tentative-de-frauda-in-numele-bnr",
+          "publisher": "BNR",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "source_id": "osint_arb",
+      "publisher": "Asociația Română a Băncilor",
+      "url": "https://www.arb.ro/",
+      "type": "news/resources",
+      "format": "HTML/PDF",
+      "rss_or_api": null,
+      "estimated_update_frequency": "monthly_or_event_driven",
+      "monitoring_permitted_assessment": "public_html_likely_ok_with_rate_limit_and_robots_check",
+      "use_for": "banking fraud campaigns, SANB/payment-name verification",
+      "source_refs": [
+        {
+          "url": "https://www.arb.ro/",
+          "publisher": "ARB",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.arb.ro/sistemul-de-afisare-a-numelui-beneficiarului-sanb/",
+          "publisher": "ARB",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "source_id": "osint_anaf_news",
+      "publisher": "ANAF",
+      "url": "https://www.anaf.ro/anaf/internet/ANAF/acasa/!ut/p/a1/04_Sj9CPykssy0xPLMnMz0vMAfGjzOI9DD3MPIwsjLwMPAINDAJNnTyDTN0DDAzcTYAKIoEKDHAARwNC-sP1o_AqMTCDKsBjRUFuhEGmo6IiADoY7eA!/dl5/d5/L0lDU0lKSWdrbUNTUS9JUFJBQUlpQ2dBek15cXpHWUEhIS80SkNoRG9NZHRCZ2NobkFWR0ZjUi9aN19IMUg2SDI4MkowSFEwMFE1QklSNUdQMDBPMS8wL3NhLnNwZl9BY3Rpb25MaXN0ZW5lcg!!/?PC_Z7_H1H6H282J0HQ00Q5BIR5GP00O1000000_spf_strutsAction=%212fsearchStiri.do",
+      "type": "institution_news",
+      "format": "HTML/PDF links",
+      "rss_or_api": null,
+      "estimated_update_frequency": "weekly_to_monthly",
+      "monitoring_permitted_assessment": "public_html_likely_ok_with_rate_limit_but_site_is_fragile",
+      "use_for": "ANAF impersonation warnings",
+      "source_refs": [
+        {
+          "url": "https://www.anaf.ro/anaf/internet/ANAF/acasa/!ut/p/a1/04_Sj9CPykssy0xPLMnMz0vMAfGjzOI9DD3MPIwsjLwMPAINDAJNnTyDTN0DDAzcTYAKIoEKDHAARwNC-sP1o_AqMTCDKsBjRUFuhEGmo6IiADoY7eA!/dl5/d5/L0lDU0lKSWdrbUNTUS9JUFJBQUlpQ2dBek15cXpHWUEhIS80SkNoRG9NZHRCZ2NobkFWR0ZjUi9aN19IMUg2SDI4MkowSFEwMFE1QklSNUdQMDBPMS8wL3NhLnNwZl9BY3Rpb25MaXN0ZW5lcg!!/?PC_Z7_H1H6H282J0HQ00Q5BIR5GP00O1000000_spf_strutsAction=%212fsearchStiri.do",
+          "publisher": "ANAF",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "source_id": "osint_bank_security_pages",
+      "publisher": "banks_official",
+      "url": "multiple official bank security pages",
+      "type": "curated_watchlist",
+      "format": "HTML/PDF",
+      "rss_or_api": null,
+      "estimated_update_frequency": "monthly/event_driven",
+      "monitoring_permitted_assessment": "monitor only listed public security URLs with low cadence; no customer portals",
+      "use_for": "never-asks rules, new scam warnings",
+      "watched_urls": [
+        "https://www.bancatransilvania.ro/siguranta-online/siguranta-aplicatiile-bt",
+        "https://www.bcr.ro/ro/persoane-fizice/informatii-utile/securitate/sfaturi-de-securitate",
+        "https://www.brd.ro/atentie-atacuri-informatice",
+        "https://ing.ro/ing-in-romania/informatii-utile/securitate",
+        "https://www.unicredit.ro/ro/persoane-fizice/Diverse/securitate.html",
+        "https://www.garantibbva.ro/persoane-fizice/online-banking/informatii-securitate/",
+        "https://www.revolut.com/ro-RO/blog/post/how-to-know-its-really-revolut-calling/"
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.bancatransilvania.ro/siguranta-online/siguranta-aplicatiile-bt",
+          "publisher": "Banca Transilvania",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.bcr.ro/ro/persoane-fizice/informatii-utile/securitate/sfaturi-de-securitate",
+          "publisher": "BCR",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.brd.ro/atentie-atacuri-informatice",
+          "publisher": "BRD",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://ing.ro/ing-in-romania/informatii-utile/securitate",
+          "publisher": "ING",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.unicredit.ro/ro/persoane-fizice/Diverse/securitate.html",
+          "publisher": "UniCredit",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.garantibbva.ro/persoane-fizice/online-banking/informatii-securitate/",
+          "publisher": "Garanti BBVA",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.revolut.com/ro-RO/blog/post/how-to-know-its-really-revolut-calling/",
+          "publisher": "Revolut",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "source_id": "osint_courier_security_pages",
+      "publisher": "couriers_official",
+      "url": "multiple official courier security pages",
+      "type": "curated_watchlist",
+      "format": "HTML",
+      "rss_or_api": null,
+      "estimated_update_frequency": "monthly/event_driven",
+      "monitoring_permitted_assessment": "monitor only public blog/security pages with low cadence",
+      "use_for": "delivery-fee phishing, locker-link phishing, false customs/payment requests",
+      "watched_urls": [
+        "https://www.fancourier.ro/atentie-tentativa-de-phishing-prin-sms-2/",
+        "https://www.fancourier.ro/atentie-tentativa-de-phishing-prin-sms/",
+        "https://www.dpd.com/ro/ro/2025/08/01/campanie-de-informare-phishing/",
+        "https://gls-group.eu/RO/ro/sfaturi-de-securitate/",
+        "https://www.posta-romana.ro/a1742/stiri/noi-actiuni-de-inselaciune-online-in-numele-postei-romane.html",
+        "https://www.cargus.ro/blog/recomandari-cargus-cu-privire-la-eventuale-fraude-electronice/"
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.fancourier.ro/atentie-tentativa-de-phishing-prin-sms-2/",
+          "publisher": "FAN Courier",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.dpd.com/ro/ro/2025/08/01/campanie-de-informare-phishing/",
+          "publisher": "DPD România",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://gls-group.eu/RO/ro/sfaturi-de-securitate/",
+          "publisher": "GLS România",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.posta-romana.ro/a1742/stiri/noi-actiuni-de-inselaciune-online-in-numele-postei-romane.html",
+          "publisher": "Poșta Română",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.cargus.ro/blog/recomandari-cargus-cu-privire-la-eventuale-fraude-electronice/",
+          "publisher": "Cargus",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "source_id": "osint_telco_security_pages",
+      "publisher": "telcos_official",
+      "url": "multiple official telco security pages",
+      "type": "curated_watchlist",
+      "format": "HTML",
+      "rss_or_api": null,
+      "estimated_update_frequency": "monthly/event_driven",
+      "monitoring_permitted_assessment": "monitor only public help/fraud pages with low cadence",
+      "use_for": "SIM/account/payment/link/app-install fraud",
+      "watched_urls": [
+        "https://www.orange.ro/help/articole/prevenire-frauda",
+        "https://www.yoxo.ro/frauda",
+        "https://m.vodafone.ro/frauda/index.htm",
+        "https://www.digi.ro/ghid-clienti",
+        "https://mobile.telekom.ro/informare-practici-frauduloase/"
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.orange.ro/help/articole/prevenire-frauda",
+          "publisher": "Orange",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.yoxo.ro/frauda",
+          "publisher": "YOXO",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://m.vodafone.ro/frauda/index.htm",
+          "publisher": "Vodafone",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.digi.ro/ghid-clienti",
+          "publisher": "DIGI",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://mobile.telekom.ro/informare-practici-frauduloase/",
+          "publisher": "Telekom Mobile",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ]
+    }
+  ],
+  "reported_iocs": [
+    {
+      "ioc_id": "ioc_dns_anaf_ro_web_app_2025_03",
+      "type": "domain",
+      "value": "anaf-ro.web.app",
+      "brand_impersonated": "ANAF",
+      "scam_type": "phishing_email_fake_ANAF_portal",
+      "channels": [
+        "email",
+        "web"
+      ],
+      "status": "active_verified",
+      "verdict_use": "may_influence_verdict_if_seen_exact_or_as_historical_indicator; do_not_block_entire_web.app",
+      "evidence": [
+        {
+          "claim": "DNSC reported a phishing e-mail ANAF that redirected victims to https://anaf-ro.web.app.",
+          "source_url": "https://www.dnsc.ro/citeste/alerta-phishing-e-mail-anaf",
+          "publisher": "DNSC",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.dnsc.ro/citeste/alerta-phishing-e-mail-anaf",
+          "publisher": "DNSC",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "ioc_id": "ioc_fake_investment_apax_context_2025_09",
+      "type": "domain",
+      "value": "my.apax.top",
+      "brand_impersonated": "public_person/media",
+      "scam_type": "fake_investment_platform_after_fake_news_page",
+      "channels": [
+        "social_ad",
+        "web",
+        "phone"
+      ],
+      "status": "quarantine",
+      "verdict_use": "research_only; press example, not enough alone for active blocking without fresh crawl/VT/urlscan/current DNS",
+      "evidence": [
+        {
+          "claim": "Context.ro described a fake ProTV-like page redirecting registered users to my.apax.top.",
+          "source_url": "https://context.ro/cum-sa-recunosti-si-sa-eviti-fraudele-online-ghidul-care-iti-protejeaza-banii-si-linistea-p/",
+          "publisher": "Context.ro",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        }
+      ],
+      "source_refs": [
+        {
+          "url": "https://context.ro/cum-sa-recunosti-si-sa-eviti-fraudele-online-ghidul-care-iti-protejeaza-banii-si-linistea-p/",
+          "publisher": "Context.ro",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        }
+      ]
+    }
+  ],
+  "quarantine_review": [
+    {
+      "item_id": "qr_no_verified_iban_iocs",
+      "type": "iban_policy",
+      "decision": "No IBAN values included in active_verified.",
+      "reason": "In this pass, official/public sources confirmed the BEC/fake-invoice pattern but did not provide enough current, attributable IBAN IOCs for production blocking.",
+      "action_required": "IBAN IOC may enter active_verified only with source URL, publisher, date, exact quote/evidence, and legal review.",
+      "source_refs": [
+        {
+          "url": "https://www.brd.ro/atentie-atacuri-informatice",
+          "publisher": "BRD",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.cec.ro/securitatea-tranzactiilor",
+          "publisher": "CEC Bank",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        },
+        {
+          "url": "https://www.arb.ro/sistemul-de-afisare-a-numelui-beneficiarului-sanb/",
+          "publisher": "ARB/Transfond",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "item_id": "qr_shortcodes_not_public",
+      "type": "shortcode_policy",
+      "decision": "Do not invent or infer SMS shortcodes.",
+      "reason": "Only BCR PIN and BRD PIN shortcodes were confirmed from official pages in this pass. Star-number voice contacts are stored as voice shortcodes, not SMS.",
+      "action_required": "Any future shortcode requires official page or signed brand confirmation.",
+      "source_refs": [
+        {
+          "url": "https://www.bcr.ro/ro/persoane-fizice/conturi-si-operatiuni/carduri-de-debit/pin-prin-george",
+          "publisher": "BCR",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.brd.ro/node/1302",
+          "publisher": "BRD",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "item_id": "qr_brand_transition_banks",
+      "type": "brand_transition",
+      "decision": "Alpha, OTP, First Bank entries are transition/legacy and not active brand verdict rules.",
+      "reason": "Mergers/integrations can create legitimate redirects, new IBANs or new contact points. Blocking old/new brand references without context risks false positives.",
+      "action_required": "Route to current owner brand manifest: UniCredit for Alpha, BT for OTP, Intesa for First.",
+      "source_refs": [
+        {
+          "url": "https://www.unicredit.ro/ro/persoane-fizice/Diverse/alphabank.html",
+          "publisher": "UniCredit Bank",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        },
+        {
+          "url": "https://www.bancatransilvania.ro/newsroom/stiri/bt-clienti-otp-bank-romania",
+          "publisher": "Banca Transilvania",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        },
+        {
+          "url": "https://www.intesasanpaolobank.ro/document/documents/ISPROMANIA/Integrare/Ghidul-de-Bun-Venit.pdf",
+          "publisher": "Intesa Sanpaolo Bank România",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "item_id": "qr_public_persons_not_verdict",
+      "type": "public_person_scam_context",
+      "decision": "Public-person matches are context-only.",
+      "reason": "Scam ads often abuse real public figures; a name/image match must not mark a destination fraudulent by itself.",
+      "action_required": "Combine with ad destination, domain age, licensing checks, payment method, requested data, and source reputation.",
+      "source_refs": [
+        {
+          "url": "https://www.factual.ro/dezinformari-rs/scam-deepfake-cu-ion-tiriac/",
+          "publisher": "Factual.ro",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://hotnews.ro/deepfake-cu-imaginea-lui-ilie-bolojan-care-indeamna-la-investitii-in-neptun-deep-cum-functioneaza-schema-de-frauda-1991707",
+          "publisher": "HotNews.ro",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://hotnews.ro/deepfake-cu-nicusor-dan-imaginea-presedintelui-folosita-fraudulos-pentru-a-promova-investitii-rapide-2048937",
+          "publisher": "HotNews.ro",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.digi24.ro/stiri/actualitate/dnsc-au-revenit-videoclipurile-deepfake-in-care-persoane-cu-notorietate-par-ca-gireaza-oportunitati-de-investitii-3267291",
+          "publisher": "Digi24",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "item_id": "qr_sameday_payment_guardrail",
+      "type": "false_positive_guardrail",
+      "decision": "Do not mark every card-payment delivery flow as scam.",
+      "reason": "SAMEDAY official app page says card payment in app can be legitimate. Digi also has official bill payment flows through e-mail/SMS. Verdict needs final domain/app validation.",
+      "action_required": "Whitelist only official app/deeplink/final domain, not arbitrary short URLs.",
+      "source_refs": [
+        {
+          "url": "https://sameday.ro/sameday-app/",
+          "publisher": "SAMEDAY",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.digi.ro/plata",
+          "publisher": "DIGI Romania",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ]
+    }
+  ],
+  "false_positive_guardrails": [
+    {
+      "guardrail_id": "fp_otp_only_inside_official_app",
+      "rule": "OTP/CVV can be legitimate only inside official bank app flow explicitly documented by bank; external SMS/link/browser forms are high-risk.",
+      "applies_to": [
+        "BT Pay",
+        "George",
+        "YOU BRD",
+        "Home'Bank"
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.bancatransilvania.ro/siguranta-online/siguranta-aplicatiile-bt",
+          "publisher": "Banca Transilvania",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.bcr.ro/ro/persoane-fizice/conturi-si-operatiuni/carduri-de-debit/pin-prin-george",
+          "publisher": "BCR",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.brd.ro/node/1302",
+          "publisher": "BRD",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://ing.ro/ing-in-romania/informatii-utile/securitate",
+          "publisher": "ING Bank România",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "guardrail_id": "fp_invoice_iban_change",
+      "rule": "New/changed IBAN on invoice is high-risk only when inconsistent with official registry/payment terms or accompanied by urgency/channel mismatch. Do not blacklist a raw IBAN without official source.",
+      "applies_to": [
+        "BEC",
+        "fake_invoice",
+        "supplier_impersonation"
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.brd.ro/atentie-atacuri-informatice",
+          "publisher": "BRD",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.cec.ro/securitatea-tranzactiilor",
+          "publisher": "CEC Bank",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        },
+        {
+          "url": "https://www.arb.ro/sistemul-de-afisare-a-numelui-beneficiarului-sanb/",
+          "publisher": "ARB/Transfond",
+          "accessed_at": "2026-06-16",
+          "confidence": "medium"
+        }
+      ]
+    },
+    {
+      "guardrail_id": "fp_delivery_payment_links",
+      "rule": "Delivery/payment SMS should be resolved and checked against official final domains/apps. Some providers have legitimate app/payment flows.",
+      "applies_to": [
+        "courier",
+        "telco_bill"
+      ],
+      "source_refs": [
+        {
+          "url": "https://sameday.ro/sameday-app/",
+          "publisher": "SAMEDAY",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.digi.ro/plata",
+          "publisher": "DIGI Romania",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.dpd.com/ro/ro/2025/08/01/campanie-de-informare-phishing/",
+          "publisher": "DPD România",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.posta-romana.ro/a1742/stiri/noi-actiuni-de-inselaciune-online-in-numele-postei-romane.html",
+          "publisher": "Poșta Română",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "guardrail_id": "fp_spoofed_phone_display",
+      "rule": "Caller ID can be spoofed; matching official phone number is not sufficient proof. Require call direction, user-initiated context, and no request for sensitive data.",
+      "applies_to": [
+        "banks",
+        "institutions",
+        "telco"
+      ],
+      "source_refs": [
+        {
+          "url": "https://www.mai.gov.ro/politia-romana-directoratul-national-de-securitate-cibernetica-si-asociatia-romana-a-bancilor-avertizeaza-asupra-riscului-de-frauda-de-tip-spoofing/",
+          "publisher": "MAI / Poliția Română / DNSC / ARB",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        },
+        {
+          "url": "https://www.unicredit.ro/ro/persoane-fizice/Diverse/securitate.html",
+          "publisher": "UniCredit Bank",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}
