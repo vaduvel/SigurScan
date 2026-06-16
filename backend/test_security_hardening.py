@@ -66,6 +66,21 @@ def test_health_stays_public_and_reports_security_posture(monkeypatch):
     assert config["rate_limit_backend"] in {"upstash", "memory_best_effort"}
     assert config["play_integrity_mode"] in {"off", "monitor", "enforce"}
     assert config["admin_api_configured"] in {True, False}
+    assert config["mock_ocr_allowed"] in {True, False}
+
+
+def test_security_health_exposes_non_secret_prod_posture(monkeypatch):
+    _enable_client_auth(monkeypatch)
+    monkeypatch.setattr(app_main, "ALLOWED_MOCK_OCR", False)
+    client = TestClient(app_main.app)
+
+    response = client.get("/health/security")
+
+    assert response.status_code == 200
+    config = response.json()
+    assert config["api_key_required"] is True
+    assert config["mock_ocr_allowed"] is False
+    assert "providers" in config
 
 
 def test_scan_routes_reject_missing_or_invalid_client_key(monkeypatch):

@@ -271,7 +271,7 @@ class TestVendorIbanMemory:
             yield
 
     @pytest.mark.asyncio
-    async def test_clean_invoice_remembers_vendor_iban(self, anaf_ok):
+    async def test_clean_invoice_does_not_auto_trust_vendor_iban(self, anaf_ok):
         from services import vendor_memory as vm
 
         result = await scan_invoice(
@@ -279,7 +279,7 @@ class TestVendorIbanMemory:
         )
 
         assert result.fraud_flags == []
-        assert vm.known_ibans_for_cui("RO12345678") == {self.IBAN_A}
+        assert vm.known_ibans_for_cui("RO12345678") == set()
 
     @pytest.mark.asyncio
     async def test_changed_vendor_iban_is_flagged_but_not_memorized(self, anaf_ok):

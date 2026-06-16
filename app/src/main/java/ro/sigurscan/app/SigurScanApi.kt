@@ -180,6 +180,7 @@ data class OrchestratedScanResponse(
     @SerializedName("scan_id") val scanId: String,
     val status: String? = null,
     @SerializedName("status_message") val statusMessage: String? = null,
+    @SerializedName("poll_after_ms") val pollAfterMs: Long? = null,
     val pillars: Map<String, OrchestratedPillarState>? = null,
     val preview: OrchestratedPreview? = null,
     val result: ScanResponse? = null

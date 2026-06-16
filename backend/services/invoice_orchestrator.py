@@ -522,8 +522,12 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
                 *B2B_HIGH_RISK_FLAGS,
                 *B2B_MEDIUM_RISK_FLAGS,
             }
+            # Do not promote the first plausible invoice into trusted vendor
+            # memory. Seed this store only from explicit confirmation channels
+            # such as e-Factura/XML, bank import, signed contract, or user
+            # approval after an official callback.
             if not (hard_flags & set(fraud_flags)):
-                vendor_memory.remember_invoice_iban(fields.cui, fields.iban)
+                pass
     except Exception:
         pass
 

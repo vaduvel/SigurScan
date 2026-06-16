@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from unittest.mock import AsyncMock, patch
 
@@ -42,6 +44,64 @@ def test_registry_loads_ppc_official_destination():
     assert match["can_contribute_to_safe"] is True
     assert match["client_distribution_allowed"] is False
     assert match["iban_masked_for_client"] == "RO45 BTRL **** **** **** 9101"
+
+
+def test_registry_keeps_multiple_entities_for_same_iban_and_filters_by_cui(tmp_path, monkeypatch):
+    from services import payment_destination_registry as registry
+    from services.payment_destination_registry import match_payment_destination
+
+    shared_iban = "RO45BTRLRONINCS000739101"
+    destination = {
+        "kind": "iban",
+        "trust_tier": "T1_PUBLIC_OFFICIAL",
+        "source_kind": "official_webpage",
+        "scope": "test_shared_processor",
+        "confidence": "high",
+        "review_status": "active",
+        "client_distribution_allowed": False,
+        "match_policy": "exact_hmac_match_required",
+        "can_contribute_to_safe": True,
+        "bank_name": "Banca Transilvania",
+        "source_refs": [{"url": "https://example.test/source", "confidence": "high"}],
+        "iban_normalized_backend_seed_only": shared_iban,
+        "iban_masked_for_client": "RO45 BTRL **** **** **** 9101",
+    }
+    seed = {
+        "entries": [
+            {
+                "brand_id": "brand_a",
+                "display_name": "Brand A",
+                "legal_name": "Brand A SRL",
+                "cui": "111",
+                "payment_destinations": [destination],
+            },
+            {
+                "brand_id": "brand_b",
+                "display_name": "Brand B",
+                "legal_name": "Brand B SRL",
+                "cui": "222",
+                "payment_destinations": [destination],
+            },
+        ]
+    }
+    seed_path = tmp_path / "payment_registry.json"
+    seed_path.write_text(json.dumps(seed), encoding="utf-8")
+    monkeypatch.setenv("PAYMENT_DESTINATION_REGISTRY_PATHS", str(seed_path))
+    registry.reload_registry()
+    try:
+        match = match_payment_destination(shared_iban, claimed_brand="brand_b", cui="222")
+        ambiguous = match_payment_destination(shared_iban)
+    finally:
+        registry.reload_registry()
+
+    assert match["matched"] is True
+    assert match["brand_id"] == "brand_b"
+    assert match["cui_matches"] is True
+    assert match["can_contribute_to_safe"] is True
+    assert match["match_count"] == 2
+    assert ambiguous["matched"] is True
+    assert ambiguous["ambiguous"] is True
+    assert ambiguous["can_contribute_to_safe"] is False
 
 
 def test_registry_loads_supplemental_hidroelectrica_destination():

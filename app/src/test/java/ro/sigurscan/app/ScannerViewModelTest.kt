@@ -46,6 +46,29 @@ class ScannerViewModelTest {
     }
 
     @Test
+    fun orchestratedPollingHonorsBoundedBackendPollAfter() {
+        val fast = OrchestratedScanResponse(
+            scanId = "orch-fast",
+            status = "scanning",
+            pollAfterMs = 250L
+        )
+        val requested = OrchestratedScanResponse(
+            scanId = "orch-requested",
+            status = "scanning",
+            pollAfterMs = 1_500L
+        )
+        val slow = OrchestratedScanResponse(
+            scanId = "orch-slow",
+            status = "scanning",
+            pollAfterMs = 15_000L
+        )
+
+        assertEquals(500L, orchestratedPollDelayMillis(fast))
+        assertEquals(1_500L, orchestratedPollDelayMillis(requested))
+        assertEquals(5_000L, orchestratedPollDelayMillis(slow))
+    }
+
+    @Test
     fun orchestratedPollingBudgetOutlivesBackendControlledTimeouts() {
         assertTrue(ORCHESTRATED_POLLING_BUDGET_MILLIS >= 180_000L)
     }
@@ -472,6 +495,21 @@ class ScannerViewModelTest {
     }
 
     @Test
+    fun processTextIntentUsesSharedIntakePipeline() {
+        val activitySource = File("src/main/java/ro/sigurscan/app/MainActivity.kt").readText()
+        val plannerSource = File("src/main/java/ro/sigurscan/app/SharedIntentIntakePlanner.kt").readText()
+
+        assertTrue(
+            "ACTION_PROCESS_TEXT must be accepted by the same shared-intake planner as SEND/SEND_MULTIPLE.",
+            plannerSource.contains("Intent.ACTION_PROCESS_TEXT")
+        )
+        assertTrue(
+            "Selected text must read EXTRA_PROCESS_TEXT, not only EXTRA_TEXT.",
+            activitySource.contains("Intent.EXTRA_PROCESS_TEXT")
+        )
+    }
+
+    @Test
     fun qrImageFailurePublishesIncompleteEvidenceInsteadOfSilentStop() {
         val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
         val qrStart = viewModelSource.indexOf("fun onQrPicked(uri: Uri, context: Context)")
@@ -525,7 +563,7 @@ class ScannerViewModelTest {
 
         val imageFlow = viewModelSource.substring(imageStart, imageEnd)
         val localOcrIndex = imageFlow.indexOf("runLocalImageOcrScanIfPossible(uri, context)")
-        val cloudOcrIndex = imageFlow.indexOf("api.extractImage(body, source)")
+        val cloudOcrIndex = imageFlow.indexOf("uploadApi.extractImage(body, source)")
         assertTrue("Image scan must try ML Kit/on-device OCR first.", localOcrIndex >= 0)
         assertTrue("Image scan may call cloud OCR only as fallback.", cloudOcrIndex > localOcrIndex)
         assertTrue(

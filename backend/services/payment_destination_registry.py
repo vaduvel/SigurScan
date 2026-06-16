@@ -181,7 +181,7 @@ def _registry() -> Dict[str, Any]:
         except (OSError, json.JSONDecodeError):
             continue
         entries.extend(data.get("entries") or [])
-    by_iban: Dict[str, Dict[str, Any]] = {}
+    by_iban: Dict[str, list[Dict[str, Any]]] = {}
     brands_with_destinations: set[str] = set()
     brands_by_cui: Dict[str, set[str]] = {}
     brands_by_name: Dict[str, set[str]] = {}
@@ -211,7 +211,7 @@ def _registry() -> Dict[str, Any]:
                 and destination.get("trust_tier") in _ACTIVE_TIERS
                 and destination.get("confidence") == "high"
             )
-            by_iban[normalized] = {
+            by_iban.setdefault(normalized, []).append({
                 "brand_id": brand_id,
                 "display_name": entry.get("display_name"),
                 "legal_name": entry.get("legal_name"),
@@ -225,7 +225,7 @@ def _registry() -> Dict[str, Any]:
                 "source_refs": destination.get("source_refs") or [],
                 "scope": destination.get("scope"),
                 "bank_name": destination.get("bank_name"),
-            }
+            })
     return {
         "entries": entries,
         "by_iban": by_iban,
@@ -273,9 +273,34 @@ def match_payment_destination(
     if not normalized or not validate_iban(normalized).valid_structure:
         return _empty_result(iban, claimed_brand, registry_has_brand_destinations=has_brand_destinations)
 
-    entry = _registry()["by_iban"].get(normalized)
-    if not entry:
+    entries = _registry()["by_iban"].get(normalized) or []
+    if not entries:
         return _empty_result(iban, claimed_brand, registry_has_brand_destinations=has_brand_destinations)
+
+    cui_key = _norm_cui(cui)
+
+    def score_entry(candidate: Dict[str, Any]) -> tuple[int, int, int]:
+        cui_score = 1 if cui_key and candidate.get("cui") == cui_key else 0
+        brand_score = 1 if canonical_claim and candidate["brand_id"] == canonical_claim else 0
+        safe_score = 1 if candidate.get("can_contribute_to_safe") else 0
+        return (cui_score, brand_score, safe_score)
+
+    ranked = sorted(entries, key=score_entry, reverse=True)
+    best_score = score_entry(ranked[0])
+    best_entries = [candidate for candidate in ranked if score_entry(candidate) == best_score]
+    if len(best_entries) > 1 and best_score[0] == 0 and best_score[1] == 0:
+        return {
+            **_empty_result(iban, claimed_brand, registry_has_brand_destinations=has_brand_destinations),
+            "matched": True,
+            "brand_matches": None,
+            "cui_matches": None,
+            "trust_tier": "ambiguous_shared_destination",
+            "confidence": "ambiguous",
+            "match_count": len(best_entries),
+            "ambiguous": True,
+        }
+
+    entry = ranked[0]
 
     brand_matches = True
     if canonical_claim:
@@ -286,6 +311,16 @@ def match_payment_destination(
         cui_matches = entry_cui == _norm_cui(cui)
     if cui_matches is False:
         brand_matches = False
+    same_identity_entries = [
+        candidate
+        for candidate in entries
+        if candidate.get("brand_id") == entry.get("brand_id")
+        and (not entry_cui or candidate.get("cui") == entry_cui)
+    ]
+    has_conflicting_non_safe_context = any(
+        not candidate.get("can_contribute_to_safe")
+        for candidate in same_identity_entries
+    )
 
     return {
         "matched": True,
@@ -296,11 +331,18 @@ def match_payment_destination(
         "registry_has_brand_destinations": has_brand_destinations,
         "trust_tier": entry["trust_tier"],
         "confidence": entry["confidence"],
-        "can_contribute_to_safe": bool(entry["can_contribute_to_safe"] and brand_matches),
+        "can_contribute_to_safe": bool(
+            entry["can_contribute_to_safe"]
+            and brand_matches
+            and not has_conflicting_non_safe_context
+        ),
         "client_distribution_allowed": entry["client_distribution_allowed"],
         "iban_masked_for_client": entry["iban_masked_for_client"],
         "source_kind": entry["source_kind"],
         "source_refs": entry["source_refs"],
         "scope": entry.get("scope"),
         "bank_name": entry.get("bank_name"),
+        "match_count": len(entries),
+        "ambiguous": len(entries) > 1 and best_score[0] == 0 and best_score[1] == 0,
+        "conflicting_non_safe_context": has_conflicting_non_safe_context,
     }

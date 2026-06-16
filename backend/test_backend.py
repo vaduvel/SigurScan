@@ -3098,7 +3098,9 @@ def test_orchestrated_status_stays_complete_when_final_verdict_exists_and_previe
 
     assert pending_preview["status"] == "complete"
     assert "preview" in pending_preview["status_message"].lower()
+    assert pending_preview["poll_after_ms"] == 3000
     assert terminal["status"] == "complete"
+    assert terminal["poll_after_ms"] == 1000
 
 
 def test_gather_external_intel_safe_degrades_provider_exceptions(monkeypatch):

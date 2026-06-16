@@ -190,6 +190,16 @@ internal fun collectSharedTextCandidates(intent: Intent): List<SharedTextCandida
     val candidates = mutableListOf<SharedTextCandidate>()
     val intentTypeIsHtml = intent.type?.equals("text/html", ignoreCase = true) == true
 
+    intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)
+        ?.let(::sharedCharSequenceCandidate)
+        ?.let { candidate ->
+            candidates += SharedTextCandidate(
+                text = candidate.text,
+                kind = candidate.kind,
+                sourceLabel = "Text selectat"
+            )
+        }
+
     intent.getStringExtra(Intent.EXTRA_HTML_TEXT)
         ?.takeIf { it.isNotBlank() }
         ?.let { html ->

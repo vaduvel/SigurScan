@@ -171,7 +171,17 @@ ADMIN_ONLY_PATHS = {
     "/v1/evaluation/readiness",
 }
 
-PUBLIC_PATHS = {"/", "/health", "/healthz", "/privacy", "/privacy-policy", "/docs", "/openapi.json", "/redoc"}
+PUBLIC_PATHS = {
+    "/",
+    "/health",
+    "/healthz",
+    "/health/security",
+    "/privacy",
+    "/privacy-policy",
+    "/docs",
+    "/openapi.json",
+    "/redoc",
+}
 
 # GET-only screenshot proxy consumed by image loaders (Coil) that cannot attach
 # auth headers. Unguessable urlscan UUID in the path; rate limiting still applies.
@@ -291,6 +301,7 @@ def _provider_config_status() -> Dict[str, Any]:
         "admin_api_configured": bool(ADMIN_API_KEYS),
         "play_integrity_mode": play_integrity.mode(),
         "play_integrity_nonce_backend": play_integrity_nonce.backend_mode(),
+        "mock_ocr_allowed": ALLOWED_MOCK_OCR,
         "providers": {
             "urlscan": {
                 "configured": bool(URLSCAN_API_KEY) and not PRIVACY_SAFE_MODE,
@@ -5136,6 +5147,11 @@ def read_health():
     }
 
 
+@app.get("/health/security")
+def read_security_health():
+    return _provider_config_status()
+
+
 @app.post("/v1/security/play-integrity/nonce")
 def issue_play_integrity_nonce(request: Request):
     result = play_integrity_nonce.issue_nonce(_extract_api_key(request))
@@ -6924,6 +6940,17 @@ def _orchestrated_status_payload(job: Dict[str, Any]) -> Dict[str, Any]:
     else:
         status = "scanning"
     job["status"] = status
+    preview_pending = preview.get("status") == "pending" or preview.get("reason") in {
+        "urlscan_pending",
+        "urlscan_screenshot_pending",
+    } or not (preview.get("image_url") or preview.get("screenshot_url"))
+    poll_after_ms = 3000 if (
+        status in {"scanning", "complete"}
+        and isinstance(job.get("urlscan"), dict)
+        and str(job["urlscan"].get("status") or "").lower() == "pending"
+        and job["urlscan"].get("uuid")
+        and preview_pending
+    ) else 1000
     return {
         "scan_id": job["scan_id"],
         "status": status,
@@ -6941,6 +6968,7 @@ def _orchestrated_status_payload(job: Dict[str, Any]) -> Dict[str, Any]:
             if status == "scanning"
             else "Scanarea nu are toti pilonii necesari pentru verdict sigur."
         ),
+        "poll_after_ms": poll_after_ms,
         "pillars": pillars,
         "preview": preview,
         "result": result,

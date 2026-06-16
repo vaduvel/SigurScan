@@ -28,7 +28,27 @@ class ShareIntentManifestTest {
     }
 
     @Test
-    fun sensitiveBackgroundPermissionsStayOutOfManifest() {
+    fun sensitiveBackgroundPermissionsStayOutOfReleaseOverlay() {
+        val releaseOverlay = File("src/release/AndroidManifest.xml").readText()
+        assertTrue(
+            "Public release must remove RECORD_AUDIO until Speaker Guard has final Play policy coverage.",
+            releaseOverlay.contains("""android:name="android.permission.RECORD_AUDIO"""") &&
+                releaseOverlay.contains("""tools:node="remove"""")
+        )
+        assertTrue(
+            "Public release must remove READ_PHONE_STATE until Radar CallScreening ships as a reviewed opt-in surface.",
+            releaseOverlay.contains("""android:name="android.permission.READ_PHONE_STATE"""") &&
+                releaseOverlay.contains("""tools:node="remove"""")
+        )
+        assertTrue(
+            "Public release must remove CallScreeningService from the mainstream manifest.",
+            releaseOverlay.contains("""android:name=".SigurScanCallScreeningService"""") &&
+                releaseOverlay.contains("""tools:node="remove"""")
+        )
+    }
+
+    @Test
+    fun sensitiveSmsAndContactsPermissionsStayOutOfManifest() {
         val forbiddenPermissions = listOf(
             "android.permission.READ_SMS",
             "android.permission.RECEIVE_SMS",
@@ -47,26 +67,10 @@ class ShareIntentManifestTest {
     }
 
     @Test
-    fun speakerGuardDeclaresReviewedMicrophonePermission() {
+    fun processTextAcceptsSelectedConversationText() {
         assertTrue(
-            "Speaker Guard needs explicit RECORD_AUDIO for user-started microphone capture.",
-            manifest.contains("""android:name="android.permission.RECORD_AUDIO"""")
-        )
-    }
-
-    @Test
-    fun callScreeningServiceIsDeclaredWithoutAutoRejectPermissions() {
-        assertTrue(
-            "Radar CallScreening requires READ_PHONE_STATE for OS integration.",
-            manifest.contains("""android:name="android.permission.READ_PHONE_STATE"""")
-        )
-        assertTrue(
-            "CallScreening service must be bound only through the platform screening permission.",
-            manifest.contains("""android:permission="android.permission.BIND_SCREENING_SERVICE"""")
-        )
-        assertTrue(
-            "Manifest must expose the Telecom CallScreeningService action.",
-            manifest.contains("""android:name="android.telecom.CallScreeningService"""")
+            "Selected text from chat/email apps should expose SigurScan through ACTION_PROCESS_TEXT.",
+            manifest.contains("""android.intent.action.PROCESS_TEXT""")
         )
     }
 }

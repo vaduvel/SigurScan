@@ -181,6 +181,9 @@ internal fun urlscanReportUrl(uuid: String): String = "https://urlscan.io/result
 internal const val ORCHESTRATED_POLLING_BUDGET_MILLIS = 180_000L
 
 internal fun orchestratedPollDelayMillis(response: OrchestratedScanResponse): Long {
+    response.pollAfterMs
+        ?.coerceIn(500L, 5_000L)
+        ?.let { return it }
     val urlscan = response.pillars?.get("urlscan")
     return if (
         urlscan?.status.equals("pending", ignoreCase = true) &&
@@ -588,32 +591,69 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    private val api: SigurScanApi by lazy {
+    private fun buildApiClient(
+        callTimeoutSeconds: Long,
+        readTimeoutSeconds: Long,
+        writeTimeoutSeconds: Long,
+        connectTimeoutSeconds: Long
+    ): SigurScanApi {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.NONE
         }
-	        val client = OkHttpClient.Builder()
-	            .callTimeout(75, TimeUnit.SECONDS)
-	            .readTimeout(75, TimeUnit.SECONDS)
-	            .writeTimeout(30, TimeUnit.SECONDS)
-	            .connectTimeout(20, TimeUnit.SECONDS)
-	            .addInterceptor(
-                    ApiKeyInterceptor(
-                        rawApiKey = BuildConfig.SIGURSCAN_API_KEY,
-                        integrityTokenProvider = { playIntegrityTokenProvider.currentToken() }
-                    )
+        val client = OkHttpClient.Builder()
+            .callTimeout(callTimeoutSeconds, TimeUnit.SECONDS)
+            .readTimeout(readTimeoutSeconds, TimeUnit.SECONDS)
+            .writeTimeout(writeTimeoutSeconds, TimeUnit.SECONDS)
+            .connectTimeout(connectTimeoutSeconds, TimeUnit.SECONDS)
+            .addInterceptor(
+                ApiKeyInterceptor(
+                    rawApiKey = BuildConfig.SIGURSCAN_API_KEY,
+                    integrityTokenProvider = { playIntegrityTokenProvider.currentToken() }
                 )
-	            .addInterceptor(logging)
-	            .build()
+            )
+            .addInterceptor(logging)
+            .build()
 
         val backendBaseUrl = configuredBackendBaseUrl()
 
-        Retrofit.Builder()
+        return Retrofit.Builder()
             .baseUrl(backendBaseUrl)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(SigurScanApi::class.java)
+    }
+    private val api: SigurScanApi by lazy {
+        buildApiClient(
+            callTimeoutSeconds = 75,
+            readTimeoutSeconds = 75,
+            writeTimeoutSeconds = 30,
+            connectTimeoutSeconds = 20
+        )
+    }
+    private val scanStartApi: SigurScanApi by lazy {
+        buildApiClient(
+            callTimeoutSeconds = 15,
+            readTimeoutSeconds = 15,
+            writeTimeoutSeconds = 15,
+            connectTimeoutSeconds = 8
+        )
+    }
+    private val scanPollApi: SigurScanApi by lazy {
+        buildApiClient(
+            callTimeoutSeconds = 10,
+            readTimeoutSeconds = 10,
+            writeTimeoutSeconds = 10,
+            connectTimeoutSeconds = 5
+        )
+    }
+    private val uploadApi: SigurScanApi by lazy {
+        buildApiClient(
+            callTimeoutSeconds = 75,
+            readTimeoutSeconds = 75,
+            writeTimeoutSeconds = 45,
+            connectTimeoutSeconds = 20
+        )
     }
 
     private fun configuredBackendBaseUrl(): String {
@@ -2056,13 +2096,13 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         val cacheMaterial = if (forcedInputType.isNullOrBlank()) rawInput else "input_type=$forcedInputType\n$rawInput"
         val resultCacheKey = scanResultCacheKey(cacheMaterial, htmlPayload, urls)
         val preliminary = startBackendOrchestratedPendingAssessment(rawInput, urls)
-        var response = api.startOrchestratedScan(orchestratedRequest(rawInput, htmlPayload, urls, forcedInputType))
+        var response = scanStartApi.startOrchestratedScan(orchestratedRequest(rawInput, htmlPayload, urls, forcedInputType))
         publishOrchestratedResponse(response, rawInput, urls, preliminary?.scanId, resultCacheKey)
 
         val pollingDeadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(ORCHESTRATED_POLLING_BUDGET_MILLIS)
         while (shouldContinueOrchestratedPolling(response) && System.nanoTime() < pollingDeadlineNanos) {
             kotlinx.coroutines.delay(orchestratedPollDelayMillis(response))
-            response = api.getOrchestratedScan(response.scanId)
+            response = scanPollApi.getOrchestratedScan(response.scanId)
             publishOrchestratedResponse(response, rawInput, urls, response.scanId, resultCacheKey)
         }
         if (shouldContinueOrchestratedPolling(response)) {
@@ -2733,7 +2773,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                     val body = MultipartBody.Part.createFormData("image_file", file.name, requestFile)
                     val source = "android_image_upload".toRequestBody("text/plain".toMediaTypeOrNull())
 
-                    val response = api.extractImage(body, source)
+                    val response = uploadApi.extractImage(body, source)
                     runBackendOrchestratedScanFromExtraction(
                         response = response,
                         fileName = file.name,
@@ -2848,7 +2888,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                     MultipartBody.Part.createFormData("official_xml_file", xmlFileName, xmlRequest)
                 }
 
-                invoiceResult = api.scanInvoice(body, source, officialPart)
+                invoiceResult = uploadApi.scanInvoice(body, source, officialPart)
             } catch (e: Exception) {
                 invoiceResult = InvoiceScanResponse(
                     error = "Eroare la scanarea facturii: ${e.localizedMessage ?: "conexiune eșuată"}"
@@ -2910,7 +2950,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                     val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
                     val body = MultipartBody.Part.createFormData("image_file", file.name, requestFile)
                     val source = "android_offer_image_upload".toRequestBody("text/plain".toMediaTypeOrNull())
-                    val response = api.extractImage(body, source)
+                    val response = uploadApi.extractImage(body, source)
                     stageOfferConfirmationFromExtraction(
                         response = response,
                         fileName = fileName,
@@ -2934,7 +2974,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                     val requestFile = file.asRequestBody("application/pdf".toMediaTypeOrNull())
                     val body = MultipartBody.Part.createFormData("pdf_file", file.name, requestFile)
                     val source = "android_offer_pdf_upload".toRequestBody("text/plain".toMediaTypeOrNull())
-                    val response = runCatching { api.extractPdf(body, source) }.getOrElse {
+                    val response = runCatching { uploadApi.extractPdf(body, source) }.getOrElse {
                         loadingMsg = "Extragem local textul din PDF..."
                         val fallback = runCatching { extractTextFromPdfFallback(uri, context) }.getOrNull()
                             ?: PdfFallbackExtraction("", emptySet())
@@ -3500,7 +3540,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 )
                 val source = "android_file_upload".toRequestBody("text/plain".toMediaTypeOrNull())
                 
-                val response = api.extractPdf(body, source)
+                val response = uploadApi.extractPdf(body, source)
                 runBackendOrchestratedScanFromExtraction(
                     response = response,
                     fileName = fileName,

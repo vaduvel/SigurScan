@@ -49,7 +49,11 @@ internal fun buildSharedIntentIntakePlan(intent: Intent?): SharedIntentIntakePla
         return SharedIntentIntakePlan.Navigate(resolveDeepLinkDestination(intent))
     }
 
-    if (intent.action != Intent.ACTION_SEND && intent.action != Intent.ACTION_SEND_MULTIPLE) {
+    if (
+        intent.action != Intent.ACTION_SEND &&
+        intent.action != Intent.ACTION_SEND_MULTIPLE &&
+        intent.action != Intent.ACTION_PROCESS_TEXT
+    ) {
         return SharedIntentIntakePlan.Ignore
     }
 
