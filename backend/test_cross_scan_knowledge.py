@@ -136,6 +136,23 @@ def test_cross_scan_applies_olx_card_for_receiving_money_warning():
     assert "cvv" in result["brand_never_asks"]["violated_never_asks"]
 
 
+def test_cross_scan_applies_dpd_card_data_warning_from_romania_research():
+    text = (
+        "DPD Romania: coletul tau necesita confirmare. "
+        "Achita taxa si introdu datele cardului plus CVV: https://dpd-plata.example/card"
+    )
+
+    result = evaluate_cross_scan_knowledge(
+        text=text,
+        claimed_brand="dpd_romania",
+        source_channel="sms",
+    )
+
+    assert "dpd_romania" in result["brand_never_asks"]["brand_ids"]
+    assert "card_number" in result["brand_never_asks"]["violated_never_asks"]
+    assert "cvv" in result["brand_never_asks"]["violated_never_asks"]
+
+
 @pytest.mark.asyncio
 async def test_offer_bundle_carries_cross_scan_payment_destination_context():
     text = (

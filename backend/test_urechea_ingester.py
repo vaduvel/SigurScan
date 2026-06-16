@@ -59,6 +59,25 @@ class TestUrecheaIngester:
         assert len(ingester.sources) >= 9
         assert "WIPOScamWarnings" in ingester.sources
 
+    def test_official_romania_research_sources_are_loaded_with_scrape_guardrails(self):
+        ingester = UrecheaIngester(CampaignStore(seed_path=""))
+        sources = ingester.sources
+
+        for source_id in (
+            "osint_mai_press",
+            "osint_politia_news",
+            "osint_bnr_warnings",
+            "osint_arb",
+            "osint_anaf_news",
+        ):
+            assert source_id in sources
+            assert sources[source_id].kind == "official_alert"
+            assert sources[source_id].fetch_strategy == "html"
+            assert sources[source_id].enabled is True
+
+        assert sources["osint_pnrisc"].enabled is False
+        assert sources["osint_pnrisc"].fetch_strategy == "manual"
+
     def test_ingest_raw_high_quality_auto_approved(self):
         store = CampaignStore(seed_path="")
         ingester = UrecheaIngester(store)

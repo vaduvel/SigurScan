@@ -9,6 +9,53 @@ from typing import Any, Optional
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 DEFAULT_PATH = os.path.join(DATA_DIR, "brand_never_asks_v1.json")
+ROMANIA_OFFICIAL_RESEARCH_PATH = os.path.join(DATA_DIR, "romania_official_research_2026_06_16.json")
+ACTIVE_RESEARCH_POLICIES = {"active_verified", "active_verified_for_contact_only"}
+RESEARCH_BRAND_ID_ALIASES = {
+    "bank_bt": "banca_transilvania",
+    "bank_bcr": "bcr",
+    "bank_brd": "brd",
+    "bank_ing": "ing",
+    "bank_raiffeisen": "raiffeisen",
+    "bank_unicredit": "unicredit",
+    "bank_cec": "cec",
+    "bank_revolut_ro": "revolut_ro",
+    "bank_garanti": "garanti",
+    "inst_anaf": "anaf",
+    "inst_politia_mai": "politia_romana_general_warning",
+    "courier_fan": "fan_courier",
+    "courier_cargus": "cargus",
+    "courier_dpd": "dpd_romania",
+    "courier_gls": "gls_romania",
+    "courier_posta_romana": "posta_romana",
+    "telco_orange": "orange",
+    "telco_yoxo": "orange",
+    "telco_vodafone": "vodafone",
+    "telco_digi": "digi",
+}
+RESEARCH_TOKEN_ALIASES = {
+    "pin": ["banking_pin"],
+    "bank_account": ["financial_data"],
+    "banking_data_by_phone": ["financial_data"],
+    "bank_data_sms_email": ["financial_data"],
+    "bank_data_for_prize": ["financial_data"],
+    "card_data_fake_site": ["card_number", "cvv"],
+    "payment_by_email_card_transfer": ["card_number", "cvv", "financial_data"],
+    "payment_details_sms_email_for_account": ["card_number", "cvv", "financial_data"],
+    "personal_data_update_sms": ["personal_data"],
+    "personal_data_unofficial_channel": ["personal_data"],
+    "cnp": ["personal_data"],
+    "app_installation": ["apk_install"],
+    "external_locker_link": ["delivery_fee_sms"],
+    "customs_online_payment": ["delivery_fee_sms"],
+    "sms_payment_request": ["delivery_fee_sms"],
+    "money_transfer_from_sms_email": ["delivery_fee_sms", "financial_data"],
+    "suspicious_payment_link": ["delivery_fee_sms", "card_number", "cvv"],
+    "safe_account_transfer": ["safe_account_transfer"],
+    "login_via_link": ["login_link", "password"],
+    "login_via_sms_link": ["login_link", "password"],
+    "card_for_receiving_money": ["card_data_for_receiving_money", "card_number", "cvv"],
+}
 
 _DIACRITICS = str.maketrans("ăâîșşțţ", "aaisstt")
 _WRONG_SMS_CHANNELS = {"sms"}
@@ -26,10 +73,14 @@ _BRAND_ALIASES = {
     "bcr": {"bcr", "banca comerciala romana", "george"},
     "brd": {"brd", "brd groupe societe generale"},
     "unicredit": {"unicredit", "uni credit"},
+    "garanti": {"garanti", "garanti bbva"},
     "sameday": {"sameday", "same day", "easybox", "sdy"},
     "aquatim": {"aquatim"},
     "ghiseul_ro": {"ghiseul.ro", "ghiseul", "snep"},
     "fan_courier": {"fan courier", "fancourier", "fan"},
+    "dpd_romania": {"dpd", "dpd romania", "dynamic parcel distribution"},
+    "gls_romania": {"gls", "gls romania"},
+    "cargus": {"cargus"},
     "posta_romana": {"posta romana", "posta", "postaromana"},
     "dhl": {"dhl", "dhl express"},
     "raiffeisen": {"raiffeisen", "raiffeisen bank"},
@@ -100,11 +151,74 @@ def _registry(path: Optional[str] = None) -> dict[str, dict[str, Any]]:
     src = path or os.getenv("BRAND_NEVER_ASKS_PATH") or DEFAULT_PATH
     with open(src, "r", encoding="utf-8") as handle:
         raw = json.load(handle)
-    return {
+    registry = {
         str(item.get("brand_id") or "").strip().lower(): item
         for item in raw.get("brands", [])
         if isinstance(item, dict) and item.get("brand_id")
     }
+    if os.path.abspath(src) == os.path.abspath(DEFAULT_PATH):
+        _merge_romania_official_research(registry)
+    return registry
+
+
+def _dedupe(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        text = str(value or "").strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        result.append(text)
+    return result
+
+
+def _research_tokens(values: Any) -> list[str]:
+    tokens: list[str] = []
+    if not isinstance(values, list):
+        return tokens
+    for value in values:
+        token = value.get("token") if isinstance(value, dict) else value
+        token = str(token or "").strip()
+        if not token:
+            continue
+        tokens.append(token)
+        tokens.extend(RESEARCH_TOKEN_ALIASES.get(token, []))
+    return _dedupe(tokens)
+
+
+def _merge_romania_official_research(registry: dict[str, dict[str, Any]]) -> None:
+    if not os.path.exists(ROMANIA_OFFICIAL_RESEARCH_PATH):
+        return
+    with open(ROMANIA_OFFICIAL_RESEARCH_PATH, "r", encoding="utf-8") as handle:
+        raw = json.load(handle)
+    metadata = raw.get("metadata") if isinstance(raw.get("metadata"), dict) else {}
+    verified_at = str(metadata.get("generated_at") or "2026-06-16")
+    for item in raw.get("brand_manifests", []):
+        if not isinstance(item, dict) or item.get("type") != "brand":
+            continue
+        if str(item.get("verdict_policy") or "") not in ACTIVE_RESEARCH_POLICIES:
+            continue
+        brand_id = RESEARCH_BRAND_ID_ALIASES.get(str(item.get("manifest_id") or ""))
+        if not brand_id:
+            continue
+        tokens = _research_tokens(item.get("never_asks", []))
+        if not tokens:
+            continue
+        existing = registry.get(brand_id, {"brand_id": brand_id})
+        existing["never_asks"] = _dedupe(list(existing.get("never_asks") or []) + tokens)
+        refs = item.get("source_refs") if isinstance(item.get("source_refs"), list) else []
+        first_ref = refs[0] if refs and isinstance(refs[0], dict) else {}
+        existing.setdefault("official_statement_url", str(first_ref.get("url") or ""))
+        existing.setdefault("verified_at", verified_at)
+        existing.setdefault("evidence_quote", "Imported from official/public Romania research seed.")
+        existing["confidence"] = _best_confidence(str(existing.get("confidence") or ""), str(item.get("confidence") or ""))
+        registry[brand_id] = existing
+
+
+def _best_confidence(left: str, right: str) -> str:
+    order = {"": 0, "needs_confirmation": 1, "medium": 2, "high": 3}
+    return right if order.get(right, 0) > order.get(left, 0) else left
 
 
 def _candidate_brand_ids(
@@ -188,6 +302,7 @@ def evaluate_brand_never_asks(
             "raiffeisen",
             "cec",
             "revolut_ro",
+            "garanti",
         }:
             if _URL_RE.search(text or "") and re.search(r"\b(login|autentific|activeaza|verifica)\b", normalized_text):
                 if "login_link" in allowed:
@@ -275,7 +390,7 @@ def evaluate_brand_never_asks(
                 if _CARD_CVV_RE.search(text or ""):
                     brand_violations.extend(item for item in ("card_number", "cvv") if item in allowed)
 
-        if brand_id in {"fan_courier", "posta_romana"}:
+        if brand_id in {"fan_courier", "posta_romana", "dpd_romania", "gls_romania", "cargus"}:
             delivery_payment = bool(_PAYMENT_RE.search(text or "") and re.search(r"\b(colet|livrare|awb|curier)\b", normalized_text))
             if normalized_channel in _WRONG_SMS_CHANNELS | _WRONG_SOCIAL_CHANNELS and delivery_payment:
                 if "delivery_fee_sms" in allowed:
@@ -317,7 +432,11 @@ def evaluate_brand_never_asks(
             "raiffeisen",
             "cec",
             "revolut_ro",
+            "garanti",
             "fan_courier",
+            "dpd_romania",
+            "gls_romania",
+            "cargus",
             "posta_romana",
             "dhl",
             "orange",
