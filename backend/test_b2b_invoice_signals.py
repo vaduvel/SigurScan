@@ -204,3 +204,30 @@ async def test_urgent_payment_override_without_ticket_is_dangerous():
 
     assert "URGENT_PAYMENT_OVERRIDE_NO_TICKET" in result.fraud_flags
     assert verdict["gate"]["label"] == "DANGEROUS"
+
+
+@pytest.mark.asyncio
+async def test_payment_diversion_hold_payments_pending_new_account_is_dangerous():
+    result = await scan_invoice(
+        "From: finance@vendor-real.example\n"
+        "Subject: facturi deschise\n"
+        "Va rugam sa tineti toate platile pana la noi instructiuni. "
+        "Trimiteti lista facturilor deschise; noul cont bancar va fi comunicat ulterior."
+    )
+    verdict = evaluate_invoice_verdict(result, result.raw_text, source_channel="email")
+
+    assert "PAYMENT_DIVERSION_HOLD_INSTRUCTIONS" in result.fraud_flags
+    assert verdict["gate"]["label"] == "DANGEROUS"
+
+
+@pytest.mark.asyncio
+async def test_wipo_epo_euipo_fee_from_unofficial_channel_is_dangerous():
+    result = await scan_invoice(
+        "From: admin@wipo-office.com\n"
+        "WIPO / EPO administrative protection fee pentru marca dvs. "
+        "Achitati urgent taxa de protectie in contul UA123203710000000260046015700."
+    )
+    verdict = evaluate_invoice_verdict(result, result.raw_text, source_channel="email")
+
+    assert "IP_OFFICE_PAYMENT_REQUEST_UNOFFICIAL_CHANNEL" in result.fraud_flags
+    assert verdict["gate"]["label"] == "DANGEROUS"

@@ -103,6 +103,7 @@ def build_hot_cache(
     campaign_store: Any,
     *,
     reports: Optional[List[Dict[str, Any]]] = None,
+    number_reputation_items: Optional[List[Dict[str, Any]]] = None,
     since: Optional[float] = None,
 ) -> Dict[str, Any]:
     """Asamblează payload-ul hot-cache.
@@ -132,18 +133,36 @@ def build_hot_cache(
         )
 
     number_reputation: List[Dict[str, Any]] = []
+    seen_phone_hashes: set[str] = set()
     for r in reports or []:
         if str(r.get("target_type") or "").strip().lower() != "phone":
             continue
         phone_hash = str(r.get("hash") or "").strip().lower()
         if not _SHA256_HEX_RE.fullmatch(phone_hash):
             continue
+        seen_phone_hashes.add(phone_hash)
         number_reputation.append(
             {
                 "phone_hash": phone_hash,
                 "status": reputation_status(r.get("report_count", 0), r.get("risk_level")),
                 "family": r.get("family"),
                 "bucket_count": reputation_bucket(r.get("report_count", 0)),
+            }
+        )
+    for item in number_reputation_items or []:
+        phone_hash = str(item.get("phone_hash") or item.get("target_hash") or "").strip().lower()
+        if not _SHA256_HEX_RE.fullmatch(phone_hash) or phone_hash in seen_phone_hashes:
+            continue
+        status = str(item.get("status") or "reported").strip().lower()
+        if status not in {"reported", "blocked", "dangerous", "high_confidence"}:
+            status = "reported"
+        seen_phone_hashes.add(phone_hash)
+        number_reputation.append(
+            {
+                "phone_hash": phone_hash,
+                "status": status,
+                "family": item.get("family"),
+                "bucket_count": item.get("bucket_count") or reputation_bucket(item.get("report_count", 0)),
             }
         )
 

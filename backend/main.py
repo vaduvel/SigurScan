@@ -160,6 +160,7 @@ ADMIN_ONLY_PATHS = {
     "/v1/intel/moderate",
     "/v1/intel/moderation-queue",
     "/v1/intel/sources",
+    "/v1/urechea/run",
     "/v1/campaign/active",
     "/v1/campaign/families",
     "/v1/campaign/match",
@@ -9400,6 +9401,7 @@ class ProvenanceRequest(BaseModel):
     observed_channel: str = "unknown"
     observed_domain: Optional[str] = None
     observed_phone_e164: Optional[str] = None
+    observed_shortcode: Optional[str] = None
     sensitive_asks: List[str] = []
     payment_method: Optional[str] = None
     final_url: Optional[str] = None
@@ -9412,6 +9414,7 @@ async def verify_provenance(payload: ProvenanceRequest):
         observed_channel=payload.observed_channel,
         observed_domain=payload.observed_domain,
         observed_phone_e164=payload.observed_phone_e164,
+        observed_shortcode=payload.observed_shortcode,
         sensitive_asks=payload.sensitive_asks,
         payment_method=payload.payment_method,
         final_url=payload.final_url,
@@ -9510,8 +9513,10 @@ async def radar_hot_iocs(since: Optional[float] = None):
     Campanii active + reputație numere pe buckets (zero număr brut server-side).
     """
     from services.radar_hot_cache import build_hot_cache
+    from services.reputation_graph import ReputationGraph
 
     reports: List[Dict[str, Any]] = []
+    number_reputation_items: List[Dict[str, Any]] = []
     if supabase_store.is_supabase_enabled():
         try:
             rows = supabase_store._get_json(
@@ -9522,7 +9527,36 @@ async def radar_hot_iocs(since: Optional[float] = None):
             reports = rows if isinstance(rows, list) else []
         except Exception:
             reports = []
-    return build_hot_cache(campaign_store, reports=reports, since=since)
+        try:
+            graph_rows = supabase_store.load_reputation_graph_rows(limit=1000)
+            graph = ReputationGraph.from_rows(
+                observations=graph_rows.get("observations", []),
+                edges=graph_rows.get("edges", []),
+                allowlist=graph_rows.get("allowlist", []),
+            )
+            graph_observation_keys = {
+                (
+                    str(row.get("target_type") or "unknown").strip().lower(),
+                    str(row.get("target_hash") or row.get("hash") or "").strip().lower(),
+                )
+                for row in graph_rows.get("observations", [])
+            }
+            graph.load_community_reports([
+                row for row in reports
+                if (
+                    str(row.get("target_type") or "unknown").strip().lower(),
+                    str(row.get("hash") or row.get("target_hash") or "").strip().lower(),
+                ) not in graph_observation_keys
+            ])
+            number_reputation_items = graph.radar_number_reputation()
+        except Exception:
+            number_reputation_items = []
+    return build_hot_cache(
+        campaign_store,
+        reports=[] if number_reputation_items else reports,
+        number_reputation_items=number_reputation_items,
+        since=since,
+    )
 
 
 @app.post("/v1/report")
@@ -9613,8 +9647,16 @@ async def circle_ping(payload: CirclePingRequest):
             raise HTTPException(status_code=409, detail=str(exc))
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    supabase_store.save_verification_ping(ping.to_dict())  # best-effort
-    return ping.to_dict()
+    ping_payload = ping.to_dict()
+    supabase_store.save_verification_ping(ping_payload)  # best-effort
+    delivery = ping_payload.get("delivery")
+    if isinstance(delivery, dict):
+        supabase_store.save_circle_delivery_event({
+            **delivery,
+            "ping_id": ping.ping_id,
+            "link_id": ping.link_id,
+        })
+    return ping_payload
 
 
 @app.post("/v1/circle/respond")
@@ -9737,6 +9779,11 @@ class IntelStatusData(BaseModel):
     sources_enabled: int = 0
 
 
+class UrecheaRunRequest(BaseModel):
+    sources: Optional[List[str]] = None
+    max_entries_per_source: int = 5
+
+
 _INTEL_STATUS: IntelStatusData = IntelStatusData()
 
 
@@ -9757,6 +9804,57 @@ async def urechea_status():
         "sources_enabled": sum(1 for s in sources.values() if s.enabled),
         "moderation_queue_length": len(urechea_ingester.moderation_queue),
         "campaign_count": len(campaign_store.all()),
+    }
+
+
+@app.post("/v1/urechea/run")
+async def urechea_run(payload: UrecheaRunRequest):
+    sources = urechea_ingester.sources
+    requested = [
+        str(name or "").strip()
+        for name in (payload.sources or [])
+        if str(name or "").strip()
+    ]
+    if not requested:
+        requested = [
+            name for name, src in sources.items()
+            if src.enabled and src.feed_url and src.fetch_strategy == "rss"
+        ]
+    max_entries = max(1, min(int(payload.max_entries_per_source or 5), 20))
+    source_results = []
+    total_ingested = 0
+    for name in requested:
+        src = sources.get(name)
+        if src is None or not src.enabled:
+            source_results.append({"source": name, "status": "skipped", "reason": "source_disabled_or_missing", "ingested": 0})
+            continue
+        entries = urechea_ingester.fetch_source(name)[:max_entries]
+        ingested = 0
+        for entry in entries:
+            intel = urechea_ingester.ingest_raw(
+                title=entry.get("title", ""),
+                body=entry.get("body", ""),
+                source_url=entry.get("link", ""),
+                source_kind=src.kind,
+                evidence_quality=src.confidence,
+            )
+            supabase_store.save_campaign_intel(intel.to_dict())
+            ingested += 1
+        total_ingested += ingested
+        source_results.append({"source": name, "status": "ok", "entries": len(entries), "ingested": ingested})
+    _update_intel_status(
+        last_run_at=time.time(),
+        entries_ingested=_INTEL_STATUS.entries_ingested + total_ingested,
+        sources_configured=len(sources),
+        sources_with_rss=sum(1 for src in sources.values() if src.feed_url is not None),
+        sources_enabled=sum(1 for src in sources.values() if src.enabled),
+    )
+    return {
+        "status": "ok",
+        "sources_attempted": len(requested),
+        "entries_ingested": total_ingested,
+        "source_results": source_results,
+        "last_run_at": _INTEL_STATUS.last_run_at,
     }
 
 
@@ -10598,6 +10696,14 @@ def community_report(payload: CommunityReportRequest):
                 "source": payload.source,
                 "target_type": normalized_target_type,
             })
+        supabase_store.save_reputation_observation({
+            "target_type": normalized_target_type,
+            "target_hash": normalized_hash,
+            "source": payload.source,
+            "risk_level": payload.risk_level,
+            "family": payload.family,
+            "report_count": 1,
+        })
     except Exception:
         pass
     return {"status": "ok"}

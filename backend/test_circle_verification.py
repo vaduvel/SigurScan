@@ -129,6 +129,20 @@ class TestPing:
         assert "transcript" not in blob
         assert "raw" not in blob or '"raw_stored":false' in blob.replace(" ", "")
 
+    def test_ping_carries_metadata_only_delivery_intent(self):
+        store, link = self._link()
+        ping = store.create_ping(link.link_id, claim="caller_claims_to_be_verifier")
+        delivery = ping.to_dict()["delivery"]
+        blob = json.dumps(delivery)
+
+        assert delivery["type"] == "push_deeplink"
+        assert delivery["target_user_id"] == "u_son"
+        assert delivery["deeplink"].startswith("sigurscan://radar?")
+        assert f"ping_id={ping.ping_id}" in delivery["deeplink"]
+        assert delivery["payload_class"] == "metadata_only"
+        assert delivery["raw_content_shared"] is False
+        assert "transcript" not in blob and "raw_text" not in blob
+
     def test_ping_on_missing_link_fails(self):
         store = CircleStore()
         with pytest.raises(KeyError):
@@ -214,6 +228,8 @@ class TestEndpoints:
         assert r.status_code == 200
         ping = r.json()
         assert ping["default_on_timeout"] == "PRECAUTIE"
+        assert ping["delivery"]["payload_class"] == "metadata_only"
+        assert ping["delivery"]["raw_content_shared"] is False
         ping_id = ping["ping_id"]
 
         r = client.post("/v1/circle/respond", json={"ping_id": ping_id, "response": "its_me"})
@@ -307,6 +323,25 @@ class TestSupabasePersistenceWiring:
         assert r.status_code == 200
         assert r.json()["link_id"] == "cl_persisted"
         assert saved.get("ping", {}).get("link_id") == "cl_persisted"
+
+    def test_ping_persists_delivery_outbox_event(self, monkeypatch):
+        import main as app_main
+        delivered = {}
+        monkeypatch.setattr(app_main.supabase_store, "save_circle_delivery_event",
+                            lambda event: delivered.setdefault("event", event))
+
+        client = self._client()
+        link_id = client.post("/v1/circle/pair", json={
+            "protected_id": "u_g", "verifier_id": "u_s", "consent": "explicit"}).json()["link_id"]
+        r = client.post("/v1/circle/ping", json={
+            "link_id": link_id, "claim": "caller_claims_to_be_verifier"})
+
+        assert r.status_code == 200
+        event = delivered.get("event", {})
+        assert event["type"] == "push_deeplink"
+        assert event["target_user_id"] == "u_s"
+        assert event["payload_class"] == "metadata_only"
+        assert event["raw_content_shared"] is False
 
     def test_respond_rehydrates_ping_from_supabase(self, monkeypatch):
         import main as app_main

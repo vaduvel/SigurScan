@@ -8,6 +8,8 @@ data class InboxSignalBundle(
     val messageHash: String,
     val claimedBrand: String? = null,
     val observedDomain: String? = null,
+    val observedPhoneE164: String? = null,
+    val observedShortcode: String? = null,
     val sensitiveAsks: List<String> = emptyList(),
     val hasUrl: Boolean = false
 )
@@ -66,6 +68,8 @@ object InboxProvenanceEngine {
         }
 
         val officialDomainMatch = domainMatches(bundle.observedDomain, manifest.officialDomains)
+        val officialPhoneMatch = phoneMatches(bundle.observedPhoneE164, manifest.officialPhonesE164)
+        val officialShortcodeMatch = shortcodeMatches(bundle.observedShortcode, manifest.officialShortcodes)
         if (officialDomainMatch && normalizedAsks.isEmpty()) {
             return InboxProvenanceVerdict(
                 verdict = OnDeviceInboxVerdict.SAFE,
@@ -73,11 +77,34 @@ object InboxProvenanceEngine {
                 reasonCodes = listOf("official_domain_match")
             )
         }
+        if (!bundle.hasUrl && officialShortcodeMatch && normalizedAsks.isEmpty()) {
+            return InboxProvenanceVerdict(
+                verdict = OnDeviceInboxVerdict.SAFE,
+                manifestId = manifest.manifestId,
+                reasonCodes = listOf("official_shortcode_match")
+            )
+        }
+        if (!bundle.hasUrl && officialPhoneMatch && normalizedAsks.isEmpty()) {
+            return InboxProvenanceVerdict(
+                verdict = OnDeviceInboxVerdict.SAFE,
+                manifestId = manifest.manifestId,
+                reasonCodes = listOf("official_phone_match")
+            )
+        }
 
         return InboxProvenanceVerdict(
-            verdict = if (officialDomainMatch) OnDeviceInboxVerdict.SUSPECT else OnDeviceInboxVerdict.UNVERIFIED,
+            verdict = if (officialDomainMatch || officialPhoneMatch || officialShortcodeMatch) {
+                OnDeviceInboxVerdict.SUSPECT
+            } else {
+                OnDeviceInboxVerdict.UNVERIFIED
+            },
             manifestId = manifest.manifestId,
-            reasonCodes = if (officialDomainMatch) listOf("official_domain_requires_review") else listOf("brand_match_without_domain")
+            reasonCodes = when {
+                officialDomainMatch -> listOf("official_domain_requires_review")
+                officialShortcodeMatch -> listOf("official_shortcode_requires_review")
+                officialPhoneMatch -> listOf("official_phone_requires_review")
+                else -> listOf("brand_match_without_domain")
+            }
         )
     }
 
@@ -91,6 +118,10 @@ object InboxProvenanceEngine {
                 )
         } ?: btr.manifests.firstOrNull { manifest ->
             domainMatches(bundle.observedDomain, manifest.officialDomains)
+        } ?: btr.manifests.firstOrNull { manifest ->
+            phoneMatches(bundle.observedPhoneE164, manifest.officialPhonesE164)
+        } ?: btr.manifests.firstOrNull { manifest ->
+            shortcodeMatches(bundle.observedShortcode, manifest.officialShortcodes)
         }
     }
 
@@ -134,6 +165,31 @@ object InboxProvenanceEngine {
         return officialDomains.any { raw ->
             val official = raw.trim().lowercase(Locale.US).removePrefix("www.")
             official.isNotBlank() && (observed == official || observed.endsWith(".$official"))
+        }
+    }
+
+    private fun phoneMatches(observedPhone: String?, officialPhones: List<String>): Boolean {
+        val observed = normalizePhone(observedPhone)
+        if (observed.isBlank()) return false
+        return officialPhones.any { normalizePhone(it) == observed }
+    }
+
+    private fun shortcodeMatches(observedShortcode: String?, officialShortcodes: List<String>): Boolean {
+        val observed = observedShortcode.orEmpty().filter(Char::isDigit)
+        if (observed.isBlank()) return false
+        return officialShortcodes.any { it.filter(Char::isDigit) == observed }
+    }
+
+    private fun normalizePhone(value: String?): String {
+        val raw = value.orEmpty().trim()
+        val digits = raw.filter(Char::isDigit)
+        if (digits.isBlank()) return ""
+        return when {
+            digits.startsWith("0040") && digits.length >= 6 -> "+40${digits.drop(4)}"
+            digits.startsWith("40") && digits.length >= 5 -> "+$digits"
+            digits.startsWith("0") && digits.length >= 9 -> "+40${digits.drop(1)}"
+            raw.startsWith("+") -> "+$digits"
+            else -> "+$digits"
         }
     }
 

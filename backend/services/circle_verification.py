@@ -79,6 +79,7 @@ class VerificationPing:
     ping_id: str
     link_id: str
     claim: str
+    verifier_user_id: Optional[str] = None
     payload_class: str = "metadata_only"
     default_on_timeout: str = "PRECAUTIE"
     latency_target_s: int = PING_LATENCY_TARGET_S
@@ -90,6 +91,14 @@ class VerificationPing:
     def to_dict(self) -> Dict[str, Any]:
         d = asdict(self)
         d["raw_stored"] = False
+        if self.verifier_user_id:
+            d["delivery"] = {
+                "type": "push_deeplink",
+                "target_user_id": self.verifier_user_id,
+                "deeplink": f"sigurscan://radar?ping_id={self.ping_id}&link_id={self.link_id}",
+                "payload_class": self.payload_class,
+                "raw_content_shared": False,
+            }
         return d
 
 
@@ -163,6 +172,7 @@ class CircleStore:
             ping_id="vp_" + uuid.uuid4().hex[:16],
             link_id=link_id,
             claim=claim,
+            verifier_user_id=link.verifier_user_id,
         )
         self._pings[ping.ping_id] = ping
         return ping

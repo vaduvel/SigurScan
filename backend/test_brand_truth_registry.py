@@ -14,7 +14,7 @@ def btr():
 
 class TestLoadAndVersion:
     def test_loads_all_manifests(self, btr):
-        assert len(btr.all()) == 17
+        assert len(btr.all()) == 18
 
     def test_version_format(self, btr):
         assert btr.version.startswith("btr-ro-")
@@ -47,8 +47,8 @@ class TestLoadAndVersion:
 
 
 class TestBrandCount:
-    def test_16_brands_plus_1_person(self, btr):
-        assert len(btr.brands()) == 16
+    def test_17_brands_plus_1_person(self, btr):
+        assert len(btr.brands()) == 17
         assert len(btr.persons()) == 1
 
     def test_person_is_isarescu(self, btr):
@@ -61,7 +61,7 @@ class TestBrandCount:
         expected = {"bnr", "anaf", "dnsc", "politia_mai", "olx", "emag",
                     "fan_courier", "sameday", "cargus", "posta_romana",
                     "bt", "bcr", "ing", "electrica_ppc", "orange_vodafone_digi",
-                    "yoxo"}
+                    "yoxo", "wipo"}
         found = {m.manifest_id for m in btr.brands()}
         assert found == expected
 
@@ -104,6 +104,9 @@ class TestMatchByDomain:
     def test_match_yoxo_domains(self, btr):
         assert btr.match_brand_by_domain("www.yoxo.ro").manifest_id == "yoxo"
         assert btr.match_brand_by_domain("reconditionate.yoxo.ro").manifest_id == "yoxo"
+
+    def test_match_wipo_official_domain(self, btr):
+        assert btr.match_brand_by_domain("www.wipo.int").manifest_id == "wipo"
 
 
 class TestMatchByName:
@@ -225,6 +228,111 @@ class TestProvenanceCheck:
         assert result.provenance == "match"
         assert result.official_match is True
         assert result.max_effect == "can_raise_safe"
+
+    def test_phone_channel_can_match_official_phone(self, tmp_path):
+        path = tmp_path / "btr_phone.json"
+        path.write_text(
+            """
+            {
+              "btr_version": "btr-test",
+              "generated_at": "2026-06-16T00:00:00Z",
+              "manifests": [
+                {
+                  "manifest_id": "test_bank",
+                  "type": "brand",
+                  "display_name": "Test Bank",
+                  "category": "bank",
+                  "country": "RO",
+                  "official_domains": ["testbank.ro"],
+                  "official_phones_e164": ["+40211234567"],
+                  "official_channels": ["phone"],
+                  "never_asks": ["otp"],
+                  "source_kind": "public_self_asserted",
+                  "source_refs": [],
+                  "confidence": "high",
+                  "review_status": "active"
+                }
+              ]
+            }
+            """,
+            encoding="utf-8",
+        )
+        reg = BrandTruthRegistry(str(path))
+
+        result = reg.provenance_check(
+            claimed_brand="Test Bank",
+            observed_channel="phone",
+            observed_domain=None,
+            observed_phone_e164="021 123 4567",
+            sensitive_asks=[],
+            payment_method=None,
+            final_url=None,
+        )
+
+        assert result.provenance == "match"
+        assert result.official_match is True
+        assert "BTR_PHONE_MATCH" in result.reason_codes
+
+    def test_sms_channel_can_match_official_shortcode(self, tmp_path):
+        path = tmp_path / "btr_shortcode.json"
+        path.write_text(
+            """
+            {
+              "btr_version": "btr-test",
+              "generated_at": "2026-06-16T00:00:00Z",
+              "manifests": [
+                {
+                  "manifest_id": "test_telco",
+                  "type": "brand",
+                  "display_name": "Test Telco",
+                  "category": "telecom",
+                  "country": "RO",
+                  "official_domains": ["telco.test"],
+                  "official_shortcodes": ["1872"],
+                  "official_channels": ["sms"],
+                  "never_asks": ["card_number"],
+                  "source_kind": "public_self_asserted",
+                  "source_refs": [],
+                  "confidence": "high",
+                  "review_status": "active"
+                }
+              ]
+            }
+            """,
+            encoding="utf-8",
+        )
+        reg = BrandTruthRegistry(str(path))
+
+        result = reg.provenance_check(
+            claimed_brand="Test Telco",
+            observed_channel="sms",
+            observed_domain=None,
+            observed_phone_e164=None,
+            observed_shortcode="1872",
+            sensitive_asks=[],
+            payment_method=None,
+            final_url=None,
+        )
+
+        assert result.provenance == "match"
+        assert result.official_match is True
+        assert "BTR_SHORTCODE_MATCH" in result.reason_codes
+
+    def test_wipo_lookalike_domain_is_not_official(self, btr):
+        result = btr.provenance_check(
+            claimed_brand="WIPO",
+            observed_channel="web",
+            observed_domain="wipo-office.com",
+            observed_phone_e164=None,
+            sensitive_asks=[],
+            payment_method=None,
+            final_url="https://wipo-office.com/payment",
+        )
+
+        assert result.manifest_id == "wipo"
+        assert result.official_match is False
+        assert result.identity_status == "claimed_brand_official_mismatch"
+        assert "BTR_DOMAIN_MISMATCH" in result.reason_codes
 
     def test_isarescu_deepfake_investment(self, btr):
         result = btr.provenance_check(

@@ -160,6 +160,29 @@ class TestNumberReputationPrivacy:
         assert out["number_reputation"][0]["status"] == "blocked"
         assert out["number_reputation"][0]["bucket_count"] == "25-99"
 
+    def test_graph_reputation_items_feed_hot_cache(self):
+        out = build_hot_cache(
+            _store_with(),
+            reports=[],
+            number_reputation_items=[
+                {
+                    "phone_hash": "f" * 64,
+                    "status": "blocked",
+                    "family": "CONV_BANK_SAFE_ACCOUNT",
+                    "bucket_count": "25-99",
+                }
+            ],
+        )
+
+        assert out["number_reputation"] == [
+            {
+                "phone_hash": "f" * 64,
+                "status": "blocked",
+                "family": "CONV_BANK_SAFE_ACCOUNT",
+                "bucket_count": "25-99",
+            }
+        ]
+
 
 class TestReportBuilder:
     def test_phishing_routes_dnsc_1911(self):
@@ -226,6 +249,39 @@ class TestEndpoints:
         assert invalid_hash.status_code == 400
         assert invalid_type.status_code == 400
 
+    def test_community_report_also_writes_reputation_graph_observation(self, monkeypatch):
+        from fastapi.testclient import TestClient
+        import main as app_main
+
+        writes = []
+        monkeypatch.setattr(app_main.supabase_store, "is_supabase_enabled", lambda: True)
+        monkeypatch.setattr(app_main.supabase_store, "_get_json", lambda table, params: [])
+        monkeypatch.setattr(
+            app_main.supabase_store,
+            "_post_json",
+            lambda table, payload, prefer="return=minimal": writes.append((table, payload)),
+        )
+
+        client = TestClient(app_main.app)
+        r = client.post(
+            "/v1/community/report",
+            json={
+                "hash": "a" * 64,
+                "risk_level": "high",
+                "target_type": "phone",
+                "family": "CONV_BANK_SAFE_ACCOUNT",
+                "source": "android",
+            },
+        )
+
+        assert r.status_code == 200
+        tables = [table for table, _ in writes]
+        assert "community_reports" in tables
+        graph_write = next(payload for table, payload in writes if table == "reputation_observations")
+        assert graph_write["target_type"] == "phone"
+        assert graph_write["target_hash"] == "a" * 64
+        assert graph_write["source"] == "android"
+
     def test_hot_iocs_endpoint(self):
         from fastapi.testclient import TestClient
         import main as app_main
@@ -236,6 +292,49 @@ class TestEndpoints:
         body = r.json()
         assert "hot_campaigns" in body and "number_reputation" in body
         assert body["ttl_minutes"] > 0
+
+    def test_hot_iocs_endpoint_merges_reputation_graph_rows(self, monkeypatch):
+        from fastapi.testclient import TestClient
+        import main as app_main
+
+        monkeypatch.setattr(app_main.supabase_store, "is_supabase_enabled", lambda: True)
+        monkeypatch.setattr(
+            app_main.supabase_store,
+            "_get_json",
+            lambda table, params: [],
+        )
+        monkeypatch.setattr(
+            app_main.supabase_store,
+            "load_reputation_graph_rows",
+            lambda limit=1000: {
+                "observations": [
+                    {
+                        "target_type": "phone",
+                        "target_hash": "f" * 64,
+                        "source": "community",
+                        "risk_level": "high",
+                        "family": "CONV_BANK_SAFE_ACCOUNT",
+                        "report_count": 25,
+                    }
+                ],
+                "edges": [],
+                "allowlist": [],
+            },
+        )
+
+        client = TestClient(app_main.app)
+        r = client.get("/v1/radar/hot-iocs")
+        body = r.json()
+
+        assert r.status_code == 200
+        assert body["number_reputation"] == [
+            {
+                "phone_hash": "f" * 64,
+                "status": "blocked",
+                "family": "CONV_BANK_SAFE_ACCOUNT",
+                "bucket_count": "25-99",
+            }
+        ]
 
     def test_report_endpoint(self):
         from fastapi.testclient import TestClient

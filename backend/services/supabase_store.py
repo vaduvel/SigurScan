@@ -1,4 +1,5 @@
 import os
+import re
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
@@ -22,6 +23,10 @@ _SCAN_JOB_STORAGE_KEYS = {
     "_storage_lock_owner",
     "_storage_lock_acquired_at",
 }
+
+_REPUTATION_TARGET_TYPES = {"phone", "domain", "url", "iban", "email", "wallet", "text", "unknown"}
+_REPUTATION_EDGE_RELATIONS = {"pays_to", "co_occurred_in_case", "same_campaign", "claimed_by", "redirects_to"}
+_SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$", re.IGNORECASE)
 
 
 def is_supabase_enabled() -> bool:
@@ -258,6 +263,106 @@ def save_negative_iban(iban: str, *, source: str = "manual", family: Optional[st
 def load_negative_ibans() -> List[str]:
     rows = _get_json("negative_iban_registry", {"select": "iban"})
     return [str(row.get("iban") or "") for row in rows if row.get("iban")]
+
+
+# ─── Reputation Graph v1 — cross-surface hashed intel ────────────────────────
+
+def _valid_reputation_target_type(value: Any) -> str:
+    target_type = str(value or "unknown").strip().lower()
+    if target_type not in _REPUTATION_TARGET_TYPES:
+        raise ValueError(f"invalid reputation target_type: {target_type}")
+    return target_type
+
+
+def _valid_reputation_hash(value: Any) -> str:
+    digest = str(value or "").strip().lower()
+    if not _SHA256_HEX_RE.fullmatch(digest):
+        raise ValueError("reputation graph values must be SHA-256 hex digests")
+    return digest
+
+
+def save_reputation_observation(entry: Dict[str, Any]) -> None:
+    if not isinstance(entry, dict):
+        return
+    row = {
+        "target_type": _valid_reputation_target_type(entry.get("target_type")),
+        "target_hash": _valid_reputation_hash(entry.get("target_hash") or entry.get("hash")),
+        "source": str(entry.get("source") or "unknown").strip().lower() or "unknown",
+        "risk_level": str(entry.get("risk_level") or "medium").strip().lower() or "medium",
+        "family": entry.get("family"),
+        "report_count": max(1, int(entry.get("report_count") or 1)),
+        "evidence_quality": str(entry.get("evidence_quality") or "medium").strip().lower() or "medium",
+    }
+    observed_at = _ts_to_iso(entry.get("observed_at") or entry.get("timestamp"))
+    if observed_at:
+        row["observed_at"] = observed_at
+    _post_json("reputation_observations", row, "return=minimal")
+
+
+def save_reputation_edge(entry: Dict[str, Any]) -> None:
+    if not isinstance(entry, dict):
+        return
+    relation = str(entry.get("relation") or "").strip().lower()
+    if relation not in _REPUTATION_EDGE_RELATIONS:
+        raise ValueError(f"invalid reputation edge relation: {relation}")
+    row = {
+        "source_type": _valid_reputation_target_type(entry.get("source_type")),
+        "source_hash": _valid_reputation_hash(entry.get("source_hash")),
+        "target_type": _valid_reputation_target_type(entry.get("target_type")),
+        "target_hash": _valid_reputation_hash(entry.get("target_hash")),
+        "relation": relation,
+        "source": str(entry.get("source") or "case_correlation").strip().lower() or "case_correlation",
+        "family": entry.get("family"),
+        "evidence_quality": str(entry.get("evidence_quality") or "medium").strip().lower() or "medium",
+    }
+    observed_at = _ts_to_iso(entry.get("observed_at") or entry.get("timestamp"))
+    if observed_at:
+        row["observed_at"] = observed_at
+    _post_json("reputation_edges", row, "return=minimal")
+
+
+def save_reputation_allowlist(entry: Dict[str, Any]) -> None:
+    if not isinstance(entry, dict):
+        return
+    row = {
+        "target_type": _valid_reputation_target_type(entry.get("target_type")),
+        "target_hash": _valid_reputation_hash(entry.get("target_hash") or entry.get("hash")),
+        "source": str(entry.get("source") or "unknown").strip().lower() or "unknown",
+        "reason": str(entry.get("reason") or "official").strip().lower() or "official",
+    }
+    observed_at = _ts_to_iso(entry.get("observed_at") or entry.get("timestamp"))
+    if observed_at:
+        row["observed_at"] = observed_at
+    _post_json("reputation_allowlist", row, "resolution=merge-duplicates,return=minimal")
+
+
+def load_reputation_graph_rows(limit: int = 1000) -> Dict[str, List[Dict[str, Any]]]:
+    capped_limit = str(max(1, min(int(limit or 1000), 5000)))
+    observations = _get_json(
+        "reputation_observations",
+        {
+            "select": "target_type,target_hash,source,risk_level,family,report_count,evidence_quality,observed_at",
+            "order": "observed_at.desc",
+            "limit": capped_limit,
+        },
+    )
+    edges = _get_json(
+        "reputation_edges",
+        {
+            "select": "source_type,source_hash,target_type,target_hash,relation,source,family,evidence_quality,observed_at",
+            "order": "observed_at.desc",
+            "limit": capped_limit,
+        },
+    )
+    allowlist = _get_json(
+        "reputation_allowlist",
+        {
+            "select": "target_type,target_hash,source,reason,observed_at",
+            "order": "observed_at.desc",
+            "limit": capped_limit,
+        },
+    )
+    return {"observations": observations, "edges": edges, "allowlist": allowlist}
 
 
 def save_vendor_iban(cui: str, iban: str) -> None:
@@ -740,6 +845,28 @@ def save_verification_ping(ping: Dict[str, Any]) -> None:
         "status": ping.get("status") or "pending",
     }
     _post_json("verification_pings", row, "resolution=merge-duplicates,return=minimal")
+
+
+def save_circle_delivery_event(event: Dict[str, Any]) -> None:
+    if not isinstance(event, dict):
+        return
+    if event.get("raw_content_shared") is not False:
+        return
+    row = {
+        "event_type": event.get("type") or "push_deeplink",
+        "target_user_id": event.get("target_user_id"),
+        "deeplink": event.get("deeplink"),
+        "payload_class": event.get("payload_class") or "metadata_only",
+        "raw_content_shared": False,
+        "status": event.get("status") or "pending",
+        "metadata": {
+            "ping_id": event.get("ping_id"),
+            "link_id": event.get("link_id"),
+        },
+    }
+    if not row["target_user_id"] or not row["deeplink"]:
+        return
+    _post_json("circle_delivery_outbox", row, "return=minimal")
 
 
 def load_verification_ping(ping_id: str) -> Optional[Dict[str, Any]]:

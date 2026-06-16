@@ -357,7 +357,8 @@ data class VerificationPingResponse(
     @SerializedName("verifier_response") val verifierResponse: String? = null,
     @SerializedName("created_at") val createdAt: Double? = null,
     @SerializedName("resolved_at") val resolvedAt: Double? = null,
-    @SerializedName("raw_stored") val rawStored: Boolean = false
+    @SerializedName("raw_stored") val rawStored: Boolean = false,
+    val delivery: Map<String, Any>? = null
 )
 
 data class CircleRespondRequest(

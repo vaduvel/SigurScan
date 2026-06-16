@@ -115,6 +115,21 @@ def test_supabase_migration_workflow_uses_db_url_secret_and_dry_run_guard():
     assert 'echo "$SUPABASE_DB_URL"' not in workflow
 
 
+def test_new_service_role_supabase_tables_are_rls_private():
+    migration_paths = [
+        ROOT_DIR / "supabase" / "migrations" / "20260616090000_create_reputation_graph_v1.sql",
+        ROOT_DIR / "supabase" / "migrations" / "20260616093000_create_circle_delivery_outbox.sql",
+    ]
+
+    for path in migration_paths:
+        sql = path.read_text(encoding="utf-8").lower()
+        assert "enable row level security" in sql
+        assert "revoke all on table" in sql
+        assert "from anon" in sql
+        assert "from authenticated" in sql
+        assert "to service_role" in sql
+
+
 def test_android_ci_workflow_builds_with_jdk_and_recursive_submodules():
     workflow_path = ROOT_DIR / ".github" / "workflows" / "android-ci.yml"
     assert workflow_path.exists()

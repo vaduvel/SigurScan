@@ -7075,6 +7075,29 @@ def test_phishing_database_uses_local_lookalike_domains_when_remote_feed_fails(m
     assert result[key]["details"]["local_source"]["impersonates_brand"] == "ghiseul_ro"
 
 
+def test_local_phishing_lookalikes_include_verified_anaf_and_wipo_iocs(monkeypatch):
+    urls = ["https://anaf-ro.web.app/login", "https://wipo-office.com/payment"]
+
+    monkeypatch.setattr(url_reputation, "ENABLE_PHISHING_DATABASE", True)
+    monkeypatch.setattr(url_reputation, "_download_text_feed", lambda *args, **kwargs: "")
+    monkeypatch.setattr(url_reputation, "_PHISHING_DATABASE_CACHE", {
+        "loaded_at": 0,
+        "domains": set(),
+        "links": set(),
+        "error": None,
+        "local_domains": set(),
+        "local_metadata": {},
+    })
+
+    result = url_reputation._fetch_phishing_database(urls)
+
+    for url in urls:
+        row = result[url_reputation._url_hash(url)]
+        assert row["status"] == "malicious"
+        assert row["details"]["local_source"]["source"] == "local_phishing_lookalikes"
+        assert row["details"]["local_source"]["confidence"] == "high"
+
+
 def test_reputation_cache_persists_only_touched_remote_entries(monkeypatch, tmp_path):
     cache_path = tmp_path / "url_reputation_cache.json"
     old_key = "old-cache-key"

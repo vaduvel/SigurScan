@@ -153,6 +153,36 @@ class BrandTruthRegistry:
                 return True
         return False
 
+    def _normalize_phone_e164(self, value: str) -> str:
+        raw = str(value or "").strip()
+        digits = "".join(ch for ch in raw if ch.isdigit())
+        if not digits:
+            return ""
+        if digits.startswith("0040") and len(digits) >= 6:
+            return "+40" + digits[4:]
+        if digits.startswith("40") and len(digits) >= 5:
+            return "+" + digits
+        if digits.startswith("0") and len(digits) >= 9:
+            return "+40" + digits[1:]
+        if raw.startswith("+"):
+            return "+" + digits
+        return "+" + digits
+
+    def _phone_belongs_to_brand(self, phone: str, manifest: BrandManifest) -> bool:
+        normalized = self._normalize_phone_e164(phone)
+        if not normalized:
+            return False
+        return normalized in {self._normalize_phone_e164(p) for p in manifest.official_phones_e164}
+
+    def _shortcode_belongs_to_brand(self, shortcode: str, manifest: BrandManifest) -> bool:
+        normalized = "".join(ch for ch in str(shortcode or "").strip() if ch.isdigit())
+        if not normalized:
+            return False
+        return normalized in {
+            "".join(ch for ch in str(code or "").strip() if ch.isdigit())
+            for code in manifest.official_shortcodes
+        }
+
     def _extract_domain(self, url: str) -> Optional[str]:
         try:
             parsed = urlparse(url)
@@ -169,6 +199,7 @@ class BrandTruthRegistry:
         sensitive_asks: List[str],
         payment_method: Optional[str],
         final_url: Optional[str],
+        observed_shortcode: Optional[str] = None,
     ) -> ProvenanceResult:
         manifest = None
         if claimed_brand:
@@ -199,12 +230,35 @@ class BrandTruthRegistry:
         if normalized_channel in {"web", "website", "site"}:
             normalized_channel = "official_website"
 
-        domain_match = True
+        domain_checked = bool(observed_domain)
+        domain_match = False
         if observed_domain:
             domain_match = self._domain_belongs_to_brand(observed_domain, manifest)
             if not domain_match:
                 safe_requires_failed.append("official_domain_match")
                 reason_codes.append("BTR_DOMAIN_MISMATCH")
+            else:
+                reason_codes.append("BTR_DOMAIN_MATCH")
+
+        phone_checked = bool(observed_phone_e164)
+        phone_match = False
+        if observed_phone_e164:
+            phone_match = self._phone_belongs_to_brand(observed_phone_e164, manifest)
+            if phone_match:
+                reason_codes.append("BTR_PHONE_MATCH")
+            elif manifest.official_phones_e164:
+                safe_requires_failed.append("official_phone_match")
+                reason_codes.append("BTR_PHONE_MISMATCH")
+
+        shortcode_checked = bool(observed_shortcode)
+        shortcode_match = False
+        if observed_shortcode:
+            shortcode_match = self._shortcode_belongs_to_brand(observed_shortcode, manifest)
+            if shortcode_match:
+                reason_codes.append("BTR_SHORTCODE_MATCH")
+            elif manifest.official_shortcodes:
+                safe_requires_failed.append("official_shortcode_match")
+                reason_codes.append("BTR_SHORTCODE_MISMATCH")
 
         channel_match = normalized_channel in manifest.official_channels if manifest.official_channels else False
         if not channel_match and manifest.official_channels:
@@ -227,9 +281,16 @@ class BrandTruthRegistry:
                     violated_never_does.append(claim)
                     reason_codes.append(f"BTR_NEVER_DOES_{claim.upper()}_VIOLATED")
 
+        identifier_mismatch = (
+            (domain_checked and not domain_match)
+            or (phone_checked and manifest.official_phones_e164 and not phone_match)
+            or (shortcode_checked and manifest.official_shortcodes and not shortcode_match)
+        )
+        positive_identifier_match = domain_match or phone_match or shortcode_match
+
         if violated_never_asks or violated_never_does:
             evidence_power = "decisive"
-        elif not domain_match:
+        elif identifier_mismatch:
             evidence_power = "strong"
         else:
             evidence_power = "moderate"
@@ -240,12 +301,12 @@ class BrandTruthRegistry:
             provenance = "mismatch"
             official_match = False
             max_effect = "can_raise_dangerous_with_combo"
-        elif not domain_match:
+        elif identifier_mismatch:
             identity_status = "claimed_brand_official_mismatch"
             provenance = "mismatch"
             official_match = False
             max_effect = "can_raise_dangerous_with_combo"
-        elif domain_match and channel_match:
+        elif positive_identifier_match and channel_match:
             identity_status = "official_match"
             provenance = "match"
             official_match = True

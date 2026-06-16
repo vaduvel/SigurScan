@@ -67,6 +67,28 @@
       "reported_at": "2026-05-27",
       "evidence_quote": "Domains like ... ghisiul[.]lat are not accidents",
       "confidence": "medium"
+    },
+    {
+      "domain": "anaf-ro.web.app",
+      "impersonates_brand": "anaf",
+      "scam_type": "phishing_login_tax",
+      "source": "official_institution",
+      "source_url": "https://www.anaf.ro/",
+      "source_publisher": "Agenția Națională de Administrare Fiscală",
+      "reported_at": "2026-06-16",
+      "evidence_quote": "ANAF a avertizat că anaf-ro.web.app nu aparține instituției; pagina oficială este anaf.ro.",
+      "confidence": "high"
+    },
+    {
+      "domain": "wipo-office.com",
+      "impersonates_brand": "wipo",
+      "scam_type": "ip_office_invoice_impersonation",
+      "source": "official_institution",
+      "source_url": "https://www.wipo.int/en/web/paying-for-ip-services/scam-warning",
+      "source_publisher": "World Intellectual Property Organization",
+      "reported_at": "2026-06-16",
+      "evidence_quote": "WIPO marchează admin@wipo-office.com ca adresă frauduloasă folosită pentru impersonarea WIPO/EPO/EUIPO.",
+      "confidence": "high"
     }
   ]
 }

@@ -55,8 +55,27 @@
     },
     {
       "iban": "MD45ML022580000000013566",
-      "status": "unverified",
-      "notes": "Seed din branch vechi fara provenienta per-IBAN; nu este activ in verdict."
+      "status": "quarantine",
+      "confidence": "high",
+      "source_kind": "official_ip_office",
+      "source_url": "https://www.wipo.int/en/web/paying-for-ip-services/scam-warning",
+      "source_ref": "WIPO scam warning: impersonation of WIPO/EPO/EUIPO with false administrative protection fees",
+      "source_publisher": "World Intellectual Property Organization",
+      "reported_at": "2026-06-16",
+      "family": "misleading_invoice_ip",
+      "notes": "Official WIPO warning sample from current research, but this IBAN does not pass the local structural validator; retained for provenance/quarantine only and not active in verdict."
+    },
+    {
+      "iban": "UA123203710000000260046015700",
+      "status": "quarantine",
+      "confidence": "high",
+      "source_kind": "official_ip_office",
+      "source_url": "https://www.wipo.int/en/web/paying-for-ip-services/scam-warning",
+      "source_ref": "WIPO scam warning: impersonation of WIPO/EPO/EUIPO with false administrative protection fees",
+      "source_publisher": "World Intellectual Property Organization",
+      "reported_at": "2026-06-16",
+      "family": "misleading_invoice_ip",
+      "notes": "Official WIPO warning sample from current research, but this IBAN does not pass the local structural validator; retained for provenance/quarantine only and not active in verdict."
     },
     {
       "iban": "EG490036000100011019780033566",

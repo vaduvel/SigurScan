@@ -56,4 +56,30 @@ class CircleGuardianContractTest {
         assertTrue(guardian.contains("\"share_level\":\"metadata_only\""))
         assertTrue(guardian.contains("\"raw_text_shared\":false"))
     }
+
+    @Test
+    fun verificationPingParsesMetadataOnlyDeliveryIntent() {
+        val json = """
+            {
+              "ping_id": "vp_123",
+              "link_id": "cl_123",
+              "payload_class": "metadata_only",
+              "default_on_timeout": "PRECAUTIE",
+              "raw_stored": false,
+              "delivery": {
+                "type": "push_deeplink",
+                "target_user_id": "verifier_local",
+                "deeplink": "sigurscan://radar?ping_id=vp_123",
+                "payload_class": "metadata_only",
+                "raw_content_shared": false
+              }
+            }
+        """.trimIndent()
+
+        val ping = Gson().fromJson(json, VerificationPingResponse::class.java)
+
+        assertTrue(ping.delivery?.get("deeplink").toString().contains("ping_id=vp_123"))
+        assertTrue(ping.delivery?.get("payload_class") == "metadata_only")
+        assertFalse(ping.delivery?.get("raw_content_shared") as Boolean)
+    }
 }

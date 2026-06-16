@@ -13,6 +13,8 @@ class InboxProvenanceEngineTest {
                 displayName = "YOXO",
                 officialDomains = listOf("yoxo.ro", "reconditionate.yoxo.ro"),
                 officialEmailDomains = listOf("yoxo.ro"),
+                officialShortcodes = listOf("1872"),
+                officialPhonesE164 = listOf("+40211234567"),
                 neverAsks = listOf("otp", "card_number", "password")
             )
         )
@@ -103,5 +105,39 @@ class InboxProvenanceEngineTest {
         )
 
         assertEquals(OnDeviceInboxVerdict.SAFE, verdict.verdict)
+    }
+
+    @Test
+    fun officialShortcodeWithoutSensitiveAskIsSafeOnDevice() {
+        val verdict = InboxProvenanceEngine.evaluate(
+            InboxSignalBundle(
+                messageHash = "hash4",
+                claimedBrand = "YOXO",
+                observedShortcode = "1872",
+                sensitiveAsks = emptyList(),
+                hasUrl = false
+            ),
+            snapshot
+        )
+
+        assertEquals(OnDeviceInboxVerdict.SAFE, verdict.verdict)
+        assertEquals(listOf("official_shortcode_match"), verdict.reasonCodes)
+    }
+
+    @Test
+    fun officialPhoneAskingOtpIsDangerousOnDevice() {
+        val verdict = InboxProvenanceEngine.evaluate(
+            InboxSignalBundle(
+                messageHash = "hash5",
+                claimedBrand = "YOXO",
+                observedPhoneE164 = "021 123 4567",
+                sensitiveAsks = listOf("otp"),
+                hasUrl = false
+            ),
+            snapshot
+        )
+
+        assertEquals(OnDeviceInboxVerdict.DANGEROUS, verdict.verdict)
+        assertEquals(listOf("never_ask_violation:otp"), verdict.reasonCodes)
     }
 }

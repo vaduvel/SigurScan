@@ -348,6 +348,55 @@
       "review_status": "active"
     },
     {
+      "manifest_id": "wipo",
+      "type": "brand",
+      "display_name": "WIPO / World Intellectual Property Organization",
+      "category": "international_ip_office",
+      "country": "INT",
+      "official_domains": [
+        "wipo.int"
+      ],
+      "official_email_domains": [
+        "wipo.int"
+      ],
+      "official_shortcodes": [],
+      "official_phones_e164": [],
+      "official_apps": [],
+      "official_channels": [
+        "official_website",
+        "official_email_domain"
+      ],
+      "never_asks": [
+        "card_number",
+        "cvv",
+        "banking_pin",
+        "password",
+        "otp",
+        "remote_access",
+        "crypto",
+        "gift_card",
+        "unverified_invoice_payment"
+      ],
+      "never_does": [
+        "use_non_wipo_domain_for_official_payment"
+      ],
+      "safe_payment_channels": [
+        "official_website"
+      ],
+      "source_kind": "official_registry",
+      "source_refs": [
+        {
+          "url": "https://www.wipo.int/en/web/paying-for-ip-services/scam-warning",
+          "publisher": "brand_official",
+          "accessed_at": "2026-06-16",
+          "confidence": "high"
+        }
+      ],
+      "last_verified_at": "2026-06-16T00:00:00Z",
+      "confidence": "high",
+      "review_status": "active"
+    },
+    {
       "manifest_id": "isarescu",
       "type": "person",
       "display_name": "Mugur Isărescu (Guvernator BNR)",

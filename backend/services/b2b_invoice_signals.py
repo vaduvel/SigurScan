@@ -127,6 +127,27 @@ OFFICIAL_REGISTRY_CLAIM_RE = re.compile(
     r".{0,160}\b(?:plat[ăa]|achita[țt]i|tax[ăa]|urgent)\b",
     re.IGNORECASE | re.DOTALL,
 )
+PAYMENT_DIVERSION_HOLD_RE = re.compile(
+    r"\b(?:tine[țt]i|ține[țt]i|suspenda[țt]i|opri[țt]i|stopa[țt]i|amanati|am[aâ]na[țt]i|hold|suspend|stop)\b"
+    r".{0,120}\b(?:pl[ăa][țt]ile|plati|payments|viramentele|transferurile)\b"
+    r".{0,180}\b(?:noi\s+instruc[țt]iuni|further\s+instructions|noul\s+cont|cont(?:ul)?\s+bancar|iban)\b|"
+    r"\b(?:trimiteti|trimite[țt]i|send|transmiteti|transmite[țt]i)\b"
+    r".{0,140}\b(?:lista\s+facturilor\s+deschise|facturi(?:lor)?\s+deschise|open\s+invoices)\b"
+    r".{0,180}\b(?:noul\s+cont|cont(?:ul)?\s+bancar|iban|noi\s+instruc[țt]iuni|further\s+instructions)\b",
+    re.IGNORECASE | re.DOTALL,
+)
+IP_OFFICE_PAYMENT_RE = re.compile(
+    r"\b(?:wipo|epo|euipo|world\s+intellectual\s+property|european\s+patent|"
+    r"patent\s+office|intellectual\s+property\s+office)\b"
+    r".{0,220}\b(?:administrative\s+protection\s+fee|protection\s+fee|publication\s+fee|"
+    r"registration\s+fee|tax[ăa]\s+(?:de\s+)?(?:protec[țt]ie|publicare|inregistrare|înregistrare)|"
+    r"achita[țt]i|payment|invoice|factur[ăa])\b",
+    re.IGNORECASE | re.DOTALL,
+)
+OFFICIAL_IP_OFFICE_DOMAIN_RE = re.compile(
+    r"\b(?:https?://)?(?:[^/\s]+\.)?(?:wipo\.int|epo\.org|euipo\.europa\.eu)\b",
+    re.IGNORECASE,
+)
 URGENT_PAYMENT_OVERRIDE_RE = re.compile(
     r"\b(?:urgent|azi|imediat|confiden[țt]ial|nu\s+suna|sunt\s+(?:in|în)\s+(?:sedinta|ședință))\b"
     r".{0,180}\b(?:plat[ăa]|transfer|ordin|iban|virament)\b|"
@@ -344,6 +365,20 @@ def evaluate_b2b_invoice_signals(text: str, *, claimed_vendor: Optional[str] = N
             result,
             "OFFICIAL_REGISTRY_CLAIM_BUT_NO_PROVENANCE",
             "Documentul invocă registru/autoritate, dar fără proveniență oficială verificabilă.",
+        )
+
+    if PAYMENT_DIVERSION_HOLD_RE.search(raw):
+        _add(
+            result,
+            "PAYMENT_DIVERSION_HOLD_INSTRUCTIONS",
+            "Mesajul cere oprirea plăților/lista facturilor deschise și promite instrucțiuni/cont nou ulterior.",
+        )
+
+    if IP_OFFICE_PAYMENT_RE.search(raw) and not OFFICIAL_IP_OFFICE_DOMAIN_RE.search(raw):
+        _add(
+            result,
+            "IP_OFFICE_PAYMENT_REQUEST_UNOFFICIAL_CHANNEL",
+            "Cerere de plată pentru WIPO/EPO/EUIPO/proprietate intelectuală fără domeniu oficial verificabil.",
         )
 
     if URGENT_PAYMENT_OVERRIDE_RE.search(raw) and not APPROVAL_EVIDENCE_RE.search(raw):

@@ -4,9 +4,12 @@ import hashlib
 import json
 import logging
 import os
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
+
+import requests
 
 from services.campaign_intel import CampaignIntel, CampaignStore, FAMILY_TAXONOMY
 
@@ -33,6 +36,13 @@ SEED_SOURCES: List[OsintSource] = [
     OsintSource(name="StirileProTV", kind="press_context", feed_url="https://stirileprotv.ro/feed", fetch_strategy="rss", confidence="medium"),
     OsintSource(name="Economedia", kind="press_context", feed_url="https://economedia.ro/feed", fetch_strategy="rss", confidence="medium"),
     OsintSource(name="FactualRO", kind="press_context", feed_url="https://factual.ro/feed", fetch_strategy="rss", confidence="medium"),
+    OsintSource(
+        name="WIPOScamWarnings",
+        kind="official_alert",
+        feed_url="https://www.wipo.int/en/web/paying-for-ip-services/scam-warning",
+        fetch_strategy="html",
+        confidence="high",
+    ),
     OsintSource(name="VendorOne", kind="vendor_advisory", feed_url=None, fetch_strategy="manual", confidence="high"),
     OsintSource(name="VendorTwo", kind="vendor_advisory", feed_url=None, fetch_strategy="manual", confidence="high"),
 ]
@@ -88,7 +98,11 @@ class UrecheaIngester:
             "IMP-07": ["olx", "card", "primi bani", "vanzare", "cumparator"],
             "IMP-08": ["job", "task", "top-up", "incarca", "comision"],
             "IMP-09": ["dating", "romance", "iubire", "relatie", "sentimental"],
-            "OP-01": ["iban", "cont nou", "schimbat", "factura", "plata", "anaf"],
+            "OP-01": [
+                "iban", "cont nou", "schimbat", "factura", "plata", "anaf",
+                "invoice", "payment", "bank account", "wipo", "epo", "euipo",
+                "administrative protection fee",
+            ],
             "OP-02": ["avans", "plată în avans", "achizitie", "oferta"],
             "OP-03": ["parcare", "qr", "amenda", "plată parcare"],
         }
@@ -191,6 +205,8 @@ class UrecheaIngester:
             return []
         if source.fetch_strategy in ("rss",):
             return self._fetch_rss(source)
+        if source.fetch_strategy == "html":
+            return self._fetch_html(source)
         return []
 
     def _fetch_rss(self, source: OsintSource) -> List[Dict[str, str]]:
@@ -211,3 +227,43 @@ class UrecheaIngester:
         except Exception as e:
             logger.warning("RSS fetch failed for %s: %s", source.name, e)
             return []
+
+    def _fetch_html(self, source: OsintSource) -> List[Dict[str, str]]:
+        if not source.feed_url:
+            return []
+        try:
+            response = requests.get(source.feed_url, timeout=8)
+            response.raise_for_status()
+            html = response.text[:250_000]
+            title_match = re.search(r"<title[^>]*>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
+            title = self._clean_html_text(title_match.group(1) if title_match else source.name)
+            meta_parts = [
+                self._clean_html_text(match)
+                for match in re.findall(
+                    r"""<meta\b[^>]*(?:name|property)=["'](?:description|keywords|og:description)["'][^>]*\bcontent=["']([^"']+)["'][^>]*>""",
+                    html,
+                    flags=re.IGNORECASE | re.DOTALL,
+                )
+            ]
+            body = re.sub(r"(?is)<(script|style|noscript)[^>]*>.*?</\1>", " ", html)
+            body = re.sub(r"(?s)<[^>]+>", " ", body)
+            body = self._clean_html_text(" ".join(meta_parts + [body]))[:12000]
+            if not body:
+                return []
+            return [{
+                "title": title or source.name,
+                "body": body,
+                "link": source.feed_url,
+                "published": "",
+            }]
+        except Exception as e:
+            logger.warning("HTML fetch failed for %s: %s", source.name, e)
+            return []
+
+    @staticmethod
+    def _clean_html_text(value: str) -> str:
+        value = re.sub(r"&nbsp;", " ", value or "", flags=re.IGNORECASE)
+        value = re.sub(r"&amp;", "&", value, flags=re.IGNORECASE)
+        value = re.sub(r"&quot;", '"', value, flags=re.IGNORECASE)
+        value = re.sub(r"&#39;|&apos;", "'", value, flags=re.IGNORECASE)
+        return re.sub(r"\s+", " ", value).strip()

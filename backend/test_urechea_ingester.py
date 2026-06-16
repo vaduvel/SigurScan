@@ -56,7 +56,8 @@ class TestUrecheaIngester:
     def test_sources_loaded(self, store: CampaignStore | None = None):
         _store = store or CampaignStore(seed_path="")
         ingester = UrecheaIngester(_store)
-        assert len(ingester.sources) >= 8
+        assert len(ingester.sources) >= 9
+        assert "WIPOScamWarnings" in ingester.sources
 
     def test_ingest_raw_high_quality_auto_approved(self):
         store = CampaignStore(seed_path="")
@@ -168,3 +169,71 @@ class TestUrecheaIngester:
         ingester.ingest_raw("B", "cont sigur", "", "press_context", claimed_identity="BCR", evidence_quality="high")
         results = store.by_family("IMP-01")
         assert len(results) == 2
+
+    def test_html_source_fetch_is_bounded_and_extracts_visible_text(self, monkeypatch):
+        class FakeResponse:
+            text = """
+            <html><head><title>Spoofed Calls and Fraudulent Payment Requests</title></head>
+            <meta name="keywords" content="admin@wipo-office.com EPO EUIPO">
+            <body><h1>Latest active scams</h1>
+            <p>Scammers impersonate WIPO, EPO and EUIPO.</p>
+            <script>ignored()</script></body></html>
+            """
+
+            @staticmethod
+            def raise_for_status():
+                return None
+
+        captured = {}
+
+        def fake_get(url, *, timeout):
+            captured["url"] = url
+            captured["timeout"] = timeout
+            return FakeResponse()
+
+        monkeypatch.setattr("services.urechea_ingester.requests.get", fake_get)
+        ingester = UrecheaIngester(CampaignStore(seed_path=""))
+
+        entries = ingester.fetch_source("WIPOScamWarnings")
+
+        assert captured["url"] == "https://www.wipo.int/en/web/paying-for-ip-services/scam-warning"
+        assert captured["timeout"] <= 8
+        assert len(entries) == 1
+        assert entries[0]["title"] == "Spoofed Calls and Fraudulent Payment Requests"
+        assert "admin@wipo-office.com" in entries[0]["body"]
+
+
+class TestUrecheaApiRunner:
+    def test_admin_run_endpoint_fetches_sources_and_updates_status(self, monkeypatch):
+        from fastapi.testclient import TestClient
+        import main as app_main
+
+        monkeypatch.setattr(app_main, "ADMIN_API_KEYS", {"admin-test"})
+        monkeypatch.setattr(app_main.supabase_store, "save_campaign_intel", lambda entry: None)
+        monkeypatch.setattr(
+            app_main.urechea_ingester,
+            "fetch_source",
+            lambda name: [
+                {
+                    "title": "DNSC alerta FAN Courier",
+                    "body": "Campanie smishing FAN Courier cere taxa vamala si date card.",
+                    "link": "https://dnsc.ro/alerta-test",
+                }
+            ],
+        )
+
+        client = TestClient(app_main.app)
+        r = client.post(
+            "/v1/urechea/run",
+            headers={"X-API-KEY": "admin-test"},
+            json={"sources": ["DNSC"], "max_entries_per_source": 1},
+        )
+        status = client.get("/v1/urechea/status", headers={"X-API-KEY": "admin-test"}).json()
+
+        assert r.status_code == 200
+        body = r.json()
+        assert body["entries_ingested"] == 1
+        assert body["sources_attempted"] == 1
+        assert body["source_results"][0]["source"] == "DNSC"
+        assert status["last_run_at"] is not None
+        assert status["entries_ingested"] >= 1
