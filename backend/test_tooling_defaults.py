@@ -147,7 +147,7 @@ def test_backend_ci_installs_pytest_before_running_backend_tests():
     )[0]
 
     assert "python -m pip install -r requirements.txt" in install_block
-    assert "python -m pip install pytest" in install_block
+    assert "python -m pip install pytest pytest-asyncio" in install_block
     assert "python -m pytest -q" in workflow
 
 
