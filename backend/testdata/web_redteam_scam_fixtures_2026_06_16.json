@@ -1,0 +1,140 @@
+{
+  "version": "2026-06-16",
+  "runtime_role": "source_backed_regression",
+  "purpose": "Safe Romanian web red-team replicas derived from public scam warnings. All URLs use reserved .test hosts.",
+  "fixtures": [
+    {
+      "id": "WEBRT-POSTA-001",
+      "family": "parcel_smishing_card_fee",
+      "source_channel": "sms",
+      "input_type": "text",
+      "text": "Posta Romana: coletul dvs. are adresa incompleta. Actualizati datele si achitati taxa de livrare 4,99 RON. Introduceti datele cardului si codul SMS aici: https://posta-romana-livrare.test/confirmare",
+      "urls": ["https://posta-romana-livrare.test/confirmare"],
+      "expected_label": "DANGEROUS",
+      "source_refs": [
+        {
+          "publisher": "Posta Romana",
+          "url": "https://www.posta-romana.ro/a1692/stiri/noi-metode-de-inselaciune-practicate-de-hackeri-in-numele-postei-romane.html",
+          "pattern": "SMS/e-mail in numele Postei, adresa incorecta, taxa simbolica, date card si cod bancar."
+        }
+      ]
+    },
+    {
+      "id": "WEBRT-FAN-001",
+      "family": "courier_data_update_smishing",
+      "source_channel": "sms",
+      "input_type": "text",
+      "text": "FAN Courier: expedierea nu poate fi realizata din cauza unor erori de date. Actualizati informatiile destinatarului aici: https://fan-courier-actualizare.test/awb/8842231",
+      "urls": ["https://fan-courier-actualizare.test/awb/8842231"],
+      "expected_label": "DANGEROUS",
+      "source_refs": [
+        {
+          "publisher": "FAN Courier",
+          "url": "https://www.fancourier.ro/atentie-tentativa-de-phishing-prin-sms-2/",
+          "pattern": "SMS cu erori de date si link fals pentru actualizarea informatiilor."
+        }
+      ]
+    },
+    {
+      "id": "WEBRT-GHISEUL-001",
+      "family": "fake_traffic_fine_payment",
+      "source_channel": "sms",
+      "input_type": "text",
+      "text": "Ghiseul.ro: aveti o amenda de circulatie restanta. Raspundeti cu 1 pentru activarea linkului si achitati urgent 150 RON: https://ghiseul-ro-amenda.test/plata",
+      "urls": ["https://ghiseul-ro-amenda.test/plata"],
+      "expected_label": "DANGEROUS",
+      "source_refs": [
+        {
+          "publisher": "Ziua de Constanta / DNSC",
+          "url": "https://www.ziuaconstanta.ro/stiri/actualitate/alerta-dnsc-atentie-la-sms-urile-false-cu-amenzi-de-circulatie-restante-937555.html",
+          "pattern": "SMS fals despre amenzi restante, link catre pagina frauduloasa, plata urgenta si raspunde cu 1."
+        }
+      ]
+    },
+    {
+      "id": "WEBRT-ANAF-001",
+      "family": "business_data_update_phishing",
+      "source_channel": "email",
+      "input_type": "text",
+      "text": "ANAF: pentru a evita blocarea contului fiscal al firmei, actualizati datele bancare si confirmati codul OTP pe https://anaf-actualizare-firma.test/login",
+      "urls": ["https://anaf-actualizare-firma.test/login"],
+      "expected_label": "DANGEROUS",
+      "source_refs": [
+        {
+          "publisher": "DNSC si ING Bank via HotNews",
+          "url": "https://hotnews.ro/infractorii-cibernetici-au-pus-ochii-pe-firme-apelurile-false-in-numele-anaf-si-atacurile-de-tip-phishing-tot-mai-dese-2202356",
+          "pattern": "Persoane juridice vizate de phishing pentru actualizarea datelor, parole, OTP si date bancare."
+        }
+      ]
+    },
+    {
+      "id": "WEBRT-ANAF-CALL-001",
+      "family": "spoofed_tax_refund_remote_access",
+      "source_channel": "phone_transcript",
+      "input_type": "text",
+      "text": "Transcriere apel: Buna ziua, sunt de la ANAF. Aveti o rambursare de taxe. Instalati AnyDesk ca sa va ajut sa primiti banii mai rapid si intrati in internet banking.",
+      "urls": [],
+      "expected_label": "DANGEROUS",
+      "source_refs": [
+        {
+          "publisher": "DNSC si ING Bank via HotNews",
+          "url": "https://hotnews.ro/infractorii-cibernetici-au-pus-ochii-pe-firme-apelurile-false-in-numele-anaf-si-atacurile-de-tip-phishing-tot-mai-dese-2202356",
+          "pattern": "Apeluri false in numele ANAF cu rambursare taxe si aplicatii de control la distanta precum AnyDesk/AirDroid."
+        },
+        {
+          "publisher": "Politia Romana",
+          "url": "https://politiaromana.ro/ro/stiri-si-media/comunicate/tentative-de-inselaciune-prin-metoda-spoofing",
+          "pattern": "Spoofing VoIP si solicitari de informatii personale/financiare prin apeluri telefonice."
+        }
+      ]
+    },
+    {
+      "id": "WEBRT-TRADING-001",
+      "family": "investment_remote_access",
+      "source_channel": "phone_transcript",
+      "input_type": "text",
+      "text": "Consultant investitii: oferta este limitata azi. Instaleaza AnyDesk, deschide cont pe platforma noastra si transfera 5000 RON pentru randament garantat de 30% pe saptamana.",
+      "urls": [],
+      "expected_label": "DANGEROUS",
+      "source_refs": [
+        {
+          "publisher": "Politia Romana",
+          "url": "https://politiaromana.ro/ro/stiri-si-media/stiri/inselaciunile-prin-metoda-trading-scam-in-contextul-sarbatorilor-de-iarna",
+          "pattern": "Trading scam cu oferta limitata, promisiuni de castig si control la distanta/transferuri."
+        }
+      ]
+    },
+    {
+      "id": "WEBRT-INVOICE-IBAN-001",
+      "family": "supplier_iban_change",
+      "source_channel": "email",
+      "input_type": "text",
+      "text": "Buna, sunt de la furnizorul vostru. Pentru factura 1042 va rugam sa platiti in noul IBAN RO49AAAA1B31007593840000. Este urgent, vechiul cont nu mai functioneaza.",
+      "urls": [],
+      "expected_label": "SUSPECT",
+      "source_refs": [
+        {
+          "publisher": "Siguranta Online",
+          "url": "https://sigurantaonline.ro/cele-mai-frecvente-tipuri-de-fraude-din-romania/",
+          "pattern": "Frauda cu facturi: presupus furnizor solicita modificarea datelor de plata/IBAN."
+        }
+      ]
+    },
+    {
+      "id": "WEBRT-CEO-001",
+      "family": "ceo_fraud_urgent_transfer",
+      "source_channel": "email",
+      "input_type": "text",
+      "text": "Sunt directorul, sunt intr-o sedinta si nu pot vorbi. Fa acum un transfer urgent de 18500 EUR in contul nou al partenerului si pastreaza confidential.",
+      "urls": [],
+      "expected_label": "DANGEROUS",
+      "source_refs": [
+        {
+          "publisher": "Siguranta Online",
+          "url": "https://sigurantaonline.ro/cele-mai-frecvente-tipuri-de-fraude-din-romania/",
+          "pattern": "CEO Fraud: mesaj de la manager, transfer urgent, cont extern/nou si evitarea procedurilor normale."
+        }
+      ]
+    }
+  ]
+}

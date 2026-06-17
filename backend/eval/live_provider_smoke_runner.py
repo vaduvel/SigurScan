@@ -37,6 +37,8 @@ class LiveSmokeCase:
     title: str
     text: str
     expected_labels: List[str]
+    source_refs: List[Dict[str, Any]] | None = None
+    case_kind: str = "live_provider_smoke"
     max_seconds: int = 120
 
 
@@ -130,6 +132,8 @@ def _load_cases_from_file(path: str) -> List[LiveSmokeCase]:
                 title=title,
                 text=text,
                 expected_labels=list(expected) if isinstance(expected, list) else [str(expected)],
+                source_refs=item.get("source_refs") if isinstance(item.get("source_refs"), list) else None,
+                case_kind=str(item.get("case_kind") or "live_public_case_smoke"),
                 max_seconds=max_seconds,
             )
         )
@@ -145,14 +149,23 @@ def _post_scan(base_url: str, case: LiveSmokeCase, timeout: float) -> Dict[str, 
         "country": os.getenv("SIGURSCAN_LIVE_SMOKE_URLSCAN_COUNTRY", "ro"),
         "customagent": os.getenv("SIGURSCAN_LIVE_SMOKE_USER_AGENT", DEFAULT_MOBILE_USER_AGENT),
     }
-    response = requests.post(
-        f"{base_url}/v1/scan/orchestrated",
-        headers=_headers(),
-        json=payload,
-        timeout=timeout,
-    )
-    response.raise_for_status()
-    return response.json()
+    last_exc: requests.RequestException | None = None
+    for attempt in range(3):
+        try:
+            response = requests.post(
+                f"{base_url}/v1/scan/orchestrated",
+                headers=_headers(),
+                json=payload,
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            return response.json()
+        except (requests.ConnectionError, requests.Timeout) as exc:
+            last_exc = exc
+            time.sleep(min(2.0, 0.5 * (attempt + 1)))
+    if last_exc:
+        raise last_exc
+    raise RuntimeError("POST failed without response")
 
 
 def _poll_scan(base_url: str, scan_id: str, max_seconds: int, poll_interval: float, timeout: float) -> Dict[str, Any]:
@@ -161,6 +174,11 @@ def _poll_scan(base_url: str, scan_id: str, max_seconds: int, poll_interval: flo
     timings: Dict[str, float] = {}
     start_at = time.monotonic()
 
+    def preview_still_pending(preview: Dict[str, Any]) -> bool:
+        status = str(preview.get("status") or "").strip().lower()
+        reason = str(preview.get("reason") or "").strip().lower()
+        return status == "pending" or reason in {"urlscan_pending", "urlscan_screenshot_pending"}
+
     while time.monotonic() < deadline:
         try:
             response = requests.get(
@@ -168,13 +186,16 @@ def _poll_scan(base_url: str, scan_id: str, max_seconds: int, poll_interval: flo
                 headers=_headers(),
                 timeout=timeout,
             )
+            response.raise_for_status()
         except requests.Timeout:
             # A serverless instance can finish and persist a bounded stage after
             # the client-side request times out. Continue polling the durable job
             # instead of declaring the whole live smoke case failed.
             time.sleep(poll_interval)
             continue
-        response.raise_for_status()
+        except requests.ConnectionError:
+            time.sleep(poll_interval)
+            continue
         last_payload = response.json()
         result = last_payload.get("result") if isinstance(last_payload.get("result"), dict) else None
         status = str(last_payload.get("status") or "").lower()
@@ -192,9 +213,15 @@ def _poll_scan(base_url: str, scan_id: str, max_seconds: int, poll_interval: flo
         if status in {"complete", "incomplete"}:
             if result and result.get("is_final") is True:
                 timings.setdefault("time_to_verdict_sec", round(now - start_at, 2))
+                if preview_still_pending(preview):
+                    time.sleep(poll_interval)
+                    continue
             return {"result_payload": last_payload, "timings": timings}
         if result and result.get("is_final") is True and status != "scanning":
             timings.setdefault("time_to_verdict_sec", round(now - start_at, 2))
+            if preview_still_pending(preview):
+                time.sleep(poll_interval)
+                continue
             return {"result_payload": last_payload, "timings": timings}
         time.sleep(poll_interval)
 
@@ -258,6 +285,8 @@ def _run_case(base_url: str, case: LiveSmokeCase, poll_interval: float, timeout:
     return {
         "id": case.case_id,
         "title": case.title,
+        "case_kind": case.case_kind,
+        "source_refs": case.source_refs or [],
         "scan_id": scan_id,
         "passed": passed,
         "expected_labels": case.expected_labels,

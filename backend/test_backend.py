@@ -1800,6 +1800,54 @@ def test_tier1_classifier_calibrates_semantic_false_positive_without_touching_ha
     assert sensitive["risk_class"] == "high"
 
 
+def test_tier1_classifier_does_not_mark_investment_money_request_as_benign_marketing():
+    review = {
+        "status": "done",
+        "claim_matches_known_scam_family": True,
+        "matched_family": "IMP-07",
+        "claim_matches_legit_template": False,
+        "matched_template": None,
+        "reason_codes": ["semantic:high", "family:imp-07"],
+        "risk_class": "high",
+        "completeness": True,
+        "source": "scam_atlas_structured",
+    }
+    classifier_result = {
+        "label": "legit_marketing",
+        "confidence": 0.94,
+        "source": "tier1_local_classifier",
+    }
+
+    calibrated = app_main._calibrate_semantic_review_with_tier1(
+        review,
+        classifier_result,
+        raw_text=(
+            "Mesaj WhatsApp: consultant in grup educational de investitii. "
+            "Depuneti azi 1200 RON, aveti randament garantat 35% si achitati taxa de retragere."
+        ),
+    )
+
+    assert calibrated["risk_class"] == "high"
+    assert calibrated["claim_matches_known_scam_family"] is True
+    assert "semantic:tier1_legit_override" not in calibrated["reason_codes"]
+
+
+def test_investment_deposit_and_withdrawal_fee_are_sensitive_transfer_request():
+    sensitive = app_main._request_sensitivity_from_signals(
+        raw_text=(
+            "Platforma de investitii este autorizata ASF. Depuneti azi 1200 RON, "
+            "randament garantat 35% pe saptamana si taxa de validare pentru retragere profit."
+        ),
+        brand_warning={},
+        direct_sensitive_request=False,
+        sensitive_url_path=False,
+        official_destination=False,
+        resolved_urls=[],
+    )
+
+    assert sensitive == "transfer"
+
+
 def test_provider_gate_projection_is_pure_and_matches_apply():
     analysis = {
         "claimed_brand": "YOXO",
@@ -9549,7 +9597,7 @@ def test_scam_atlas_regression_false_positives():
     print("Scam Atlas FP regressions: ALL PASS\n")
 
 
-def test_advanced_scam_detection_modules():
+def test_advanced_scam_detection_modules(monkeypatch):
     print("Testing Advanced Scam Detection Modules...")
     engine = ScamAtlasEngine()
 
@@ -9611,6 +9659,41 @@ def test_advanced_scam_detection_modules():
     assert penalty >= 15
     assert any("entropie" in r.lower() for r in reasons)
     print("  - Shannon Entropy (a8d2j4k9rux1z2y3.com): PASS")
+
+    def fake_rotld_whois(domain):
+        if domain == "google.ro":
+            return "Domain Name: google.ro\nRegistered On: 2000-07-17\n"
+        return ""
+
+    class FakeNetworkResponse:
+        def __init__(self, status_code, payload):
+            self.status_code = status_code
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_provider_get(url, **kwargs):
+        if url == "https://rdap.org/domain/google.com":
+            return FakeNetworkResponse(
+                200,
+                {
+                    "events": [
+                        {
+                            "eventAction": "registration",
+                            "eventDate": "1997-09-15T04:00:00Z",
+                        }
+                    ]
+                },
+            )
+        if "cloudflare-dns.com/dns-query" in url:
+            if "name=gmail.com" in url:
+                return FakeNetworkResponse(200, {"Answer": [{"type": 15, "data": "10 alt1.gmail-smtp-in.l.google.com."}]})
+            return FakeNetworkResponse(200, {"Answer": []})
+        return FakeNetworkResponse(404, {})
+
+    monkeypatch.setattr(redirect_resolver, "query_rotld_whois", fake_rotld_whois)
+    monkeypatch.setattr(redirect_resolver.requests, "get", fake_provider_get)
 
     # 4. Domain Age (RDAP & Socket WHOIS)
     # Check .ro domain (google.ro) via ROTLD WHOIS
@@ -9849,6 +9932,300 @@ def test_orchestrated_poll_does_not_refresh_when_distributed_lock_is_held(monkey
 
     assert response["scan_id"] == scan_id
     assert response["status"] == "scanning"
+
+
+def test_orchestrated_status_endpoint_is_read_only(monkeypatch):
+    scan_id = "orch_read_only"
+    stored_job = {
+        "scan_id": scan_id,
+        "created_at": int(time.time()),
+        "status": "complete",
+        "pipeline_stage": "done",
+        "input_type": "url",
+        "urls": ["https://example.com"],
+        "preview": {
+            "status": "pending",
+            "reason": "urlscan_screenshot_pending",
+            "final_url": "https://example.com",
+            "screenshot_url": None,
+        },
+        "urlscan": {"status": "pending", "uuid": "urlscan-read-only"},
+        "result": {"is_final": True, "risk_level": "safe", "user_risk_label": "SIGUR"},
+        "_storage_revision": 9,
+    }
+
+    async def fail_refresh(job, request):
+        raise AssertionError("status read model must not refresh pipeline work")
+
+    def fail_claim(job):
+        raise AssertionError("status read model must not claim distributed work")
+
+    def fail_persist(job):
+        raise AssertionError("status read model must not persist on read")
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main.supabase_store, "load_scan_job", lambda sid: dict(stored_job))
+        patched.setattr(app_main, "_refresh_orchestrated_job", fail_refresh)
+        patched.setattr(app_main, "_claim_distributed_orchestrated_refresh", fail_claim)
+        patched.setattr(app_main, "_persist_orchestrated_job", fail_persist)
+        client = TestClient(app_main.app)
+        response = client.get(f"/v1/scan/orchestrated/{scan_id}/status")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["scan_id"] == scan_id
+    assert payload["revision"] == 9
+    assert payload["changed"] is True
+    assert payload["verdict_state"] == "verdict_done"
+    assert payload["preview_state"] == "pending"
+    assert payload["status"] == "complete"
+
+
+def test_orchestrated_status_endpoint_reports_unchanged_revision_without_refresh(monkeypatch):
+    scan_id = "orch_status_unchanged"
+    stored_job = {
+        "scan_id": scan_id,
+        "created_at": int(time.time()),
+        "status": "complete",
+        "pipeline_stage": "done",
+        "input_type": "url",
+        "urls": ["https://example.com"],
+        "preview": {
+            "status": "ready",
+            "final_url": "https://example.com",
+            "screenshot_url": "https://backend/screenshot.png",
+        },
+        "urlscan": {"status": "finished", "uuid": "urlscan-ready"},
+        "result": {"is_final": True, "risk_level": "safe", "user_risk_label": "SIGUR"},
+        "_storage_revision": 12,
+    }
+
+    async def fail_refresh(job, request):
+        raise AssertionError("unchanged status read must not refresh pipeline work")
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main.supabase_store, "load_scan_job", lambda sid: dict(stored_job))
+        patched.setattr(app_main, "_refresh_orchestrated_job", fail_refresh)
+        client = TestClient(app_main.app)
+        response = client.get(f"/v1/scan/orchestrated/{scan_id}/status?after_revision=12&wait=0")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["scan_id"] == scan_id
+    assert payload["revision"] == 12
+    assert payload["changed"] is False
+    assert payload["verdict_state"] == "verdict_done"
+    assert payload["preview_state"] == "ready"
+
+
+def test_internal_orchestrated_advance_requires_worker_token(monkeypatch):
+    original_require_api_key = app_main.REQUIRE_API_KEY
+    original_worker_token = app_main.INTERNAL_WORKER_TOKEN
+    app_main.REQUIRE_API_KEY = True
+    app_main.INTERNAL_WORKER_TOKEN = "unit-worker-token"
+    try:
+        client = TestClient(app_main.app)
+        missing_token = client.post("/internal/orchestrated/orch_missing/advance")
+        with_token = client.post(
+            "/internal/orchestrated/orch_missing/advance",
+            headers={"X-Internal-Worker-Token": "unit-worker-token"},
+        )
+    finally:
+        app_main.REQUIRE_API_KEY = original_require_api_key
+        app_main.INTERNAL_WORKER_TOKEN = original_worker_token
+
+    assert missing_token.status_code == 401
+    assert with_token.status_code == 404
+
+
+def test_internal_orchestrated_advance_runs_one_worker_step_and_persists(monkeypatch):
+    scan_id = "orch_worker_step"
+    stored_job = {
+        "scan_id": scan_id,
+        "created_at": int(time.time()),
+        "status": "scanning",
+        "pipeline_stage": "analysis_ready",
+        "input_type": "url",
+        "urls": ["https://example.com"],
+        "preview": {"status": "pending", "reason": "urlscan_pending"},
+        "urlscan": {"status": "queued"},
+        "result": None,
+    }
+    persisted = []
+
+    async def fake_refresh(job, request):
+        advanced = dict(job)
+        advanced["pipeline_stage"] = "done"
+        advanced["result"] = {"is_final": True, "risk_level": "safe", "user_risk_label": "SIGUR"}
+        advanced["preview"] = {
+            "status": "ready",
+            "screenshot_url": "https://backend/screenshot.png",
+            "final_url": "https://example.com",
+        }
+        return advanced
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "INTERNAL_WORKER_TOKEN", "unit-worker-token")
+        patched.setattr(app_main.supabase_store, "load_scan_job", lambda sid: dict(stored_job))
+        patched.setattr(app_main, "_refresh_orchestrated_job", fake_refresh)
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda job: persisted.append(dict(job)) or job)
+        client = TestClient(app_main.app)
+        response = client.post(
+            f"/internal/orchestrated/{scan_id}/advance",
+            headers={"X-Internal-Worker-Token": "unit-worker-token"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["scan_id"] == scan_id
+    assert payload["status"] == "complete"
+    assert payload["verdict_state"] == "verdict_done"
+    assert payload["preview_state"] == "ready"
+    assert payload["worker"]["steps"] == 1
+    assert persisted[-1]["pipeline_stage"] == "done"
+
+
+def test_cloud_tasks_enqueue_builds_internal_worker_task_without_leaking_raw_input(monkeypatch):
+    class FakeRequest:
+        pass
+
+    calls = []
+
+    class FakeTokenResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"access_token": "metadata-access-token"}
+
+    class FakeTaskResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"name": "projects/test/locations/europe-west1/queues/orchestrated/tasks/task-1"}
+
+    def fake_get(url, **kwargs):
+        calls.append(("get", url, kwargs))
+        return FakeTokenResponse()
+
+    def fake_post(url, **kwargs):
+        calls.append(("post", url, kwargs))
+        return FakeTaskResponse()
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "ORCHESTRATED_CLOUD_TASKS_ENABLED", True)
+        patched.setattr(app_main, "CLOUD_TASKS_PROJECT", "sigurscan-prod")
+        patched.setattr(app_main, "CLOUD_TASKS_LOCATION", "europe-west1")
+        patched.setattr(app_main, "CLOUD_TASKS_QUEUE", "sigurscan-orchestrated")
+        patched.setattr(app_main, "SIGURSCAN_PUBLIC_API_BASE_URL", "https://api.sigurscan.com")
+        patched.setattr(app_main, "INTERNAL_WORKER_TOKEN", "unit-worker-token")
+        patched.setattr(app_main.requests, "get", fake_get)
+        patched.setattr(app_main.requests, "post", fake_post)
+
+        enqueued = app_main._enqueue_orchestrated_worker_task(
+            "orch_cloud_task",
+            FakeRequest(),
+            delay_seconds=2,
+        )
+
+    assert enqueued is True
+    post_call = [call for call in calls if call[0] == "post"][0]
+    assert post_call[1] == (
+        "https://cloudtasks.googleapis.com/v2/projects/sigurscan-prod/"
+        "locations/europe-west1/queues/sigurscan-orchestrated/tasks"
+    )
+    task = post_call[2]["json"]["task"]
+    assert task["scheduleTime"].endswith("Z")
+    http_request = task["httpRequest"]
+    assert http_request["httpMethod"] == "POST"
+    assert http_request["url"] == "https://api.sigurscan.com/internal/orchestrated/orch_cloud_task/advance?max_steps=1"
+    assert http_request["headers"]["X-Internal-Worker-Token"] == "unit-worker-token"
+    assert "Vrei" not in json.dumps(task, ensure_ascii=False)
+
+
+def test_orchestrated_start_enqueues_worker_task_when_cloud_tasks_enabled(monkeypatch):
+    enqueued = []
+
+    async def fake_create(payload):
+        return {
+            "scan_id": "orch_start_worker",
+            "created_at": int(time.time()),
+            "pipeline_stage": "queued",
+            "status": "scanning",
+            "input_type": "text",
+            "urls": [],
+            "preview": {"status": "unavailable", "reason": "no_url"},
+            "urlscan": {"status": "skipped"},
+        }
+
+    def fake_enqueue(scan_id, request, **kwargs):
+        enqueued.append((scan_id, kwargs))
+        return True
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "ORCHESTRATED_CLOUD_TASKS_ENABLED", True)
+        patched.setattr(app_main, "CLOUD_TASKS_PROJECT", "sigurscan-prod")
+        patched.setattr(app_main, "CLOUD_TASKS_LOCATION", "europe-west1")
+        patched.setattr(app_main, "CLOUD_TASKS_QUEUE", "sigurscan-orchestrated")
+        patched.setattr(app_main, "INTERNAL_WORKER_TOKEN", "unit-worker-token")
+        patched.setattr(app_main, "_create_orchestrated_job", fake_create)
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda job: job)
+        patched.setattr(app_main, "_enqueue_orchestrated_worker_task", fake_enqueue)
+
+        response = asyncio.run(
+            app_main.start_orchestrated_scan(
+                app_main.OrchestratedScanRequest(input_type="text", text="salut"),
+                None,
+            )
+        )
+
+    assert response["scan_id"] == "orch_start_worker"
+    assert enqueued == [("orch_start_worker", {"delay_seconds": 0, "max_steps": 1})]
+
+
+def test_internal_orchestrated_worker_requeues_when_scan_still_running(monkeypatch):
+    scan_id = "orch_worker_requeue"
+    stored_job = {
+        "scan_id": scan_id,
+        "created_at": int(time.time()),
+        "status": "scanning",
+        "pipeline_stage": "resolved",
+        "input_type": "url",
+        "urls": ["https://example.com"],
+        "preview": {"status": "pending", "reason": "urlscan_pending"},
+        "urlscan": {"status": "queued"},
+        "result": None,
+    }
+    enqueued = []
+
+    async def fake_refresh(job, request):
+        advanced = dict(job)
+        advanced["pipeline_stage"] = "reputation_ready"
+        advanced["result"] = None
+        return advanced
+
+    def fake_enqueue(scan_id, request, **kwargs):
+        enqueued.append((scan_id, kwargs))
+        return True
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main, "INTERNAL_WORKER_TOKEN", "unit-worker-token")
+        patched.setattr(app_main, "ORCHESTRATED_CLOUD_TASKS_ENABLED", True)
+        patched.setattr(app_main, "ORCHESTRATED_CLOUD_TASKS_CONTINUE_DELAY_SECONDS", 2)
+        patched.setattr(app_main.supabase_store, "load_scan_job", lambda sid: dict(stored_job))
+        patched.setattr(app_main, "_refresh_orchestrated_job", fake_refresh)
+        patched.setattr(app_main, "_persist_orchestrated_job", lambda job: job)
+        patched.setattr(app_main, "_enqueue_orchestrated_worker_task", fake_enqueue)
+        client = TestClient(app_main.app)
+        response = client.post(
+            f"/internal/orchestrated/{scan_id}/advance",
+            headers={"X-Internal-Worker-Token": "unit-worker-token"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["worker"]["state"] == "advanced"
+    assert enqueued == [(scan_id, {"delay_seconds": 2, "max_steps": 1})]
 
 
 def test_backend_security_defaults_are_launch_safe():

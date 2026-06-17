@@ -374,5 +374,45 @@
     "accessed": "2026-06-03",
     "type": "community_noisy",
     "notes": "Pattern discovery pentru fraudă multi-step."
+  },
+  "asf_investor_alerts_2026": {
+    "title": "ASF — Alerte investitori / entități neautorizate",
+    "url": "https://asfromania.ro/ro/a/19/alerte-investitori---informari",
+    "published": "actualizat continuu",
+    "accessed": "2026-06-16",
+    "type": "official_regulator_alerts",
+    "notes": "Alerte ASF despre entități/platforme neautorizate pentru servicii de investiții."
+  },
+  "asf_unauthorized_entities_guidance": {
+    "title": "ASF — Atenție la entități neautorizate",
+    "url": "https://www.asfromania.ro/ro/a/1523/atentie-la-entitati-neautorizate%21",
+    "published": "nedeclarat pe pagină",
+    "accessed": "2026-06-16",
+    "type": "official_regulator_warning",
+    "notes": "Avertizare ASF despre grupuri de investiții pe WhatsApp/Telegram și alte platforme sociale."
+  },
+  "asf_authorized_entities_registry": {
+    "title": "ASF — Registre entități autorizate",
+    "url": "https://asfromania.ro/ro/a/1544/registre-entit%C4%83%C8%9Bi-autorizate",
+    "published": "registru oficial",
+    "accessed": "2026-06-16",
+    "type": "official_registry",
+    "notes": "Registru oficial ASF pentru verificarea autorizării entităților; include avertisment că ASF nu apelează consumatorii de la TelVerde."
+  },
+  "ancom_cli_spoofing_public_institutions": {
+    "title": "ANCOM — fraudă prin apeluri în numele instituțiilor/băncilor/companiilor de stat",
+    "url": "https://www.ancom.ro/despre-noi/media/comunicate-de-presa/ancom-ia-masuri-impotriva-fraudelor-comise-prin-apelurile-efectuate-in-numele-unor-institutii-publice-banci-sau-companii-de-stat/",
+    "published": "2025-06-04",
+    "accessed": "2026-06-08",
+    "type": "official_regulator_alert",
+    "notes": "Descrie CLI spoofing: falsificarea numărului afișat în apeluri care pretind instituții, bănci sau companii de stat."
+  },
+  "ancom_phone_number_spoofing_guidance": {
+    "title": "ANCOM — Spoofing prin număr de telefon: ce face ANCOM și ce pot face utilizatorii",
+    "url": "https://www.ancom.ro/despre-noi/media/comunicate-de-presa/spoofing-prin-intermediul-numarului-de-telefon-58-ce-face-ancom-si-ce-pot-face-utilizatorii/",
+    "published": "2025-10-08",
+    "accessed": "2026-06-08",
+    "type": "official_regulator_guidance",
+    "notes": "ANCOM explică faptul că numărul afișat poate fi falsificat și nu trebuie folosit singur ca dovadă de identitate."
   }
 }

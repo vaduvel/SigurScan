@@ -13,10 +13,17 @@ and computes metrics against the expected labels.
 import json
 from pathlib import Path
 
+import main as app_main
+from eval import evaluate as eval_runner
 from services.verdict_gate import verdict
 
 ROOT = Path(__file__).resolve().parent
 EVAL_PATH = ROOT / "data" / "evaluation_dataset_v1.jsonl"
+
+
+def test_runtime_evaluation_defaults_to_large_dataset():
+    assert eval_runner._default_dataset_path() == EVAL_PATH
+    assert app_main.EVAL_DATASET_DEFAULT_PATH == EVAL_PATH
 
 
 def _load_cases():

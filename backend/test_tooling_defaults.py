@@ -28,6 +28,62 @@ def test_live_smoke_runner_defaults_to_sigurscan_api_domain(monkeypatch):
     assert module.DEFAULT_BASE_URL == PRODUCTION_API_BASE_URL
 
 
+def test_live_smoke_runner_waits_for_preview_after_final_verdict(monkeypatch):
+    module = _load_module(
+        BACKEND_DIR / "eval" / "live_provider_smoke_runner.py",
+        "live_provider_smoke_runner_preview_wait_test",
+    )
+
+    responses = [
+        {
+            "status": "complete",
+            "result": {"is_final": True, "user_risk_label": "SAFE"},
+            "preview": {
+                "status": "pending",
+                "reason": "urlscan_screenshot_pending",
+                "report_url": "https://urlscan.io/result/shot-1/",
+            },
+        },
+        {
+            "status": "complete",
+            "result": {"is_final": True, "user_risk_label": "SAFE"},
+            "preview": {
+                "status": "ready",
+                "report_url": "https://urlscan.io/result/shot-1/",
+                "screenshot_url": "https://api.sigurscan.com/v1/sandbox/urlscan/shot-1/screenshot",
+            },
+        },
+    ]
+
+    class FakeResponse:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self._payload
+
+    def fake_get(*args, **kwargs):
+        return FakeResponse(responses.pop(0))
+
+    monkeypatch.setattr(module.requests, "get", fake_get)
+    monkeypatch.setattr(module.time, "sleep", lambda _: None)
+
+    result = module._poll_scan(
+        "https://api.sigurscan.com",
+        "orch_preview_wait",
+        max_seconds=10,
+        poll_interval=0,
+        timeout=1,
+    )
+
+    assert result["result_payload"]["preview"]["status"] == "ready"
+    assert result["timings"]["time_to_verdict_sec"] is not None
+    assert result["timings"]["time_to_preview_screenshot_sec"] is not None
+
+
 def test_e2e_fixture_runner_treats_unverified_info_as_suspect():
     module = _load_module(
         BACKEND_DIR / "eval" / "e2e_fixture_runner.py",
@@ -67,6 +123,18 @@ def test_cloud_run_deploy_routes_traffic_to_latest_revision():
 
     assert "gcloud run services update-traffic" in script
     assert '--to-latest' in script
+
+
+def test_cloud_run_deploy_wires_orchestrated_cloud_tasks_worker():
+    script = (ROOT_DIR / "tools" / "deploy_cloud_run_backend.sh").read_text(encoding="utf-8")
+
+    assert "ORCHESTRATED_CLOUD_TASKS_ENABLED=" in script
+    assert "CLOUD_TASKS_PROJECT=" in script
+    assert "CLOUD_TASKS_LOCATION=" in script
+    assert "CLOUD_TASKS_QUEUE=" in script
+    assert "SIGURSCAN_INTERNAL_WORKER_TOKEN=sigurscan-internal-worker-token:latest" in script
+    assert ",INTERNAL_WORKER_TOKEN=" not in script
+    assert " INTERNAL_WORKER_TOKEN=" not in script
 
 
 def test_supabase_logical_backup_workflow_is_scheduled_and_private_artifact():

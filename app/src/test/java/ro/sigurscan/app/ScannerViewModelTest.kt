@@ -94,7 +94,7 @@ class ScannerViewModelTest {
     }
 
     @Test
-    fun finalUrlscanPendingPreviewKeepsPollingAfterFinalVerdict() {
+    fun finalUrlscanPendingPreviewStopsScanPollingAfterFinalVerdict() {
         val response = OrchestratedScanResponse(
             scanId = "orch-yoxo-preview",
             status = "complete",
@@ -116,7 +116,8 @@ class ScannerViewModelTest {
             )
         )
 
-        assertTrue(shouldContinueOrchestratedPolling(response))
+        assertFalse(shouldContinueOrchestratedPolling(response))
+        assertTrue(shouldRefreshFinalOrchestratedPreview(response))
         assertTrue(orchestratedPreviewStillPending(response.preview))
     }
 
@@ -389,6 +390,47 @@ class ScannerViewModelTest {
         val timeoutFlow = viewModelSource.substring(timeoutStart, timeoutEnd)
         assertTrue(timeoutFlow.contains("Verificarea a durat prea mult"))
         assertTrue(timeoutFlow.contains("loading = false"))
+    }
+
+    @Test
+    fun finalVerdictPreviewRefreshIsSeparateFromScanPollingLoop() {
+        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val runStart = viewModelSource.indexOf("private suspend fun runBackendOrchestratedScan")
+        val runEnd = viewModelSource.indexOf("fun onScanClick", runStart)
+        assertTrue("runBackendOrchestratedScan must exist.", runStart >= 0 && runEnd > runStart)
+
+        val runFlow = viewModelSource.substring(runStart, runEnd)
+        val timeoutIndex = runFlow.indexOf("publishOrchestratedPollingTimeout(response, rawInput, urls, response.scanId)")
+        val refreshIndex = runFlow.indexOf("launchFinalOrchestratedPreviewRefresh(response, rawInput, urls, response.scanId, resultCacheKey)")
+        assertTrue(
+            "Final verdict preview refresh must run after scan polling has ended, not as a reason to keep the main loading loop alive.",
+            refreshIndex > timeoutIndex
+        )
+        assertTrue(
+            "Preview refresh must have a bounded helper.",
+            viewModelSource.contains("private fun launchFinalOrchestratedPreviewRefresh")
+        )
+        val helperStart = viewModelSource.indexOf("private fun launchFinalOrchestratedPreviewRefresh")
+        val helperEnd = viewModelSource.indexOf("private fun buildDegradedAssessmentFromBackendScanResponse", helperStart)
+        assertTrue("Preview refresh helper must be followed by degraded mapping helper.", helperStart >= 0 && helperEnd > helperStart)
+        assertFalse(
+            "Preview refresh must not reuse shouldContinueOrchestratedPolling as its stop condition.",
+            viewModelSource.substring(helperStart, helperEnd).contains("shouldContinueOrchestratedPolling")
+        )
+        assertTrue(
+            "Final preview refresh should prefer the read-only status endpoint after a final verdict.",
+            viewModelSource.substring(helperStart, helperEnd).contains("getOrchestratedScanStatus")
+        )
+        assertTrue(
+            "Final preview refresh should keep the old scan endpoint only as a compatibility fallback.",
+            viewModelSource.substring(helperStart, helperEnd).contains("getOrchestratedScan(response.scanId)")
+        )
+
+        val apiSource = File("src/main/java/ro/sigurscan/app/SigurScanApi.kt").readText()
+        assertTrue(
+            "Retrofit API must expose the read-only orchestrated status endpoint.",
+            apiSource.contains("@GET(\"v1/scan/orchestrated/{scan_id}/status\")")
+        )
     }
 
     @Test
@@ -669,6 +711,27 @@ class ScannerViewModelTest {
     }
 
     @Test
+    fun emailAndHtmlImportsReleaseLoadingBeforeTriggeringScan() {
+        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val fileStart = viewModelSource.indexOf("fun onFilePicked(uri: Uri, context: Context)")
+        val fileEnd = viewModelSource.indexOf("private fun getFileName", fileStart)
+        assertTrue("onFilePicked must exist.", fileStart >= 0 && fileEnd > fileStart)
+
+        val fileFlow = viewModelSource.substring(fileStart, fileEnd)
+        val emailFlowStart = fileFlow.indexOf("if (importKind == FileImportKind.HTML || importKind == FileImportKind.EMAIL) {")
+        val emailFlowEnd = fileFlow.indexOf("""loading = true
+        loadingMsg = "Analizăm documentul PDF..."""", emailFlowStart)
+        assertTrue("HTML/EML file-import branch must exist before the PDF branch.", emailFlowStart >= 0 && emailFlowEnd > emailFlowStart)
+
+        val emailFlow = fileFlow.substring(emailFlowStart, emailFlowEnd)
+        val resetThenScan = Regex("""loading = false\s+loadingMsg = ""\s+onScanClick\(\)""")
+        assertTrue(
+            "HTML/EML imports must clear the file-loading state before triggering orchestrated scan, otherwise the UI stays blocked on 'Analizăm fișierul email...'.",
+            resetThenScan.findAll(emailFlow).count() >= 2
+        )
+    }
+
+    @Test
     fun audioShareIsAcceptedButFallsBackToTranscriptUntilAsrIsEnabled() {
         val manifestSource = File("src/main/AndroidManifest.xml").readText()
         val activitySource = File("src/main/java/ro/sigurscan/app/MainActivity.kt").readText()
@@ -717,6 +780,25 @@ class ScannerViewModelTest {
         assertFalse(functionBody.contains("DANGEROUS"))
         assertFalse(functionBody.contains("SUSPECT"))
         assertFalse(functionBody.contains("SAFE"))
+    }
+
+    @Test
+    fun radarManualPhoneReportUsesHashOnlyCommunityPayload() {
+        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val start = viewModelSource.indexOf("fun reportRadarPhoneNumber(")
+        val end = viewModelSource.indexOf("fun refreshRadarScreeningAudit()", start)
+
+        assertTrue("Radar manual phone report flow must exist.", start >= 0 && end > start)
+
+        val functionBody = viewModelSource.substring(start, end)
+        assertTrue(functionBody.contains("PhoneNumberHasher.normalizePhoneNumber(rawPhone)"))
+        assertTrue(functionBody.contains("PhoneNumberHasher.hashPhone(normalizedPhone)"))
+        assertTrue(functionBody.contains("""targetType = "phone""""))
+        assertTrue(functionBody.contains("""source = "android_radar_manual""""))
+        assertFalse(
+            "Community report payload must not send the raw phone number.",
+            functionBody.contains("hash = normalizedPhone") || functionBody.contains("hash = rawPhone")
+        )
     }
 
     @Test
@@ -1020,6 +1102,24 @@ class ScannerViewModelTest {
 
         val links = extractHtmlLinks(html)
         assertTrue(links.contains("https://xn--mag-qdd.ro/login"))
+    }
+
+    @Test
+    fun bottomNavigationKeepsTabsAboveSystemGestureArea() {
+        val activitySource = File("src/main/java/ro/sigurscan/app/MainActivity.kt").readText()
+        val bottomNavStart = activitySource.indexOf("fun BottomNavigationBar(activeTab: String, onTabClick: (String) -> Unit)")
+        val bottomNavEnd = activitySource.indexOf("// ─────────────────────────────────────────────────────────────", bottomNavStart)
+        assertTrue("BottomNavigationBar must exist.", bottomNavStart >= 0 && bottomNavEnd > bottomNavStart)
+
+        val bottomNavSource = activitySource.substring(bottomNavStart, bottomNavEnd)
+        assertTrue(
+            "Bottom navigation must reserve navigation bar inset on gesture-navigation phones and keep the central scan slot tappable beyond the icon itself.",
+            bottomNavSource.contains("WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()") &&
+                bottomNavSource.contains(".height(80.dp + navigationBarInset)") &&
+                bottomNavSource.contains(".padding(bottom = navigationBarInset)") &&
+                bottomNavSource.contains(".fillMaxHeight()") &&
+                bottomNavSource.contains(".clickable { onTabClick(\"scan\") }")
+        )
     }
 
 }

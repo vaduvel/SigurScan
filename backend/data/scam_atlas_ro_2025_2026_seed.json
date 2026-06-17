@@ -378,7 +378,11 @@
         "money_transfer"
       ],
       "signals": [],
-      "sources": [],
+      "sources": [
+        "S35",
+        "S36",
+        "S37"
+      ],
       "examples": [],
       "acceptance_test_idea": "Ad/email cu .test și formular investiții/date card."
     },
@@ -417,7 +421,11 @@
         "password"
       ],
       "signals": [],
-      "sources": [],
+      "sources": [
+        "S35",
+        "S36",
+        "S37"
+      ],
       "examples": [],
       "acceptance_test_idea": "Text cere AnyDesk + transfer crypto; link APK => Periculos."
     },
@@ -1727,7 +1735,10 @@
         "S11",
         "S23",
         "S24",
-        "S21"
+        "S21",
+        "S35",
+        "S36",
+        "S37"
       ],
       "examples": [
         "«Investește în Hidroelectrica cu minimum 950 lei și câștig lunar garantat.» https://hidro-profit.test",
@@ -1799,7 +1810,10 @@
         "S1",
         "S20",
         "S21",
-        "S23"
+        "S23",
+        "S35",
+        "S36",
+        "S37"
       ],
       "examples": [
         "«Pentru a activa contul de trading instalați AnyDesk și dați-mi codul.»",
@@ -2233,7 +2247,10 @@
       ],
       "sources": [
         "S1",
-        "S21"
+        "S21",
+        "S35",
+        "S36",
+        "S37"
       ],
       "examples": [
         "«Sunt medic în misiune și am nevoie de bani pentru bilet.»",
@@ -3431,7 +3448,10 @@
       ],
       "sources": [
         "src_romance_dnsc_8martie",
-        "src_romance_digi_dnsc"
+        "src_romance_digi_dnsc",
+        "S35",
+        "S36",
+        "S37"
       ],
       "examples": [
         {
@@ -3877,7 +3897,10 @@
       ],
       "sources": [
         "src_deepfake_dnsc_press",
-        "src_deepfake_president_tvr"
+        "src_deepfake_president_tvr",
+        "S35",
+        "S36",
+        "S37"
       ],
       "examples": [
         {
@@ -4197,7 +4220,10 @@
       ],
       "sources": [
         "src_dnsc_politia_popup_agerpres",
-        "src_social_page_ownership_agerpres"
+        "src_social_page_ownership_agerpres",
+        "S35",
+        "S36",
+        "S37"
       ],
       "examples": [
         {

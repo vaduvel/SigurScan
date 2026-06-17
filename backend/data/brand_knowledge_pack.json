@@ -518,9 +518,7 @@
     ],
     "Help Net": [
       "Help Net",
-      "help net",
       "HelpNet",
-      "helpnet",
       "helpnet ro",
       "helpnet.ro"
     ],
@@ -624,7 +622,6 @@
     ],
     "iDroid": [
       "iDroid",
-      "idroid",
       "idroid.ro",
       "verifica status idroid",
       "verificare status idroid"
@@ -1465,6 +1462,19 @@
       "not_found": "SUSPECT; PERICULOS cu date bancare/remote access",
       "legit": "pagina oficială investitori",
       "fake": "platformă socială cu profit garantat"
+    },
+    {
+      "claim_type": "asf_investment_authorization",
+      "official_sources": [
+        "S35",
+        "S36",
+        "S37"
+      ],
+      "how": "Pentru orice ofertă de investiții/trading/crypto prezentată ca broker, platformă autorizată, grup educațional sau randament garantat, verifică alertele ASF și registrele entităților autorizate. Lipsa autorizării nu decide singură, dar devine semnal puternic împreună cu randament garantat, transfer, crypto, remote access sau taxă de retragere.",
+      "confirmed": "entitatea apare în registrul ASF/BNR sau claim-ul este pe un canal oficial verificabil; fără cereri de transfer/remote access/coduri în conversație",
+      "not_found": "SUSPECT; PERICULOS dacă există și randament garantat, grup WhatsApp/Telegram, remote access, transfer/crypto sau taxă pentru retragerea profitului",
+      "legit": "entitate autorizată ASF/BNR + domeniu oficial + informație de investiție educațională/reglementată",
+      "fake": "grup WhatsApp/Telegram sau landing page care promite profit garantat și cere depunere, taxă de retragere, AnyDesk/TeamViewer ori crypto"
     }
   ],
   "official_registry_updates": [
@@ -2191,30 +2201,6 @@
       ],
       "confidence": "high",
       "notes": "Avertisment explicit pe ghiseul.ro: nu anunță prin SMS/e-mail obligații de plată."
-    },
-    {
-      "brand_id": "help_net",
-      "display_name": "Help Net",
-      "official_domains": [
-        "helpnet.ro",
-        "www.helpnet.ro"
-      ],
-      "official_apps_or_channels": [
-        "helpnet.ro",
-        "www.helpnet.ro"
-      ],
-      "approved_tracking_or_partner_domains": [],
-      "source_urls": [
-        {
-          "source_id": "helpnet_home",
-          "url": "https://www.helpnet.ro/",
-          "published": "unknown",
-          "accessed": "2026-06-08"
-        }
-      ],
-      "confidence": "medium",
-      "notes": "Domeniu oficial folosit pentru false-positive guard pe campanii/regulamente promoționale; nu este o alertă anti-scam specifică.",
-      "source_ids": []
     }
   ],
   "false_positive_guards": [
@@ -3389,6 +3375,18 @@
       "required_combination_for_periculos": "provider/sandbox hit OR official never_ask_for + sensitive request OR unofficial domain + card/OTP/password/payment request",
       "false_positive_risk": "Un PDF cu siglă nu este dovadă. Corpus similarity-only maximum SUSPECT; PERICULOS când cere bani/date/cont sigur/remote access sau link neoficial.",
       "integration_role": "context_signal_only_requires_provider_or_sensitive_identity_combo_for_periculos"
+    },
+    {
+      "signal_code": "ASF_UNAUTHORIZED_INVESTMENT_ENTITY",
+      "description": "Oferta pretinde servicii de investiții/trading/crypto sau randament garantat, dar entitatea/canalul nu este confirmat în registrele ASF/BNR sau apare în alertele ASF.",
+      "source_type": "official_regulator_alerts",
+      "required_combination_for_periculos": "alertă ASF sau neautorizare + depunere/transfer/crypto/remote access/taxă de retragere/randament garantat => Periculos; doar lipsa registrului fără cerere sensibilă => Suspect/neverificat",
+      "example": "Grup WhatsApp de investiții cu profit garantat și depunere într-o platformă neautorizată ASF",
+      "source_refs": [
+        "S35",
+        "S36",
+        "S37"
+      ]
     }
   ],
   "sources": {
@@ -3947,6 +3945,36 @@
       "type": "technical_standard",
       "confidence": "high",
       "notes": "Pentru exemple și CI se folosesc domenii rezervate, nu domenii scam active."
+    },
+    "S35": {
+      "id": "asf_investor_alerts_2026",
+      "title": "ASF — Alerte investitori / entități neautorizate",
+      "url": "https://asfromania.ro/ro/a/19/alerte-investitori---informari",
+      "published": "actualizat continuu; consultat 2026-06-16",
+      "accessed": "2026-06-16",
+      "type": "official_regulator_alerts",
+      "confidence": "high",
+      "notes": "ASF publică alerte despre entități/platforme neautorizate pentru servicii și activități de investiții."
+    },
+    "S36": {
+      "id": "asf_unauthorized_entities_guidance",
+      "title": "ASF — Atenție la entități neautorizate / grupuri de investiții WhatsApp și Telegram",
+      "url": "https://www.asfromania.ro/ro/a/1523/atentie-la-entitati-neautorizate%21",
+      "published": "nedeclarat pe pagină; consultat 2026-06-16",
+      "accessed": "2026-06-16",
+      "type": "official_regulator_warning",
+      "confidence": "high",
+      "notes": "ASF avertizează despre scheme de investiții prezentate ca grupuri educaționale pe WhatsApp/Telegram și alte platforme sociale."
+    },
+    "S37": {
+      "id": "asf_authorized_entities_registry",
+      "title": "ASF — Registre entități autorizate",
+      "url": "https://asfromania.ro/ro/a/1544/registre-entit%C4%83%C8%9Bi-autorizate",
+      "published": "registru oficial; consultat 2026-06-16",
+      "accessed": "2026-06-16",
+      "type": "official_registry",
+      "confidence": "high",
+      "notes": "Registru oficial de verificare pentru entități autorizate; ASF menționează explicit că nu apelează consumatorii de la TelVerde."
     }
   }
 }

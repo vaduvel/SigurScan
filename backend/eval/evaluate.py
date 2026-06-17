@@ -40,7 +40,7 @@ def _coerce_bool(value: Any) -> bool | None:
 
 
 def _default_dataset_path() -> Path:
-    return ROOT_DIR / "data" / "eval_dataset.jsonl"
+    return ROOT_DIR / "data" / "evaluation_dataset_v1.jsonl"
 
 
 def _derive_prediction(risk_score: int, risk_level: str, threshold: int) -> bool:

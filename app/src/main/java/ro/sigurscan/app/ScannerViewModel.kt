@@ -13,6 +13,7 @@ import android.provider.OpenableColumns
 import android.content.SharedPreferences
 import android.text.Html
 import android.util.Base64
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -50,18 +51,23 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.io.File
 import java.io.ByteArrayOutputStream
 import java.io.FileOutputStream
+import java.io.IOException
+import java.net.SocketTimeoutException
 import java.net.URI
+import java.net.UnknownHostException
 import java.net.URLDecoder
 import java.security.MessageDigest
 import java.nio.charset.StandardCharsets
 import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
+import javax.net.ssl.SSLException
 import kotlin.math.roundToInt
 import kotlin.math.max
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
+import retrofit2.HttpException
 
 @Serializable
 data class ScamEvent(
@@ -179,6 +185,7 @@ internal fun urlscanScreenshotUrl(uuid: String): String = "https://urlscan.io/sc
 internal fun urlscanReportUrl(uuid: String): String = "https://urlscan.io/result/$uuid/"
 
 internal const val ORCHESTRATED_POLLING_BUDGET_MILLIS = 180_000L
+private const val ORCHESTRATED_FINAL_PREVIEW_REFRESH_ATTEMPTS = 3
 
 internal fun orchestratedPollDelayMillis(response: OrchestratedScanResponse): Long {
     response.pollAfterMs
@@ -227,13 +234,15 @@ internal fun orchestratedEvidenceCompleteness(
 }
 
 internal fun shouldContinueOrchestratedPolling(response: OrchestratedScanResponse): Boolean {
-    val status = response.status?.lowercase(Locale.US)
     if (response.result == null) return true
     if (response.result.isFinal == false) return true
-    if (orchestratedPreviewStillPending(response.preview)) return true
-    if (status == "complete") return false
-    return status == "scanning" ||
-            status == "ready"
+    return false
+}
+
+internal fun shouldRefreshFinalOrchestratedPreview(response: OrchestratedScanResponse): Boolean {
+    if (response.result == null) return false
+    if (response.result.isFinal == false) return false
+    return orchestratedPreviewStillPending(response.preview)
 }
 
 internal fun cachedPreviewNeedsRefresh(assessment: OfflineAssessment): Boolean {
@@ -495,6 +504,9 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     var radarHotCacheLoading by mutableStateOf(false)
     var radarHotCacheStatus by mutableStateOf<String?>(null)
     var radarScreeningAudit by mutableStateOf<RadarScreeningAudit?>(null)
+    var radarReportPhoneInput by mutableStateOf("")
+    var radarReportPhoneLoading by mutableStateOf(false)
+    var radarReportPhoneStatus by mutableStateOf<String?>(null)
     var btrSyncSnapshot by mutableStateOf<BtrSyncSnapshot?>(null)
     var btrSyncLoading by mutableStateOf(false)
     var btrSyncStatus by mutableStateOf<String?>(null)
@@ -772,6 +784,39 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 radarHotCacheStatus = "Nu am putut sincroniza Radarul. Reîncearcă din aplicație."
             } finally {
                 radarHotCacheLoading = false
+            }
+        }
+    }
+
+    fun reportRadarPhoneNumber(rawPhone: String = radarReportPhoneInput) {
+        if (radarReportPhoneLoading) return
+        val normalizedPhone = PhoneNumberHasher.normalizePhoneNumber(rawPhone)
+        val phoneDigits = normalizedPhone.count(Char::isDigit)
+        if (normalizedPhone.isBlank() || phoneDigits !in 10..15) {
+            radarReportPhoneStatus = "Introdu numărul primit, cu prefix dacă este din afara României."
+            return
+        }
+
+        radarReportPhoneLoading = true
+        radarReportPhoneStatus = "Raportăm doar amprenta numărului, nu numărul brut."
+        viewModelScope.launch {
+            try {
+                api.sendCommunityReport(
+                    CommunityReport(
+                        hash = PhoneNumberHasher.hashPhone(normalizedPhone),
+                        riskLevel = "high",
+                        family = "CONV_BANK_SAFE_ACCOUNT",
+                        source = "android_radar_manual",
+                        targetType = "phone"
+                    )
+                )
+                radarReportPhoneInput = ""
+                radarReportPhoneStatus = "Numărul a fost raportat. Sincronizăm Radarul local."
+                syncRadarHotCache()
+            } catch (_: Exception) {
+                radarReportPhoneStatus = "Nu am putut trimite raportul. Reîncearcă atunci când ai internet."
+            } finally {
+                radarReportPhoneLoading = false
             }
         }
     }
@@ -2029,14 +2074,30 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         val remoteScreenshotUrl = response.preview?.screenshotUrl
         val preview = response.preview
         val updated = response.result?.let {
-            buildAssessmentFromBackendScanResponse(
-                response = it,
-                rawInput = rawInput,
-                urls = urls,
-                preview = preview,
-                orchestratedStatusMessage = response.statusMessage,
-                providerStates = providerStates
-            )
+            try {
+                buildAssessmentFromBackendScanResponse(
+                    response = it,
+                    rawInput = rawInput,
+                    urls = urls,
+                    preview = preview,
+                    orchestratedStatusMessage = response.statusMessage,
+                    providerStates = providerStates
+                )
+            } catch (mappingError: Exception) {
+                Log.w(
+                    "SigurScan",
+                    "orchestrated response mapping failed: ${classifyOrchestratedError(mappingError)}",
+                    mappingError
+                )
+                buildDegradedAssessmentFromBackendScanResponse(
+                    response = it,
+                    rawInput = rawInput,
+                    urls = urls,
+                    preview = preview,
+                    orchestratedStatusMessage = response.statusMessage,
+                    providerStates = providerStates
+                )
+            }
         } ?: buildPendingAssessmentFromOrchestratedResponse(response, rawInput, urls)
         publishAssessmentResult(existingScanId ?: response.scanId, updated)
         if (response.result != null && updated.gateResult?.finality == GateFinality.FINAL) {
@@ -2100,14 +2161,132 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         publishOrchestratedResponse(response, rawInput, urls, preliminary?.scanId, resultCacheKey)
 
         val pollingDeadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(ORCHESTRATED_POLLING_BUDGET_MILLIS)
+        var pollingFailures = 0
         while (shouldContinueOrchestratedPolling(response) && System.nanoTime() < pollingDeadlineNanos) {
             kotlinx.coroutines.delay(orchestratedPollDelayMillis(response))
-            response = scanPollApi.getOrchestratedScan(response.scanId)
+            response = try {
+                scanPollApi.getOrchestratedScan(response.scanId).also {
+                    pollingFailures = 0
+                }
+            } catch (pollError: Exception) {
+                pollingFailures += 1
+                Log.w("SigurScan", "orchestrated poll failed: ${pollError.javaClass.simpleName}")
+                if (pollingFailures >= 3) {
+                    break
+                }
+                continue
+            }
             publishOrchestratedResponse(response, rawInput, urls, response.scanId, resultCacheKey)
         }
         if (shouldContinueOrchestratedPolling(response)) {
             publishOrchestratedPollingTimeout(response, rawInput, urls, response.scanId)
+        } else {
+            launchFinalOrchestratedPreviewRefresh(response, rawInput, urls, response.scanId, resultCacheKey)
         }
+    }
+
+    private fun launchFinalOrchestratedPreviewRefresh(
+        initialResponse: OrchestratedScanResponse,
+        rawInput: String,
+        urls: List<String>,
+        existingScanId: String?,
+        resultCacheKey: String?
+    ) {
+        if (!shouldRefreshFinalOrchestratedPreview(initialResponse)) return
+        viewModelScope.launch {
+            var response = initialResponse
+            repeat(ORCHESTRATED_FINAL_PREVIEW_REFRESH_ATTEMPTS) {
+                if (!shouldRefreshFinalOrchestratedPreview(response)) return@launch
+                kotlinx.coroutines.delay(orchestratedPollDelayMillis(response))
+                response = try {
+                    scanPollApi.getOrchestratedScanStatus(response.scanId)
+                } catch (statusError: Exception) {
+                    Log.w("SigurScan", "orchestrated status refresh failed: ${statusError.javaClass.simpleName}")
+                    try {
+                        scanPollApi.getOrchestratedScan(response.scanId)
+                    } catch (pollError: Exception) {
+                        Log.w("SigurScan", "orchestrated preview refresh failed: ${pollError.javaClass.simpleName}")
+                        return@launch
+                    }
+                }
+                publishOrchestratedResponse(response, rawInput, urls, existingScanId, resultCacheKey)
+            }
+        }
+    }
+
+    private fun buildDegradedAssessmentFromBackendScanResponse(
+        response: ScanResponse,
+        rawInput: String,
+        urls: List<String>,
+        preview: OrchestratedPreview? = null,
+        orchestratedStatusMessage: String? = null,
+        providerStates: Map<ProviderId, ProviderState> = emptyMap()
+    ): OfflineAssessment {
+        val finalUrl = normalizeCandidateUrl(preview?.finalUrl)
+            ?: urls.firstOrNull()?.let(::normalizeUrl)
+        val redirectChain = listOfNotNull(finalUrl)
+        val threatIntel = listOf(
+            ThreatIntelSourceResult(
+                source = "SigurScan Backend",
+                verdict = response.userRiskLabel ?: response.riskLevel.ifBlank { "UNKNOWN" },
+                severity = response.riskLevel.ifBlank { "unknown" },
+                details = response.reasons?.firstOrNull()
+            )
+        )
+        val base = OfflineAssessment(
+            scanId = response.scanId,
+            family = when {
+                response.riskLevel == "critical" || response.riskLevel == "high" -> response.detectedFamily ?: "Scam detectat"
+                response.riskLevel == "low" -> "Destinație verificată"
+                else -> response.detectedFamily ?: "Analiză finalizată"
+            },
+            riskScore = response.riskScore,
+            riskLevel = response.riskLevel,
+            reasons = response.reasons ?: emptyList(),
+            safeActions = response.safeActions ?: emptyList(),
+            keyDangers = response.keyDangers ?: emptyList(),
+            originalText = rawInput,
+            screenshotUrl = preview?.screenshotUrl,
+            serverInfo = orchestratedScanServerInfo(
+                statusMessage = orchestratedStatusMessage,
+                preview = preview,
+                isFinal = response.isFinal != false
+            ),
+            redirectChain = redirectChain,
+            finalUrl = finalUrl,
+            reputationVerdict = if (providerStates.isEmpty()) "Se verifică" else "Verificat prin ${providerStates.size} surse",
+            domainAgeText = "Se verifică",
+            sslStatus = if (finalUrl?.startsWith("https", ignoreCase = true) == true) "Valid (HTTPS)" else "Neverificat",
+            aiConfidence = response.aiVerdict ?: "Analiză automată finalizată",
+            threatIntel = threatIntel,
+            sandboxReportUrl = preview?.reportUrl,
+            legal = response.legal,
+            actionPlan = response.actionPlan
+        )
+        val snapshot = EvidenceSnapshot(
+            scanId = response.scanId,
+            inputKind = activeEvidenceInputKind(rawInput) ?: inferEvidenceInputKind(rawInput),
+            channel = activeEvidenceChannel(rawInput) ?: inferEvidenceChannel(rawInput),
+            primaryUrl = urls.firstOrNull(),
+            finalUrl = finalUrl,
+            redirectChain = redirectChain,
+            providerStates = providerStates,
+            registryVersion = BrandKnowledgeRegistry.registryVersion(),
+            corpusVersion = BrandKnowledgeRegistry.corpusVersion(),
+            completeness = orchestratedEvidenceCompleteness(preview, providerStates, finalUrl)
+        )
+        return base.withGate(snapshot, backendGateResult(response), rawInput, threatIntel)
+    }
+
+    private fun classifyOrchestratedError(error: Throwable): String = when (error) {
+        is HttpException -> "HTTP_${error.code()}"
+        is SocketTimeoutException -> "TIMEOUT"
+        is UnknownHostException -> "DNS"
+        is SSLException -> "SSL"
+        is IOException -> "IO"
+        is IllegalStateException -> "STATE"
+        is ClassCastException -> "CAST"
+        else -> error.javaClass.simpleName.ifBlank { "UNKNOWN" }
     }
 
     fun onScanClick(forceRefresh: Boolean = false) {
@@ -2131,11 +2310,22 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 runBackendOrchestratedScan(rawInput, htmlPayload, urls)
                 return@launch
             } catch (orchestratedError: Exception) {
+                val diagnosticCode = classifyOrchestratedError(orchestratedError)
+                Log.w("SigurScan", "orchestrated scan failed: $diagnosticCode", orchestratedError)
+                assessment?.takeIf { current ->
+                    current.originalText == rawInput &&
+                        (
+                            current.gateResult?.finality == GateFinality.FINAL ||
+                                current.gateResult?.asyncExpected == true
+                            )
+                }?.let {
+                    return@launch
+                }
                 val fallbackPrimaryUrl = urls.firstOrNull()?.let(::normalizeUrl)
                 val result = applyEvidenceGate(
                     current = buildNeutralPendingAssessment(rawInput).copy(
                         scanId = UUID.randomUUID().toString(),
-                        serverInfo = "Nu am putut obține rezultatele pilonilor. Reîncearcă scanarea.",
+                        serverInfo = "Nu am putut obține rezultatele pilonilor. Reîncearcă scanarea. Cod: $diagnosticCode.",
                         finalUrl = fallbackPrimaryUrl,
                         redirectChain = fallbackPrimaryUrl?.let { listOf(it) }.orEmpty()
                     ),
@@ -3491,6 +3681,8 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                     stagedEvidenceText = finalText
                     stagedEvidenceInputKind = if (importKind == FileImportKind.EMAIL) "import_email" else "import_html"
                     stagedEvidenceChannel = if (importKind == FileImportKind.EMAIL) "email_file" else "html_file"
+                    loading = false
+                    loadingMsg = ""
                     onScanClick()
                 } catch (e: Exception) {
                     text = "Eroare la citirea conținutului: $fileName"
@@ -3499,6 +3691,8 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                     stagedEvidenceText = text
                     stagedEvidenceInputKind = if (importKind == FileImportKind.EMAIL) "import_email" else "import_html"
                     stagedEvidenceChannel = if (importKind == FileImportKind.EMAIL) "email_file" else "html_file"
+                    loading = false
+                    loadingMsg = ""
                     onScanClick()
                 }
             }

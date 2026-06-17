@@ -336,6 +336,79 @@ class TestEndpoints:
             }
         ]
 
+    def test_hot_iocs_endpoint_preserves_community_count_delta(self, monkeypatch):
+        from fastapi.testclient import TestClient
+        import main as app_main
+
+        monkeypatch.setattr(app_main.supabase_store, "is_supabase_enabled", lambda: True)
+
+        def fake_get_json(table, params):
+            if table == "community_reports":
+                return [
+                    {
+                        "hash": "a" * 64,
+                        "target_type": "phone",
+                        "report_count": 5,
+                        "family": "CONV_BANK_SAFE_ACCOUNT",
+                        "risk_level": "high",
+                    }
+                ]
+            return []
+
+        monkeypatch.setattr(app_main.supabase_store, "_get_json", fake_get_json)
+        monkeypatch.setattr(
+            app_main.supabase_store,
+            "load_reputation_graph_rows",
+            lambda limit=1000: {
+                "observations": [
+                    {
+                        "target_type": "phone",
+                        "target_hash": "a" * 64,
+                        "source": "community",
+                        "risk_level": "high",
+                        "family": "CONV_BANK_SAFE_ACCOUNT",
+                        "report_count": 1,
+                    }
+                ],
+                "edges": [],
+                "allowlist": [],
+            },
+        )
+
+        client = TestClient(app_main.app)
+        r = client.get("/v1/radar/hot-iocs")
+        body = r.json()
+
+        assert r.status_code == 200
+        assert body["number_reputation"][0]["phone_hash"] == "a" * 64
+        assert body["number_reputation"][0]["bucket_count"] == "5-24"
+
+    def test_community_report_storage_failure_is_not_reported_as_ok(self, monkeypatch):
+        from fastapi.testclient import TestClient
+        import main as app_main
+
+        monkeypatch.setattr(app_main.supabase_store, "is_supabase_enabled", lambda: True)
+        monkeypatch.setattr(app_main.supabase_store, "_get_json", lambda table, params: [])
+
+        def fail_post(*args, **kwargs):
+            raise RuntimeError("storage down")
+
+        monkeypatch.setattr(app_main.supabase_store, "_post_json", fail_post)
+
+        client = TestClient(app_main.app)
+        r = client.post(
+            "/v1/community/report",
+            json={
+                "hash": "b" * 64,
+                "risk_level": "high",
+                "target_type": "phone",
+                "family": "CONV_BANK_SAFE_ACCOUNT",
+                "source": "android",
+            },
+        )
+
+        assert r.status_code == 503
+
     def test_report_endpoint(self):
         from fastapi.testclient import TestClient
         import main as app_main

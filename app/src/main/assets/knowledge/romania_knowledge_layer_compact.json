@@ -1658,7 +1658,17 @@
         }
       ],
       "community_noisy_sources": [],
-      "acceptance_test_idea": "Ad/email cu .test și formular investiții/date card."
+      "acceptance_test_idea": "Ad/email cu .test și formular investiții/date card.",
+      "sources": [
+        "S35",
+        "S36",
+        "S37"
+      ],
+      "source_ids": [
+        "asf_investor_alerts_2026",
+        "asf_unauthorized_entities_guidance",
+        "asf_authorized_entities_registry"
+      ]
     },
     {
       "scenario_id": "RO_SCN_012_CRYPTO_BROKER_REMOTE",
@@ -1702,7 +1712,17 @@
         }
       ],
       "community_noisy_sources": [],
-      "acceptance_test_idea": "Text cere AnyDesk + transfer crypto; link APK => Periculos."
+      "acceptance_test_idea": "Text cere AnyDesk + transfer crypto; link APK => Periculos.",
+      "sources": [
+        "S35",
+        "S36",
+        "S37"
+      ],
+      "source_ids": [
+        "asf_investor_alerts_2026",
+        "asf_unauthorized_entities_guidance",
+        "asf_authorized_entities_registry"
+      ]
     },
     {
       "scenario_id": "RO_SCN_013_FAKE_BANK_APK",
@@ -2741,7 +2761,10 @@
         "S11",
         "S23",
         "S24",
-        "S21"
+        "S21",
+        "S35",
+        "S36",
+        "S37"
       ],
       "examples": [
         "«Investește în Hidroelectrica cu minimum 950 lei și câștig lunar garantat.» https://hidro-profit.test",
@@ -2754,6 +2777,11 @@
         "«Hidroelectrica Edge» pe domeniu neoficial.",
         "«Dovediți identitatea cu poză buletin și card.»",
         "«Profit garantat 2.000 lei/săptămână, fără risc.»"
+      ],
+      "source_ids": [
+        "asf_investor_alerts_2026",
+        "asf_unauthorized_entities_guidance",
+        "asf_authorized_entities_registry"
       ]
     },
     {
@@ -2788,7 +2816,10 @@
         "S1",
         "S20",
         "S21",
-        "S23"
+        "S23",
+        "S35",
+        "S36",
+        "S37"
       ],
       "examples": [
         "«Pentru a activa contul de trading instalați AnyDesk și dați-mi codul.»",
@@ -2801,6 +2832,11 @@
         "«Depuneți numerar la ATM Bitcoin, vă stau la telefon.»",
         "«Platforma TXEX/TradeX confirmă profitul, trebuie doar să plătiți comisionul.»",
         "«Nu discutați cu banca, ei nu cunosc această promoție.»"
+      ],
+      "source_ids": [
+        "asf_investor_alerts_2026",
+        "asf_unauthorized_entities_guidance",
+        "asf_authorized_entities_registry"
       ]
     },
     {
@@ -3089,7 +3125,10 @@
       ],
       "sources": [
         "S1",
-        "S21"
+        "S21",
+        "S35",
+        "S36",
+        "S37"
       ],
       "examples": [
         "«Sunt medic în misiune și am nevoie de bani pentru bilet.»",
@@ -3102,6 +3141,11 @@
         "«Trimite poza buletinului pentru rezervarea biletului.»",
         "«Dacă nu trimiți acum, pierd contractul.»",
         "«Nu spune familiei, nu vor înțelege relația noastră.»"
+      ],
+      "source_ids": [
+        "asf_investor_alerts_2026",
+        "asf_unauthorized_entities_guidance",
+        "asf_authorized_entities_registry"
       ]
     },
     {
@@ -4224,11 +4268,17 @@
       ],
       "sources": [
         "src_romance_dnsc_8martie",
-        "src_romance_digi_dnsc"
+        "src_romance_digi_dnsc",
+        "S35",
+        "S36",
+        "S37"
       ],
       "source_ids": [
         "src_romance_dnsc_8martie",
-        "src_romance_digi_dnsc"
+        "src_romance_digi_dnsc",
+        "asf_investor_alerts_2026",
+        "asf_unauthorized_entities_guidance",
+        "asf_authorized_entities_registry"
       ],
       "examples": [
         {
@@ -4653,11 +4703,17 @@
       ],
       "sources": [
         "src_deepfake_dnsc_press",
-        "src_deepfake_president_tvr"
+        "src_deepfake_president_tvr",
+        "S35",
+        "S36",
+        "S37"
       ],
       "source_ids": [
         "src_deepfake_dnsc_press",
-        "src_deepfake_president_tvr"
+        "src_deepfake_president_tvr",
+        "asf_investor_alerts_2026",
+        "asf_unauthorized_entities_guidance",
+        "asf_authorized_entities_registry"
       ],
       "examples": [
         {
@@ -4960,11 +5016,17 @@
       ],
       "sources": [
         "src_dnsc_politia_popup_agerpres",
-        "src_social_page_ownership_agerpres"
+        "src_social_page_ownership_agerpres",
+        "S35",
+        "S36",
+        "S37"
       ],
       "source_ids": [
         "src_dnsc_politia_popup_agerpres",
-        "src_social_page_ownership_agerpres"
+        "src_social_page_ownership_agerpres",
+        "asf_investor_alerts_2026",
+        "asf_unauthorized_entities_guidance",
+        "asf_authorized_entities_registry"
       ],
       "examples": [
         {
@@ -5417,6 +5479,19 @@
       "not_found": "SUSPECT; PERICULOS cu date bancare/remote access",
       "legit": "pagina oficială investitori",
       "fake": "platformă socială cu profit garantat"
+    },
+    {
+      "claim_type": "asf_investment_authorization",
+      "official_sources": [
+        "S35",
+        "S36",
+        "S37"
+      ],
+      "how": "Pentru orice ofertă de investiții/trading/crypto prezentată ca broker, platformă autorizată, grup educațional sau randament garantat, verifică alertele ASF și registrele entităților autorizate. Lipsa autorizării nu decide singură, dar devine semnal puternic împreună cu randament garantat, transfer, crypto, remote access sau taxă de retragere.",
+      "confirmed": "entitatea apare în registrul ASF/BNR sau claim-ul este pe un canal oficial verificabil; fără cereri de transfer/remote access/coduri în conversație",
+      "not_found": "SUSPECT; PERICULOS dacă există și randament garantat, grup WhatsApp/Telegram, remote access, transfer/crypto sau taxă pentru retragerea profitului",
+      "legit": "entitate autorizată ASF/BNR + domeniu oficial + informație de investiție educațională/reglementată",
+      "fake": "grup WhatsApp/Telegram sau landing page care promite profit garantat și cere depunere, taxă de retragere, AnyDesk/TeamViewer ori crypto"
     }
   ],
   "signal_mapping": [
@@ -6541,6 +6616,18 @@
       "required_combination_for_periculos": "provider/sandbox hit OR official never_ask_for + sensitive request OR unofficial domain + card/OTP/password/payment request",
       "false_positive_risk": "Un PDF cu siglă nu este dovadă. Corpus similarity-only maximum SUSPECT; PERICULOS când cere bani/date/cont sigur/remote access sau link neoficial.",
       "integration_role": "context_signal_only_requires_provider_or_sensitive_identity_combo_for_periculos"
+    },
+    {
+      "signal_code": "ASF_UNAUTHORIZED_INVESTMENT_ENTITY",
+      "description": "Oferta pretinde servicii de investiții/trading/crypto sau randament garantat, dar entitatea/canalul nu este confirmat în registrele ASF/BNR sau apare în alertele ASF.",
+      "source_type": "official_regulator_alerts",
+      "required_combination_for_periculos": "alertă ASF sau neautorizare + depunere/transfer/crypto/remote access/taxă de retragere/randament garantat => Periculos; doar lipsa registrului fără cerere sensibilă => Suspect/neverificat",
+      "example": "Grup WhatsApp de investiții cu profit garantat și depunere într-o platformă neautorizată ASF",
+      "source_refs": [
+        "S35",
+        "S36",
+        "S37"
+      ]
     }
   ],
   "generated_at": "2026-06-08",
@@ -7106,6 +7193,36 @@
       "type": "technical_standard",
       "confidence": "high",
       "notes": "Pentru exemple și CI se folosesc domenii rezervate, nu domenii scam active."
+    },
+    "S35": {
+      "id": "asf_investor_alerts_2026",
+      "title": "ASF — Alerte investitori / entități neautorizate",
+      "url": "https://asfromania.ro/ro/a/19/alerte-investitori---informari",
+      "published": "actualizat continuu; consultat 2026-06-16",
+      "accessed": "2026-06-16",
+      "type": "official_regulator_alerts",
+      "confidence": "high",
+      "notes": "ASF publică alerte despre entități/platforme neautorizate pentru servicii și activități de investiții."
+    },
+    "S36": {
+      "id": "asf_unauthorized_entities_guidance",
+      "title": "ASF — Atenție la entități neautorizate / grupuri de investiții WhatsApp și Telegram",
+      "url": "https://www.asfromania.ro/ro/a/1523/atentie-la-entitati-neautorizate%21",
+      "published": "nedeclarat pe pagină; consultat 2026-06-16",
+      "accessed": "2026-06-16",
+      "type": "official_regulator_warning",
+      "confidence": "high",
+      "notes": "ASF avertizează despre scheme de investiții prezentate ca grupuri educaționale pe WhatsApp/Telegram și alte platforme sociale."
+    },
+    "S37": {
+      "id": "asf_authorized_entities_registry",
+      "title": "ASF — Registre entități autorizate",
+      "url": "https://asfromania.ro/ro/a/1544/registre-entit%C4%83%C8%9Bi-autorizate",
+      "published": "registru oficial; consultat 2026-06-16",
+      "accessed": "2026-06-16",
+      "type": "official_registry",
+      "confidence": "high",
+      "notes": "Registru oficial de verificare pentru entități autorizate; ASF menționează explicit că nu apelează consumatorii de la TelVerde."
     }
   },
   "false_positive_guards": [
@@ -7166,5 +7283,14 @@
     "signal_mapping_count": 87,
     "source_count": 25,
     "rule": "Imported as corpus/context/test material only. Verdict remains controlled by DECISION_CONTRACT_V1/verdict_gate."
+  },
+  "asf_investment_merge": {
+    "merged_at": "2026-06-16",
+    "sources_added": [
+      "S35",
+      "S36",
+      "S37"
+    ],
+    "rule": "ASF este pilon de verificare pentru investiții/trading; nu produce verdict automat fără cerere sensibilă sau alte semnale."
   }
 }

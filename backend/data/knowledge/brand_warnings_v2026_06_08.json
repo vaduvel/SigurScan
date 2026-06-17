@@ -1011,6 +1011,36 @@
       "type": "technical_standard",
       "confidence": "high",
       "notes": "Pentru exemple și CI se folosesc domenii rezervate, nu domenii scam active."
+    },
+    "S35": {
+      "id": "asf_investor_alerts_2026",
+      "title": "ASF — Alerte investitori / entități neautorizate",
+      "url": "https://asfromania.ro/ro/a/19/alerte-investitori---informari",
+      "published": "actualizat continuu; consultat 2026-06-16",
+      "accessed": "2026-06-16",
+      "type": "official_regulator_alerts",
+      "confidence": "high",
+      "notes": "ASF publică alerte despre entități/platforme neautorizate pentru servicii și activități de investiții."
+    },
+    "S36": {
+      "id": "asf_unauthorized_entities_guidance",
+      "title": "ASF — Atenție la entități neautorizate / grupuri de investiții WhatsApp și Telegram",
+      "url": "https://www.asfromania.ro/ro/a/1523/atentie-la-entitati-neautorizate%21",
+      "published": "nedeclarat pe pagină; consultat 2026-06-16",
+      "accessed": "2026-06-16",
+      "type": "official_regulator_warning",
+      "confidence": "high",
+      "notes": "ASF avertizează despre scheme de investiții prezentate ca grupuri educaționale pe WhatsApp/Telegram și alte platforme sociale."
+    },
+    "S37": {
+      "id": "asf_authorized_entities_registry",
+      "title": "ASF — Registre entități autorizate",
+      "url": "https://asfromania.ro/ro/a/1544/registre-entit%C4%83%C8%9Bi-autorizate",
+      "published": "registru oficial; consultat 2026-06-16",
+      "accessed": "2026-06-16",
+      "type": "official_registry",
+      "confidence": "high",
+      "notes": "Registru oficial de verificare pentru entități autorizate; ASF menționează explicit că nu apelează consumatorii de la TelVerde."
     }
   }
 }
