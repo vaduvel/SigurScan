@@ -305,6 +305,12 @@ def _provider_config_status() -> Dict[str, Any]:
 
     web_risk_configured = _env_present("GOOGLE_WEB_RISK_API_KEY")
     phishing_database_enabled = os.getenv("ENABLE_PHISHING_DATABASE", "true").strip().lower() in {"1", "true", "yes", "on"}
+    asf_investor_alerts_enabled = os.getenv("ENABLE_ASF_INVESTOR_ALERTS", "true").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
     scam_blocklist_nrd_enabled = os.getenv("ENABLE_SCAM_BLOCKLIST_NRD", "false").strip().lower() in {
         "1",
         "true",
@@ -356,6 +362,15 @@ def _provider_config_status() -> Dict[str, Any]:
             "phishing_database": {
                 "configured": phishing_database_enabled and not PRIVACY_SAFE_MODE,
                 "policy": "open_feed_runtime_reputation",
+            },
+            "asf_investor_alerts": {
+                "configured": asf_investor_alerts_enabled and not PRIVACY_SAFE_MODE,
+                "policy": "official_authority_runtime_reputation",
+                "source": "Autoritatea de Supraveghere Financiară",
+                "source_url": os.getenv(
+                    "ASF_INVESTOR_ALERTS_URL",
+                    "https://asfromania.ro/ro/a/19/alerte-investitori---informari",
+                ),
             },
             "urlhaus": {
                 "configured": urlhaus_configured and not PRIVACY_SAFE_MODE,
@@ -2390,7 +2405,15 @@ def _provider_payload_is_hard_bad(raw: Dict[str, Any], *, include_suspicious: bo
 def _has_authoritative_bad_provider_verdict(summary: Dict[str, Any]) -> bool:
     # „dns_security" = bloc autoritar de DNS de securitate (Cloudflare/Quad9),
     # tratat ca provider hard-bad (status malicious), la fel ca Web Risk/URLhaus.
-    for name in ("google_web_risk", "phishing_database", "urlscan", "urlscan.io", "urlhaus", "dns_security"):
+    for name in (
+        "google_web_risk",
+        "asf_investor_alerts",
+        "phishing_database",
+        "urlscan",
+        "urlscan.io",
+        "urlhaus",
+        "dns_security",
+    ):
         raw = summary.get(name)
         if isinstance(raw, dict) and _provider_payload_is_hard_bad(raw):
             return True
@@ -2401,7 +2424,15 @@ def _has_bad_provider_verdict(summary: Dict[str, Any]) -> bool:
     if _has_authoritative_bad_provider_verdict(summary):
         return True
 
-    provider_names = ("google_web_risk", "phishing_database", "urlscan", "urlscan.io", "urlhaus", "dns_security")
+    provider_names = (
+        "google_web_risk",
+        "asf_investor_alerts",
+        "phishing_database",
+        "urlscan",
+        "urlscan.io",
+        "urlhaus",
+        "dns_security",
+    )
     for name in provider_names:
         raw = summary.get(name)
         if isinstance(raw, dict) and _provider_payload_is_hard_bad(raw):
@@ -2989,6 +3020,7 @@ def _provider_verdict_for_decision_bundle(
     unknown = []
     for name in (
         "google_web_risk",
+        "asf_investor_alerts",
         "phishing_database",
         "urlscan",
         "urlscan.io",
@@ -3874,6 +3906,7 @@ def _apply_provider_gate_verdict(
     offer_status = str(offer.get("status", "")).lower() if isinstance(offer, dict) else ""
     official_destination = _official_destination_confirmed(resolved_urls, claimed_brand)
     web_risk_consulted = _source_ready(summary, "google_web_risk")
+    asf_investor_alerts_consulted = _source_ready(summary, "asf_investor_alerts")
     phishing_database_consulted = _source_ready(summary, "phishing_database")
     urlscan_consulted = any(_source_ready(summary, name) for name in ("urlscan", "urlscan.io"))
     sensitive_url_path = _has_sensitive_url_path(resolved_urls)
@@ -3893,6 +3926,7 @@ def _apply_provider_gate_verdict(
         name
         for name in (
             "google_web_risk",
+            "asf_investor_alerts",
             "phishing_database",
             "urlscan",
             "urlscan.io",
@@ -3909,6 +3943,7 @@ def _apply_provider_gate_verdict(
         "version": "verdict_gate_v2",
         "official_destination": official_destination,
         "web_risk_consulted": web_risk_consulted,
+        "asf_investor_alerts_consulted": asf_investor_alerts_consulted,
         "phishing_database_consulted": phishing_database_consulted,
         "urlscan_consulted": urlscan_consulted,
         "claim_required": claim_required,
@@ -6603,15 +6638,19 @@ def _build_orchestrated_pillars(job: Dict[str, Any]) -> Dict[str, Dict[str, Any]
     if not has_urls:
         final_url_pillar = _pillar("not_required", required=False, details="mesajul nu contine URL verificabil")
         web_risk_pillar = _pillar("not_required", required=False, details="nu exista URL pentru Web Risk")
+        asf_pillar = _pillar("not_required", required=False, details="nu exista URL pentru ASF")
         phishing_database_pillar = _pillar("not_required", required=False, details="nu exista URL pentru Phishing.Database")
     else:
         final_url_pillar = _pillar("ok" if final_url else "pending", details=str(final_url or "se rezolva destinatia finala"))
         web_risk_pillar = _provider_pillar_from_summary(summary, "google_web_risk")
+        asf_pillar = _provider_pillar_from_summary(summary, "asf_investor_alerts")
+        asf_pillar["required"] = False
         phishing_database_pillar = _provider_pillar_from_summary(summary, "phishing_database")
 
     return {
         "final_url": final_url_pillar,
         "google_web_risk": web_risk_pillar,
+        "asf_investor_alerts": asf_pillar,
         "phishing_database": phishing_database_pillar,
         "urlscan": urlscan_pillar,
         "claim_verifier": _pillar(

@@ -118,6 +118,21 @@ def test_cloud_run_deploy_enables_play_integrity_monitor_rollout():
     assert "PLAY_INTEGRITY_MODE=enforce" not in script
 
 
+def test_cloud_run_deploy_enables_asf_investor_alerts_provider():
+    script = (ROOT_DIR / "tools" / "deploy_cloud_run_backend.sh").read_text(encoding="utf-8")
+
+    assert "ENABLE_ASF_INVESTOR_ALERTS=true" in script
+
+
+def test_cloud_run_deploy_preserves_paid_intel_budget_guards():
+    script = (ROOT_DIR / "tools" / "deploy_cloud_run_backend.sh").read_text(encoding="utf-8")
+
+    assert "OPENAPI_RO_MONTHLY_BUDGET=100" in script
+    assert "HUNTER_IO_MONTHLY_BUDGET=50" in script
+    assert "OPENAPI_RO_API_KEY=$OPENAPI_RO_API_KEY_SECRET" in script
+    assert "HUNTER_IO_API_KEY=$HUNTER_IO_API_KEY_SECRET" in script
+
+
 def test_cloud_run_deploy_routes_traffic_to_latest_revision():
     script = (ROOT_DIR / "tools" / "deploy_cloud_run_backend.sh").read_text(encoding="utf-8")
 

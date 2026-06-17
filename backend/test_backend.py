@@ -1923,6 +1923,46 @@ def test_provider_gate_phishing_database_malicious_is_decisive_provider_risk():
     assert result["evidence"]["provider_gate"]["phishing_database_consulted"] is True
 
 
+def test_provider_gate_asf_investor_alerts_malicious_is_decisive_provider_risk():
+    analysis = {
+        "claimed_brand": "Nespecificat",
+        "risk_level": "low",
+        "risk_score": 5,
+        "detected_family": "Necunoscut",
+        "evidence": {
+            "external_intel_summary": {
+                "google_web_risk": {"status": "clean", "verdict": "clean", "consulted": True},
+                "asf_investor_alerts": {
+                    "status": "malicious",
+                    "verdict": "malicious",
+                    "severity": "high",
+                    "consulted": True,
+                    "threat_type": "unauthorized_investment_platform",
+                    "details": {"matched_value": "pannonix.com"},
+                },
+            },
+        },
+    }
+    resolved_urls = [
+        {
+            "url": "https://pannonix.com",
+            "final_url": "https://pannonix.com/",
+            "hostname": "pannonix.com",
+            "final_hostname": "pannonix.com",
+            "registered_domain": "pannonix.com",
+            "final_registered_domain": "pannonix.com",
+        }
+    ]
+
+    result = _apply_provider_gate_verdict(analysis, resolved_urls)
+
+    assert result["risk_level"] == "high"
+    assert result["risk_score"] == 90
+    assert result["detected_family_id"] == "provider-gate-bad-provider"
+    assert result["evidence"]["provider_gate"]["asf_investor_alerts_consulted"] is True
+    assert "asf_investor_alerts" in result["evidence"]["provider_gate"]["consulted_sources"]
+
+
 def test_provider_gate_web_risk_malicious_is_decisive_provider_risk_when_other_providers_clean():
     analysis = {
         "claimed_brand": "Nespecificat",
@@ -7012,6 +7052,19 @@ def test_fast_reputation_skips_optional_sources_and_does_not_persist_partial(mon
     monkeypatch.setattr(url_reputation, "check_urls_against_web_risk", lambda urls: {})
     monkeypatch.setattr(
         url_reputation,
+        "_fetch_asf_investor_alerts",
+        lambda urls: {
+            url_reputation._url_hash(urls[0]): {
+                "status": "clean",
+                "threat_type": "unknown",
+                "score": 0,
+                "details": {"provider": "asf_investor_alerts", "status": "not_listed"},
+                "query_ms": 1,
+            }
+        },
+    )
+    monkeypatch.setattr(
+        url_reputation,
         "_fetch_phishing_database",
         lambda urls: (_ for _ in ()).throw(AssertionError("Phishing.Database should be skipped in fast mode")),
     )
@@ -7046,6 +7099,19 @@ def test_reputation_uses_phishing_database_feed_as_active_provider(monkeypatch, 
     monkeypatch.setattr(url_reputation, "_save_cache", lambda path, data, remote_subset=None: None)
     monkeypatch.setattr(url_reputation, "has_web_risk_key", lambda: True)
     monkeypatch.setattr(url_reputation, "check_urls_against_web_risk", lambda urls: {})
+    monkeypatch.setattr(
+        url_reputation,
+        "_fetch_asf_investor_alerts",
+        lambda urls: {
+            key: {
+                "status": "clean",
+                "threat_type": "unknown",
+                "score": 0,
+                "details": {"provider": "asf_investor_alerts", "status": "not_listed"},
+                "query_ms": 1,
+            }
+        },
+    )
     monkeypatch.setattr(
         url_reputation,
         "_fetch_phishing_database",
@@ -7084,14 +7150,122 @@ def test_reputation_uses_phishing_database_feed_as_active_provider(monkeypatch, 
     assert result[key]["sources"]["phishing_database"]["status"] == "malicious"
     assert set(result[key]["sources"]) == {
         "google_web_risk",
+        "asf_investor_alerts",
         "phishing_database",
         "urlhaus",
         "scam_blocklist_nrd",
         "phishdestroy_destroylist",
     }
+    assert result[key]["sources"]["asf_investor_alerts"]["consulted"] is True
+    assert result[key]["sources"]["asf_investor_alerts"]["status"] == "clean"
     assert result[key]["sources"]["scam_blocklist_nrd"]["consulted"] is False
     assert result[key]["sources"]["phishdestroy_destroylist"]["consulted"] is False
     assert result[key]["verdict"] == "malicious"
+
+
+def test_reputation_uses_asf_investor_alerts_as_hard_provider(monkeypatch, tmp_path):
+    cache_path = tmp_path / "url_reputation_cache.json"
+    url = "https://pannonix.com"
+    key = url_reputation._url_hash(url)
+
+    monkeypatch.setattr(url_reputation, "ENABLE_URL_REPUTATION", True)
+    monkeypatch.setattr(url_reputation, "ENABLE_ASF_INVESTOR_ALERTS", True)
+    monkeypatch.setattr(url_reputation, "REPUTATION_CACHE_PATH", cache_path)
+    monkeypatch.setattr(url_reputation, "_load_cache", lambda path: {})
+    monkeypatch.setattr(url_reputation, "_save_cache", lambda path, data, remote_subset=None: None)
+    monkeypatch.setattr(url_reputation, "has_web_risk_key", lambda: True)
+    monkeypatch.setattr(url_reputation, "check_urls_against_web_risk", lambda urls: {})
+    monkeypatch.setattr(
+        url_reputation,
+        "_fetch_asf_investor_alerts",
+        lambda urls: {
+            key: {
+                "status": "malicious",
+                "threat_type": "unauthorized_investment_platform",
+                "score": 100,
+                "details": {
+                    "provider": "asf_investor_alerts",
+                    "matched_value": "pannonix.com",
+                    "source_publisher": "Autoritatea de Supraveghere Financiară",
+                },
+                "query_ms": 1,
+            }
+        },
+    )
+    monkeypatch.setattr(
+        url_reputation,
+        "_fetch_phishing_database",
+        lambda urls: {
+            key: {"status": "clean", "threat_type": "unknown", "score": 0, "details": {"status": "not_listed"}}
+        },
+    )
+    monkeypatch.setattr(
+        url_reputation,
+        "_fetch_urlhaus",
+        lambda urls, auth_key=None: {
+            key: {"status": "clean", "threat_type": "unknown", "score": 0, "details": {"status": "not_listed"}}
+        },
+    )
+
+    result = url_reputation.get_reputation_for_urls(
+        [url],
+        include_phishing_database=True,
+        include_urlhaus=True,
+    )
+
+    assert result[key]["sources"]["asf_investor_alerts"]["consulted"] is True
+    assert result[key]["sources"]["asf_investor_alerts"]["status"] == "malicious"
+    assert result[key]["sources"]["asf_investor_alerts"]["threat_type"] == "unauthorized_investment_platform"
+    assert "asf_investor_alerts" in result[key]["active_sources"]
+    assert result[key]["verdict"] == "malicious"
+
+
+def test_asf_investor_alerts_extracts_domains_from_official_html(monkeypatch):
+    html = """
+    <p><strong>Pannonix (https://pannonix.com/, https://client.trdaccount.com)</strong></p>
+    <p>Pannonix (https://pannonix.com/, https://client.trdaccount.com) nu este autorizată de Autoritatea de Supraveghere Financiară.</p>
+    <p><strong>Ceres Finance Limited (https://crss.finance/ro, https://crss.finance/ro/trading)</strong></p>
+    <p>Entitatea Ceres Finance Limited nu este autorizată de Autoritatea de Supraveghere Financiară.</p>
+    """
+    url = "https://client.trdaccount.com/login"
+    key = url_reputation._url_hash(url)
+
+    monkeypatch.setattr(url_reputation, "ENABLE_ASF_INVESTOR_ALERTS", True)
+    monkeypatch.setattr(
+        url_reputation,
+        "_load_asf_investor_alerts_feed",
+        lambda: {
+            "loaded_at": int(time.time()),
+            "domains": url_reputation._asf_investor_alert_domains_from_html(html),
+            "error": None,
+            "source_url": "https://asfromania.ro/ro/a/19/alerte-investitori---informari",
+            "source_publisher": "Autoritatea de Supraveghere Financiară",
+        },
+    )
+
+    result = url_reputation._fetch_asf_investor_alerts([url, "https://crss.finance/ro"])
+
+    assert result[key]["status"] == "malicious"
+    assert result[key]["threat_type"] == "unauthorized_investment_platform"
+    assert result[key]["details"]["provider"] == "asf_investor_alerts"
+    assert result[key]["details"]["matched_value"] == "client.trdaccount.com"
+    assert result[url_reputation._url_hash("https://crss.finance/ro")]["status"] == "malicious"
+
+
+def test_asf_investor_alerts_ignores_official_page_chrome_links():
+    html = """
+    <p><a href="https://asfromania.ro">ASF</a> <script src="https://www.googletagmanager.com/gtm.js"></script></p>
+    <p><strong>Pannonix (https://pannonix.com/)</strong></p>
+    <p>Pannonix (https://pannonix.com/) nu este autorizată de Autoritatea de Supraveghere Financiară.</p>
+    <p>Urmarește ASF pe https://www.facebook.com/asfromania</p>
+    """
+
+    domains = url_reputation._asf_investor_alert_domains_from_html(html)
+
+    assert "pannonix.com" in domains
+    assert "asfromania.ro" not in domains
+    assert "www.googletagmanager.com" not in domains
+    assert "www.facebook.com" not in domains
 
 
 def test_phishing_database_uses_local_lookalike_domains_when_remote_feed_fails(monkeypatch):
@@ -7449,6 +7623,33 @@ def test_external_intel_summary_marks_scam_blocklist_nrd_hit():
 
     assert summary["scam_blocklist_nrd"]["status"] == "suspicious"
     assert summary["scam_blocklist_nrd"]["malicious_hit_count"] == 0
+
+
+def test_external_intel_summary_marks_asf_investor_alerts_hit():
+    summary = app_main._external_intel_summary_from_threat_intel(
+        {
+            "https://pannonix.com/": {
+                "verdict": "malicious",
+                "risk_score": 100,
+                "sources": {
+                    "asf_investor_alerts": {
+                        "status": "malicious",
+                        "consulted": True,
+                        "score": 100,
+                        "threat_type": "unauthorized_investment_platform",
+                        "details": {
+                            "provider": "asf_investor_alerts",
+                            "matched_value": "pannonix.com",
+                        },
+                    }
+                },
+            }
+        }
+    )
+
+    assert summary["asf_investor_alerts"]["status"] == "malicious"
+    assert summary["asf_investor_alerts"]["malicious_hit_count"] == 1
+    assert summary["asf_investor_alerts"]["threat_type"] == "unauthorized_investment_platform"
 
 
 def test_phishdestroy_marks_listed_domain_suspicious(monkeypatch):
@@ -8864,6 +9065,7 @@ def test_health_reports_provider_config_without_secrets(monkeypatch):
         patched.setenv("OPENAPI_RO_API_KEY", "super-secret-openapi")
         patched.setenv("HUNTER_IO_API_KEY", "super-secret-hunter")
         patched.setenv("ENABLE_PHISHING_DATABASE", "true")
+        patched.setenv("ENABLE_ASF_INVESTOR_ALERTS", "true")
         patched.setenv("ENABLE_SCAM_BLOCKLIST_NRD", "true")
         patched.setenv("ENABLE_PHISHDESTROY", "true")
         patched.setattr(app_main, "URLSCAN_API_KEY", "super-secret-urlscan")
@@ -8875,6 +9077,8 @@ def test_health_reports_provider_config_without_secrets(monkeypatch):
     assert payload["config"]["providers"]["urlscan"]["configured"] is True
     assert payload["config"]["providers"]["google_web_risk"]["configured"] is True
     assert payload["config"]["providers"]["phishing_database"]["configured"] is True
+    assert payload["config"]["providers"]["asf_investor_alerts"]["configured"] is True
+    assert payload["config"]["providers"]["asf_investor_alerts"]["source"] == "Autoritatea de Supraveghere Financiară"
     assert payload["config"]["providers"]["urlhaus"]["configured"] is True
     assert payload["config"]["providers"]["openapi_ro_company"]["configured"] is True
     assert payload["config"]["providers"]["openapi_ro_company"]["policy"] == "paid_escalation_only"

@@ -8,9 +8,12 @@ This module performs:
 """
 
 import hashlib
+import html
 import json
 import os
+import re
 import time
+import unicodedata
 from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -27,14 +30,17 @@ PHISHING_DATABASE_SOURCE = "phishing_database"
 URLHAUS_SOURCE = "urlhaus"
 SCAM_BLOCKLIST_NRD_SOURCE = "scam_blocklist_nrd"
 PHISHDESTROY_SOURCE = "phishdestroy_destroylist"
+ASF_INVESTOR_ALERTS_SOURCE = "asf_investor_alerts"
 
 WEB_RISK_WEIGHT = 60
 PHISHING_DATABASE_WEIGHT = 80
 URLHAUS_WEIGHT = 55
 SCAM_BLOCKLIST_NRD_WEIGHT = 70
 PHISHDESTROY_WEIGHT = 70
+ASF_INVESTOR_ALERTS_WEIGHT = 100
 SOURCE_ORDER = [
     WEB_RISK_SOURCE,
+    ASF_INVESTOR_ALERTS_SOURCE,
     PHISHING_DATABASE_SOURCE,
     URLHAUS_SOURCE,
     SCAM_BLOCKLIST_NRD_SOURCE,
@@ -47,6 +53,7 @@ SOURCE_WEIGHTS = {
     URLHAUS_SOURCE: URLHAUS_WEIGHT,
     SCAM_BLOCKLIST_NRD_SOURCE: SCAM_BLOCKLIST_NRD_WEIGHT,
     PHISHDESTROY_SOURCE: PHISHDESTROY_WEIGHT,
+    ASF_INVESTOR_ALERTS_SOURCE: ASF_INVESTOR_ALERTS_WEIGHT,
 }
 
 SOURCE_STATUS_WEIGHTS = {
@@ -57,7 +64,11 @@ SOURCE_STATUS_WEIGHTS = {
     "error": 0.0,
 }
 
-REPUTATION_CACHE_VERSION = 5
+REPUTATION_CACHE_VERSION = 6
+ASF_INVESTOR_ALERTS_URL = os.getenv(
+    "ASF_INVESTOR_ALERTS_URL",
+    "https://asfromania.ro/ro/a/19/alerte-investitori---informari",
+)
 PHISHING_DATABASE_DOMAINS_URL = os.getenv(
     "PHISHING_DATABASE_DOMAINS_URL",
     "https://raw.githubusercontent.com/Phishing-Database/Phishing.Database/master/phishing-domains-ACTIVE.txt",
@@ -84,6 +95,8 @@ SCAM_BLOCKLIST_NRD_TIMEOUT_SECONDS = float(os.getenv("SCAM_BLOCKLIST_NRD_TIMEOUT
 SCAM_BLOCKLIST_NRD_FEED_TTL_SECONDS = int(os.getenv("SCAM_BLOCKLIST_NRD_FEED_TTL_SECONDS", "21600"))
 PHISHDESTROY_TIMEOUT_SECONDS = float(os.getenv("PHISHDESTROY_TIMEOUT_SECONDS", "4.0"))
 PHISHDESTROY_FEED_TTL_SECONDS = int(os.getenv("PHISHDESTROY_FEED_TTL_SECONDS", "7200"))
+ASF_INVESTOR_ALERTS_TIMEOUT_SECONDS = float(os.getenv("ASF_INVESTOR_ALERTS_TIMEOUT_SECONDS", "4.0"))
+ASF_INVESTOR_ALERTS_FEED_TTL_SECONDS = int(os.getenv("ASF_INVESTOR_ALERTS_FEED_TTL_SECONDS", "21600"))
 URLHAUS_TIMEOUT_SECONDS = float(os.getenv("URLHAUS_TIMEOUT_SECONDS", "3.0"))
 URLHAUS_AUTH_KEY = (
     os.getenv("URLHAUS_AUTH_KEY", "").strip()
@@ -108,9 +121,16 @@ ENABLE_PHISHDESTROY = os.getenv("ENABLE_PHISHDESTROY", "false").strip().lower() 
     "yes",
     "on",
 }
+ENABLE_ASF_INVESTOR_ALERTS = os.getenv("ENABLE_ASF_INVESTOR_ALERTS", "true").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 PHISHING_DATABASE_MAX_FEED_BYTES = int(os.getenv("PHISHING_DATABASE_MAX_FEED_BYTES", "20000000"))
 SCAM_BLOCKLIST_NRD_MAX_FEED_BYTES = int(os.getenv("SCAM_BLOCKLIST_NRD_MAX_FEED_BYTES", "30000000"))
 PHISHDESTROY_MAX_FEED_BYTES = int(os.getenv("PHISHDESTROY_MAX_FEED_BYTES", "10000000"))
+ASF_INVESTOR_ALERTS_MAX_FEED_BYTES = int(os.getenv("ASF_INVESTOR_ALERTS_MAX_FEED_BYTES", "1500000"))
 
 _PHISHING_DATABASE_CACHE: Dict[str, Any] = {
     "loaded_at": 0,
@@ -132,6 +152,13 @@ _PHISHDESTROY_CACHE: Dict[str, Any] = {
     "source_url": PHISHDESTROY_URL,
     "api_url": PHISHDESTROY_API_URL,
     "license": PHISHDESTROY_LICENSE,
+}
+_ASF_INVESTOR_ALERTS_CACHE: Dict[str, Any] = {
+    "loaded_at": 0,
+    "domains": set(),
+    "error": None,
+    "source_url": ASF_INVESTOR_ALERTS_URL,
+    "source_publisher": "Autoritatea de Supraveghere Financiară",
 }
 
 DEFAULT_CACHE_TTL_SECONDS = int(os.getenv("URL_REPUTATION_CACHE_TTL_SECONDS", "43200"))
@@ -306,6 +333,7 @@ def _is_cache_entry_valid(entry: Dict[str, Any], now: int) -> bool:
 def _cache_entry_covers_requested_sources(
     entry: Dict[str, Any],
     *,
+    include_asf_investor_alerts: bool,
     include_phishing_database: bool,
     include_urlhaus: bool,
     include_scam_blocklist_nrd: bool,
@@ -320,6 +348,8 @@ def _cache_entry_covers_requested_sources(
     required_sources: List[str] = []
     if web_risk_enabled:
         required_sources.append(WEB_RISK_SOURCE)
+    if include_asf_investor_alerts and ENABLE_ASF_INVESTOR_ALERTS:
+        required_sources.append(ASF_INVESTOR_ALERTS_SOURCE)
     if include_phishing_database and ENABLE_PHISHING_DATABASE:
         required_sources.append(PHISHING_DATABASE_SOURCE)
     if include_urlhaus and urlhaus_key:
@@ -791,6 +821,76 @@ def _load_phishdestroy_feed() -> Dict[str, Any]:
     return _PHISHDESTROY_CACHE
 
 
+def _asf_investor_alert_domains_from_html(text: str) -> set[str]:
+    decoded = html.unescape(text or "")
+    domains: set[str] = set()
+    paragraphs = re.findall(r"<p\b[^>]*>(.*?)</p>", decoded, flags=re.IGNORECASE | re.DOTALL)
+    if not paragraphs:
+        paragraphs = [decoded]
+
+    def normalize_for_phrase(value: str) -> str:
+        without_tags = re.sub(r"<[^>]+>", " ", value)
+        folded = unicodedata.normalize("NFKD", without_tags).encode("ascii", "ignore").decode("ascii")
+        return re.sub(r"\s+", " ", folded).strip().lower()
+
+    candidate_blocks: List[str] = []
+    for index, paragraph in enumerate(paragraphs):
+        normalized = normalize_for_phrase(paragraph)
+        if not re.search(r"\bnu\s+(este|sunt)\s+autorizat", normalized):
+            continue
+        if index > 0:
+            candidate_blocks.append(paragraphs[index - 1])
+        candidate_blocks.append(paragraph)
+
+    for raw_url in re.findall(r"https?://[^\s<>'\")]+", "\n".join(candidate_blocks), flags=re.IGNORECASE):
+        candidate = raw_url.rstrip(".,;:)]}»”")
+        host = _host_from_url(candidate)
+        if host and "." in host:
+            domains.add(host)
+    return domains
+
+
+def _load_asf_investor_alerts_feed() -> Dict[str, Any]:
+    now = int(time.time())
+    cached_at = _coerce_int(_ASF_INVESTOR_ALERTS_CACHE.get("loaded_at", 0), 0)
+    if cached_at and now - cached_at < ASF_INVESTOR_ALERTS_FEED_TTL_SECONDS:
+        return _ASF_INVESTOR_ALERTS_CACHE
+
+    if not ENABLE_ASF_INVESTOR_ALERTS:
+        _ASF_INVESTOR_ALERTS_CACHE.update({
+            "loaded_at": now,
+            "domains": set(),
+            "error": "disabled",
+            "source_url": ASF_INVESTOR_ALERTS_URL,
+            "source_publisher": "Autoritatea de Supraveghere Financiară",
+        })
+        return _ASF_INVESTOR_ALERTS_CACHE
+
+    try:
+        text = _download_text_feed(
+            ASF_INVESTOR_ALERTS_URL,
+            timeout_seconds=ASF_INVESTOR_ALERTS_TIMEOUT_SECONDS,
+            max_bytes=ASF_INVESTOR_ALERTS_MAX_FEED_BYTES,
+        )
+        _ASF_INVESTOR_ALERTS_CACHE.update({
+            "loaded_at": now,
+            "domains": _asf_investor_alert_domains_from_html(text),
+            "error": None,
+            "source_url": ASF_INVESTOR_ALERTS_URL,
+            "source_publisher": "Autoritatea de Supraveghere Financiară",
+        })
+    except Exception as exc:
+        if not _ASF_INVESTOR_ALERTS_CACHE.get("domains"):
+            _ASF_INVESTOR_ALERTS_CACHE.update({
+                "loaded_at": now,
+                "domains": set(),
+                "source_url": ASF_INVESTOR_ALERTS_URL,
+                "source_publisher": "Autoritatea de Supraveghere Financiară",
+            })
+        _ASF_INVESTOR_ALERTS_CACHE["error"] = str(exc)
+    return _ASF_INVESTOR_ALERTS_CACHE
+
+
 def _canonical_url_variants(url: str) -> set[str]:
     parsed = urlparse(url.strip())
     if not parsed.scheme or not parsed.netloc:
@@ -895,6 +995,90 @@ def _fetch_phishing_database(urls: List[str]) -> Dict[str, Dict[str, Any]]:
                 "domains_loaded": len(domains),
                 "local_domains_loaded": len(local_domains),
                 "links_loaded": len(links),
+            },
+            "query_ms": query_ms,
+        }
+    return output
+
+
+def _fetch_asf_investor_alerts(urls: List[str]) -> Dict[str, Dict[str, Any]]:
+    output: Dict[str, Dict[str, Any]] = {}
+    if not ENABLE_ASF_INVESTOR_ALERTS:
+        for url in urls:
+            output[_url_hash(url)] = {
+                "status": "unknown",
+                "consulted": False,
+                "threat_type": "unknown",
+                "score": 0,
+                "details": {
+                    "status": "disabled",
+                    "provider": ASF_INVESTOR_ALERTS_SOURCE,
+                    "source_url": ASF_INVESTOR_ALERTS_URL,
+                    "source_publisher": "Autoritatea de Supraveghere Financiară",
+                },
+                "query_ms": 0,
+            }
+        return output
+
+    start = time.perf_counter()
+    feed = _load_asf_investor_alerts_feed()
+    query_ms = int((time.perf_counter() - start) * 1000)
+    domains = feed.get("domains") if isinstance(feed.get("domains"), set) else set()
+    error = feed.get("error")
+    source_url = str(feed.get("source_url") or ASF_INVESTOR_ALERTS_URL)
+    source_publisher = str(feed.get("source_publisher") or "Autoritatea de Supraveghere Financiară")
+
+    for url in urls:
+        key = _url_hash(url)
+        if error and not domains:
+            output[key] = {
+                "status": "error",
+                "consulted": True,
+                "threat_type": "error",
+                "score": 0,
+                "details": {
+                    "error": str(error),
+                    "provider": ASF_INVESTOR_ALERTS_SOURCE,
+                    "source_url": source_url,
+                    "source_publisher": source_publisher,
+                },
+                "query_ms": query_ms,
+            }
+            continue
+
+        matched_domain = _domain_matches_feed(_host_from_url(url), domains)
+        if matched_domain:
+            output[key] = {
+                "status": "malicious",
+                "consulted": True,
+                "threat_type": "unauthorized_investment_platform",
+                "score": 100,
+                "details": {
+                    "provider": ASF_INVESTOR_ALERTS_SOURCE,
+                    "status": "listed",
+                    "match_type": "domain",
+                    "matched_value": matched_domain,
+                    "domains_loaded": len(domains),
+                    "feed_version_loaded_at": _coerce_int(feed.get("loaded_at", 0), 0),
+                    "source_url": source_url,
+                    "source_publisher": source_publisher,
+                    "authority_basis": "ASF investor alert: entity is not authorized to provide investment services.",
+                },
+                "query_ms": query_ms,
+            }
+            continue
+
+        output[key] = {
+            "status": "clean",
+            "consulted": True,
+            "threat_type": "unknown",
+            "score": 0,
+            "details": {
+                "status": "not_listed",
+                "provider": ASF_INVESTOR_ALERTS_SOURCE,
+                "domains_loaded": len(domains),
+                "source_url": source_url,
+                "source_publisher": source_publisher,
             },
             "query_ms": query_ms,
         }
@@ -1220,6 +1404,7 @@ def _aggregate_reputation(url: str, per_source: Dict[str, Dict[str, Any]]) -> Di
 def get_reputation_for_urls(
     urls: List[str],
     *,
+    include_asf_investor_alerts: bool = True,
     include_phishing_database: bool = True,
     include_urlhaus: bool = True,
     include_scam_blocklist_nrd: bool = False,
@@ -1262,6 +1447,7 @@ def get_reputation_for_urls(
             and _is_cache_entry_valid(cached_entry, now)
             and _cache_entry_covers_requested_sources(
                 cached_entry,
+                include_asf_investor_alerts=include_asf_investor_alerts,
                 include_phishing_database=bool(include_phishing_database),
                 include_urlhaus=include_urlhaus,
                 include_scam_blocklist_nrd=include_scam_blocklist_nrd,
@@ -1276,6 +1462,9 @@ def get_reputation_for_urls(
 
     if need_fetch:
         web_risk_matches = check_urls_against_web_risk(need_fetch) if web_risk_enabled else {}
+        asf_investor_alerts_matches = (
+            _fetch_asf_investor_alerts(need_fetch) if include_asf_investor_alerts else {}
+        )
         phishing_database_matches = _fetch_phishing_database(need_fetch) if include_phishing_database else {}
         urlhaus_matches = _fetch_urlhaus(need_fetch, urlhaus_key) if include_urlhaus else {}
         scam_blocklist_nrd_matches = (
@@ -1283,6 +1472,8 @@ def get_reputation_for_urls(
         )
         phishdestroy_matches = _fetch_phishdestroy(need_fetch) if include_phishdestroy else {}
         should_persist_results = persist_partial or (
+            (not include_asf_investor_alerts or ENABLE_ASF_INVESTOR_ALERTS)
+            and
             bool(include_phishing_database)
             and include_urlhaus
             and (not include_scam_blocklist_nrd or ENABLE_SCAM_BLOCKLIST_NRD)
@@ -1305,6 +1496,30 @@ def get_reputation_for_urls(
                     "status": "match" if web_risk_entry else "no_match",
                 },
                 "score": 100 if web_risk_entry else 0,
+            }
+
+            asf_default_error = "skipped_fast_scan" if not include_asf_investor_alerts else "not_scanned"
+            asf_investor_alerts_entry = asf_investor_alerts_matches.get(key, {
+                "status": "unknown" if not include_asf_investor_alerts else "error",
+                "threat_type": "unknown" if not include_asf_investor_alerts else "error",
+                "score": 0,
+                "details": {
+                    "status": (
+                        "disabled"
+                        if include_asf_investor_alerts and not ENABLE_ASF_INVESTOR_ALERTS
+                        else asf_default_error
+                    ),
+                    "provider": ASF_INVESTOR_ALERTS_SOURCE,
+                },
+                "query_ms": 0,
+            })
+            per_source[ASF_INVESTOR_ALERTS_SOURCE] = {
+                "status": asf_investor_alerts_entry.get("status", "unknown"),
+                "consulted": bool(include_asf_investor_alerts and ENABLE_ASF_INVESTOR_ALERTS),
+                "threat_type": asf_investor_alerts_entry.get("threat_type", "unknown"),
+                "details": asf_investor_alerts_entry.get("details", {}),
+                "score": _coerce_int(asf_investor_alerts_entry.get("score", 0), 0),
+                "query_ms": _coerce_int(asf_investor_alerts_entry.get("query_ms", 0), 0),
             }
 
             phishing_database_entry = phishing_database_matches.get(key, {
