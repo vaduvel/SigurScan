@@ -12,6 +12,7 @@ import android.os.Bundle
 import android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
 import android.text.Html
 import android.text.Spanned
+import android.util.Log
 import android.view.ViewGroup.LayoutParams
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -38,6 +39,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
@@ -57,6 +59,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -75,7 +78,9 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.common.InputImage
 import java.text.SimpleDateFormat
 import java.io.File
@@ -435,6 +440,19 @@ fun MainScreen(viewModel: ScannerViewModel) {
             invoiceCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
+    var hasQrCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    val qrCameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasQrCameraPermission = granted
+        if (!granted) {
+            Toast.makeText(context, "Permite camera ca să scanezi codul QR.", Toast.LENGTH_SHORT).show()
+        }
+    }
     var showQrScanner by remember { mutableStateOf(false) }
     val closeQrScanner = { showQrScanner = false }
 
@@ -477,7 +495,13 @@ fun MainScreen(viewModel: ScannerViewModel) {
             }
 
             if (showQrScanner) {
+                hasQrCameraPermission =
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
                 QrScannerScreen(
+                    hasCameraPermission = hasQrCameraPermission,
+                    onRequestCameraPermission = {
+                        qrCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                    },
                     onClose = { closeQrScanner() },
                     onQrCodeScanned = { value ->
                         viewModel.text = value
@@ -606,33 +630,19 @@ fun ScanTab(
 @AndroidxOptIn(ExperimentalGetImage::class)
 @Composable
 fun QrScannerScreen(
+    hasCameraPermission: Boolean,
+    onRequestCameraPermission: () -> Unit,
     onClose: () -> Unit,
     onQrCodeScanned: (String) -> Unit,
     onPickImageFallback: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    var hasCameraPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED
-        )
-    }
-    var requestingPermission by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("Poziționează codul QR în zona verde.") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showTorchUnavailable by remember { mutableStateOf(false) }
     var isTorchOn by remember { mutableStateOf(false) }
     var camera by remember { mutableStateOf<Camera?>(null) }
-    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        hasCameraPermission = granted
-        requestingPermission = false
-        if (!granted) {
-            errorMessage = "Permisiunea camerei este necesară pentru scanare."
-        }
-    }
 
     val previewView = remember {
         PreviewView(context).apply {
@@ -644,28 +654,32 @@ fun QrScannerScreen(
         }
     }
     val executor = remember { Executors.newSingleThreadExecutor() }
-    val barcodeScanner = remember { BarcodeScanning.getClient() }
+    val barcodeScanner = remember {
+        runCatching {
+            val options = BarcodeScannerOptions.Builder()
+                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                .build()
+            BarcodeScanning.getClient(options)
+        }.onFailure { throwable ->
+            Log.e("SigurScanQr", "Failed to initialize live QR scanner", throwable)
+        }.getOrNull()
+    }
     val hasScanned = remember { AtomicBoolean(false) }
     var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
+    val liveQrAvailable = barcodeScanner != null
 
     fun stopCamera() {
         cameraProvider?.unbindAll()
     }
 
-    LaunchedEffect(Unit) {
-        if (!hasCameraPermission && !requestingPermission) {
-            requestingPermission = true
-            permissionLauncher.launch(Manifest.permission.CAMERA)
-        }
-    }
-
-    DisposableEffect(hasCameraPermission) {
-        if (!hasCameraPermission) {
+    DisposableEffect(hasCameraPermission, liveQrAvailable) {
+        if (!hasCameraPermission || !liveQrAvailable) {
             return@DisposableEffect onDispose {}
         }
 
         var imageAnalysis: ImageAnalysis? = null
         val providerFuture = ProcessCameraProvider.getInstance(context)
+        val activeScanner = barcodeScanner ?: return@DisposableEffect onDispose {}
 
         val startCamera = Runnable {
             runCatching {
@@ -693,7 +707,7 @@ fun QrScannerScreen(
                     }
 
                     val inputImage = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-                    barcodeScanner.process(inputImage)
+                    activeScanner.process(inputImage)
                         .addOnSuccessListener { barcodes ->
                             val qrValue = barcodes.firstOrNull()?.rawValue?.trim()
                             if (!qrValue.isNullOrBlank() && hasScanned.compareAndSet(false, true)) {
@@ -730,14 +744,14 @@ fun QrScannerScreen(
             camera = null
             imageAnalysis?.clearAnalyzer()
             executor.shutdown()
-            barcodeScanner.close()
+            barcodeScanner?.close()
         }
     }
 
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        if (!hasCameraPermission) {
+        if (!hasCameraPermission || !liveQrAvailable) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
                 color = SigurColors.Canvas
@@ -750,27 +764,37 @@ fun QrScannerScreen(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = "Ai nevoie de acces la cameră pentru scanare live",
+                        text = if (liveQrAvailable) {
+                            "Ai nevoie de acces la cameră pentru scanare live"
+                        } else {
+                            "Scanarea live QR nu este disponibilă pe acest telefon"
+                        },
                         style = MaterialTheme.typography.titleMedium,
                         color = SigurColors.TextPrimary,
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = errorMessage ?: "Apasă „Permite camera” și încearcă din nou.",
+                        text = if (liveQrAvailable) {
+                            errorMessage ?: "Apasă „Permite camera” și încearcă din nou."
+                        } else {
+                            "Poți continua sigur cu scanarea QR din poză."
+                        },
                         color = SigurColors.TextSecondary,
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(24.dp))
-                    Button(
-                        onClick = {
-                            permissionLauncher.launch(Manifest.permission.CAMERA)
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = SigurColors.Brand)
-                    ) {
-                        Text("Permite camera")
+                    if (liveQrAvailable) {
+                        Button(
+                            onClick = {
+                                onRequestCameraPermission()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = SigurColors.Brand)
+                        ) {
+                            Text("Permite camera")
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
                     OutlinedButton(onClick = onPickImageFallback) {
                         Text("Scanează din poză")
                     }
@@ -968,9 +992,14 @@ fun RadarTab(viewModel: ScannerViewModel) {
             audit = viewModel.radarScreeningAudit,
             loading = viewModel.radarHotCacheLoading,
             status = viewModel.radarHotCacheStatus,
+            reportPhoneInput = viewModel.radarReportPhoneInput,
+            reportPhoneLoading = viewModel.radarReportPhoneLoading,
+            reportPhoneStatus = viewModel.radarReportPhoneStatus,
             onSync = { viewModel.syncRadarHotCache() },
             onRefreshAudit = { viewModel.refreshRadarScreeningAudit() },
-            onEnableRole = { requestCallScreeningRole(context) }
+            onEnableRole = { requestCallScreeningRole(context) },
+            onReportPhoneInputChange = { viewModel.radarReportPhoneInput = it },
+            onReportPhone = { viewModel.reportRadarPhoneNumber() }
         )
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -1669,9 +1698,14 @@ private fun RadarCallProtectionCard(
     audit: RadarScreeningAudit?,
     loading: Boolean,
     status: String?,
+    reportPhoneInput: String,
+    reportPhoneLoading: Boolean,
+    reportPhoneStatus: String?,
     onSync: () -> Unit,
     onRefreshAudit: () -> Unit,
-    onEnableRole: () -> Unit
+    onEnableRole: () -> Unit,
+    onReportPhoneInputChange: (String) -> Unit,
+    onReportPhone: () -> Unit
 ) {
     val expired = cache?.isExpired() ?: true
     val cacheText = when {
@@ -1713,6 +1747,50 @@ private fun RadarCallProtectionCard(
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
+            OutlinedTextField(
+                value = reportPhoneInput,
+                onValueChange = onReportPhoneInputChange,
+                enabled = !reportPhoneLoading,
+                singleLine = true,
+                label = { Text("Număr primit") },
+                supportingText = {
+                    Text(
+                        "Raportăm doar amprenta numărului; nu trimitem contacte sau jurnalul de apeluri.",
+                        color = SigurColors.TextMuted,
+                        fontSize = 10.sp,
+                        lineHeight = 13.sp
+                    )
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = SigurColors.Brand,
+                    unfocusedBorderColor = SigurColors.GlassBorder,
+                    focusedTextColor = SigurColors.TextPrimary,
+                    unfocusedTextColor = SigurColors.TextPrimary,
+                    focusedLabelColor = SigurColors.Brand,
+                    unfocusedLabelColor = SigurColors.TextSecondary,
+                    cursorColor = SigurColors.Brand
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+            reportPhoneStatus?.takeIf { it.isNotBlank() }?.let {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(it, color = SigurColors.TextSecondary, fontSize = 11.sp, lineHeight = 15.sp)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = onReportPhone,
+                enabled = !reportPhoneLoading && reportPhoneInput.isNotBlank(),
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = SigurColors.BackgroundSurface),
+                border = BorderStroke(1.dp, SigurColors.Brand),
+                shape = DSPillShape
+            ) {
+                Icon(Icons.Default.Report, contentDescription = null, tint = SigurColors.Brand, modifier = Modifier.size(14.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(if (reportPhoneLoading) "Se raportează..." else "Raportează număr suspect", color = SigurColors.Brand, fontSize = 11.sp)
+            }
+            Spacer(modifier = Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 Button(
                     onClick = onSync,
@@ -1724,7 +1802,7 @@ private fun RadarCallProtectionCard(
                 ) {
                     Icon(Icons.Default.Refresh, contentDescription = null, tint = SigurColors.Brand, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (loading) "Sync..." else "Sincronizează", color = SigurColors.Brand, fontSize = 11.sp)
+                    Text(if (loading) "Sync..." else "Sync", color = SigurColors.Brand, fontSize = 11.sp, maxLines = 1)
                 }
                 Button(
                     onClick = onRefreshAudit,
@@ -1735,7 +1813,7 @@ private fun RadarCallProtectionCard(
                 ) {
                     Icon(Icons.Default.History, contentDescription = null, tint = SigurColors.TextPrimary, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Ultimul apel", color = SigurColors.TextPrimary, fontSize = 11.sp)
+                    Text("Ultim", color = SigurColors.TextPrimary, fontSize = 11.sp, maxLines = 1)
                 }
                 Button(
                     onClick = onEnableRole,
@@ -1746,7 +1824,7 @@ private fun RadarCallProtectionCard(
                 ) {
                     Icon(Icons.Default.SettingsPhone, contentDescription = null, tint = SigurColors.TextPrimary, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Activează", color = SigurColors.TextPrimary, fontSize = 11.sp)
+                    Text("Rol", color = SigurColors.TextPrimary, fontSize = 11.sp, maxLines = 1)
                 }
             }
         }
@@ -2261,11 +2339,11 @@ fun MoreTab(viewModel: ScannerViewModel) {
             ReportsTab(viewModel)
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            ContrastSection()
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
-
-        ContrastSection()
-
-        Spacer(modifier = Modifier.height(16.dp))
 
         Card(
             colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
@@ -5269,12 +5347,15 @@ private fun BottomNavItem(
 
 @Composable
 fun BottomNavigationBar(activeTab: String, onTabClick: (String) -> Unit) {
+    val navigationBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(80.dp)
+            .height(80.dp + navigationBarInset)
             .background(SigurColors.BackgroundCard)
-            .border(BorderStroke(1.dp, SigurColors.BorderSubtle)),
+            .border(BorderStroke(1.dp, SigurColors.BorderSubtle))
+            .padding(bottom = navigationBarInset),
         verticalAlignment = Alignment.Top
     ) {
         BottomNavItem(
@@ -5297,7 +5378,8 @@ fun BottomNavigationBar(activeTab: String, onTabClick: (String) -> Unit) {
         Box(
             modifier = Modifier
                 .weight(1f)
-                .fillMaxHeight(),
+                .fillMaxHeight()
+                .clickable { onTabClick("scan") },
             contentAlignment = Alignment.TopCenter
         ) {
             Box(
@@ -5310,8 +5392,7 @@ fun BottomNavigationBar(activeTab: String, onTabClick: (String) -> Unit) {
                         brush = androidx.compose.ui.graphics.Brush.linearGradient(
                             colors = listOf(Color(0xFF5B86FF), SigurColors.Brand, Color(0xFF3552D6))
                         )
-                    )
-                    .clickable { onTabClick("scan") },
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

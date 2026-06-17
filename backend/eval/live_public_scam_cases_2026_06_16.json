@@ -1,0 +1,112 @@
+[
+  {
+    "case_id": "public_ro_police_spoofing_safe_account",
+    "case_kind": "live_public_case_smoke",
+    "title": "Politia Romana: spoofing banca + politie + cont sigur",
+    "text": "Transcriere apel: Buna ziua, va sunam de la banca. In sistem apare ca ati solicitat un imprumut suspect. Pentru protectie va transferam catre Politie. Buna ziua, sunt inspector de politie. Ca sa va protejam banii, transferati urgent soldul intr-un cont sigur indicat de noi si nu discutati cu nimeni pana finalizam procedura.",
+    "expected_labels": ["DANGEROUS", "PERICULOS"],
+    "max_seconds": 120,
+    "source_refs": [
+      {
+        "publisher": "Politia Romana",
+        "url": "https://politiaromana.ro/ro/stiri-si-media/comunicate/tehnica-de-tip-spoofing-o-alta-metoda-de-inselaciune",
+        "basis": "Cazuri de spoofing VoIP in care autorii pretind ca sunt de la banca/politie si cer transfer intr-un cont sigur."
+      }
+    ]
+  },
+  {
+    "case_id": "public_ro_anaf_business_remote_access",
+    "case_kind": "live_public_case_smoke",
+    "title": "ANAF impersonare firma + banking + remote access",
+    "text": "Transcriere apel: Sunt inspector ANAF. Avem o verificare urgenta pentru firma dvs. si trebuie sa actualizam datele bancare. Instalati AnyDesk pe telefon, intrati in internet banking si confirmati codul primit prin SMS ca sa evitati blocarea conturilor societatii.",
+    "expected_labels": ["DANGEROUS", "PERICULOS"],
+    "max_seconds": 120,
+    "source_refs": [
+      {
+        "publisher": "Digi24 / Politia Romana",
+        "url": "https://www.digi24.ro/stiri/actualitate/avertismentul-politiei-romane-au-crescut-cazurile-de-inselaciune-in-numele-anaf-cateva-scheme-de-frauda-explicate-3814679",
+        "basis": "Avertisment public despre cresterea inselaciunilor care folosesc identitatea ANAF si institutii bancare, inclusiv firme."
+      }
+    ]
+  },
+  {
+    "case_id": "public_ro_mai_trading_remote_access",
+    "case_kind": "live_public_case_smoke",
+    "title": "MAI: trading scam + remote access + randament imposibil",
+    "text": "Consultant investitii: Avem o oportunitate limitata azi. Nu aveti nevoie de cunostinte de trading, totul este automat. Instalati AnyDesk ca sa va ajut sa deschideti contul, investiti 5000 RON si aveti randament garantat de 500%. Pentru retragere va trebui achitata o taxa suplimentara.",
+    "expected_labels": ["DANGEROUS", "PERICULOS"],
+    "max_seconds": 120,
+    "source_refs": [
+      {
+        "publisher": "Ministerul Afacerilor Interne",
+        "url": "https://www.mai.gov.ro/atentie-la-inselaciunile-prin-metoda-trading-scam/",
+        "basis": "Trading scam cu apel/SMS/email, aplicatii de control la distanta, promisiuni de castiguri foarte mari si taxe inainte de retragere."
+      }
+    ]
+  },
+  {
+    "case_id": "public_ro_ing_invoice_iban_change",
+    "case_kind": "live_public_case_smoke",
+    "title": "ING: frauda factura cu modificare IBAN furnizor",
+    "text": "Email furnizor: Buna ziua, pentru facturile viitoare va rugam sa nu mai folositi contul vechi. Achitati factura 1042 in noul IBAN RO49AAAA1B31007593840000. Plata este urgenta, iar modificarile au fost aprobate intern. Folositi doar datele din acest mesaj.",
+    "expected_labels": ["SUSPECT", "DANGEROUS", "SUSPECTED", "PERICULOS"],
+    "max_seconds": 120,
+    "source_refs": [
+      {
+        "publisher": "ING Bank Romania",
+        "url": "https://ing.ro/inbusiness-blog-antreprenori/business-abc/Cum-ne-ferim",
+        "basis": "Recomandare publica: verifica solicitarile creditorilor care cer modificarea detaliilor bancare si confirma prin contacte deja cunoscute."
+      }
+    ]
+  },
+  {
+    "case_id": "public_ro_siguranta_marketplace_card_collection",
+    "case_kind": "live_public_case_smoke",
+    "title": "Siguranta Online: marketplace link fals pentru incasare bani pe card",
+    "text": "Mesaj WhatsApp: Salut, am cumparat produsul de pe OLX si am platit deja transportul. Ca sa incasezi banii, intra pe linkul primit, completeaza numarul cardului, data expirarii, CVV si codul 3D Secure. Cardul tau este necesar pentru incasare.",
+    "expected_labels": ["DANGEROUS", "PERICULOS"],
+    "max_seconds": 120,
+    "source_refs": [
+      {
+        "publisher": "Siguranta Online",
+        "url": "https://sigurantaonline.ro/cele-mai-frecvente-tipuri-de-fraude-din-romania/",
+        "basis": "Frauda marketplace: mutarea conversatiei, link fals pentru incasare si solicitare date card/CVV/3D Secure."
+      }
+    ]
+  },
+  {
+    "case_id": "public_ro_bt_phone_card_data",
+    "case_kind": "live_public_case_smoke",
+    "title": "Banca Transilvania: apel aparent BT care cere date card",
+    "text": "Transcriere apel: Buna ziua, suntem de la Banca Transilvania, departamentul securitate. Aveti o tranzactie suspecta si trebuie sa validam rapid cardul. Spuneti-ne numarul cardului, data expirarii, CVV si codul primit prin SMS ca sa anulam plata.",
+    "expected_labels": ["DANGEROUS", "PERICULOS"],
+    "max_seconds": 120,
+    "source_refs": [
+      {
+        "publisher": "Banca Transilvania",
+        "url": "https://www.bancatransilvania.ro/siguranta-online/tipuri-de-fraude",
+        "basis": "BT avertizeaza ca un apel aparent de la banca nu trebuie sa ceara datele cardului prin telefon."
+      }
+    ]
+  },
+  {
+    "case_id": "public_ro_asf_whatsapp_investment_group",
+    "case_kind": "live_public_case_smoke",
+    "title": "ASF: grup WhatsApp/Telegram de investitii + platforma neautorizata",
+    "text": "Mesaj WhatsApp: Buna ziua, sunt consultant in grupul nostru educational de investitii. Platforma este autorizata si lucram cu ASF. Depuneti azi 1200 RON, aveti randament garantat 35% pe saptamana si pentru retragerea profitului achitati taxa de validare. Nu discutati cu banca, va ghidam noi pas cu pas.",
+    "expected_labels": ["DANGEROUS", "PERICULOS"],
+    "max_seconds": 120,
+    "source_refs": [
+      {
+        "publisher": "Autoritatea de Supraveghere Financiara",
+        "url": "https://www.asfromania.ro/ro/a/1523/atentie-la-entitati-neautorizate%21",
+        "basis": "ASF avertizeaza despre scheme de investitii prezentate ca grupuri educationale pe WhatsApp/Telegram si platforme sociale."
+      },
+      {
+        "publisher": "Autoritatea de Supraveghere Financiara",
+        "url": "https://asfromania.ro/ro/a/19/alerte-investitori---informari",
+        "basis": "ASF publica alerte despre entitati/platforme neautorizate pentru servicii de investitii."
+      }
+    ]
+  }
+]

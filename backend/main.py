@@ -6,13 +6,15 @@ import ipaddress
 import time
 import json
 import urllib.parse
+import hmac
+import base64
 from pathlib import Path
 from collections import Counter, defaultdict, deque
 import hashlib
 import traceback  # noqa: used in _on_startup for debug
 import requests
-from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any, Callable
+from datetime import datetime, timedelta, timezone
+from typing import Optional, List, Dict, Any, Callable, Tuple
 
 try:
     from dotenv import load_dotenv
@@ -147,6 +149,11 @@ ADMIN_API_KEYS = {
     for key in (os.getenv("SIGURSCAN_ADMIN_API_KEYS") or "").split(",")
     if key.strip()
 }
+INTERNAL_WORKER_TOKEN = (
+    os.getenv("SIGURSCAN_INTERNAL_WORKER_TOKEN")
+    or os.getenv("INTERNAL_WORKER_TOKEN")
+    or ""
+).strip()
 
 # Operator telemetry/dashboards. Fail closed: without configured admin keys
 # these return 403 even in deployments that leave client auth disabled.
@@ -264,6 +271,26 @@ if not ALLOWED_ORIGINS:
 SIGURSCAN_PUBLIC_API_BASE_URL = (
     os.getenv("SIGURSCAN_PUBLIC_API_BASE_URL", "https://api.sigurscan.com").strip().rstrip("/")
 )
+CLOUD_TASKS_PROJECT = (
+    os.getenv("CLOUD_TASKS_PROJECT")
+    or os.getenv("GOOGLE_CLOUD_PROJECT")
+    or os.getenv("GCP_PROJECT")
+    or ""
+).strip()
+CLOUD_TASKS_LOCATION = os.getenv("CLOUD_TASKS_LOCATION", "").strip()
+CLOUD_TASKS_QUEUE = os.getenv("CLOUD_TASKS_QUEUE", "").strip()
+ORCHESTRATED_CLOUD_TASKS_ENABLED = os.getenv(
+    "ORCHESTRATED_CLOUD_TASKS_ENABLED",
+    "false",
+).strip().lower() in {"1", "true", "yes", "on"}
+CLOUD_TASKS_METADATA_TOKEN_URL = os.getenv(
+    "CLOUD_TASKS_METADATA_TOKEN_URL",
+    "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
+).strip()
+CLOUD_TASKS_REQUEST_TIMEOUT_SECONDS = float(os.getenv("CLOUD_TASKS_REQUEST_TIMEOUT_SECONDS", "4.0"))
+ORCHESTRATED_CLOUD_TASKS_CONTINUE_DELAY_SECONDS = int(
+    os.getenv("ORCHESTRATED_CLOUD_TASKS_CONTINUE_DELAY_SECONDS", "3")
+)
 _LEGACY_SCREENSHOT_PROXY_HOSTS = {
     "nudaclick-backend.vercel.app",
     "sigurscan-backend.vercel.app",
@@ -358,7 +385,7 @@ TRACKING_QUERY_PARAMS = {
     "mc_eid",
 }
 _BACKEND_DIR = Path(__file__).resolve().parent
-EVAL_DATASET_DEFAULT_PATH = _BACKEND_DIR / "data" / "eval_dataset.jsonl"
+EVAL_DATASET_DEFAULT_PATH = _BACKEND_DIR / "data" / "evaluation_dataset_v1.jsonl"
 EVAL_DATASET_ALLOWED_ROOT = (_BACKEND_DIR / "data").resolve()
 if PRIVACY_SAFE_MODE:
     logger.warning("SIGURSCAN_SAFE_MODE activ: verificările externe pentru URL/reputație și Gemini sunt dezactivate.")
@@ -382,6 +409,26 @@ def _extract_api_key(request: Request) -> str:
     return api_key.strip()
 
 
+def _internal_worker_token_matches(request: Request) -> bool:
+    if not INTERNAL_WORKER_TOKEN:
+        return False
+    provided = (
+        request.headers.get("X-Internal-Worker-Token")
+        or request.headers.get("X-Cloud-Tasks-Token")
+        or ""
+    ).strip()
+    return bool(provided) and hmac.compare_digest(provided, INTERNAL_WORKER_TOKEN)
+
+
+def _require_internal_worker_auth(request: Request) -> None:
+    if _internal_worker_token_matches(request):
+        return
+    api_key = _extract_api_key(request)
+    if api_key and api_key in (ALLOWED_API_KEYS | ADMIN_API_KEYS):
+        return
+    raise HTTPException(status_code=401, detail="Missing or invalid internal worker token.")
+
+
 def _is_screenshot_proxy_path(path: str) -> bool:
     return bool(_SCREENSHOT_PROXY_PATH_RE.match(path))
 
@@ -397,8 +444,11 @@ async def security_guard(request: Request, call_next):
         return await call_next(request)
 
     api_key = _extract_api_key(request)
+    internal_worker_authorized = path.startswith("/internal/") and _internal_worker_token_matches(request)
 
     # Operator endpoints: separate admin keys, fail closed when unconfigured.
+    if internal_worker_authorized:
+        return await call_next(request)
     if path in ADMIN_ONLY_PATHS:
         if not ADMIN_API_KEYS:
             return JSONResponse(
@@ -2622,6 +2672,53 @@ def _has_direct_sensitive_request(raw_text: str) -> bool:
     )
 
 
+def _has_investment_money_risk(raw_text: str) -> bool:
+    normalized = _normalise_obfuscated_text(raw_text or "").lower()
+    if not normalized:
+        return False
+
+    investment_context = bool(re.search(
+        r"\b("
+        r"investi[țt]i(?:e|i|ilor|ilor)?|investit(?:i|e|or)|trading|broker|randament|profit|"
+        r"platform[ăa]\s+(?:de\s+)?(?:investi[țt]ii|trading)|portofoliu|crypto|wallet|asf|"
+        r"grup(?:ul)?\s+(?:educa[țt]ional|de\s+investi[țt]ii)|whatsapp|telegram"
+        r")\b",
+        normalized,
+        re.IGNORECASE,
+    ))
+    if not investment_context:
+        return False
+
+    positive_money_action = bool(re.search(
+        r"\b("
+        r"depune(?:[țt]i|ti)?|depun(?:e|e[țt]i|eti)|depozit(?:eaz[ăa])?|alimenteaz[ăa]|"
+        r"investi[țt]i(?:[țt]i|ti)?|achit(?:a|[ăa]|a[țt]i|ati)|pl[ăa]t(?:e[șs]te|i[țt]i|iti)|"
+        r"transfer(?:a|[ăa]|a[țt]i|ati)|tax[ăa]|comision|validare|retragere|wallet|crypto|"
+        r"ron|lei|eur|euro|usd|dolari|\d+\s*%"
+        r")\b",
+        normalized,
+        re.IGNORECASE,
+    ))
+    guaranteed_return = bool(re.search(
+        r"\b(randament|profit|c[âa]știg|castig|venit)\b.{0,50}\b(garantat|fix|sigur|\d+\s*%)\b",
+        normalized,
+        re.IGNORECASE,
+    ))
+    withdrawal_fee = bool(re.search(
+        r"\b(tax[ăa]|comision|validare)\b.{0,60}\b(retragere|profit|c[âa]știg|castig)\b",
+        normalized,
+        re.IGNORECASE,
+    ))
+    direct_warning = bool(re.search(
+        r"\b(nu\s+(?:investi|depune|achita|pl[ăa]ti|transfera)|nu\s+da\s+curs)\b",
+        normalized,
+        re.IGNORECASE,
+    ))
+    if direct_warning and not (positive_money_action or guaranteed_return or withdrawal_fee):
+        return False
+    return positive_money_action or guaranteed_return or withdrawal_fee
+
+
 def _has_decisive_sensitive_intent(text: str) -> bool:
     normalized = _normalise_obfuscated_text(text or "").lower()
     money_or_delivery_markers = (
@@ -3036,6 +3133,8 @@ def _request_sensitivity_from_signals(
         return "otp"
     if re.search(r"\b(cvv|cvc|date(?:le)? de card|num[aă]r(?:ul)? de card)\b", normalized) and direct_sensitive_request:
         return "card"
+    if _has_investment_money_risk(normalized):
+        return "transfer"
 
     if sensitive_url_path and not official_destination:
         for entry in resolved_urls or []:
@@ -3047,15 +3146,27 @@ def _request_sensitivity_from_signals(
                 return "password"
 
     money_request_pattern = (
-        r"(?:bani|lei|euro|cash|numerar|sum[ăa]|garan[țt]ie|opera[țt]ie|cau[țt]iune|cautiune)"
+        r"(?:bani|lei|ron|eur|euro|usd|dolari|cash|numerar|sum[ăa]|garan[țt]ie|opera[țt]ie|"
+        r"cau[țt]iune|cautiune|tax[ăa]|comision|validare|retragere|profit|randament)"
     )
     money_action_pattern = (
-        r"(?:transfer[aă]?|trimite[țt]i?|trimite|trimit|achit[aă]?|pl[ăa]te[șs]te|plati[țt]i?|depune|depun[eă]|virament|iban)"
+        r"(?:transfer[aă]?|transfera[țt]i?|transferati|trimite[țt]i?|trimite|trimit|achit[aă]?|"
+        r"achita[țt]i?|achitati|pl[ăa]te[șs]te|plati[țt]i?|platiti|depune|depune[țt]i?|depuneti|"
+        r"depun[eă]|depoziteaz[ăa]?|alimenteaz[ăa]?|virament|iban)"
+    )
+    currency_amount_pattern = (
+        r"(?:\b\d[\d\s.,]*(?:ron|lei|eur|euro|usd|dolari)\b|[€$]\s*\d)"
+    )
+    money_destination_pattern = (
+        r"(?:cont(?:ul)?\s+(?:nou|sigur)|iban|beneficiar(?:ul)?|partener(?:ul)?)"
     )
     if (
-        re.search(r"\b(cont sigur|transfer[aă] fondurile|transfer[aă] bani|iban)\b", normalized)
+        re.search(r"\b(cont sigur|cont(?:ul)?\s+nou|transfer[aă] fondurile|transfer[aă] bani|iban)\b", normalized)
         or re.search(rf"\b{money_action_pattern}\b.{{0,80}}\b{money_request_pattern}\b", normalized)
         or re.search(rf"\b{money_request_pattern}\b.{{0,80}}\b{money_action_pattern}\b", normalized)
+        or re.search(rf"\b{money_action_pattern}\b.{{0,100}}{currency_amount_pattern}", normalized)
+        or re.search(rf"{currency_amount_pattern}.{{0,100}}\b{money_action_pattern}\b", normalized)
+        or re.search(rf"\b{money_action_pattern}\b.{{0,100}}\b{money_destination_pattern}\b", normalized)
     ):
         return "transfer"
 
@@ -3245,7 +3356,12 @@ def _calibrate_semantic_review_with_tier1(
     except (TypeError, ValueError):
         confidence = 0.0
 
-    if label not in TIER1_LEGIT_LABELS or confidence < 0.55 or _has_direct_sensitive_request(raw_text):
+    if (
+        label not in TIER1_LEGIT_LABELS
+        or confidence < 0.55
+        or _has_direct_sensitive_request(raw_text)
+        or _has_investment_money_risk(raw_text)
+    ):
         return review
 
     calibrated = dict(review)
@@ -5513,6 +5629,82 @@ def _public_route_url(request: Request, route_name: str, **path_params: Any) -> 
     return f"{public_base}{path}{query}"
 
 
+def _orchestrated_cloud_tasks_configured() -> bool:
+    return bool(
+        ORCHESTRATED_CLOUD_TASKS_ENABLED
+        and CLOUD_TASKS_PROJECT
+        and CLOUD_TASKS_LOCATION
+        and CLOUD_TASKS_QUEUE
+        and INTERNAL_WORKER_TOKEN
+    )
+
+
+def _cloud_tasks_access_token() -> str:
+    response = requests.get(
+        CLOUD_TASKS_METADATA_TOKEN_URL,
+        headers={"Metadata-Flavor": "Google"},
+        timeout=CLOUD_TASKS_REQUEST_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    token = str((response.json() or {}).get("access_token") or "").strip()
+    if not token:
+        raise RuntimeError("Cloud Tasks metadata token is empty")
+    return token
+
+
+def _orchestrated_worker_task_url(scan_id: str, *, max_steps: int = 1) -> str:
+    safe_scan_id = urllib.parse.quote(str(scan_id), safe="")
+    step_budget = max(1, min(int(max_steps or 1), 3))
+    public_base = SIGURSCAN_PUBLIC_API_BASE_URL or "https://api.sigurscan.com"
+    return f"{public_base}/internal/orchestrated/{safe_scan_id}/advance?max_steps={step_budget}"
+
+
+def _enqueue_orchestrated_worker_task(
+    scan_id: str,
+    request: Request,
+    *,
+    delay_seconds: int = 0,
+    max_steps: int = 1,
+) -> bool:
+    if not _orchestrated_cloud_tasks_configured():
+        return False
+    try:
+        access_token = _cloud_tasks_access_token()
+        queue_url = (
+            f"https://cloudtasks.googleapis.com/v2/projects/{CLOUD_TASKS_PROJECT}/"
+            f"locations/{CLOUD_TASKS_LOCATION}/queues/{CLOUD_TASKS_QUEUE}/tasks"
+        )
+        body = json.dumps({"scan_id": str(scan_id)}, ensure_ascii=False).encode("utf-8")
+        task: Dict[str, Any] = {
+            "httpRequest": {
+                "httpMethod": "POST",
+                "url": _orchestrated_worker_task_url(scan_id, max_steps=max_steps),
+                "headers": {
+                    "Content-Type": "application/json",
+                    "X-Internal-Worker-Token": INTERNAL_WORKER_TOKEN,
+                },
+                "body": base64.b64encode(body).decode("ascii"),
+            }
+        }
+        if delay_seconds > 0:
+            run_at = datetime.now(timezone.utc) + timedelta(seconds=delay_seconds)
+            task["scheduleTime"] = run_at.isoformat().replace("+00:00", "Z")
+        response = requests.post(
+            queue_url,
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+            },
+            json={"task": task},
+            timeout=CLOUD_TASKS_REQUEST_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        return True
+    except Exception as exc:
+        logger.warning("orchestrated Cloud Tasks enqueue failed: %s", type(exc).__name__)
+        return False
+
+
 def _normalize_urlscan_preview_cache_entry(entry: Any) -> Optional[Dict[str, Any]]:
     if not isinstance(entry, dict):
         return None
@@ -7024,6 +7216,88 @@ def _orchestrated_status_payload(job: Dict[str, Any]) -> Dict[str, Any]:
             "urlscan_status": (job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}).get("status"),
         },
     }
+
+
+def _orchestrated_revision(job: Dict[str, Any]) -> int:
+    revision = job.get("_storage_revision")
+    if revision is None:
+        revision = job.get("revision")
+    try:
+        return int(revision)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _orchestrated_verdict_state(status_payload: Dict[str, Any]) -> str:
+    result = status_payload.get("result")
+    status = str(status_payload.get("status") or "").strip().lower()
+    if isinstance(result, dict):
+        if result.get("is_final", True) is not False:
+            return "verdict_done"
+        return "verdict_pending"
+    if status in {"incomplete", "error"}:
+        return "verdict_error"
+    return "running"
+
+
+def _orchestrated_preview_state(status_payload: Dict[str, Any]) -> str:
+    preview = status_payload.get("preview") if isinstance(status_payload.get("preview"), dict) else {}
+    preview_status = str(preview.get("status") or "").strip().lower()
+    reason = str(preview.get("reason") or "").strip().lower()
+    has_visual = bool(preview.get("image_url") or preview.get("screenshot_url"))
+    if preview_status == "ready" or has_visual:
+        return "ready"
+    if reason in {"no_url", "privacy_safe_mode"}:
+        return "not_applicable"
+    if preview_status == "pending" or reason in {"urlscan_pending", "urlscan_screenshot_pending"}:
+        return "pending"
+    if preview_status == "unavailable" or reason in {
+        "final_url_unresolved",
+        "preview_unavailable",
+        "urlscan_timeout",
+        "urlscan_screenshot_timeout",
+    }:
+        return "timeout"
+    return "unknown"
+
+
+def _orchestrated_read_status_payload(job: Dict[str, Any], *, changed: bool) -> Dict[str, Any]:
+    payload = _orchestrated_status_payload(job)
+    payload["revision"] = _orchestrated_revision(job)
+    payload["changed"] = bool(changed)
+    payload["verdict_state"] = _orchestrated_verdict_state(payload)
+    payload["preview_state"] = _orchestrated_preview_state(payload)
+    return payload
+
+
+def _orchestrated_status_changed(job: Dict[str, Any], after_revision: Optional[int]) -> bool:
+    if after_revision is None:
+        return True
+    return _orchestrated_revision(job) > after_revision
+
+
+def _orchestrated_worker_can_stop(status_payload: Dict[str, Any]) -> bool:
+    if status_payload.get("verdict_state") != "verdict_done":
+        return False
+    return status_payload.get("preview_state") in {"ready", "timeout", "not_applicable"}
+
+
+async def _wait_for_orchestrated_status_read(
+    scan_id: str,
+    *,
+    after_revision: Optional[int],
+    wait_seconds: float,
+) -> Tuple[Optional[Dict[str, Any]], bool]:
+    deadline = time.monotonic() + max(0.0, min(wait_seconds, 20.0))
+    while True:
+        job = _load_orchestrated_job(scan_id)
+        if not isinstance(job, dict):
+            return None, False
+        changed = _orchestrated_status_changed(job, after_revision)
+        remaining = deadline - time.monotonic()
+        if changed or remaining <= 0:
+            return job, changed
+        await asyncio.sleep(min(0.75, remaining))
 
 
 def _orchestrated_can_finalize_result(job: Dict[str, Any], pillars: Dict[str, Dict[str, Any]]) -> bool:
@@ -8737,6 +9011,58 @@ async def _refresh_orchestrated_job_impl(job: Dict[str, Any], request: Request) 
     return await _finalize_orchestrated_job_if_ready(job, request)
 
 
+@app.post("/internal/orchestrated/{scan_id}/advance")
+async def advance_orchestrated_scan_worker(scan_id: str, request: Request, max_steps: int = 1):
+    _require_internal_worker_auth(request)
+    _prune_orchestrated_jobs()
+    step_budget = max(1, min(int(max_steps or 1), 3))
+    steps = 0
+    worker_state = "idle"
+    job: Optional[Dict[str, Any]] = None
+    lock = _ORCHESTRATED_SCAN_LOCKS.setdefault(scan_id, asyncio.Lock())
+    async with lock:
+        job = _load_orchestrated_job(scan_id)
+        if not isinstance(job, dict):
+            raise HTTPException(status_code=404, detail="Scanarea nu a fost gasita sau a expirat.")
+        for _ in range(step_budget):
+            if isinstance(job.get("_storage_revision"), int):
+                claimed_job = _claim_distributed_orchestrated_refresh(job)
+                if claimed_job is None:
+                    latest = _load_orchestrated_job(scan_id)
+                    if isinstance(latest, dict):
+                        job = latest
+                    worker_state = "locked"
+                    break
+                job = claimed_job
+            job = await _refresh_orchestrated_job(job, request)
+            status_payload = _orchestrated_status_payload(job)
+            job = _persist_orchestrated_job(job)
+            steps += 1
+            worker_state = "advanced"
+            read_payload = _orchestrated_read_status_payload(job, changed=True)
+            if _orchestrated_worker_can_stop(read_payload):
+                break
+
+    if not isinstance(job, dict):
+        raise HTTPException(status_code=404, detail="Scanarea nu a fost gasita sau a expirat.")
+    payload = _orchestrated_read_status_payload(job, changed=True)
+    requeued = False
+    if worker_state == "advanced" and not _orchestrated_worker_can_stop(payload):
+        requeued = _enqueue_orchestrated_worker_task(
+            scan_id,
+            request,
+            delay_seconds=ORCHESTRATED_CLOUD_TASKS_CONTINUE_DELAY_SECONDS,
+            max_steps=1,
+        )
+    payload["worker"] = {
+        "state": worker_state,
+        "steps": steps,
+        "max_steps": step_budget,
+        "requeued": requeued,
+    }
+    return payload
+
+
 @app.post("/v1/scan/orchestrated")
 async def start_orchestrated_scan(payload: OrchestratedScanRequest, request: Request):
     """
@@ -8747,7 +9073,25 @@ async def start_orchestrated_scan(payload: OrchestratedScanRequest, request: Req
     job = await _create_orchestrated_job(payload)
     response = _orchestrated_status_payload(job)
     job = _persist_orchestrated_job(job)
+    _enqueue_orchestrated_worker_task(job["scan_id"], request, delay_seconds=0, max_steps=1)
     return response
+
+
+@app.get("/v1/scan/orchestrated/{scan_id}/status")
+async def get_orchestrated_scan_status(
+    scan_id: str,
+    after_revision: Optional[int] = None,
+    wait: float = 0.0,
+):
+    _prune_orchestrated_jobs()
+    job, changed = await _wait_for_orchestrated_status_read(
+        scan_id,
+        after_revision=after_revision,
+        wait_seconds=wait,
+    )
+    if not isinstance(job, dict):
+        raise HTTPException(status_code=404, detail="Scanarea nu a fost gasita sau a expirat.")
+    return _orchestrated_read_status_payload(job, changed=changed)
 
 
 @app.get("/v1/scan/orchestrated/{scan_id}")
@@ -9534,20 +9878,34 @@ async def radar_hot_iocs(since: Optional[float] = None):
                 edges=graph_rows.get("edges", []),
                 allowlist=graph_rows.get("allowlist", []),
             )
-            graph_observation_keys = {
-                (
+            graph_report_counts: Dict[Tuple[str, str], int] = {}
+            for row in graph_rows.get("observations", []):
+                key = (
                     str(row.get("target_type") or "unknown").strip().lower(),
                     str(row.get("target_hash") or row.get("hash") or "").strip().lower(),
                 )
-                for row in graph_rows.get("observations", [])
-            }
-            graph.load_community_reports([
-                row for row in reports
-                if (
+                try:
+                    report_count = max(1, int(row.get("report_count") or 1))
+                except (TypeError, ValueError):
+                    report_count = 1
+                graph_report_counts[key] = graph_report_counts.get(key, 0) + report_count
+
+            community_backfill: List[Dict[str, Any]] = []
+            for row in reports:
+                key = (
                     str(row.get("target_type") or "unknown").strip().lower(),
                     str(row.get("hash") or row.get("target_hash") or "").strip().lower(),
-                ) not in graph_observation_keys
-            ])
+                )
+                try:
+                    community_count = max(1, int(row.get("report_count") or 1))
+                except (TypeError, ValueError):
+                    community_count = 1
+                missing_count = community_count - graph_report_counts.get(key, 0)
+                if missing_count > 0:
+                    adjusted = dict(row)
+                    adjusted["report_count"] = missing_count
+                    community_backfill.append(adjusted)
+            graph.load_community_reports(community_backfill)
             number_reputation_items = graph.radar_number_reputation()
         except Exception:
             number_reputation_items = []
@@ -10670,7 +11028,7 @@ def community_report(payload: CommunityReportRequest):
 
     has_supabase = supabase_store.is_supabase_enabled()
     if not has_supabase:
-        return {"status": "ok", "note": "supabase not configured, report stored locally"}
+        return {"status": "accepted", "stored": False, "note": "supabase not configured"}
 
     try:
         existing = supabase_store._get_json(
@@ -10704,9 +11062,15 @@ def community_report(payload: CommunityReportRequest):
             "family": payload.family,
             "report_count": 1,
         })
-    except Exception:
-        pass
-    return {"status": "ok"}
+    except Exception as exc:
+        logger.warning(
+            "community_report: storage failed target_type=%s source=%s error=%s",
+            normalized_target_type,
+            payload.source,
+            exc.__class__.__name__,
+        )
+        raise HTTPException(status_code=503, detail="report storage unavailable")
+    return {"status": "ok", "stored": True}
 
 
 @app.get("/v1/community/campaigns")

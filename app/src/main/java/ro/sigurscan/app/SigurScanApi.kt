@@ -539,6 +539,9 @@ interface SigurScanApi {
     @GET("v1/scan/orchestrated/{scan_id}")
     suspend fun getOrchestratedScan(@Path("scan_id") scanId: String): OrchestratedScanResponse
 
+    @GET("v1/scan/orchestrated/{scan_id}/status")
+    suspend fun getOrchestratedScanStatus(@Path("scan_id") scanId: String): OrchestratedScanResponse
+
     @retrofit2.http.Multipart
     @POST("v1/extract/image")
     suspend fun extractImage(
