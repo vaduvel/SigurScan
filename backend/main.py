@@ -318,6 +318,7 @@ def _provider_config_status() -> Dict[str, Any]:
         "on",
     }
     urlhaus_configured = _env_present("URLHAUS_AUTH_KEY", "URLHAUS_API_KEY", "ABUSECH_AUTH_KEY")
+    openapi_ro_configured = _env_present("OPENAPI_RO_API_KEY")
     mistral_configured = _env_present("MISTRAL_API_KEY")
     gemini_configured = _env_present("GEMINI_API_KEY")
     offer_claim_configured = gemini_configured
@@ -346,6 +347,10 @@ def _provider_config_status() -> Dict[str, Any]:
             "urlhaus": {
                 "configured": urlhaus_configured and not PRIVACY_SAFE_MODE,
                 "policy": "abuse_ch_runtime_reputation",
+            },
+            "openapi_ro_company": {
+                "configured": openapi_ro_configured and not PRIVACY_SAFE_MODE,
+                "policy": "company_registry_fallback",
             },
             "scam_blocklist_nrd": {
                 "configured": scam_blocklist_nrd_enabled and not PRIVACY_SAFE_MODE,

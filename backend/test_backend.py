@@ -8861,6 +8861,7 @@ def test_health_reports_provider_config_without_secrets(monkeypatch):
         patched.setenv("GEMINI_API_KEY", "super-secret-gemini")
         patched.setenv("GOOGLE_WEB_RISK_API_KEY", "super-secret-webrisk")
         patched.setenv("URLHAUS_AUTH_KEY", "super-secret-urlhaus")
+        patched.setenv("OPENAPI_RO_API_KEY", "super-secret-openapi")
         patched.setenv("ENABLE_PHISHING_DATABASE", "true")
         patched.setenv("ENABLE_SCAM_BLOCKLIST_NRD", "true")
         patched.setenv("ENABLE_PHISHDESTROY", "true")
@@ -8874,6 +8875,7 @@ def test_health_reports_provider_config_without_secrets(monkeypatch):
     assert payload["config"]["providers"]["google_web_risk"]["configured"] is True
     assert payload["config"]["providers"]["phishing_database"]["configured"] is True
     assert payload["config"]["providers"]["urlhaus"]["configured"] is True
+    assert payload["config"]["providers"]["openapi_ro_company"]["configured"] is True
     assert payload["config"]["providers"]["scam_blocklist_nrd"]["configured"] is True
     assert payload["config"]["providers"]["scam_blocklist_nrd"]["source"] == "jarelllama/Scam-Blocklist"
     assert payload["config"]["providers"]["phishdestroy_destroylist"]["configured"] is True
