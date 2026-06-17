@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -15,6 +16,10 @@ ANAF_TIMEOUT_SECONDS = 4.0
 # Fallback: lista-firme.info (public, rate-limited).
 LISTA_FIRME_URL = "https://lista-firme.info/api/v1/info"
 LISTA_FIRME_TIMEOUT_SECONDS = 3.0
+
+# Paid/API-key fallback: openapi.ro company lookup.
+OPENAPI_RO_COMPANY_URL = "https://api.openapi.ro/api/companies"
+OPENAPI_RO_TIMEOUT_SECONDS = 3.0
 
 # Bug#14: apelurile blocante către ANAF/lista-firme.info rulau pe executorul
 # implicit al loop-ului (shared cu restul aplicației). Un ANAF lent/picat
@@ -49,6 +54,7 @@ class CuiResult:
     platitor_tva: bool
     enrolled_efactura: bool
     raw: Dict[str, Any] | None
+    source: str | None = None
 
 
 async def check_cui(cui: str, data: str | None = None) -> CuiResult:
@@ -73,9 +79,15 @@ async def check_cui(cui: str, data: str | None = None) -> CuiResult:
             return result
     except Exception:
         pass
+    try:
+        result = await _call_openapi_ro_fallback(cui_digits)
+        if result is not None:
+            return result
+    except Exception:
+        pass
     return CuiResult(
         exists=False, checked=anaf_ok, denumire=None, activ=False, data_inactivare=None,
-        platitor_tva=False, enrolled_efactura=False, raw=None,
+        platitor_tva=False, enrolled_efactura=False, raw=None, source=None,
     )
 
 
@@ -128,7 +140,7 @@ def _parse_anaf_entry(entry: Dict[str, Any]) -> CuiResult:
     if not isinstance(dg, dict):
         return CuiResult(
             exists=False, checked=True, denumire=None, activ=False, data_inactivare=None,
-            platitor_tva=False, enrolled_efactura=False, raw=entry,
+            platitor_tva=False, enrolled_efactura=False, raw=entry, source="anaf",
         )
     denumire = (dg.get("denumire") or "").strip() or None
     stare_inactiv = entry.get("stare_inactiv") if isinstance(entry.get("stare_inactiv"), dict) else {}
@@ -174,6 +186,7 @@ def _parse_anaf_entry(entry: Dict[str, Any]) -> CuiResult:
         platitor_tva=scp_tva,
         enrolled_efactura=enrol_efactura,
         raw=entry,
+        source="anaf",
     )
 
 
@@ -193,6 +206,7 @@ async def _call_lista_firme_fallback(cui_digits: str) -> CuiResult | None:
             return CuiResult(
                 exists=False, checked=True, denumire=None, activ=False,
                 data_inactivare=None, platitor_tva=False, enrolled_efactura=False, raw=data,
+                source="lista_firme",
             )
         denumire = _first_non_empty_text(data, "denumire", "name", "company_name")
         returned_cui = _normalize_cui(str(data.get("cui") or data.get("fiscal_code") or ""))
@@ -200,6 +214,7 @@ async def _call_lista_firme_fallback(cui_digits: str) -> CuiResult | None:
             return CuiResult(
                 exists=False, checked=True, denumire=None, activ=False,
                 data_inactivare=None, platitor_tva=False, enrolled_efactura=False, raw=data,
+                source="lista_firme",
             )
         activ = _lista_firme_active_status(data, default=bool(denumire))
         scp_tva = _truthy_text(
@@ -217,9 +232,131 @@ async def _call_lista_firme_fallback(cui_digits: str) -> CuiResult | None:
             platitor_tva=scp_tva,
             enrolled_efactura=False,
             raw=data,
+            source="lista_firme",
         )
     except requests.RequestException:
         return None
+
+
+async def _call_openapi_ro_fallback(cui_digits: str) -> CuiResult | None:
+    api_key = os.getenv("OPENAPI_RO_API_KEY", "").strip()
+    if not api_key:
+        return None
+
+    url = f"{OPENAPI_RO_COMPANY_URL}/{cui_digits}"
+    loop = asyncio.get_running_loop()
+
+    def _request() -> requests.Response:
+        return requests.get(
+            url,
+            timeout=OPENAPI_RO_TIMEOUT_SECONDS,
+            headers={"Accept": "application/json", "x-api-key": api_key},
+        )
+
+    try:
+        response = await loop.run_in_executor(_ANAF_EXECUTOR, _request)
+        if response.status_code == 404:
+            return CuiResult(
+                exists=False,
+                checked=True,
+                denumire=None,
+                activ=False,
+                data_inactivare=None,
+                platitor_tva=False,
+                enrolled_efactura=False,
+                raw=None,
+                source="openapi_ro",
+            )
+        if response.status_code != 200:
+            return None
+        data = response.json()
+        if not isinstance(data, dict):
+            return CuiResult(
+                exists=False,
+                checked=True,
+                denumire=None,
+                activ=False,
+                data_inactivare=None,
+                platitor_tva=False,
+                enrolled_efactura=False,
+                raw={"payload": data},
+                source="openapi_ro",
+            )
+        return _parse_openapi_ro_company(data, cui_digits)
+    except requests.RequestException:
+        return None
+
+
+def _parse_openapi_ro_company(data: Dict[str, Any], cui_digits: str) -> CuiResult:
+    company = _company_payload(data)
+    returned_cui = _normalize_cui(
+        str(
+            company.get("cui")
+            or company.get("cif")
+            or company.get("fiscal_code")
+            or company.get("fiscalCode")
+            or company.get("tax_id")
+            or company.get("taxId")
+            or company.get("cod_fiscal")
+            or ""
+        )
+    )
+    if returned_cui and returned_cui != cui_digits:
+        return CuiResult(
+            exists=False,
+            checked=True,
+            denumire=None,
+            activ=False,
+            data_inactivare=None,
+            platitor_tva=False,
+            enrolled_efactura=False,
+            raw=data,
+            source="openapi_ro",
+        )
+
+    denumire = _first_non_empty_text(
+        company,
+        "denumire",
+        "name",
+        "company_name",
+        "companyName",
+        "nume",
+        "legal_name",
+        "legalName",
+    )
+    activ = _lista_firme_active_status(company, default=bool(denumire))
+    scp_tva = _truthy_text(
+        company.get("platitor_tva")
+        or company.get("scp_tva")
+        or company.get("vat_payer")
+        or company.get("vatPayer")
+        or company.get("tva")
+    )
+    enrolled_efactura = _truthy_text(
+        company.get("statusRO_e_Factura")
+        or company.get("efactura")
+        or company.get("eFactura")
+        or company.get("enrolled_efactura")
+    )
+    return CuiResult(
+        exists=bool(denumire),
+        checked=True,
+        denumire=denumire,
+        activ=activ,
+        data_inactivare=None,
+        platitor_tva=scp_tva,
+        enrolled_efactura=enrolled_efactura,
+        raw=data,
+        source="openapi_ro",
+    )
+
+
+def _company_payload(data: Dict[str, Any]) -> Dict[str, Any]:
+    for key in ("company", "data", "result", "item"):
+        value = data.get(key)
+        if isinstance(value, dict):
+            return value
+    return data
 
 
 def _first_non_empty_text(data: Dict[str, Any], *keys: str) -> str | None:

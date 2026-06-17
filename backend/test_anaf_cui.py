@@ -303,6 +303,75 @@ async def test_lista_firme_fallback_rejects_mismatched_cui_payload():
 
 
 @pytest.mark.asyncio
+async def test_openapi_ro_fallback_maps_company_when_public_sources_fail(monkeypatch):
+    def failing_post(*args, **kwargs):
+        import requests
+        raise requests.ConnectionError("anaf timeout")
+
+    def get_side_effect(url, *args, **kwargs):
+        import requests
+
+        if "lista-firme.info" in url:
+            raise requests.ConnectionError("lista-firme timeout")
+        response = MagicMock()
+        response.status_code = 200
+        response.json.return_value = {
+            "cui": "5888716",
+            "name": "DIGI ROMANIA S.A.",
+            "status": {"details": {"description": "funcțiune"}},
+            "vatPayer": True,
+        }
+        return response
+
+    monkeypatch.setenv("OPENAPI_RO_API_KEY", "test-openapi-key")
+    with patch("services.anaf_cui.requests.post", side_effect=failing_post):
+        with patch("services.anaf_cui.requests.get", side_effect=get_side_effect) as mock_get:
+            result = await check_cui("RO5888716")
+
+    assert result.exists is True
+    assert result.checked is True
+    assert result.denumire == "DIGI ROMANIA S.A."
+    assert result.activ is True
+    assert result.platitor_tva is True
+    assert result.source == "openapi_ro"
+    assert any(
+        call.kwargs.get("headers", {}).get("x-api-key") == "test-openapi-key"
+        for call in mock_get.call_args_list
+    )
+
+
+@pytest.mark.asyncio
+async def test_openapi_ro_fallback_rejects_mismatched_cui(monkeypatch):
+    def failing_post(*args, **kwargs):
+        import requests
+        raise requests.ConnectionError("primary sources timeout")
+
+    def get_side_effect(url, *args, **kwargs):
+        import requests
+
+        if "lista-firme.info" in url:
+            raise requests.ConnectionError("lista-firme timeout")
+        response = MagicMock()
+        response.status_code = 200
+        response.json.return_value = {
+            "cui": "99999999",
+            "name": "ALTĂ FIRMĂ S.R.L.",
+            "status": {"details": {"description": "funcțiune"}},
+        }
+        return response
+
+    monkeypatch.setenv("OPENAPI_RO_API_KEY", "test-openapi-key")
+    with patch("services.anaf_cui.requests.post", side_effect=failing_post):
+        with patch("services.anaf_cui.requests.get", side_effect=get_side_effect):
+            result = await check_cui("5888716")
+
+    assert result.exists is False
+    assert result.checked is True
+    assert result.denumire is None
+    assert result.source == "openapi_ro"
+
+
+@pytest.mark.asyncio
 async def test_total_timeout_returns_low_confidence():
     def failing_request(*args, **kwargs):
         import requests

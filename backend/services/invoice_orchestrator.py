@@ -418,6 +418,7 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
                 "denumire": raw_cui_check.denumire,
                 "activ": raw_cui_check.activ,
                 "platitor_tva": raw_cui_check.platitor_tva,
+                "source": getattr(raw_cui_check, "source", None) or "anaf",
             }
             # Bug#3: cacheaza DOAR rezultate verificate. checked=False (ANAF
             # indisponibil) NU se cacheaza, ca sa nu otraveasca verdictul 12h.
@@ -783,7 +784,13 @@ def build_invoice_evidence_bundle(
 
     provider_section = {
         "verdict": "malicious" if anaf_status == "malicious" else "suspicious" if "suspicious" in (iban_status, coherence_status) else "clean",
-        "anaf": {"status": anaf_status, "verdict": anaf_status, "reasons": anaf_reasons, "completeness": anaf is not None},
+        "anaf": {
+            "status": anaf_status,
+            "verdict": anaf_status,
+            "reasons": anaf_reasons,
+            "completeness": anaf is not None,
+            "source": anaf.get("source") if isinstance(anaf, dict) else None,
+        },
         "iban": {"status": iban_status, "verdict": iban_status, "reasons": iban_reasons, "completeness": iban_result is not None},
         "coherence": {"status": coherence_status, "verdict": coherence_status, "reasons": coherence_reasons, "completeness": coherence is not None},
     }

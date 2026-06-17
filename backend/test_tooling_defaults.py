@@ -135,6 +135,9 @@ def test_cloud_run_deploy_wires_orchestrated_cloud_tasks_worker():
     assert "SIGURSCAN_INTERNAL_WORKER_TOKEN=sigurscan-internal-worker-token:latest" in script
     assert ",INTERNAL_WORKER_TOKEN=" not in script
     assert " INTERNAL_WORKER_TOKEN=" not in script
+    assert "OPENAPI_RO_API_KEY_SECRET=" in script
+    assert "OPENAPI_RO_API_KEY=$OPENAPI_RO_API_KEY_SECRET" in script
+    assert "OPENAPI_RO_API_KEY=openapi-ro-api-key:latest" not in script
 
 
 def test_backend_ci_installs_pytest_before_running_backend_tests():

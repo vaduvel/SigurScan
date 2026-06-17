@@ -1,7 +1,12 @@
 import pytest
 from unittest.mock import patch, AsyncMock
 
-from services.invoice_orchestrator import _cache_key, _cui_cache_key, scan_invoice
+from services.invoice_orchestrator import (
+    _cache_key,
+    _cui_cache_key,
+    build_invoice_evidence_bundle,
+    scan_invoice,
+)
 from services.invoice_parser import InvoiceFields
 from services.invoice_readiness_gate import ReadinessState
 
@@ -69,6 +74,31 @@ async def test_scan_recommends_bank_beneficiary_name_check_for_unknown_valid_iba
     assert result.beneficiary_name_check["sanb"]["bic"] == "RNCBROBU"
     assert result.beneficiary_name_check["sanb"]["requires_payer_bank_participation"] is True
     assert "parolă" in result.beneficiary_name_check["privacy_note"]
+
+
+@pytest.mark.asyncio
+async def test_scan_invoice_exposes_company_registry_source_from_openapi_ro():
+    text = (
+        "Furnizor: DIGI ROMANIA S.A.\n"
+        "CUI: 5888716\n"
+        "IBAN: RO33RNCB1234567890123456\n"
+        "Total: 100 RON\n"
+        "Data: 01.06.2026\n"
+        "Scadenta: 15.06.2026"
+    )
+    with patch("services.invoice_orchestrator.check_cui", new_callable=AsyncMock) as mock_cui:
+        mock_cui.return_value.exists = True
+        mock_cui.return_value.checked = True
+        mock_cui.return_value.denumire = "DIGI ROMANIA S.A."
+        mock_cui.return_value.activ = True
+        mock_cui.return_value.platitor_tva = True
+        mock_cui.return_value.source = "openapi_ro"
+
+        result = await scan_invoice(text)
+
+    assert result.anaf_cui_check["source"] == "openapi_ro"
+    bundle = build_invoice_evidence_bundle(result, result.raw_text, source_channel="android_native")
+    assert bundle["providers"]["anaf"]["source"] == "openapi_ro"
 
 
 @pytest.mark.asyncio
