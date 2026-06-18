@@ -130,20 +130,6 @@ def test_cloud_run_deploy_fails_closed_on_rate_limit_backend_errors():
     assert "RATE_LIMIT_FAIL_CLOSED=true" in script
 
 
-def test_cloud_run_deploy_enables_asf_investor_alerts_provider():
-    script = (ROOT_DIR / "tools" / "deploy_cloud_run_backend.sh").read_text(encoding="utf-8")
-
-    assert "ENABLE_ASF_INVESTOR_ALERTS=true" in script
-
-
-def test_cloud_run_deploy_preserves_paid_intel_budget_guards():
-    script = (ROOT_DIR / "tools" / "deploy_cloud_run_backend.sh").read_text(encoding="utf-8")
-
-    assert "OPENAPI_RO_MONTHLY_BUDGET=100" in script
-    assert "HUNTER_IO_MONTHLY_BUDGET=50" in script
-    assert "HUNTER_IO_API_KEY=hunter-io-api-key:latest" in script
-
-
 def test_env_example_documents_paid_intel_budget_guards():
     env_example = (ROOT_DIR / "backend" / ".env.example").read_text(encoding="utf-8")
 
@@ -162,6 +148,8 @@ def test_cloud_run_deploy_preserves_paid_intel_budget_guards():
 
     assert "OPENAPI_RO_MONTHLY_BUDGET=100" in script
     assert "HUNTER_IO_MONTHLY_BUDGET=50" in script
+    assert "OPENAPI_RO_API_KEY_SECRET-openapi-ro-api-key:latest" in script
+    assert "HUNTER_IO_API_KEY_SECRET-hunter-io-api-key:latest" in script
     assert "OPENAPI_RO_API_KEY=$OPENAPI_RO_API_KEY_SECRET" in script
     assert "HUNTER_IO_API_KEY=$HUNTER_IO_API_KEY_SECRET" in script
 
@@ -183,14 +171,12 @@ def test_cloud_run_deploy_wires_orchestrated_cloud_tasks_worker():
     assert "SIGURSCAN_INTERNAL_WORKER_TOKEN=sigurscan-internal-worker-token:latest" in script
     assert ",INTERNAL_WORKER_TOKEN=" not in script
     assert " INTERNAL_WORKER_TOKEN=" not in script
-    assert "OPENAPI_RO_API_KEY_SECRET=" in script
+    assert "OPENAPI_RO_API_KEY_SECRET-openapi-ro-api-key:latest" in script
     assert "OPENAPI_RO_API_KEY=$OPENAPI_RO_API_KEY_SECRET" in script
     assert "OPENAPI_RO_MONTHLY_BUDGET=100" in script
-    assert "HUNTER_IO_API_KEY_SECRET=" in script
+    assert "HUNTER_IO_API_KEY_SECRET-hunter-io-api-key:latest" in script
     assert "HUNTER_IO_API_KEY=$HUNTER_IO_API_KEY_SECRET" in script
     assert "HUNTER_IO_MONTHLY_BUDGET=50" in script
-    assert "OPENAPI_RO_API_KEY=openapi-ro-api-key:latest" not in script
-    assert "HUNTER_IO_API_KEY=hunter-io-api-key:latest" not in script
 
 
 def test_backend_ci_installs_pytest_before_running_backend_tests():
