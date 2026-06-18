@@ -1462,7 +1462,7 @@ def test_provider_gate_marks_clean_shortener_to_named_first_party_domain_as_low_
     )
 
     assert result["evidence"]["verdict_gate"]["label"] == "SAFE"
-    assert result["evidence"]["decision_bundle"]["identity"]["status"] == "coherent"
+    assert result["evidence"]["decision_bundle"]["identity"]["status"] == "delegated"
 
 
 def test_provider_gate_exposes_established_domain_as_positive_context():
@@ -5020,8 +5020,9 @@ def test_orchestrated_official_clean_safe_finalizes_before_urlscan_result(monkey
 def test_orchestrated_scan_keeps_clean_verdict_when_urlscan_screenshot_times_out(monkeypatch):
     client = TestClient(app_main.app)
     message = (
-        "Ai primit produsul Flanco. Dorim sa fim mai buni pentru tine, "
-        "acorda-ne un calificativ pentru livrare cu un clic aici: https://t.postis.io/9kj8p"
+        "Ai un telefon sau o tableta pe care nu le mai folosesti? "
+        "Acum le poti transforma rapid in bani cu serviciul de buy-back YOXO. "
+        "Afla cat valoreaza dispozitivul tau si incepe procesul chiar acum: buyback.yoxo.ro"
     )
 
     with monkeypatch.context() as patched:
@@ -10451,6 +10452,119 @@ def test_backend_scam_atlas_loads_romania_knowledge_pack_registry():
     assert helpnet_result["evidence"]["has_domain_mismatch"] is False
 
 
+def test_scam_atlas_uses_official_registry_exact_host_and_path_scoped_policies():
+    engine = ScamAtlasEngine()
+
+    prefecture_official = engine.analyze(
+        "Instituția Prefectului – Județul Alba a publicat o informare oficială.",
+        [
+            {
+                "url": "https://ab.prefectura.mai.gov.ro/",
+                "final_url": "https://ab.prefectura.mai.gov.ro/",
+                "final_hostname": "ab.prefectura.mai.gov.ro",
+                "final_registered_domain": "mai.gov.ro",
+            }
+        ],
+    )
+    assert prefecture_official["claimed_brand"] == "Instituția Prefectului – Județul Alba"
+    assert prefecture_official["evidence"]["has_domain_mismatch"] is False
+
+    prefecture_lookalike = engine.analyze(
+        "Instituția Prefectului – Județul Alba: verifică urgent documentul aici.",
+        [
+            {
+                "url": "https://prefectura-alba.info/login",
+                "final_url": "https://prefectura-alba.info/login",
+                "final_hostname": "prefectura-alba.info",
+                "final_registered_domain": "prefectura-alba.info",
+            }
+        ],
+    )
+    assert prefecture_lookalike["claimed_brand"] == "Instituția Prefectului – Județul Alba"
+    assert prefecture_lookalike["evidence"]["has_domain_mismatch"] is True
+    assert prefecture_lookalike["risk_score"] >= 50
+
+    dsp_official = engine.analyze(
+        "Direcția de Sănătate Publică Alba: pagina oficială este publicată de Ministerul Sănătății.",
+        [
+            {
+                "url": "https://www.ms.ro/ro/directiile-de-sanatate-publica/dsp-alba/",
+                "final_url": "https://www.ms.ro/ro/directiile-de-sanatate-publica/dsp-alba/",
+                "final_hostname": "www.ms.ro",
+                "final_registered_domain": "ms.ro",
+            }
+        ],
+    )
+    assert dsp_official["claimed_brand"] == "Direcția de Sănătate Publică Alba"
+    assert dsp_official["evidence"]["has_domain_mismatch"] is False
+
+    dsp_wrong_path = engine.analyze(
+        "Direcția de Sănătate Publică Alba: verifică documentul la acest link.",
+        [
+            {
+                "url": "https://www.ms.ro/ro/comunicate/",
+                "final_url": "https://www.ms.ro/ro/comunicate/",
+                "final_hostname": "www.ms.ro",
+                "final_registered_domain": "ms.ro",
+            }
+        ],
+    )
+    assert dsp_wrong_path["claimed_brand"] == "Direcția de Sănătate Publică Alba"
+    assert dsp_wrong_path["evidence"]["has_domain_mismatch"] is True
+
+
+def test_official_destination_confirmed_respects_path_scoped_registry_policies():
+    dsp_official_url = {
+        "url": "https://www.ms.ro/ro/directiile-de-sanatate-publica/dsp-alba/",
+        "final_url": "https://www.ms.ro/ro/directiile-de-sanatate-publica/dsp-alba/",
+        "final_hostname": "www.ms.ro",
+        "final_registered_domain": "ms.ro",
+    }
+    dsp_wrong_path = {
+        "url": "https://www.ms.ro/ro/comunicate/",
+        "final_url": "https://www.ms.ro/ro/comunicate/",
+        "final_hostname": "www.ms.ro",
+        "final_registered_domain": "ms.ro",
+    }
+
+    assert app_main._official_destination_confirmed(
+        [dsp_official_url],
+        "Direcția de Sănătate Publică Alba",
+    )
+    assert not app_main._official_destination_confirmed(
+        [dsp_wrong_path],
+        "Direcția de Sănătate Publică Alba",
+    )
+
+
+def test_brand_token_lookalike_uses_official_registry_policy_tokens():
+    prefecture_fake = [{
+        "url": "https://prefectura-alba.info/login",
+        "final_url": "https://prefectura-alba.info/login",
+        "final_hostname": "prefectura-alba.info",
+        "final_registered_domain": "prefectura-alba.info",
+    }]
+    prefecture_official = [{
+        "url": "https://ab.prefectura.mai.gov.ro/",
+        "final_url": "https://ab.prefectura.mai.gov.ro/",
+        "final_hostname": "ab.prefectura.mai.gov.ro",
+        "final_registered_domain": "mai.gov.ro",
+    }]
+    dsp_fake = [{
+        "url": "https://dsp-alba.info/verificare",
+        "final_url": "https://dsp-alba.info/verificare",
+        "final_hostname": "dsp-alba.info",
+        "final_registered_domain": "dsp-alba.info",
+    }]
+
+    assert app_main._brand_token_lookalike_in_resolved_urls(prefecture_fake) == "Instituția Prefectului – Județul Alba"
+    assert app_main._brand_token_lookalike_in_resolved_urls(prefecture_official) is None
+    assert app_main._brand_token_lookalike_in_resolved_urls(dsp_fake) in {
+        "Direcția de Sănătate Publică Alba",
+        "DSP Alba",
+    }
+
+
 def test_scam_atlas_seed_is_loaded_from_repo_data():
     engine = ScamAtlasEngine()
     assert len(engine.families) >= 20
@@ -10542,7 +10656,8 @@ def test_scam_atlas_regression_false_positives():
     print("Testing Scam Atlas FP regressions (hard_eval alignment)...")
     engine = ScamAtlasEngine()
 
-    # ANAF: domain in observed public flow, should not force automatic mismatch.
+    # ANAF: a domain containing the ANAF token but outside the official registry
+    # is a lookalike/non-official destination, even if generic providers are clean.
     anaf_urls = [{
         "final_url": "https://anaf-spv.info/plata",
         "url": "https://anaf-spv.info/plata",
@@ -10550,9 +10665,8 @@ def test_scam_atlas_regression_false_positives():
         "final_hostname": "anaf-spv.info",
     }]
     anaf_result = engine.analyze("ANAF: Verifica declaratia. Acceseaza plata la contul ...", anaf_urls)
-    assert anaf_result["evidence"]["has_domain_mismatch"] is False
-    assert "Domeniu Lookalike" not in "\n".join(anaf_result["reasons"])
-    assert anaf_result["risk_score"] < 50
+    assert anaf_result["evidence"]["has_domain_mismatch"] is True
+    assert anaf_result["risk_score"] >= 50
 
     # Banca Transilvania oficială pe bt.ro nu trebuie clasificată ca mismatch.
     bt_urls = [{

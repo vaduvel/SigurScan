@@ -203,6 +203,54 @@ def test_backend_ci_guards_tracked_local_secrets_before_tests():
     assert guard_index < install_index
 
 
+def test_runtime_knowledge_builder_preserves_imported_official_registry_updates():
+    module = _load_module(
+        BACKEND_DIR / "tools" / "build_runtime_knowledge.py",
+        "build_runtime_knowledge_preserve_registry_test",
+    )
+
+    payload = module.build_brand_pack_payload(
+        {
+            "official_registry_updates": [
+                {
+                    "brand_id": "anaf",
+                    "display_name": "ANAF",
+                    "official_domains": ["anaf.ro"],
+                }
+            ],
+            "brand_warnings": [],
+            "claim_verifier_targets": [],
+            "false_positive_guards": [],
+            "signal_mapping": [],
+            "sources": {},
+        },
+        {
+            "metadata": {
+                "official_domain_registry_sources": ["pack3.zip"],
+                "official_domain_registry_import_summary": {"updates_added": 126},
+            },
+            "brand_registry": {
+                "Instituția Prefectului – Județul Alba": ["ab.prefectura.mai.gov.ro"]
+            },
+            "official_registry_updates": [
+                {
+                    "brand_id": "prefectura_alba",
+                    "display_name": "Instituția Prefectului – Județul Alba",
+                    "exact_hosts": ["ab.prefectura.mai.gov.ro"],
+                    "match_policy": "exact_host",
+                    "source_pack": "official-domain-registry-ro-pack3-prefectures-labour-health",
+                }
+            ],
+        },
+    )
+
+    updates = {entry["brand_id"]: entry for entry in payload["official_registry_updates"]}
+    assert "anaf" in updates
+    assert updates["prefectura_alba"]["match_policy"] == "exact_host"
+    assert payload["metadata"]["official_domain_registry_sources"] == ["pack3.zip"]
+    assert payload["metadata"]["official_domain_registry_import_summary"]["updates_added"] == 126
+
+
 def test_tracked_secret_guard_blocks_local_secret_filenames():
     module = _load_module(
         ROOT_DIR / "tools" / "guard_no_tracked_secrets.py",

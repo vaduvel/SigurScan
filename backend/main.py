@@ -601,6 +601,20 @@ _AUTH_RESULT_RE = re.compile(r"\b(spf|dkim|dmarc)\s*=\s*([a-z]+)", re.IGNORECASE
 _DKIM_SIGNATURE_DOMAIN_RE = re.compile(r"\bd=([^;\\s]+)", re.IGNORECASE)
 _DKIM_SIGNATURE_SELECTOR_RE = re.compile(r"\bs=([^;\\s]+)", re.IGNORECASE)
 _OBFUSCATED_DOT_RE = re.compile(r"\[\.\]|\(\.\)|\{\.\}")
+# Zero-width and bidirectional control characters used to shatter keywords
+# ("ca<ZWSP>rd") or reverse displayed URLs (RLO U+202E). Stripped before any
+# matching so detection sees the real text.
+_ZERO_WIDTH_BIDI_CHARS = "".join(chr(c) for c in (
+    0x200B, 0x200C, 0x200D, 0x200E, 0x200F,  # zero-width, LRM, RLM
+    0x202A, 0x202B, 0x202C, 0x202D, 0x202E,  # bidi embeddings / overrides (RLO)
+    0x2060, 0x2066, 0x2067, 0x2068, 0x2069,  # word joiner, bidi isolates
+    0xFEFF,                                  # BOM / ZWNBSP
+))
+_ZERO_WIDTH_BIDI_RE = re.compile(f"[{re.escape(_ZERO_WIDTH_BIDI_CHARS)}]")
+# Spaced-out single letters ("c a r d u l u i") used to evade keyword matching.
+# Requires a run of >=4 single letters separated by single spaces and bounded by
+# whitespace/edges, so ordinary words and short acronyms ("T V A") are untouched.
+_SPACED_LETTERS_RE = re.compile(r"(?<!\S)[A-Za-z](?: [A-Za-z]){3,}(?!\S)")
 _BUTTON_TYPES = {"button", "submit", "image"}
 _INLINE_CLICK_URL_RE = re.compile(r"https?://[^\s\"'<>]+|//[^\s\"'<>]+")
 _RE_LINK_TOKEN = re.compile(r"[\"']([^\"']+)[\"']")
@@ -714,17 +728,24 @@ def _normalise_obfuscated_text(value: str) -> str:
     if not value:
         return value
 
+    # Strip zero-width / bidi control characters before anything else, so keyword
+    # and URL matching sees the real text ("ca<ZWSP>rd" -> "card").
+    normalized = _ZERO_WIDTH_BIDI_RE.sub("", value)
     normalized = re.sub(
         r"hxxp(s?)\s*://",
         lambda match: f"http{'s' if match.group(1) else ''}://",
-        value,
+        normalized,
         flags=re.IGNORECASE,
     )
     normalized = _OBFUSCATED_DOT_RE.sub(".", normalized)
-    # Keep phishing-style "brand . ro" detectable, but do not join normal
-    # sentence boundaries such as "nu pot vorbi. Am nevoie" into fake domains.
+    # Keep phishing-style "brand . ro" detectable, but do not join normal sentence
+    # boundaries ("...pierzi acces. NU amana", "Suna acum. nu astepta") into fake
+    # domains. A deliberately obfuscated domain carries whitespace BEFORE the dot
+    # ("brand . ro"); a sentence period does not ("acces."). Requiring \s+ before
+    # the dot is the discriminator — without it, common Romanian words that are
+    # also ccTLDs (nu/da/ro) get fabricated into .nu/.da/.ro domains.
     normalized = re.sub(
-        r"(?<=[A-Za-z0-9-])\s*\.\s*(?=(?:[a-z]{2,24}|[A-Z]{2,24})(?:\b|/))",
+        r"(?<=[A-Za-z0-9-])\s+\.\s*(?=(?:[a-z]{2,24}|[A-Z]{2,24})(?:\b|/))",
         ".",
         normalized,
     )
@@ -734,6 +755,9 @@ def _normalise_obfuscated_text(value: str) -> str:
         normalized,
         flags=re.IGNORECASE,
     )
+    # Collapse spaced-out single letters ("c a r d u l u i" -> "cardului") so the
+    # keyword survives. Bounded + >=4 letters, so ordinary words are untouched.
+    normalized = _SPACED_LETTERS_RE.sub(lambda match: match.group(0).replace(" ", ""), normalized)
     return normalized
 
 
@@ -2840,6 +2864,10 @@ def _looks_like_official_safety_education(raw_text: str) -> bool:
         r"|nu\s+depun\w*"
         r"|nu\s+(?:(?:il|îl|le)\s+)?comunic\w*"
         r"|nu\s+(?:(?:il|îl|le)\s+)?trimite\w*"
+        r"|nu\s+(?:(?:il|îl|le|i|o)\s+)?da(?:ti|ți|u)?\b"
+        r"|nu\s+divulg\w*"
+        r"|nu\s+dezv[ăa]lu\w*"
+        r"|nu\s+furniz\w*"
         rf"|nu\s+{ask_verbs}"
         rf"|niciodat[aă]\s+nu\s+{ask_verbs})"
     )
@@ -3582,6 +3610,21 @@ def _request_sensitivity_from_signals(
         or re.search(rf"\b{money_action_pattern}\b.{{0,100}}{currency_amount_pattern}", normalized)
         or re.search(rf"{currency_amount_pattern}.{{0,100}}\b{money_action_pattern}\b", normalized)
         or re.search(rf"\b{money_action_pattern}\b.{{0,100}}\b{money_destination_pattern}\b", normalized)
+        or re.search(
+            r"\b(mu[țt][ăa]|muta[țt]i?|mutati|transfer[aă]?|trimite[țt]i?)\b"
+            r".{0,60}\b(sold(?:ul)?|fonduri(?:le)?|bani(?:i)?|suma)\b"
+            r".{0,60}\b(cont(?:ul)?\s+(?:nou|sigur|de\s+protectie|seif|temporar))\b",
+            normalized,
+        )
+        or re.search(
+            r"\b(cont(?:ul)?\s+(?:de\s+)?(?:protectie|seif|temporar))\b",
+            normalized,
+        )
+        or re.search(
+            r"\b(dezactiv[ăa][tz]?|bloc[ăa][tz]?|suspend[ăa][tz]?)\b"
+            r".{0,60}\b(cont(?:ul)?\s+(?:vechi|actual|existent))\b",
+            normalized,
+        )
     ):
         return "transfer"
 
@@ -3892,7 +3935,23 @@ def _semantic_review_for_decision_bundle(
         risk_class = "medium"
     else:
         risk_class = "unknown"
-    matched = risk_class in {"high", "medium"}
+
+    # Preserve high atlas risk even when the family classifier cannot name a specific scam family.
+    # A strong local risk score should not degrade to unknown only because taxonomy matching missed.
+    risk_from_score_only = False
+    if risk_class == "unknown":
+        try:
+            atlas_score = int(analysis.get("risk_score") or 0)
+        except (TypeError, ValueError):
+            atlas_score = 0
+        if atlas_score >= 75:
+            risk_class = "medium"
+            risk_from_score_only = True
+        elif atlas_score >= 50:
+            risk_class = "low"
+            risk_from_score_only = True
+
+    matched = risk_class in {"high", "medium"} and not risk_from_score_only
     return {
         "status": "done",
         "claim_matches_known_scam_family": matched,
@@ -3924,7 +3983,17 @@ Răspunde strict JSON:
   "matched_family": null,
   "claim_matches_legit_template": false,
   "matched_template": null,
-  "reason_codes": ["semantic:..."]
+  "reason_codes": ["semantic:..."],
+  "social_engineering": {
+    "intent": "credential_theft|payment_redirection|remote_access|investment_fraud|impersonation|recovery_scam|benign|unknown",
+    "ask_present": false,
+    "ask_type": ["transfer|otp|card|remote_install|gift_card|seed_phrase|callback|none"],
+    "levers": ["authority|fear|urgency|scarcity|liking|reciprocity|social_proof|loss_aversion|sunk_cost|compassion|greed|secrecy"],
+    "persona_targeting": "elderly|parent|jobseeker|investor|employee|bereaved|generic",
+    "channel_coherence": "coherent|mismatch|unknown",
+    "urgency_score": 0.0,
+    "confidence": 0.0
+  }
 }
 """.strip()
 
@@ -3982,6 +4051,318 @@ def _normalize_mistral_semantic_review(raw: Dict[str, Any], fallback: Dict[str, 
     }
 
 
+_SOCIAL_ENGINEERING_PRESSURE_PATTERNS = (
+    # authority / law-enforcement impersonation
+    r"\b(parchet|procuror|comisar|poli[țt]i[ae]|politi[ae]|dosar\s+penal|mandat\s+de\s+aducere|"
+    r"anchet[ăa]|ancheta|diicot|dna)\b",
+    # secrecy / isolation
+    r"\bnu\s+spune(?:ti|ți)?\s+nim[ăa]nui\b",
+    r"\bnu\s+(?:discuta(?:ti|ți)?|spune(?:ti|ți)?)\b.{0,40}\b(nim[ăa]nui|familie|colegi|superiori)\b",
+    r"\b(confiden[țt]ial|clasificat[ăa]?|[îi]ntre\s+noi)\b",
+    # out-of-band callback / stay on the line
+    r"\b(suna(?:ti|ți)?[-\s]?ne|suna(?:ti|ți)?\s+(?:urgent|acum|la)|reveni(?:ti|ți)\s+telefonic)\b",
+    r"\br[ăa]m(?:a|â)ne(?:ti|ți)?\s+pe\s+(?:linie|fir)\b",
+    # safe-account / move funds to a "protective" account
+    r"\bcont(?:ul)?\s+(?:de\s+)?(?:siguran[țt][ăa]|protec[țt]ie|seif|temporar)\b",
+    r"\b(transfera(?:ti|ți)?|muta(?:ti|ți)?|mut[ăa])\b.{0,60}\bcont(?:ul)?\s+(?:nou|sigur)\b",
+    # threat + coercion
+    r"\b(arest|aresta(?:t|re)|re[țt]inere|re[țt]inut)\b",
+)
+
+
+def _has_social_engineering_pressure(text: str) -> bool:
+    """Heuristic: does the text apply social-engineering pressure (authority,
+    secrecy, out-of-band callback, safe-account, threat) even without an explicit
+    hard-sensitive keyword?
+
+    Conservative for recall, but intentionally excludes ordinary marketing and
+    legitimate transactional wording, so the tier1 benign override is blocked only
+    on genuine manipulation — never on a real BT/Sameday/marketing message.
+    """
+    normalized = _normalise_obfuscated_text(text or "").lower()
+    if not normalized:
+        return False
+    return any(re.search(pattern, normalized) for pattern in _SOCIAL_ENGINEERING_PRESSURE_PATTERNS)
+
+
+SOCIAL_ENGINEERING_INTENTS = {
+    "credential_theft",
+    "payment_redirection",
+    "remote_access",
+    "investment_fraud",
+    "impersonation",
+    "recovery_scam",
+    "benign",
+    "unknown",
+}
+SOCIAL_ENGINEERING_ASK_TYPES = {
+    "transfer",
+    "otp",
+    "card",
+    "remote_install",
+    "gift_card",
+    "seed_phrase",
+    "callback",
+    "none",
+}
+SOCIAL_ENGINEERING_LEVERS = {
+    "authority",
+    "fear",
+    "urgency",
+    "scarcity",
+    "liking",
+    "reciprocity",
+    "social_proof",
+    "loss_aversion",
+    "sunk_cost",
+    "compassion",
+    "greed",
+    "secrecy",
+}
+
+
+def _se_pattern(text: str, pattern: str) -> bool:
+    return bool(re.search(pattern, text, flags=re.IGNORECASE | re.DOTALL))
+
+
+def _se_list(values: Any, allowed: set[str]) -> List[str]:
+    if not values:
+        return []
+    if isinstance(values, (str, int, float)):
+        values = [values]
+    if not isinstance(values, list):
+        return []
+    out: List[str] = []
+    for value in values:
+        item = str(value or "").strip().lower()
+        if item in allowed and item not in out:
+            out.append(item)
+    return out
+
+
+def _se_float(value: Any, default: float = 0.0) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return default
+    return max(0.0, min(1.0, number))
+
+
+def _se_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "da", "y"}
+    return False
+
+
+def _social_engineering_signal_for_decision_bundle(
+    raw_text: str,
+    *,
+    request_sensitive: str = "none",
+    source_channel: Optional[str] = None,
+    semantic_review: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    text = _normalise_obfuscated_text(raw_text or "").lower()
+    semantic_review = semantic_review if isinstance(semantic_review, dict) else {}
+
+    if _looks_like_official_safety_education(raw_text):
+        return {
+            "status": "done",
+            "intent": "benign",
+            "ask_present": False,
+            "ask_type": ["none"],
+            "levers": [],
+            "persona_targeting": "generic",
+            "channel_coherence": "coherent",
+            "urgency_score": 0.0,
+            "confidence": 0.1,
+            "model": "local_social_engineering_v1",
+            "provenance": "pipeline_only",
+        }
+
+    levers: List[str] = []
+    ask_types: List[str] = []
+
+    def add_lever(value: str) -> None:
+        if value in SOCIAL_ENGINEERING_LEVERS and value not in levers:
+            levers.append(value)
+
+    def add_ask(value: str) -> None:
+        if value in SOCIAL_ENGINEERING_ASK_TYPES and value not in ask_types:
+            ask_types.append(value)
+
+    if _se_pattern(text, r"\b(parchet|procuror|comisar|poli[țt]i[ae]|politi[ae]|diicot|dna|anaf|bnr|antifraud[ăa]|dosar\s+penal|anchet[ăa])\b"):
+        add_lever("authority")
+    if _se_pattern(text, r"\b(arest|aresta(?:t|re)|re[țt]inere|re[țt]inut|dosar\s+penal|atacator|fraud[ăa]|bloc(?:at|are)|suspend(?:at|are)|compromis)\b"):
+        add_lever("fear")
+    if _se_pattern(text, r"\b(urgent|imediat|acum|azi|10\s+minute|24\s*(?:de\s*)?ore|expir[ăa]|ultima\s+[șs]ans[ăa])\b"):
+        add_lever("urgency")
+    if _se_pattern(text, r"\b(nu\s+spune(?:ti|ți)?\s+nim[ăa]nui|confiden[țt]ial|clasificat[ăa]?|nu\s+(?:discuta(?:ti|ți)?|spune(?:ti|ți)?).{0,40}\b(?:familie|colegi|superiori|nim[ăa]nui))\b"):
+        add_lever("secrecy")
+    if _se_pattern(text, r"\b(profit|randament|c[âa]știg|castig|bonus|garantat|oportunitate|trading|investi[țt]ii|investitii|crypto)\b"):
+        add_lever("greed")
+    if _se_pattern(text, r"\b(membrii|grup(?:ul)?|to[țt]i|dovad[ăa]|profituri\s+zilnice|testimoniale|rezultatele\s+altora)\b"):
+        add_lever("social_proof")
+    if _se_pattern(text, r"\b(prieten|nepot|fiul|fiica|mama|tata|accident|spital|ajutor|opera[țt]ie)\b"):
+        add_lever("compassion")
+    if _se_pattern(text, r"\b(doar\s+pentru\s+tine|te\s+ajut|mentor|consultant|agentul\s+nostru)\b"):
+        add_lever("liking")
+    if _se_pattern(text, r"\b(ai\s+depus\s+deja|recuperezi\s+investi[țt]ia|nu\s+pierde\s+suma|tax[ăa]\s+de\s+retragere)\b"):
+        add_lever("sunk_cost")
+    if _se_pattern(text, r"\b(pierzi|blocat\s+definitiv|confiscat|inchis|[îi]nchis)\b"):
+        add_lever("loss_aversion")
+
+    sensitive = str(request_sensitive or "none").strip().lower()
+    if sensitive in {"card", "cvv"}:
+        add_ask("card")
+    elif sensitive in {"otp", "password", "pin", "banking_pin", "cnp", "id_document"}:
+        add_ask(sensitive if sensitive in SOCIAL_ENGINEERING_ASK_TYPES else "otp")
+    elif sensitive == "remote":
+        add_ask("remote_install")
+    elif sensitive == "crypto":
+        add_ask("seed_phrase")
+    elif sensitive == "transfer":
+        add_ask("transfer")
+
+    if _se_pattern(text, r"\b(suna(?:ti|ți)?[-\s]?ne|suna(?:ti|ți)?\s+(?:urgent|acum|la)|reveni(?:ti|ți)\s+telefonic|r[ăa]m(?:a|â)ne(?:ti|ți)?\s+pe\s+(?:linie|fir)|nu\s+[îi]nchide(?:ti|ți)?)\b"):
+        add_ask("callback")
+    if _se_pattern(text, r"\b(anydesk|teamviewer|rustdesk|remote\s+access|control\s+la\s+distan[țt][ăa]|instaleaz[ăa].{0,30}(?:aplica[țt]ia|apk))\b"):
+        add_ask("remote_install")
+    if _se_pattern(text, r"\b(seed\s+phrase|fraza\s+seed|cheia\s+privat[ăa]|wallet|portofel\s+crypto)\b"):
+        add_ask("seed_phrase")
+    if _se_pattern(text, r"\b(carduri?\s+cadou|gift\s*card|voucher)\b"):
+        add_ask("gift_card")
+    if _se_pattern(text, r"\b(transfera(?:ti|ți)?|muta(?:ti|ți)?|trimite(?:ti|ți)?|depune(?:ti|ți)?|achit(?:a|[ăa])|pl[ăa]te(?:[șs]te|sti|[șs]ti)?)\b.{0,90}\b(sold|bani|suma|lei|ron|eur|cont(?:ul)?\s+(?:nou|sigur|de\s+protec[țt]ie|temporar|seif)|iban\s+nou)\b"):
+        add_ask("transfer")
+    if _se_pattern(text, r"\bcont(?:ul)?\s+(?:de\s+)?(?:siguran[țt][ăa]|protec[țt]ie|seif|temporar)\b"):
+        add_ask("transfer")
+
+    ask_present = bool([ask for ask in ask_types if ask != "none"])
+    semantic_risk = str(semantic_review.get("risk_class") or "").strip().lower()
+    if semantic_risk in {"high", "medium"} and _has_social_engineering_pressure(raw_text):
+        ask_present = ask_present or "callback" in ask_types
+
+    if "remote_install" in ask_types:
+        intent = "remote_access"
+    elif "seed_phrase" in ask_types or _se_pattern(text, r"\b(tax[ăa]\s+de\s+retragere|recuper(?:are|ezi).{0,80}(?:profit|fonduri|bani|crypto))\b"):
+        intent = "recovery_scam"
+    elif "transfer" in ask_types and (
+        _se_pattern(text, r"\b(cont(?:ul)?\s+(?:nou|sigur|de\s+protec[țt]ie|temporar|seif)|iban\s+nou|beneficiar\s+diferit|datele\s+bancare\s+s-au\s+modificat)\b")
+        or "authority" in levers
+        or "secrecy" in levers
+    ):
+        intent = "payment_redirection"
+    elif _se_pattern(text, r"\b(trading|investi[țt]ii|investitii|crypto|randament|profituri\s+zilnice|broker|platform[ăa])\b"):
+        intent = "investment_fraud"
+    elif set(ask_types) & {"card", "otp", "callback"} and ({"authority", "fear", "secrecy"} & set(levers)):
+        intent = "credential_theft"
+    elif "authority" in levers:
+        intent = "impersonation"
+    elif semantic_review.get("claim_matches_legit_template"):
+        intent = "benign"
+    elif levers:
+        intent = "unknown"
+    else:
+        intent = "unknown"
+
+    if intent == "investment_fraud" and not ask_present:
+        ask_types = ask_types or ["none"]
+    elif not ask_types:
+        ask_types = ["none"]
+
+    confidence = 0.1
+    if intent in {"credential_theft", "payment_redirection", "remote_access", "investment_fraud", "recovery_scam"}:
+        confidence = 0.45
+    elif intent == "impersonation":
+        confidence = 0.38
+    elif intent == "benign":
+        confidence = 0.1
+    confidence += min(len(levers) * 0.08, 0.24)
+    if ask_present:
+        confidence += 0.25
+    if semantic_risk == "high":
+        confidence += 0.1
+    elif semantic_risk == "medium":
+        confidence += 0.05
+    if intent == "investment_fraud" and {"greed", "social_proof"} & set(levers):
+        confidence += 0.05
+
+    persona = "generic"
+    if _se_pattern(text, r"\b(nepot|mama|tata|fiul|fiica|accident|spital)\b"):
+        persona = "parent"
+    elif _se_pattern(text, r"\b(job|task|angajare|recrutare|lucrezi\s+de\s+acas[ăa])\b"):
+        persona = "jobseeker"
+    elif intent == "investment_fraud":
+        persona = "investor"
+    elif _se_pattern(text, r"\b(mostenire|decedat|v[ăa]duv[ăa]|funerar)\b"):
+        persona = "bereaved"
+
+    channel = str(source_channel or "").strip().lower()
+    channel_coherence = "unknown"
+    if channel in {"sms", "whatsapp", "telegram", "messenger", "social_dm", "phone"} and ("authority" in levers or "secrecy" in levers):
+        channel_coherence = "mismatch"
+    elif channel in {"official", "official_website", "official_app"}:
+        channel_coherence = "coherent"
+
+    urgency_score = 0.0
+    if "urgency" in levers:
+        urgency_score += 0.6
+    if "fear" in levers:
+        urgency_score += 0.2
+    if ask_present:
+        urgency_score += 0.1
+
+    return {
+        "status": "done",
+        "intent": intent if intent in SOCIAL_ENGINEERING_INTENTS else "unknown",
+        "ask_present": ask_present,
+        "ask_type": _dedupe_preserve_order(ask_types),
+        "levers": _dedupe_preserve_order(levers),
+        "persona_targeting": persona,
+        "channel_coherence": channel_coherence,
+        "urgency_score": round(min(1.0, urgency_score), 2),
+        "confidence": round(min(1.0, confidence), 2),
+        "model": "local_social_engineering_v1",
+        "provenance": "pipeline_only",
+    }
+
+
+def _normalize_model_social_engineering_signal(raw: Any, fallback: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(raw, dict):
+        return fallback
+    intent = str(raw.get("intent") or fallback.get("intent") or "unknown").strip().lower()
+    if intent not in SOCIAL_ENGINEERING_INTENTS:
+        intent = fallback.get("intent") or "unknown"
+    ask_type = _dedupe_preserve_order(
+        _se_list(raw.get("ask_type"), SOCIAL_ENGINEERING_ASK_TYPES)
+        + _se_list(fallback.get("ask_type"), SOCIAL_ENGINEERING_ASK_TYPES)
+    )
+    if not ask_type:
+        ask_type = ["none"]
+    levers = _dedupe_preserve_order(
+        _se_list(raw.get("levers"), SOCIAL_ENGINEERING_LEVERS)
+        + _se_list(fallback.get("levers"), SOCIAL_ENGINEERING_LEVERS)
+    )
+    confidence = max(_se_float(raw.get("confidence")), _se_float(fallback.get("confidence")))
+    ask_present = _se_bool(raw.get("ask_present")) or _se_bool(fallback.get("ask_present")) or bool(set(ask_type) - {"none"})
+    return {
+        "status": "done",
+        "intent": intent,
+        "ask_present": ask_present,
+        "ask_type": ask_type,
+        "levers": levers,
+        "persona_targeting": str(raw.get("persona_targeting") or fallback.get("persona_targeting") or "generic").strip().lower(),
+        "channel_coherence": str(raw.get("channel_coherence") or fallback.get("channel_coherence") or "unknown").strip().lower(),
+        "urgency_score": round(max(_se_float(raw.get("urgency_score")), _se_float(fallback.get("urgency_score"))), 2),
+        "confidence": round(confidence, 2),
+        "model": str(raw.get("model") or "mistral_semantic_pillar").strip(),
+        "provenance": "pipeline_only",
+    }
+
+
 def _calibrate_semantic_review_with_tier1(
     review: Dict[str, Any],
     classifier_result: Dict[str, Any],
@@ -3997,9 +4378,16 @@ def _calibrate_semantic_review_with_tier1(
     except (TypeError, ValueError):
         confidence = 0.0
 
+    # P0 guard: tier1 may calm a false-positive on genuine marketing text, but it
+    # must NEVER calm genuine social-engineering pressure (authority, secrecy,
+    # out-of-band callback, safe-account, threat). Without this an authority/
+    # safe-account scam gets stomped to benign — the root cause of SE blindness.
+    # (Severity is NOT used as a guard: a high atlas false-positive on plain
+    # marketing must still be downgradable — see tier1 FP calibration test.)
     if (
         label not in TIER1_LEGIT_LABELS
         or confidence < 0.55
+        or _has_social_engineering_pressure(raw_text)
         or _has_direct_sensitive_request(raw_text)
         or _has_investment_money_risk(raw_text)
     ):
@@ -4030,7 +4418,7 @@ def _call_mistral_semantic_review(payload: Dict[str, Any]) -> Dict[str, Any]:
         json={
             "model": MISTRAL_SEMANTIC_MODEL,
             "temperature": 0,
-            "max_tokens": 420,
+            "max_tokens": 620,
             "response_format": {"type": "json_object"},
             "messages": [
                 {"role": "system", "content": MISTRAL_SEMANTIC_SYSTEM_PROMPT},
@@ -4079,6 +4467,12 @@ async def _enrich_semantic_review_async(
             tier1_result,
             raw_text=provider_safe_text,
         )
+        evidence["social_engineering"] = _social_engineering_signal_for_decision_bundle(
+            provider_safe_text,
+            request_sensitive="none",
+            source_channel=str(evidence.get("source_channel") or ""),
+            semantic_review=evidence["semantic_review"],
+        )
         return
 
     payload = {
@@ -4108,6 +4502,16 @@ async def _enrich_semantic_review_async(
             tier1_result,
             raw_text=provider_safe_text,
         )
+        local_social_engineering = _social_engineering_signal_for_decision_bundle(
+            provider_safe_text,
+            request_sensitive="none",
+            source_channel=str(evidence.get("source_channel") or ""),
+            semantic_review=evidence["semantic_review"],
+        )
+        evidence["social_engineering"] = _normalize_model_social_engineering_signal(
+            raw_review.get("social_engineering"),
+            local_social_engineering,
+        )
     except Exception as exc:
         fallback = dict(fallback)
         fallback["source"] = fallback.get("source") or "scam_atlas_family_match"
@@ -4118,6 +4522,12 @@ async def _enrich_semantic_review_async(
             fallback,
             tier1_result,
             raw_text=provider_safe_text,
+        )
+        evidence["social_engineering"] = _social_engineering_signal_for_decision_bundle(
+            provider_safe_text,
+            request_sensitive="none",
+            source_channel=str(evidence.get("source_channel") or ""),
+            semantic_review=evidence["semantic_review"],
         )
 
 
@@ -4140,6 +4550,12 @@ def _enrich_local_semantic_review(redacted_text: str, analysis: Dict[str, Any]) 
         fallback,
         tier1_result,
         raw_text=redacted_text,
+    )
+    evidence["social_engineering"] = _social_engineering_signal_for_decision_bundle(
+        redacted_text,
+        request_sensitive="none",
+        source_channel=str(evidence.get("source_channel") or ""),
+        semantic_review=evidence["semantic_review"],
     )
 
 
@@ -4278,6 +4694,17 @@ def _build_decision_evidence_bundle(
         official_destination=official_destination,
         provider_verdict=str(provider_section.get("verdict") or "unknown"),
     )
+    local_social_engineering = _social_engineering_signal_for_decision_bundle(
+        raw_text,
+        request_sensitive=request_sensitive,
+        source_channel=str(source_channel or ""),
+        semantic_review=semantic_review,
+    )
+    social_engineering_proto = evidence.get("social_engineering") if isinstance(evidence.get("social_engineering"), dict) else {}
+    social_engineering = _normalize_model_social_engineering_signal(
+        social_engineering_proto,
+        local_social_engineering,
+    )
     provenance_proto = evidence.get("provenance") if isinstance(evidence.get("provenance"), dict) else {}
     cross_scan = evidence.get("cross_scan_knowledge") if isinstance(evidence.get("cross_scan_knowledge"), dict) else {}
     cross_never_asks = cross_scan.get("brand_never_asks") if isinstance(cross_scan.get("brand_never_asks"), dict) else {}
@@ -4335,6 +4762,7 @@ def _build_decision_evidence_bundle(
             "cross_scan_knowledge": cross_scan,
         },
         "semantic_review": semantic_review,
+        "social_engineering": social_engineering,
     }
     if community_data:
         bundle["community"] = community_data

@@ -111,6 +111,42 @@ def _merge_map_of_strings(*items: dict[str, str]) -> dict[str, str]:
     return merged
 
 
+def _record_key(record: dict, index: int) -> str:
+    brand_id = str(record.get("brand_id") or "").strip()
+    if brand_id:
+        return f"brand_id:{brand_id}"
+    display_name = str(record.get("display_name") or "").strip()
+    if display_name:
+        return f"display_name:{display_name.lower()}"
+    return f"index:{index}"
+
+
+def _merge_records_by_stable_key(*record_lists: list[dict]) -> list[dict]:
+    merged: list[dict] = []
+    seen: set[str] = set()
+    for records in record_lists:
+        for index, record in enumerate(records or []):
+            if not isinstance(record, dict):
+                continue
+            key = _record_key(record, index)
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(record)
+    return merged
+
+
+def _preserved_official_registry_metadata(existing_pack: dict) -> dict:
+    existing_metadata = existing_pack.get("metadata", {})
+    if not isinstance(existing_metadata, dict):
+        return {}
+    return {
+        key: value
+        for key, value in existing_metadata.items()
+        if key.startswith("official_domain_registry_")
+    }
+
+
 def _ascii_fold(value: str) -> str:
     folded = unicodedata.normalize("NFKD", value or "")
     return "".join(char for char in folded if not unicodedata.combining(char))
@@ -290,6 +326,7 @@ def build_brand_pack_payload(knowledge: dict, existing_pack: dict) -> dict:
         "generator": "backend/tools/build_runtime_knowledge.py",
         "preserves_existing_operational_entries": True,
     }
+    metadata.update(_preserved_official_registry_metadata(existing_pack))
 
     return {
         "metadata": metadata,
@@ -311,7 +348,10 @@ def build_brand_pack_payload(knowledge: dict, existing_pack: dict) -> dict:
         ),
         "brand_warnings": knowledge.get("brand_warnings", []),
         "claim_verifier_targets": knowledge.get("claim_verifier_targets", []),
-        "official_registry_updates": knowledge.get("official_registry_updates", []),
+        "official_registry_updates": _merge_records_by_stable_key(
+            knowledge.get("official_registry_updates", []),
+            existing_pack.get("official_registry_updates", []),
+        ),
         "false_positive_guards": knowledge.get("false_positive_guards", []),
         "signal_mapping": knowledge.get("signal_mapping", []),
         "sources": knowledge.get("sources", {}),

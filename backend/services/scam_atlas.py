@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import unicodedata
 import urllib.parse
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
@@ -88,6 +89,19 @@ def _coerce_str_list(values: Any) -> List[str]:
         if text:
             out.append(text)
     return out
+
+
+def _dedupe_preserve_order(values: List[str]) -> List[str]:
+    seen = set()
+    deduped: List[str] = []
+    for value in values:
+        if not value:
+            continue
+        if value in seen:
+            continue
+        seen.add(value)
+        deduped.append(value)
+    return deduped
 
 
 def _normalize_atlas_family(raw: Any) -> Optional[Dict[str, Any]]:
@@ -242,7 +256,6 @@ DEFAULT_BRAND_KNOWLEDGE = {
         "Meta": ["meta.com", "facebook.com", "instagram.com", "whatsapp.com"],
     },
     "brand_domain_exceptions": {
-        "ANAF": ["anaf-spv.info", "anaf-spv.ro", "anaf-spv.gov.ro"],
         "Uber": ["sng.link", "uber.link", "app.link", "branch.link", "bnc.lt"],
         "eMAG": ["sng.link", "app.link", "branch.link", "bnc.lt"],
     },
@@ -323,6 +336,146 @@ _official_registry_updates = [
     for entry in _loaded_brand_knowledge.get("official_registry_updates", [])
     if isinstance(entry, dict)
 ]
+
+
+def _normalise_host(value: Any) -> str:
+    return str(value or "").strip().lower().strip(".")
+
+
+def _normalise_path(value: Any) -> str:
+    path = str(value or "").strip()
+    if not path:
+        return ""
+    if not path.startswith("/"):
+        path = f"/{path}"
+    return path
+
+
+def _url_path_from_parts(url: Optional[str] = None, path: Optional[str] = None) -> str:
+    if path:
+        return _normalise_path(path)
+    if not url:
+        return ""
+    try:
+        return _normalise_path(urllib.parse.urlparse(url).path)
+    except Exception:
+        return ""
+
+
+def _official_entry_display_name(entry: Dict[str, Any]) -> str:
+    return str(entry.get("display_name") or entry.get("brand") or entry.get("brand_id") or "").strip()
+
+
+def _official_entry_tokens(entry: Dict[str, Any]) -> List[str]:
+    tokens = [
+        _official_entry_display_name(entry),
+        str(entry.get("legal_entity") or "").strip(),
+    ]
+    tokens.extend(_coerce_str_list(entry.get("entity_context_tokens")))
+    tokens.extend(_coerce_str_list(entry.get("aliases")))
+    return _dedupe_preserve_order([token for token in tokens if token])
+
+
+def _ascii_fold(value: str) -> str:
+    folded = unicodedata.normalize("NFKD", value or "")
+    return "".join(char for char in folded if not unicodedata.combining(char))
+
+
+def _compact_token(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", _ascii_fold(str(value or "")).lower())
+
+
+def _lookalike_tokens_for_official_entry(entry: Dict[str, Any]) -> List[str]:
+    tokens: List[str] = []
+    generic_public_labels = {
+        "directia",
+        "institutia",
+        "inspectoratul",
+        "judetul",
+        "prefectului",
+        "prefectura",
+        "publica",
+        "romania",
+        "sanatate",
+    }
+    for domain in (
+        _coerce_str_list(entry.get("official_domains"))
+        + _coerce_str_list(entry.get("subdomains"))
+        + _coerce_str_list(entry.get("delegated_domains"))
+        + _coerce_str_list(entry.get("exact_hosts"))
+    ):
+        labels = [
+            label
+            for label in _normalise_host(domain).split(".")
+            if len(label) >= 4
+            and label not in {"www", "gov", "edu", "com", "net", "org"}
+            and label not in generic_public_labels
+        ]
+        tokens.extend(labels)
+    for alias in _official_entry_tokens(entry):
+        compact = _compact_token(alias)
+        if len(compact) >= 5:
+            tokens.append(compact)
+        words = [
+            _compact_token(word)
+            for word in re.split(r"[^0-9A-Za-zĂÂÎȘȚăâîșț]+", alias)
+            if len(_compact_token(word)) >= 4
+        ]
+        tokens.extend(word for word in words if word not in generic_public_labels)
+        if 1 < len(words) <= 3:
+            tokens.append("".join(words))
+    if entry.get("category") == "prefecture":
+        display = _official_entry_display_name(entry)
+        county_match = re.search(r"jude[țt]ul\s+(.+)$", display, flags=re.IGNORECASE)
+        if county_match:
+            county = _compact_token(county_match.group(1))
+            if len(county) >= 4:
+                tokens.append(f"prefectura{county}")
+    return _dedupe_preserve_order([token for token in tokens if token])
+
+
+def _display_name_preference_score(display_name: str) -> tuple[int, int]:
+    text = str(display_name or "").strip()
+    lower = _ascii_fold(text).lower()
+    official_words = sum(
+        1
+        for word in (
+            "directia",
+            "institutia",
+            "inspectoratul",
+            "consiliul",
+            "autoritatea",
+        )
+        if word in lower
+    )
+    return (official_words, len(text))
+
+
+OFFICIAL_REGISTRY_POLICIES_BY_BRAND: Dict[str, List[Dict[str, Any]]] = {}
+OFFICIAL_REGISTRY_ALIASES_BY_BRAND: Dict[str, List[str]] = {}
+for entry in _official_registry_updates:
+    display_name = _official_entry_display_name(entry)
+    if not display_name:
+        continue
+    OFFICIAL_REGISTRY_POLICIES_BY_BRAND.setdefault(display_name, []).append(entry)
+    OFFICIAL_REGISTRY_ALIASES_BY_BRAND.setdefault(display_name, [])
+    OFFICIAL_REGISTRY_ALIASES_BY_BRAND[display_name].extend(_official_entry_tokens(entry))
+
+OFFICIAL_REGISTRY_ALIASES_BY_BRAND = {
+    brand: _dedupe_preserve_order(tokens)
+    for brand, tokens in OFFICIAL_REGISTRY_ALIASES_BY_BRAND.items()
+}
+
+OFFICIAL_REGISTRY_LOOKALIKE_TOKENS: Dict[str, str] = {}
+for entry in _official_registry_updates:
+    display_name = _official_entry_display_name(entry)
+    if not display_name:
+        continue
+    for token in _lookalike_tokens_for_official_entry(entry):
+        current = OFFICIAL_REGISTRY_LOOKALIKE_TOKENS.get(token)
+        if current is None or _display_name_preference_score(display_name) > _display_name_preference_score(current):
+            OFFICIAL_REGISTRY_LOOKALIKE_TOKENS[token] = display_name
+
 BRAND_ID_TO_DISPLAY_NAME: Dict[str, str] = {
     str(entry.get("brand_id") or "").strip(): str(entry.get("display_name") or "").strip()
     for entry in _official_registry_updates
@@ -529,6 +682,8 @@ REMOTE_ACCESS_PATTERNS = (
 URGENCY_MANIPULATION_PATTERNS = (
     re.compile(r"\burgent[a-z]*\b|\burgenta\b|\bimediat\b|\b24\s*ore\b", re.IGNORECASE),
     re.compile(r"\bbloc[aă]t\b|\bsuspendat\b|\bexpir[aă]\b", re.IGNORECASE),
+    re.compile(r"\b(?:suspend[ăa]\w*|bloc(?:heaz[ăa]|at|are)|dezactiv(?:eat|are))\w*\b.{0,60}\b(?:cont(?:ul)?|acces(?:ul)?|card(?:ul)?)\b", re.IGNORECASE),
+    re.compile(r"\b(?:verific[ăa]\w*|confirm[ăa]\w*|reautoriz\w+)\b.{0,60}\b(?:identitate|date|cont|acces)\b.{0,60}\b(?:suspend|bloc|dezactiv|restriction|expir)\w*", re.IGNORECASE),
 )
 
 MANIPULATION_REWARD_PATTERNS = (
@@ -589,18 +744,6 @@ KNOWN_DEEPLINK_PROVIDERS = {
 }
 
 
-def _dedupe_preserve_order(values: List[str]) -> List[str]:
-    seen = set()
-    deduped: List[str] = []
-    for value in values:
-        if not value:
-            continue
-        if value in seen:
-            continue
-        seen.add(value)
-        deduped.append(value)
-    return deduped
-
 # Local repo seed path for the Romania corpus. This replaces the old absolute path from the
 # legacy workspace and keeps ScamAtlas reproducible across machines and deployments.
 SEED_PATH = _resolve_path(
@@ -631,8 +774,12 @@ def _build_brand_mention_patterns(
     aliases: Dict[str, List[str]],
 ) -> Dict[str, re.Pattern]:
     patterns: Dict[str, re.Pattern] = {}
-    for brand_name in brand_registry.keys():
+    brand_names = _dedupe_preserve_order(
+        list(brand_registry.keys()) + list(OFFICIAL_REGISTRY_ALIASES_BY_BRAND.keys())
+    )
+    for brand_name in brand_names:
         candidates = aliases.get(brand_name, [])
+        candidates = candidates + OFFICIAL_REGISTRY_ALIASES_BY_BRAND.get(brand_name, [])
         candidates = _dedupe_preserve_order(candidates + [brand_name])
         pattern = _pattern_from_aliases(candidates)
         if pattern:
@@ -652,6 +799,71 @@ def _get_registrable_domain(extracted: "tldextract.ExtractResult") -> str:
     if isinstance(domain, str) and domain.strip():
         return domain.strip().lower()
     return ""
+
+
+def _candidate_domain_values(reg_domain: str, hostname: Optional[str] = None) -> List[str]:
+    candidates: List[str] = []
+    for candidate in (reg_domain, hostname):
+        normalized = _normalise_host(candidate)
+        if not normalized:
+            continue
+        candidates.append(normalized)
+        extracted = tldextract.extract(normalized)
+        extracted_domain = _get_registrable_domain(extracted)
+        if extracted_domain and extracted_domain != normalized:
+            candidates.append(extracted_domain)
+    return _dedupe_preserve_order(candidates)
+
+
+def _host_matches_domain(candidate: str, allowed: str) -> bool:
+    candidate = _normalise_host(candidate)
+    allowed = _normalise_host(allowed)
+    return bool(candidate and allowed and (candidate == allowed or candidate.endswith(f".{allowed}")))
+
+
+def _official_policy_allows_url(
+    entry: Dict[str, Any],
+    reg_domain: str,
+    hostname: Optional[str] = None,
+    url: Optional[str] = None,
+    path: Optional[str] = None,
+) -> bool:
+    if not bool(entry.get("can_contribute_to_safe", True)):
+        return False
+
+    normalized_host = _normalise_host(hostname)
+    normalized_path = _url_path_from_parts(url=url, path=path)
+    match_policy = str(entry.get("match_policy") or "").strip().lower()
+    shared_host = bool(entry.get("shared_host"))
+    exact_hosts = [_normalise_host(item) for item in _coerce_str_list(entry.get("exact_hosts"))]
+    exact_hosts = [item for item in exact_hosts if item]
+    official_domains = [_normalise_host(item) for item in _coerce_str_list(entry.get("official_domains"))]
+    delegated_domains = [_normalise_host(item) for item in _coerce_str_list(entry.get("delegated_domains"))]
+    path_prefixes = [_normalise_path(item).lower() for item in _coerce_str_list(entry.get("path_prefixes"))]
+    path_prefixes = [item for item in path_prefixes if item]
+
+    if match_policy == "exact_host":
+        return bool(normalized_host and normalized_host in exact_hosts)
+
+    if shared_host or match_policy in {"shared_host_plus_path_prefix", "path_scoped"}:
+        if not normalized_host or not path_prefixes:
+            return False
+        host_allowed = (
+            normalized_host in exact_hosts
+            or any(_host_matches_domain(normalized_host, domain) for domain in official_domains)
+        )
+        if not host_allowed:
+            return False
+        lowered_path = normalized_path.lower()
+        return any(lowered_path == prefix.rstrip("/") or lowered_path.startswith(prefix) for prefix in path_prefixes)
+
+    candidates = _candidate_domain_values(reg_domain, hostname)
+    for allowed in [*official_domains, *delegated_domains]:
+        if any(_host_matches_domain(candidate, allowed) for candidate in candidates):
+            return True
+    if exact_hosts:
+        return bool(normalized_host and normalized_host in exact_hosts)
+    return False
 
 class ScamAtlasEngine:
     def __init__(self):
@@ -706,36 +918,26 @@ class ScamAtlasEngine:
         claimed_brand: str,
         reg_domain: str,
         hostname: str | None = None,
-        url: Optional[str] = None,
+        url: str | None = None,
+        path: str | None = None,
     ) -> bool:
-        if not claimed_brand or claimed_brand not in BRAND_REGISTRY:
+        if not claimed_brand:
             return False
 
-        allowed_domains = set(BRAND_REGISTRY[claimed_brand])
+        allowed_domains = set(BRAND_REGISTRY.get(claimed_brand, []))
         allowed_domains.update(BRAND_DOMAIN_EXCEPTIONS.get(claimed_brand, []))
-        if not allowed_domains:
-            return False
-
-        candidates: List[str] = []
-        for candidate in (reg_domain, hostname):
-            if not candidate:
-                continue
-            normalized = str(candidate).strip().lower().strip(".")
-            if not normalized:
-                continue
-            candidates.append(normalized)
-            extracted = tldextract.extract(normalized)
-            extracted_domain = _get_registrable_domain(extracted)
-            if extracted_domain and extracted_domain != normalized:
-                candidates.append(extracted_domain)
-
+        candidates = _candidate_domain_values(reg_domain, hostname)
         for allowed_domain in allowed_domains:
-            allowed = str(allowed_domain).strip().lower()
+            allowed = _normalise_host(allowed_domain)
             if not allowed:
                 continue
             for candidate in candidates:
-                if candidate == allowed or candidate.endswith(f".{allowed}"):
+                if _host_matches_domain(candidate, allowed):
                     return True
+
+        for entry in OFFICIAL_REGISTRY_POLICIES_BY_BRAND.get(claimed_brand, []):
+            if _official_policy_allows_url(entry, reg_domain, hostname=hostname, url=url, path=path):
+                return True
         return False
 
     def _is_brand_delegated_deeplink(
@@ -767,10 +969,17 @@ class ScamAtlasEngine:
         hostname: str | None = None,
         claimed_brand: Optional[str] = None,
         url: Optional[str] = None,
+        path: Optional[str] = None,
     ) -> bool:
         if self._is_whitelisted_domain(reg_domain, hostname=hostname):
             return True
-        if claimed_brand and self._is_brand_allowed_domain(claimed_brand, reg_domain, hostname):
+        if claimed_brand and self._is_brand_allowed_domain(
+            claimed_brand,
+            reg_domain,
+            hostname,
+            url=url,
+            path=path,
+        ):
             return True
         if claimed_brand and self._is_brand_delegated_deeplink(claimed_brand, reg_domain, hostname):
             return True
@@ -790,10 +999,29 @@ class ScamAtlasEngine:
         """
         Detects if a trusted brand name is mentioned in the text.
         """
+        best_brand: Optional[str] = None
+        best_specificity = -1
         for brand_name, pattern in BRAND_MENTION_PATTERNS.items():
             if pattern.search(text):
-                return brand_name
-        return None
+                aliases = _dedupe_preserve_order(
+                    _loaded_aliases.get(brand_name, [])
+                    + OFFICIAL_REGISTRY_ALIASES_BY_BRAND.get(brand_name, [])
+                    + [brand_name]
+                )
+                matched_lengths = [
+                    len(alias)
+                    for alias in aliases
+                    if alias and (alias_pattern := _pattern_from_aliases([alias]))
+                    and re.search(alias_pattern, text, re.IGNORECASE)
+                ]
+                specificity = max(matched_lengths) if matched_lengths else len(brand_name)
+                canonical_pattern = _pattern_from_aliases([brand_name])
+                if canonical_pattern and re.search(canonical_pattern, text, re.IGNORECASE):
+                    specificity += 1000
+                if specificity > best_specificity:
+                    best_brand = brand_name
+                    best_specificity = specificity
+        return best_brand
 
     def check_brand_mismatch(self, claimed_brand: str, urls: List[Dict[str, Any]]) -> Tuple[bool, Optional[str]]:
         """
@@ -801,16 +1029,20 @@ class ScamAtlasEngine:
         to its official domain(s).
         Returns (has_mismatch, offending_registered_domain)
         """
-        if not claimed_brand or claimed_brand not in BRAND_REGISTRY:
+        if not claimed_brand or (
+            claimed_brand not in BRAND_REGISTRY
+            and claimed_brand not in OFFICIAL_REGISTRY_POLICIES_BY_BRAND
+        ):
             return False, None
 
         for url_info in urls:
             reg_domain = (url_info.get("final_registered_domain") or url_info.get("registered_domain") or "").lower()
             hostname = (url_info.get("final_hostname") or url_info.get("hostname") or "").lower()
-            if not hostname and (url_info.get("final_url") or url_info.get("url")):
-                parsed = urllib.parse.urlparse(url_info.get("final_url") or url_info.get("url") or "")
+            final_url = url_info.get("final_url") or url_info.get("url") or ""
+            if not hostname and final_url:
+                parsed = urllib.parse.urlparse(final_url)
                 hostname = (parsed.hostname or "").lower()
-            if self._is_brand_allowed_domain(claimed_brand, reg_domain, hostname):
+            if self._is_brand_allowed_domain(claimed_brand, reg_domain, hostname, url=final_url):
                 continue
             if reg_domain or hostname:
                 return True, reg_domain or hostname
@@ -833,7 +1065,12 @@ class ScamAtlasEngine:
             parsed = urllib.parse.urlparse(final_url)
             hostname = (parsed.hostname or "").lower()
             reg_domain = (url_info.get("final_registered_domain") or "").lower()
-            is_allowed_url = self._is_context_allowed_domain(reg_domain, hostname=hostname, claimed_brand=claimed_brand)
+            is_allowed_url = self._is_context_allowed_domain(
+                reg_domain,
+                hostname=hostname,
+                claimed_brand=claimed_brand,
+                url=final_url,
+            )
             scheme = (parsed.scheme or "").lower()
             try:
                 port = parsed.port
@@ -915,18 +1152,26 @@ class ScamAtlasEngine:
         for url_info in urls:
             domains_to_check = set()
             hostnames_to_check = set()
+            context_allowed_domains = set()
             
             # Extract from final destination
             final_url = url_info.get("final_url") or url_info.get("url") or ""
             if final_url:
                 ext = tldextract.extract(final_url)
                 registrable_domain = _get_registrable_domain(ext)
-                if registrable_domain:
-                    domains_to_check.add(registrable_domain)
                 parsed = urllib.parse.urlparse(final_url)
                 hname = url_info.get("final_hostname") or parsed.hostname
                 if hname:
                     hostnames_to_check.add(hname.lower())
+                if registrable_domain:
+                    domains_to_check.add(registrable_domain)
+                    if claimed_brand and self._is_brand_allowed_domain(
+                        claimed_brand,
+                        registrable_domain,
+                        hostname=(str(hname).lower() if hname else None),
+                        url=final_url,
+                    ):
+                        context_allowed_domains.add(registrable_domain)
                     
             # Extract from redirect chain hops
             for hop in url_info.get("redirect_chain", []):
@@ -935,7 +1180,14 @@ class ScamAtlasEngine:
                 if h:
                     hostnames_to_check.add(h.lower())
                 if reg:
-                    domains_to_check.add(reg.lower())
+                    normalized_reg = reg.lower()
+                    domains_to_check.add(normalized_reg)
+                    if claimed_brand and self._is_brand_allowed_domain(
+                        claimed_brand,
+                        normalized_reg,
+                        hostname=(str(h).lower() if h else None),
+                    ):
+                        context_allowed_domains.add(normalized_reg)
 
             # 1. IDN / Punycode Check
             has_punycode = False
@@ -949,6 +1201,8 @@ class ScamAtlasEngine:
 
             # 2. Typosquatting / Lookalike Check
             for reg_domain in domains_to_check:
+                if reg_domain in context_allowed_domains:
+                    continue
                 if claimed_brand_normalized and self._is_brand_allowed_domain(
                     claimed_brand,
                     reg_domain,
@@ -1074,7 +1328,13 @@ class ScamAtlasEngine:
             query = parsed.query.lower()
             hostname = (parsed.hostname or "").lower()
             reg_domain = (url_info.get("final_registered_domain") or "").lower()
-            is_official_url = self._is_context_allowed_domain(reg_domain, hostname=hostname, claimed_brand=claimed_brand)
+            is_official_url = self._is_context_allowed_domain(
+                reg_domain,
+                hostname=hostname,
+                claimed_brand=claimed_brand,
+                url=final_url,
+                path=path,
+            )
 
             url_signals = []
             if path and not is_official_url:
@@ -1514,6 +1774,7 @@ class ScamAtlasEngine:
                     reg_domain,
                     hostname=hostname,
                     claimed_brand=claimed_brand,
+                    url=url_info.get("final_url") or url_info.get("url") or "",
                 )
                 if url_unresolved and not is_whitelisted_url:
                     unresolved_count += 1
@@ -1805,6 +2066,7 @@ class ScamAtlasEngine:
                             urllib.parse.urlparse(url_info.get("final_url") or url_info.get("url") or "").hostname or ""
                         ),
                         claimed_brand=claimed_brand,
+                        url=url_info.get("final_url") or url_info.get("url") or "",
                     )
                     for url_info in urls
                 )
