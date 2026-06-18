@@ -278,6 +278,34 @@ def _is_clean_coherent_invoice_without_registry_destination(
     return True
 
 
+KNOWN_SHORTENER_DOMAINS = {
+    "bit.ly", "bitly.com", "tinyurl.com", "t.ly", "shorturl.at", "is.gd",
+    "t.co", "tiny.cc", "ow.ly", "rb.gy", "cutt.ly", "rebrand.ly", "buff.ly",
+    "goo.gl", "shorte.st", "adf.ly", "bl.ink", "lnkd.in", "tr.im", "soo.gd",
+}
+
+
+def _host_from_url(value: Any) -> str:
+    host = str(value or "").strip().lower()
+    if "://" in host:
+        host = host.split("://", 1)[1]
+    host = host.split("/", 1)[0].split("?", 1)[0].split("#", 1)[0]
+    return host.split("@")[-1].split(":", 1)[0].strip(".")
+
+
+def _final_destination_is_unresolved_shortener(bundle: Dict[str, Any]) -> bool:
+    """True when the final URL is still a known shortener — i.e. the real
+    destination was never confirmed. Such a link must not be granted SAFE: it is
+    a blank cheque for any phishing target hidden behind tinyurl/bit.ly.
+    """
+    resolution = _section(bundle, "resolution")
+    final_url = resolution.get("final_url") or _section(bundle, "input").get("redacted_text")
+    host = _host_from_url(final_url)
+    if not host:
+        return False
+    return any(host == s or host.endswith("." + s) for s in KNOWN_SHORTENER_DOMAINS)
+
+
 def _is_low_risk_public_navigation(
     *,
     bundle: Dict[str, Any],
@@ -313,6 +341,8 @@ def _is_low_risk_public_navigation(
     if _bool(identity.get("brand_token_mismatch")):
         return False
     if _bool(identity.get("host_unreachable")):
+        return False
+    if _final_destination_is_unresolved_shortener(bundle):
         return False
     context = _section(bundle, "context")
     if _bool(context.get("apk_or_remote_mention")):
