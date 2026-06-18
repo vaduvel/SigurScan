@@ -55,7 +55,8 @@ Formularul Data Safety **trebuie să declare exact**:
 
 ### 2.4 🟠 App access pentru recenzori
 - App-ul e **inutil dacă backend-ul e jos** la review. Recenzorii Google îl testează live →
-  - backend-ul de producție **trebuie să fie up** și `SIGURSCAN_RELEASE_API_KEY` valid în build-ul de release;
+  - backend-ul de producție **trebuie să fie up**;
+  - build-ul de release trebuie să folosească Play Integrity monitor/enforce sau, doar temporar, `SIGURSCAN_ALLOW_RELEASE_STATIC_API_KEY=true` cu `SIGURSCAN_RELEASE_API_KEY`;
   - dă în „App access" instrucțiuni: „nu necesită cont; lipește un link/text și apasă Scanează".
 
 ### 2.5 🟠 Impersonation / brand & IP policy (risc mediu — specific app-ului)
@@ -87,7 +88,8 @@ App-ul folosește **nume de branduri** (bănci, eMAG, DIGI, ANAF, curieri) în d
 
 **Cod / build (aproape gata):**
 - [ ] `bundleRelease` cu keystore-ul de release → AAB.
-- [ ] `SIGURSCAN_RELEASE_BACKEND_BASE_URL` + `SIGURSCAN_RELEASE_API_KEY` + `SIGURSCAN_RELEASE_PRIVACY_URL` setate.
+- [ ] `SIGURSCAN_RELEASE_BACKEND_BASE_URL` + `SIGURSCAN_RELEASE_PRIVACY_URL` setate.
+- [ ] Play Integrity configurat pentru release (`SIGURSCAN_ENABLE_PLAY_INTEGRITY=true`, backend `PLAY_INTEGRITY_MODE=monitor/enforce`) sau fallback static key activat explicit și documentat.
 - [ ] (recomandat) `isMinifyEnabled = true` + verifică ProGuard.
 - [ ] Upload pe **Internal testing** → Play Console confirmă automat 16KB + 64-bit + targetSdk.
 

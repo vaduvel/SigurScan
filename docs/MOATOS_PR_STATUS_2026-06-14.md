@@ -321,9 +321,9 @@ Production image: `europe-west1-docker.pkg.dev/project-20f225c0-d756-4cba-864/si
 
 6. Release public auth ramane limitat pana la Play Integrity/backend-issued token.
    - APK/AAB nu contin provider/admin/service secrets dupa auditul `tools/audit_android_release_secrets.py`.
-   - APK/AAB contin cheia de client `SIGURSCAN_API_KEY`/`SIGURSCAN_RELEASE_API_KEY`, tratata doar ca bariera anti-abuz extractabila.
+   - Status 2026-06-18: release nu mai include `SIGURSCAN_RELEASE_API_KEY` implicit; cheia statică de release se poate include doar cu `SIGURSCAN_ALLOW_RELEASE_STATIC_API_KEY=true`, ca fallback explicit.
    - Backend-ul poate valida Play Integrity cand `PLAY_INTEGRITY_CREDENTIALS_JSON` si `PLAY_INTEGRITY_MODE=monitor/enforce` sunt configurate.
-   - Android include `com.google.android.play:integrity`, cere nonce backend single-use si poate trimite `X-Play-Integrity-Token` prin `ApiKeyInterceptor`, dar token request ramane off-by-default prin `SIGURSCAN_ENABLE_PLAY_INTEGRITY=false`.
+   - Android include `com.google.android.play:integrity`, cere nonce backend single-use cu `X-SigurScan-Client-Instance` si poate trimite `X-Play-Integrity-Token` prin `ApiKeyInterceptor`, dar token request ramane off-by-default prin `SIGURSCAN_ENABLE_PLAY_INTEGRITY=false`.
    - Backend-ul stocheaza doar hash nonce + hash binding client in Upstash, foloseste TTL/NX si consuma atomic cu `GETDEL`; verifica si timestamp-ul Google.
    - `/health` live arata in continuare `play_integrity_mode=off`; pentru release public larg nu trebuie numita autentificare reala pana la secret + build Play semnat + monitor pass rate.
 

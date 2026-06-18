@@ -32,7 +32,7 @@ Checks run:
 - `python3 tools/audit_android_release_secrets.py app/build/outputs/apk/release/app-release.apk`
 - `python3 tools/audit_android_release_secrets.py app/build/outputs/bundle/release/app-release.aab`
   - Provider/admin/service secrets were not embedded.
-  - Documented warning remains for `SIGURSCAN_API_KEY` and `SIGURSCAN_RELEASE_API_KEY`, matching `docs/RELEASE_PROCESS.md`.
+  - Current release policy: `SIGURSCAN_RELEASE_API_KEY` is not embedded unless `SIGURSCAN_ALLOW_RELEASE_STATIC_API_KEY=true` is set as an explicit fallback; see `docs/RELEASE_PROCESS.md`.
 - `strings app/build/outputs/apk/release/app-release.apk | rg "SUPABASE|eyJhbGci|URLSCAN_API_KEY|VIRUSTOTAL_API_KEY|GOOGLE_SAFE|ANDROID_ID|ro\\.nudaclick|com\\.example\\.myapplication"`
   - No matches.
 

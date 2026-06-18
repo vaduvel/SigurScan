@@ -44,9 +44,11 @@ python3 tools/audit_android_release_secrets.py app/build/outputs/bundle/release/
 ```
 
 Acest audit trebuie să eșueze pentru provider/admin/service secrets embeduite.
-`SIGURSCAN_API_KEY` / `SIGURSCAN_RELEASE_API_KEY` sunt warning-uri cunoscute
-pentru build-ul privat curent; pentru release public larg trebuie înlocuite cu
-Play Integrity sau token scurt emis de backend.
+`SIGURSCAN_API_KEY` poate apărea ca warning pentru build-uri debug/private.
+Release public nu include `SIGURSCAN_RELEASE_API_KEY` implicit; cheia statică se
+poate include doar cu `SIGURSCAN_ALLOW_RELEASE_STATIC_API_KEY=true`, ca fallback
+temporar documentat. Direcția de producție este Play Integrity `monitor` →
+`enforce`.
 
 ## Store Readiness
 
