@@ -218,6 +218,25 @@ def _has_checked_payment_destination(providers: Dict[str, Any]) -> bool:
     )
 
 
+def _is_clean_coherent_invoice_without_registry_destination(
+    *,
+    identity_status: str,
+    channel: str,
+    semantic_risk: str,
+    providers: Dict[str, Any],
+) -> bool:
+    if identity_status != "coherent" or channel != "invoice" or semantic_risk not in {"low", "benign"}:
+        return False
+    payment = providers.get("payment_destination")
+    if isinstance(payment, dict):
+        payment_status = _norm(payment.get("status") or payment.get("verdict"))
+        if payment_status in PROVIDER_MALICIOUS or payment_status in PROVIDER_SUSPICIOUS:
+            return False
+        if _bool(payment.get("registry_has_brand_destinations")):
+            return False
+    return True
+
+
 def _campaign_match_high_enough(campaign: Dict[str, Any]) -> bool:
     """Campaign fingerprint match solo -> max SUSPECT."""
     status = _norm(campaign.get("status"))
@@ -372,6 +391,12 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
         value_sensitive
         and has_provenance
         and not _has_trusted_payment_destination(providers)
+        and not _is_clean_coherent_invoice_without_registry_destination(
+            identity_status=identity_status,
+            channel=channel,
+            semantic_risk=semantic_risk,
+            providers=providers,
+        )
     ):
         return _result("SUSPECT", ["value_request_needs_verification"], confidence=70)
 

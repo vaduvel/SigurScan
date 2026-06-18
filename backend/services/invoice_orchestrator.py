@@ -19,6 +19,8 @@ if TYPE_CHECKING:
 
 
 CACHE_TTL = 43200  # 12 hours
+HIGH_VALUE_UNCONFIRMED_PAYMENT_RON = 5000.0
+HIGH_VALUE_UNCONFIRMED_PAYMENT_FOREIGN = 1000.0
 _cui_cache: dict[str, tuple[float, dict]] = {}
 _verdict_cache: dict[str, tuple[float, "InvoiceScanResult"]] = {}
 
@@ -158,6 +160,7 @@ B2B_MEDIUM_RISK_FLAGS = {
     "DOMAIN_RENEWAL_INVOICE_NO_EXISTING_VENDOR",
     "NEW_VENDOR_PUBLIC_PROCUREMENT_FEE",
     "OFFICIAL_REGISTRY_CLAIM_BUT_NO_PROVENANCE",
+    "HIGH_VALUE_UNCONFIRMED_PAYMENT_DESTINATION",
 }
 _SENSITIVE_NEGATION_RE = re.compile(
     r"\b(nu|niciodata|niciodată|fara|fără|nici\s+un)\b",
@@ -224,6 +227,17 @@ def _fields_to_coherence(fields: InvoiceFields) -> CoherenceResult:
 
 def _has_no_extractable_data(fields: InvoiceFields) -> bool:
     return not any([fields.cui, fields.iban, fields.emitent, fields.total is not None, fields.data_emitere])
+
+
+def _requires_high_value_payment_confirmation(fields: InvoiceFields) -> bool:
+    try:
+        total = float(fields.total or 0)
+    except (TypeError, ValueError):
+        return False
+    currency = (fields.currency or "RON").strip().upper()
+    if currency in {"", "RON", "LEI"}:
+        return total >= HIGH_VALUE_UNCONFIRMED_PAYMENT_RON
+    return total >= HIGH_VALUE_UNCONFIRMED_PAYMENT_FOREIGN
 
 
 def _should_allow_paid_company_registry(
@@ -590,6 +604,13 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
                     warnings.append(
                         "IBAN-ul este valid, dar nu apare între destinațiile oficiale cunoscute "
                         "pentru acest furnizor."
+                    )
+                elif _requires_high_value_payment_confirmation(fields):
+                    fraud_flags.append("HIGH_VALUE_UNCONFIRMED_PAYMENT_DESTINATION")
+                    warnings.append(
+                        "Valoarea facturii este mare, iar proprietarul IBAN-ului nu poate fi confirmat "
+                        "din surse publice. Verifică numele beneficiarului în aplicația băncii sau direct "
+                        "cu furnizorul."
                     )
         except Exception:
             payment_destination = None

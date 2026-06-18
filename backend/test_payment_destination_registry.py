@@ -652,8 +652,10 @@ async def test_generic_real_company_unknown_payment_destination_is_suspect_with_
     verdict = evaluate_invoice_verdict(result, result.raw_text, source_channel="android_native")
 
     assert "UNKNOWN_PAYMENT_DESTINATION" not in result.fraud_flags
+    assert "HIGH_VALUE_UNCONFIRMED_PAYMENT_DESTINATION" in result.fraud_flags
     assert result.payment_destination["matched"] is False
-    assert verdict["bundle"]["identity"]["status"] == "coherent"
+    assert verdict["bundle"]["identity"]["status"] == "unknown"
+    assert verdict["bundle"]["semantic_review"]["risk_class"] == "medium"
     assert result.beneficiary_name_check is not None
     assert result.beneficiary_name_check["recommended"] is True
     assert verdict["gate"]["label"] == "SUSPECT"

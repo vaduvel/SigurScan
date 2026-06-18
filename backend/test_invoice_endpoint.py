@@ -152,8 +152,8 @@ def test_scan_invoice_pdf_merges_embedded_text_when_ocr_misses_cui(monkeypatch):
     assert payload["evidence_bundle"]["identity"]["status"] == "coherent"
     assert payload["payment_destination"]["matched"] is False
     assert payload["beneficiary_name_check"]["recommended"] is True
-    assert payload["verdict_gate"]["label"] == "SUSPECT"
-    assert "value_request_needs_verification" in payload["verdict_gate"]["reason_codes"]
+    assert payload["verdict_gate"]["label"] == "SAFE"
+    assert payload["verdict_gate"]["reason_codes"] == ["positive_provenance_clean"]
 
 
 def test_scan_invoice_official_xml_match_confirms_payment_destination_t2(monkeypatch):

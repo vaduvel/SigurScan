@@ -368,7 +368,7 @@ def test_coherent_identity_with_checked_unknown_payment_destination_is_suspect()
     assert "value_request_needs_verification" in r["reason_codes"]
 
 
-def test_coherent_generic_invoice_without_confirmed_payment_destination_is_suspect():
+def test_coherent_generic_invoice_without_confirmed_payment_destination_can_be_safe():
     b = _bundle(
         identity_status="coherent",
         providers_verdict="clean",
@@ -379,8 +379,8 @@ def test_coherent_generic_invoice_without_confirmed_payment_destination_is_suspe
 
     r = verdict(b)
 
-    assert r["label"] == "SUSPECT"
-    assert "value_request_needs_verification" in r["reason_codes"]
+    assert r["label"] == "SAFE"
+    assert r["reason_codes"] == ["positive_provenance_clean"]
 
 
 # ─── Rule 11: Residual → UNVERIFIED ──────────────────────────────────────
