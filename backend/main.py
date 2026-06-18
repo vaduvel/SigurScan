@@ -4013,6 +4013,40 @@ def _normalize_mistral_semantic_review(raw: Dict[str, Any], fallback: Dict[str, 
     }
 
 
+_SOCIAL_ENGINEERING_PRESSURE_PATTERNS = (
+    # authority / law-enforcement impersonation
+    r"\b(parchet|procuror|comisar|poli[țt]i[ae]|politi[ae]|dosar\s+penal|mandat\s+de\s+aducere|"
+    r"anchet[ăa]|ancheta|diicot|dna)\b",
+    # secrecy / isolation
+    r"\bnu\s+spune(?:ti|ți)?\s+nim[ăa]nui\b",
+    r"\bnu\s+(?:discuta(?:ti|ți)?|spune(?:ti|ți)?)\b.{0,40}\b(nim[ăa]nui|familie|colegi|superiori)\b",
+    r"\b(confiden[țt]ial|clasificat[ăa]?|[îi]ntre\s+noi)\b",
+    # out-of-band callback / stay on the line
+    r"\b(suna(?:ti|ți)?[-\s]?ne|suna(?:ti|ți)?\s+(?:urgent|acum|la)|reveni(?:ti|ți)\s+telefonic)\b",
+    r"\br[ăa]m(?:a|â)ne(?:ti|ți)?\s+pe\s+(?:linie|fir)\b",
+    # safe-account / move funds to a "protective" account
+    r"\bcont(?:ul)?\s+(?:de\s+)?(?:siguran[țt][ăa]|protec[țt]ie|seif|temporar)\b",
+    r"\b(transfera(?:ti|ți)?|muta(?:ti|ți)?|mut[ăa])\b.{0,60}\bcont(?:ul)?\s+(?:nou|sigur)\b",
+    # threat + coercion
+    r"\b(arest|aresta(?:t|re)|re[țt]inere|re[țt]inut)\b",
+)
+
+
+def _has_social_engineering_pressure(text: str) -> bool:
+    """Heuristic: does the text apply social-engineering pressure (authority,
+    secrecy, out-of-band callback, safe-account, threat) even without an explicit
+    hard-sensitive keyword?
+
+    Conservative for recall, but intentionally excludes ordinary marketing and
+    legitimate transactional wording, so the tier1 benign override is blocked only
+    on genuine manipulation — never on a real BT/Sameday/marketing message.
+    """
+    normalized = _normalise_obfuscated_text(text or "").lower()
+    if not normalized:
+        return False
+    return any(re.search(pattern, normalized) for pattern in _SOCIAL_ENGINEERING_PRESSURE_PATTERNS)
+
+
 def _calibrate_semantic_review_with_tier1(
     review: Dict[str, Any],
     classifier_result: Dict[str, Any],
@@ -4028,9 +4062,16 @@ def _calibrate_semantic_review_with_tier1(
     except (TypeError, ValueError):
         confidence = 0.0
 
+    # P0 guard: tier1 may calm a false-positive on genuine marketing text, but it
+    # must NEVER calm genuine social-engineering pressure (authority, secrecy,
+    # out-of-band callback, safe-account, threat). Without this an authority/
+    # safe-account scam gets stomped to benign — the root cause of SE blindness.
+    # (Severity is NOT used as a guard: a high atlas false-positive on plain
+    # marketing must still be downgradable — see tier1 FP calibration test.)
     if (
         label not in TIER1_LEGIT_LABELS
         or confidence < 0.55
+        or _has_social_engineering_pressure(raw_text)
         or _has_direct_sensitive_request(raw_text)
         or _has_investment_money_risk(raw_text)
     ):

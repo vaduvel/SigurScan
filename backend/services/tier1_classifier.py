@@ -75,13 +75,23 @@ def _strip_diacritics(value: str) -> str:
     return "".join(ch for ch in normalized if not unicodedata.combining(ch))
 
 
+RO_STOPWORDS = {
+    "de", "pe", "va", "nu", "si", "la", "in", "cu", "un", "o", "ca", "sa", "se",
+    "te", "ti", "ai", "au", "e", "este", "sunt", "pentru", "din", "al", "ale",
+    "lui", "mea", "tau", "dvs", "dumneavoastra", "acum", "aici", "ce", "cu",
+    "sau", "dar", "ne", "le", "ii", "mai", "fi", "fost", "are", "am", "ati",
+    "noi", "voi", "ei", "ele", "lor", "cel", "cea", "cele", "cei", "prin",
+    "fara", "intr", "intre", "catre", "peste", "sub", "spre", "ne", "va",
+}
+
+
 def _tokens(text: str) -> List[str]:
     normalized = _strip_diacritics(text).lower()
     normalized = re.sub(r"https?://\S+|www\.\S+", " urltoken ", normalized)
     return [
         token
         for token in re.findall(r"[a-z0-9]{2,}", normalized)
-        if token not in {"https", "http", "www"}
+        if token not in {"https", "http", "www"} and token not in RO_STOPWORDS
     ]
 
 
