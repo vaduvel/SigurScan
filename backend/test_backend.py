@@ -1985,6 +1985,7 @@ def test_sensitive_request_extraction_handles_short_real_world_phrases():
         ("Pentru verificarea facturii, răspunde cu codul de autorizare primit prin SMS.", "otp"),
         ("Pentru anularea transferului, comunică acum codul de autentificare operatorului nostru.", "otp"),
         ("Introduceți datele cardului pentru continuarea plății.", "card"),
+        ("Pentru reactivare i n t r o d u c e t i c a r d u l si c o d u l primit prin SMS.", "card"),
         ("Factura este blocată. Loghează-te aici pentru descărcare: https://factura-client.test/session", "password"),
         ("Pentru factura restantă, agentul va intra remote pe calculator. Descarcă tool-ul de aici.", "remote"),
         ("Nu avem nevoie de multe acte, doar copie CI față-verso și selfie pentru contract.", "id_document"),
