@@ -2864,6 +2864,10 @@ def _looks_like_official_safety_education(raw_text: str) -> bool:
         r"|nu\s+depun\w*"
         r"|nu\s+(?:(?:il|îl|le)\s+)?comunic\w*"
         r"|nu\s+(?:(?:il|îl|le)\s+)?trimite\w*"
+        r"|nu\s+(?:(?:il|îl|le|i|o)\s+)?da(?:ti|ți|u)?\b"
+        r"|nu\s+divulg\w*"
+        r"|nu\s+dezv[ăa]lu\w*"
+        r"|nu\s+furniz\w*"
         rf"|nu\s+{ask_verbs}"
         rf"|niciodat[aă]\s+nu\s+{ask_verbs})"
     )
