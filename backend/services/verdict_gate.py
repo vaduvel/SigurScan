@@ -509,5 +509,9 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
     if value_sensitive and not has_provenance:
         return _result("SUSPECT", ["value_request_needs_verification"], confidence=70)
 
+    # ─── Rule 11b: Bad identity (lookalike/unrelated) without sensitive → SUSPECT ──
+    if identity_status in BAD_IDENTITY and provider_verdict in PROVIDER_CLEAN:
+        return _result("SUSPECT", ["lookalike_identity_no_sensitive"], confidence=65)
+
     # ─── Rule 12: Residual ────────────────────────────────────────────────
     return _result("UNVERIFIED", ["residual"], confidence=60, is_final=True)
