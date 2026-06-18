@@ -423,6 +423,8 @@ def _build_beneficiary_name_check(
 def _official_document_confirms_payment(check: Optional[dict]) -> bool:
     if not check or check.get("provided") is not True:
         return False
+    if check.get("can_confirm_payment_destination") is not True:
+        return False
     if check.get("status") != "match" or check.get("risk_flag"):
         return False
     matched_fields = set(check.get("matched_fields") or [])
@@ -1027,7 +1029,7 @@ def build_invoice_evidence_bundle(
                 "cui_matches": payment_destination.get("cui_matches"),
                 "iban_masked_for_client": payment_destination.get("iban_masked_for_client"),
             }
-        elif destination_required or (unknown_destination and not benign_unknown_destination):
+        elif destination_required or unknown_destination or payment_destination.get("matched") is False:
             provider_section["payment_destination"] = {
                 "status": "unknown",
                 "verdict": "unknown",
@@ -1042,6 +1044,11 @@ def build_invoice_evidence_bundle(
             "status": "suspicious" if official_status == "mismatch" else "clean" if official_status == "match" else "unknown",
             "verdict": "suspicious" if official_status == "mismatch" else "clean" if official_status == "match" else "unknown",
             "provided": True,
+            "source_kind": official_document_check.get("source_kind"),
+            "verification_scope": official_document_check.get("verification_scope"),
+            "requires_spv_confirmation": official_document_check.get("requires_spv_confirmation"),
+            "can_confirm_payment_destination": official_document_check.get("can_confirm_payment_destination") is True,
+            "trust_tier": official_document_check.get("trust_tier"),
             "risk_flag": official_document_check.get("risk_flag"),
             "matched_fields": official_document_check.get("matched_fields") or [],
             "mismatches": official_document_check.get("mismatches") or [],

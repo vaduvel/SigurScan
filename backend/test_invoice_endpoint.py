@@ -156,7 +156,7 @@ def test_scan_invoice_pdf_merges_embedded_text_when_ocr_misses_cui(monkeypatch):
     assert payload["verdict_gate"]["reason_codes"] == ["positive_provenance_clean"]
 
 
-def test_scan_invoice_official_xml_match_confirms_payment_destination_t2(monkeypatch):
+def test_scan_invoice_manual_xml_match_does_not_confirm_payment_destination_t2(monkeypatch):
     from services.anaf_cui import CuiResult
 
     async def fake_extract_text_for_scan(filename, file_bytes, extract_fn):
@@ -190,15 +190,23 @@ def test_scan_invoice_official_xml_match_confirms_payment_destination_t2(monkeyp
     assert response.status_code == 200
     payload = response.json()
     assert payload["official_document_check"]["status"] == "match"
-    assert payload["payment_destination"]["matched"] is True
-    assert payload["payment_destination"]["can_contribute_to_safe"] is True
-    assert payload["payment_destination"]["trust_tier"] == "T2_OFFICIAL_DOCUMENT_CHAIN"
-    assert payload["payment_destination"]["source_kind"] == "official_efactura_xml"
-    assert payload["payment_destination"]["display"] == "IBAN confirmat prin document oficial"
+    assert payload["official_document_check"]["source_kind"] == "user_uploaded_efactura_xml"
+    assert payload["official_document_check"]["verification_scope"] == "consistency_check"
+    assert payload["official_document_check"]["requires_spv_confirmation"] is True
+    assert payload["payment_destination"]["matched"] is False
+    assert payload["payment_destination"]["can_contribute_to_safe"] is False
+    assert payload["payment_destination"]["trust_tier"] == "T4_STRUCTURALLY_VALID_UNKNOWN"
+    assert payload["payment_destination"]["display"] == "IBAN valid, dar destinație neconfirmată"
+    assert payload["beneficiary_name_check"]["recommended"] is True
     evidence_payment = payload["evidence_bundle"]["providers"]["payment_destination"]
-    assert evidence_payment["status"] == "clean"
-    assert evidence_payment["trust_tier"] == "T2_OFFICIAL_DOCUMENT_CHAIN"
-    assert evidence_payment["source_kind"] == "official_efactura_xml"
+    assert evidence_payment["status"] == "unknown"
+    assert evidence_payment["trust_tier"] == "T4_STRUCTURALLY_VALID_UNKNOWN"
+    assert evidence_payment["matched"] is False
+    assert evidence_payment["brand_matches"] is None
+    evidence_document = payload["evidence_bundle"]["providers"]["official_document"]
+    assert evidence_document["status"] == "clean"
+    assert evidence_document["source_kind"] == "user_uploaded_efactura_xml"
+    assert evidence_document["verification_scope"] == "consistency_check"
     assert payload["verdict_gate"]["label"] == "SAFE"
 
 
