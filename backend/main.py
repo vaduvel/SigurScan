@@ -4281,6 +4281,8 @@ def _apply_decision_contract_result(
         "semantic_high_value_request": "provider-gate-semantic-high-risk",
         "semantic_high_risk_match": "provider-gate-semantic-high-risk",
         "positive_provenance_clean": "provider-gate-official-clean",
+        "clean_public_navigation_qr": "provider-gate-clean-public-navigation",
+        "clean_public_navigation_url": "provider-gate-clean-public-navigation",
         "unknown_but_clean": "provider-gate-unofficial-inconclusive",
         "unknown_but_clean_established": "provider-gate-unofficial-inconclusive",
         "value_request_needs_verification": "provider-gate-value-request-review",
@@ -4295,12 +4297,15 @@ def _apply_decision_contract_result(
     reason_codes = list(gate_result.get("reason_codes") or [])
     primary_reason = reason_codes[0] if reason_codes else "residual"
     gate_family_id = family_id_by_reason.get(primary_reason, "provider-gate-residual")
-    gate_family_name = {
-        "SAFE": "Destinație verificată cu proveniență",
-        "SUSPECT": "Verificare necesară",
-        "DANGEROUS": "Risc confirmat",
-        "UNVERIFIED": "Fără dovadă de proveniență",
-    }.get(label, "Verificare necesară")
+    if primary_reason in {"clean_public_navigation_qr", "clean_public_navigation_url"}:
+        gate_family_name = "Navigare publică verificată"
+    else:
+        gate_family_name = {
+            "SAFE": "Destinație verificată cu proveniență",
+            "SUSPECT": "Verificare necesară",
+            "DANGEROUS": "Risc confirmat",
+            "UNVERIFIED": "Fără dovadă de proveniență",
+        }.get(label, "Verificare necesară")
     provider_gate["detected_family_id"] = gate_family_id
     provider_gate["detected_family"] = gate_family_name
 
@@ -4314,12 +4319,17 @@ def _apply_decision_contract_result(
         family_id = gate_family_id
         family_name = gate_family_name
 
-    reasons = {
-        "SAFE": ["Proveniența pozitivă confirmată, providerii curați, fără cereri sensibile."],
-        "SUSPECT": ["Nu avem dovezi suficiente pentru a marca mesajul ca sigur; verifică pe canalul oficial înainte de acțiune."],
-        "DANGEROUS": ["Dovezile indică risc ridicat: nu continua și nu introduce date."],
-        "UNVERIFIED": ["Scanarea nu a găsit semnale de risc dar nici proveniență pozitivă."],
-    }.get(label, ["Verifică pe canalul oficial înainte de acțiune."])
+    if primary_reason in {"clean_public_navigation_qr", "clean_public_navigation_url"}:
+        reasons = [
+            "Domeniul este stabil, providerii de reputație sunt curați și nu există cereri sensibile."
+        ]
+    else:
+        reasons = {
+            "SAFE": ["Proveniența pozitivă confirmată, providerii curați, fără cereri sensibile."],
+            "SUSPECT": ["Nu avem dovezi suficiente pentru a marca mesajul ca sigur; verifică pe canalul oficial înainte de acțiune."],
+            "DANGEROUS": ["Dovezile indică risc ridicat: nu continua și nu introduce date."],
+            "UNVERIFIED": ["Scanarea nu a găsit semnale de risc dar nici proveniență pozitivă."],
+        }.get(label, ["Verifică pe canalul oficial înainte de acțiune."])
 
     analysis["risk_level"] = gate_result.get("risk_level")
     analysis["risk_score"] = gate_result.get("risk_score")

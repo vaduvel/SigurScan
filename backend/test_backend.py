@@ -1758,6 +1758,11 @@ def test_provider_gate_marks_clean_established_qr_public_navigation_as_low_risk(
     assert result["evidence"]["verdict_gate"]["label"] == "SAFE"
     assert result["evidence"]["verdict_gate"]["reason_codes"] == ["clean_public_navigation_qr"]
     assert result["evidence"]["decision_bundle"]["input"]["type"] == "qr_scan"
+    assert result["detected_family_id"] == "provider-gate-clean-public-navigation"
+    assert result["detected_family"] == "Navigare publică verificată"
+    assert result["reasons"] == [
+        "Domeniul este stabil, providerii de reputație sunt curați și nu există cereri sensibile."
+    ]
 
 
 def test_rdap_domain_age_uses_valid_url_without_literal_braces(monkeypatch):
