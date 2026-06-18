@@ -4489,6 +4489,127 @@ def test_orchestrated_known_official_clean_established_url_publishes_final_safe(
     assert app_main._orchestrated_status_payload(refreshed)["status"] == "complete"
 
 
+def test_provider_gate_smyk_official_global_redirect_ignores_lexical_false_positive():
+    analysis = {
+        "claimed_brand": "SMYK România",
+        "risk_score": 70,
+        "risk_level": "danger",
+        "detected_family": "Suspiciune lexicală",
+        "reasons": ["Domeniul final pare similar cu brandul declarat."],
+        "safe_actions": ["Verifică pe canalul oficial."],
+        "evidence": {
+            "source_channel": "android_native",
+            "semantic_review": {"status": "done", "risk_class": "low", "completeness": True},
+            "offer_claim_verification": {"status": "skipped"},
+            "url_lexical": {
+                "status": "suspicious",
+                "verdict": "typosquatting",
+                "severity": "high",
+                "consulted": True,
+                "reasons": ["possible typosquatting/lookalike: smyk.com"],
+            },
+            "external_intel_summary": {
+                "google_web_risk": {"status": "clean", "verdict": "clean", "consulted": True},
+                "phishing_database": {"status": "clean", "verdict": "clean", "consulted": True},
+                "urlhaus": {"status": "clean", "verdict": "clean", "consulted": True},
+                "urlscan": {
+                    "status": "clean",
+                    "verdict": "No malicious classification",
+                    "consulted": True,
+                },
+                "infra_domain_age": {
+                    "status": "clean",
+                    "verdict": "established_domain",
+                    "severity": "low",
+                    "consulted": True,
+                },
+            },
+        },
+    }
+    resolved_urls = [
+        {
+            "success": True,
+            "url": "https://smyk.ro/catalogul-ziua-copilului",
+            "final_url": "https://www.smyk.com/ro/ro/catalogul-ziua-copilului",
+            "hostname": "smyk.ro",
+            "final_hostname": "www.smyk.com",
+            "registered_domain": "smyk.ro",
+            "final_registered_domain": "smyk.com",
+            "domain_age_days": 7000,
+        }
+    ]
+
+    result = app_main._apply_provider_gate_verdict(
+        analysis,
+        resolved_urls,
+        raw_text="https://smyk.ro/catalogul-ziua-copilului",
+    )
+
+    gate = result["evidence"]["verdict_gate"]
+    assert gate["label"] == "SAFE"
+    assert gate["reason_codes"] == ["positive_provenance_clean"]
+    identity = result["evidence"]["decision_bundle"]["identity"]
+    assert identity["status"] == "coherent"
+    assert identity["matched_domain_base"] == "smyk"
+
+
+def test_provider_gate_compound_brand_lookalike_stays_dangerous():
+    analysis = {
+        "claimed_brand": "SMYK România",
+        "risk_score": 70,
+        "risk_level": "danger",
+        "detected_family": "Suspiciune lexicală",
+        "reasons": ["Domeniul final pare similar cu brandul declarat."],
+        "safe_actions": ["Verifică pe canalul oficial."],
+        "evidence": {
+            "source_channel": "android_native",
+            "semantic_review": {"status": "done", "risk_class": "low", "completeness": True},
+            "offer_claim_verification": {"status": "skipped"},
+            "url_lexical": {
+                "status": "suspicious",
+                "verdict": "typosquatting",
+                "severity": "high",
+                "consulted": True,
+                "reasons": ["possible typosquatting/lookalike: smykpay.com"],
+            },
+            "external_intel_summary": {
+                "google_web_risk": {"status": "clean", "verdict": "clean", "consulted": True},
+                "phishing_database": {"status": "clean", "verdict": "clean", "consulted": True},
+                "urlhaus": {"status": "clean", "verdict": "clean", "consulted": True},
+                "urlscan": {
+                    "status": "clean",
+                    "verdict": "No malicious classification",
+                    "consulted": True,
+                },
+            },
+        },
+    }
+    resolved_urls = [
+        {
+            "success": True,
+            "url": "https://smyk.ro/catalogul-ziua-copilului",
+            "final_url": "https://smykpay.com/ro/ro/catalogul-ziua-copilului",
+            "hostname": "smyk.ro",
+            "final_hostname": "smykpay.com",
+            "registered_domain": "smyk.ro",
+            "final_registered_domain": "smykpay.com",
+            "domain_age_days": 7000,
+        }
+    ]
+
+    result = app_main._apply_provider_gate_verdict(
+        analysis,
+        resolved_urls,
+        raw_text="https://smyk.ro/catalogul-ziua-copilului",
+    )
+
+    gate = result["evidence"]["verdict_gate"]
+    assert gate["label"] == "DANGEROUS"
+    assert gate["reason_codes"] == ["identity_spoof"]
+    identity = result["evidence"]["decision_bundle"]["identity"]
+    assert identity["status"] == "lookalike"
+
+
 def test_orchestrated_invoice_finalize_preserves_specialized_invoice_verdict(monkeypatch):
     invoice_bundle = {
         "schema": "sigurscan_evidence_bundle_v2",

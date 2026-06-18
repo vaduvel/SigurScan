@@ -2628,6 +2628,47 @@ def _first_party_domain_claim_from_text(raw_text: str, resolved_urls: List[Dict[
     return None
 
 
+def _claimed_brand_exact_domain_match(claimed_brand: str, resolved_urls: List[Dict[str, Any]]) -> Optional[str]:
+    normalized = _normalize_claimed_brand(claimed_brand)
+    if not normalized:
+        return None
+    ignored_tokens = {
+        "romania",
+        "românia",
+        "romanian",
+        "official",
+        "oficial",
+        "bank",
+        "banca",
+        "srl",
+        "sa",
+        "spa",
+        "ltd",
+        "gmbh",
+    }
+    brand_tokens = {
+        _compact_brand_match_token(token)
+        for token in re.split(r"[^a-zA-Z0-9ăâîșțĂÂÎȘȚ]+", normalized)
+        if token
+    }
+    brand_tokens = {token for token in brand_tokens if len(token) >= 4 and token not in ignored_tokens}
+    if not brand_tokens:
+        return None
+
+    for entry in resolved_urls or []:
+        if not isinstance(entry, dict):
+            continue
+        base = _domain_base_for_first_party_match(entry)
+        compact_base = _compact_brand_match_token(base)
+        if len(compact_base) < 4:
+            continue
+        if "-" in base or "_" in base:
+            continue
+        if compact_base in brand_tokens:
+            return base
+    return None
+
+
 def _brand_warning_rule_for_claimed_brand(claimed_brand: str) -> Optional[Dict[str, Any]]:
     normalized = _normalize_claimed_brand(claimed_brand)
     if not normalized:
@@ -2989,6 +3030,8 @@ def _has_sensitive_url_path(resolved_urls: List[Dict[str, Any]]) -> bool:
 def _collect_infrastructure_flags(
     analysis: Dict[str, Any],
     resolved_urls: List[Dict[str, Any]],
+    *,
+    official_destination: bool = False,
 ) -> Dict[str, Any]:
     evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
     lexical_evidence = evidence.get("url_lexical") if isinstance(evidence.get("url_lexical"), dict) else {}
@@ -3016,8 +3059,14 @@ def _collect_infrastructure_flags(
     if rdap_age is not None and youngest_domain_age_days is None:
         youngest_domain_age_days = rdap_age
 
+    lexical_typosquat = (
+        "typosquatting" in lexical_text
+        or "lookalike" in lexical_text
+        or "mismatch critic" in lexical_text
+    )
+
     return {
-        "typosquat": "typosquatting" in lexical_text or "lookalike" in lexical_text or "mismatch critic" in lexical_text,
+        "typosquat": bool(lexical_typosquat and not official_destination),
         "homoglyph": "homoglif" in lexical_text or "homoglyph" in lexical_text,
         "punycode": "punycode" in lexical_text or "idn/punycode" in lexical_text,
         "dga_entropy": "entropie ridicat" in lexical_text or "entropie mare" in lexical_text or "entropy" in lexical_text or "dga" in lexical_text,
@@ -3248,6 +3297,21 @@ def _identity_status_for_decision_bundle(
     normalized_claim = _normalize_claimed_brand(claimed_brand)
     has_resolved_destination = bool(_first_final_url(resolved_urls))
     if normalized_claim and has_resolved_destination:
+        exact_domain_claim = _claimed_brand_exact_domain_match(claimed_brand, resolved_urls)
+        if exact_domain_claim and not (
+            infra_flags.get("homoglyph")
+            or infra_flags.get("punycode")
+            or infra_flags.get("very_new_domain")
+            or infra_flags.get("suspicious_domain_age")
+            or _domain_from_signals_suspicious()
+        ):
+            return _with_domain_context({
+                "claimed_brand": claimed_brand,
+                "status": "coherent",
+                "matched_domain_base": exact_domain_claim,
+                "tld_suspicious": False,
+                "completeness": True,
+            })
         return _with_domain_context({
             "claimed_brand": claimed_brand,
             "status": "lookalike" if infra_flags.get("typosquat") or infra_flags.get("homoglyph") or infra_flags.get("punycode") else "unrelated",
@@ -4313,12 +4377,17 @@ def _apply_provider_gate_verdict(
     summary = evidence.get("external_intel_summary")
     if not isinstance(summary, dict):
         summary = {}
-    infra_flags = _collect_infrastructure_flags(analysis, resolved_urls)
+    claimed_brand = str(analysis.get("claimed_brand") or "Nespecificat")
+    official_destination = _official_destination_confirmed(resolved_urls, claimed_brand)
+    infra_flags = _collect_infrastructure_flags(
+        analysis,
+        resolved_urls,
+        official_destination=official_destination,
+    )
     _augment_summary_with_infra_flags(summary, infra_flags)
     _maybe_add_dns_reputation(summary, resolved_urls)
     evidence["external_intel_summary"] = summary
 
-    claimed_brand = str(analysis.get("claimed_brand") or "Nespecificat")
     source_channel = evidence.get("source_channel") if isinstance(evidence, dict) else None
     try:
         from services.cross_scan_knowledge import evaluate_cross_scan_knowledge
@@ -4333,7 +4402,6 @@ def _apply_provider_gate_verdict(
     has_urls = bool(resolved_urls)
     offer = evidence.get("offer_claim_verification")
     offer_status = str(offer.get("status", "")).lower() if isinstance(offer, dict) else ""
-    official_destination = _official_destination_confirmed(resolved_urls, claimed_brand)
     web_risk_consulted = _source_ready(summary, "google_web_risk")
     asf_investor_alerts_consulted = _source_ready(summary, "asf_investor_alerts")
     phishing_database_consulted = _source_ready(summary, "phishing_database")
