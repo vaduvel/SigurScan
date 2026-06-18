@@ -3562,12 +3562,17 @@ def _request_sensitivity_from_signals(
     if re.search(r"\b(parol[ăa]|password)\b", normalized) and direct_sensitive_request:
         return "password"
     if re.search(
+        r"\b(cvv|cvc|date(?:le)?\s+(?:de\s+)?card(?:ului)?|datele\s+cardului|"
+        r"num[aă]r(?:ul)?\s+(?:de\s+)?card(?:ului)?|"
+        r"\w{0,24}card(?:ul|ului|uri|urile)?\w{0,8})\b",
+        normalized,
+    ) and direct_sensitive_request:
+        return "card"
+    if re.search(
         r"\b(otp|cod(?:ul)?\s+(?:sms|whatsapp|de\s+(?:verificare|confirmare|autorizare|autentificare)|3ds)|2fa)\b",
         normalized,
     ) and direct_sensitive_request:
         return "otp"
-    if re.search(r"\b(cvv|cvc|date(?:le)?\s+(?:de\s+)?card(?:ului)?|datele\s+cardului|num[aă]r(?:ul)?\s+(?:de\s+)?card(?:ului)?)\b", normalized) and direct_sensitive_request:
-        return "card"
     if re.search(r"\b(logheaz[ăa][-\s]?te|autentific[ăa][-\s]?te|login|session)\b", normalized) and (
         direct_sensitive_request or (sensitive_url_path and not official_destination)
     ):
