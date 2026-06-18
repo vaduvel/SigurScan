@@ -3623,6 +3623,42 @@ def test_orchestrated_status_stays_complete_when_final_verdict_exists_and_previe
     assert terminal["poll_after_ms"] == 1000
 
 
+def test_orchestrated_ready_preview_without_visual_stays_pending_for_worker():
+    job = {
+        "scan_id": "orch_ready_without_visual",
+        "status": "complete",
+        "pipeline_stage": "urlscan_submitted",
+        "urls": ["https://www.smart-menu.ro/qr/vbiwmbouhu"],
+        "resolved_urls": [{"final_url": "https://www.smart-menu.ro/qr/vbiwmbouhu"}],
+        "primary_final_url": "https://www.smart-menu.ro/qr/vbiwmbouhu",
+        "analysis": {},
+        "result": {"is_final": True, "user_risk_label": "SAFE"},
+        "urlscan": {
+            "status": "finished",
+            "uuid": "urlscan-smart-menu",
+            "screenshot_ready": False,
+        },
+        "preview": {
+            "status": "ready",
+            "source": "urlscan",
+            "final_url": "https://www.smart-menu.ro/qr/vbiwmbouhu",
+            "report_url": "https://urlscan.io/result/urlscan-smart-menu/",
+            "screenshot_url": None,
+            "image_url": None,
+            "reason": None,
+        },
+        "orchestration_metrics": {"poll_count": 2, "stage_sequence": [], "stage_durations_ms": {}},
+    }
+
+    payload = app_main._orchestrated_read_status_payload(job, changed=True)
+
+    assert payload["status"] == "complete"
+    assert payload["preview"]["status"] == "pending"
+    assert payload["preview"]["reason"] == "urlscan_screenshot_pending"
+    assert payload["preview_state"] == "pending"
+    assert app_main._orchestrated_worker_can_stop(payload) is False
+
+
 def test_gather_external_intel_safe_degrades_provider_exceptions(monkeypatch):
     final_url = "https://example.com/login"
 

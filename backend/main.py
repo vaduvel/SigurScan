@@ -7744,6 +7744,33 @@ def _preview_for_final_url_unresolved(job: Dict[str, Any], preview: Dict[str, An
     return patched
 
 
+def _normalize_orchestrated_preview_status(job: Dict[str, Any], preview: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(preview, dict):
+        return {}
+    normalized = dict(preview)
+    status = str(normalized.get("status") or "").strip().lower()
+    has_visual = bool(normalized.get("image_url") or normalized.get("screenshot_url"))
+    if status != "ready" or has_visual:
+        return normalized
+
+    urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
+    looks_like_urlscan_preview = (
+        str(normalized.get("source") or "").strip().lower() == "urlscan"
+        or bool(normalized.get("report_url"))
+        or bool(urlscan_state.get("uuid"))
+        or str(urlscan_state.get("status") or "").strip().lower() in {"pending", "finished", "timeout"}
+    )
+    if not looks_like_urlscan_preview:
+        return normalized
+
+    normalized["status"] = "pending"
+    normalized["source"] = "urlscan"
+    normalized["image_url"] = None
+    normalized["screenshot_url"] = None
+    normalized["reason"] = normalized.get("reason") or "urlscan_screenshot_pending"
+    return normalized
+
+
 def _select_primary_resolved_url(resolved_urls: List[Dict[str, Any]], analysis: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if not resolved_urls:
         return None
@@ -7922,7 +7949,7 @@ def _urlscan_preview_cache_entry_from_job(job: Dict[str, Any]) -> Optional[Dict[
 def _orchestrated_status_payload(job: Dict[str, Any]) -> Dict[str, Any]:
     pillars = _build_orchestrated_pillars(job)
     raw_preview = job.get("preview") if isinstance(job.get("preview"), dict) else {}
-    preview = _preview_for_final_url_unresolved(job, raw_preview)
+    preview = _normalize_orchestrated_preview_status(job, _preview_for_final_url_unresolved(job, raw_preview))
     result = job.get("result") if isinstance(job.get("result"), dict) else None
     metrics = _orchestrated_metrics(job)
     result_is_final = result is not None and result.get("is_final", True) is not False
@@ -8004,8 +8031,10 @@ def _orchestrated_preview_state(status_payload: Dict[str, Any]) -> str:
     preview_status = str(preview.get("status") or "").strip().lower()
     reason = str(preview.get("reason") or "").strip().lower()
     has_visual = bool(preview.get("image_url") or preview.get("screenshot_url"))
-    if preview_status == "ready" or has_visual:
+    if has_visual:
         return "ready"
+    if preview_status == "ready" and not has_visual:
+        return "pending"
     if reason in {"no_url", "privacy_safe_mode"}:
         return "not_applicable"
     if preview_status == "pending" or reason in {"urlscan_pending", "urlscan_screenshot_pending"}:
