@@ -621,6 +621,112 @@ def test_homoglyph_identity_spoof_stays_dangerous_even_with_clean_providers():
     assert result["reason_codes"] == ["identity_spoof"]
 
 
+def test_positive_provenance_clean_cannot_override_mismatch_unreachable_semantic_high():
+    bundle = {
+        "schema": "sigurscan_evidence_bundle_v2",
+        "input": {
+            "type": "sms",
+            "redacted_text": "ANAF SPV: confirma datele aici https://anaf-spv.info",
+        },
+        "resolution": {
+            "status": "resolved",
+            "completeness": True,
+            "final_url": "https://anaf-spv.info/",
+        },
+        "providers": {
+            "verdict": "clean",
+            "hits": ["google_web_risk", "phishing_database", "urlhaus", "infra_dns"],
+            "completeness": True,
+        },
+        "identity": {
+            "claimed_brand": "ANAF",
+            "status": "official",
+            "tld_suspicious": False,
+            "host_unreachable": True,
+            "completeness": True,
+        },
+        "provenance": {
+            "official_domain_match": False,
+            "provenance": "mismatch",
+            "evidence_power": "strong",
+        },
+        "request": {"sensitive": "none", "channel": "official", "completeness": True},
+        "context": {
+            "urgency": False,
+            "passive_payment": False,
+            "apk_or_remote_mention": False,
+        },
+        "semantic_review": {
+            "status": "done",
+            "claim_matches_known_scam_family": True,
+            "matched_family": "IMP-01",
+            "claim_matches_legit_template": False,
+            "matched_template": None,
+            "reason_codes": ["semantic:atlas_high_preserved"],
+            "risk_class": "high",
+            "completeness": True,
+        },
+    }
+
+    result = verdict(bundle)
+
+    assert result["label"] == "SUSPECT"
+    assert result["reason_codes"] == ["positive_provenance_contradicted"]
+
+
+def test_positive_provenance_clean_cannot_override_unreachable_even_without_semantic_high():
+    bundle = {
+        "schema": "sigurscan_evidence_bundle_v2",
+        "input": {
+            "type": "url_scan",
+            "redacted_text": "https://anaf-spv.info/login/verify",
+        },
+        "resolution": {
+            "status": "resolved",
+            "completeness": True,
+            "final_url": "https://anaf-spv.info/login/verify",
+        },
+        "providers": {
+            "verdict": "clean",
+            "hits": ["google_web_risk", "phishing_database", "urlhaus", "infra_dns"],
+            "completeness": True,
+        },
+        "identity": {
+            "claimed_brand": "ANAF",
+            "status": "official",
+            "tld_suspicious": False,
+            "host_unreachable": True,
+            "completeness": True,
+        },
+        "provenance": {
+            "official_domain_match": False,
+            "provenance": "mismatch",
+            "evidence_power": "strong",
+        },
+        "request": {"sensitive": "none", "channel": "official", "completeness": True},
+        "context": {
+            "urgency": False,
+            "passive_payment": False,
+            "apk_or_remote_mention": False,
+        },
+        "semantic_review": {
+            "status": "done",
+            "claim_matches_known_scam_family": False,
+            "matched_family": None,
+            "claim_matches_legit_template": False,
+            "matched_template": None,
+            "reason_codes": ["semantic:unknown"],
+            "risk_class": "unknown",
+            "completeness": True,
+        },
+    }
+
+    result = verdict(bundle)
+
+    assert result["label"] == "SUSPECT"
+    assert result["reason_codes"] == ["positive_provenance_contradicted"]
+
+
 def test_delegated_deeplink_clean_young_domain_can_be_safe():
     bundle = {
         "schema": "sigurscan_evidence_bundle_v2",

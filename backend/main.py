@@ -3582,6 +3582,21 @@ def _request_sensitivity_from_signals(
         or re.search(rf"\b{money_action_pattern}\b.{{0,100}}{currency_amount_pattern}", normalized)
         or re.search(rf"{currency_amount_pattern}.{{0,100}}\b{money_action_pattern}\b", normalized)
         or re.search(rf"\b{money_action_pattern}\b.{{0,100}}\b{money_destination_pattern}\b", normalized)
+        or re.search(
+            r"\b(mu[țt][ăa]|muta[țt]i?|mutati|transfer[aă]?|trimite[țt]i?)\b"
+            r".{0,60}\b(sold(?:ul)?|fonduri(?:le)?|bani(?:i)?|suma)\b"
+            r".{0,60}\b(cont(?:ul)?\s+(?:nou|sigur|de\s+protectie|seif|temporar))\b",
+            normalized,
+        )
+        or re.search(
+            r"\b(cont(?:ul)?\s+(?:de\s+)?(?:protectie|seif|temporar))\b",
+            normalized,
+        )
+        or re.search(
+            r"\b(dezactiv[ăa][tz]?|bloc[ăa][tz]?|suspend[ăa][tz]?)\b"
+            r".{0,60}\b(cont(?:ul)?\s+(?:vechi|actual|existent))\b",
+            normalized,
+        )
     ):
         return "transfer"
 
@@ -3892,7 +3907,23 @@ def _semantic_review_for_decision_bundle(
         risk_class = "medium"
     else:
         risk_class = "unknown"
-    matched = risk_class in {"high", "medium"}
+
+    # Preserve high atlas risk even when the family classifier cannot name a specific scam family.
+    # A strong local risk score should not degrade to unknown only because taxonomy matching missed.
+    risk_from_score_only = False
+    if risk_class == "unknown":
+        try:
+            atlas_score = int(analysis.get("risk_score") or 0)
+        except (TypeError, ValueError):
+            atlas_score = 0
+        if atlas_score >= 75:
+            risk_class = "medium"
+            risk_from_score_only = True
+        elif atlas_score >= 50:
+            risk_class = "low"
+            risk_from_score_only = True
+
+    matched = risk_class in {"high", "medium"} and not risk_from_score_only
     return {
         "status": "done",
         "claim_matches_known_scam_family": matched,
