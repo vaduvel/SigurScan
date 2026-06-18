@@ -566,6 +566,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     )
     
     private val prefs: SharedPreferences by lazy { createSecurePrefs(application) }
+    private val clientInstanceId: String by lazy { loadOrCreateClientInstanceId() }
     private val gson = Gson()
     private val recognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
     private val barcodeScanner by lazy { BarcodeScanning.getClient() }
@@ -596,7 +597,8 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             PlayIntegrityTokenProvider.fromContext(
                 application,
                 configuredBackendBaseUrl(),
-                BuildConfig.SIGURSCAN_API_KEY
+                BuildConfig.SIGURSCAN_API_KEY,
+                clientInstanceId
             )
         } else {
             PlayIntegrityTokenProvider.disabled()
@@ -620,6 +622,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             .addInterceptor(
                 ApiKeyInterceptor(
                     rawApiKey = BuildConfig.SIGURSCAN_API_KEY,
+                    clientInstanceId = clientInstanceId,
                     integrityTokenProvider = { playIntegrityTokenProvider.currentToken() }
                 )
             )
@@ -2369,6 +2372,17 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         }.getOrNull()
 
         return encryptedPrefs ?: application.getSharedPreferences("sigurscan_prefs", Context.MODE_PRIVATE)
+    }
+
+    private fun loadOrCreateClientInstanceId(): String {
+        val existing = prefs.getString("client_instance_id", null)
+            ?.trim()
+            ?.takeIf { it.length in 8..128 }
+        if (existing != null) return existing
+
+        val generated = UUID.randomUUID().toString()
+        prefs.edit().putString("client_instance_id", generated).apply()
+        return generated
     }
 
     fun stageSharedTextPayload(

@@ -5573,6 +5573,7 @@ fun InvoiceResultCard(result: InvoiceScanResponse, onBack: () -> Unit) {
                     else -> DSChipTone.Neutral
                 }
                 val destinationLabel = when {
+                    !destination.display.isNullOrBlank() -> destination.display
                     destination.canContributeToSafe == true -> "confirmată"
                     destination.brandMatches == false -> "nu corespunde brandului"
                     destination.ibanMatches == false -> "IBAN diferit"
@@ -5580,8 +5581,20 @@ fun InvoiceResultCard(result: InvoiceScanResponse, onBack: () -> Unit) {
                     else -> destination.matchReason ?: "verificată parțial"
                 }
                 InvoiceFieldRow("Destinație plată", destinationLabel, destinationTone)
+                destination.trustTier?.takeIf { it.isNotBlank() }?.let {
+                    InvoiceFieldRow("Nivel dovadă", invoicePaymentTrustTierLabel(it))
+                }
+                destination.ibanMaskedForClient?.takeIf { it.isNotBlank() }?.let {
+                    InvoiceFieldRow("IBAN verificat", it)
+                }
                 destination.matchedEntity?.takeIf { it.isNotBlank() }?.let {
                     InvoiceFieldRow("Entitate găsită", it)
+                }
+                destination.brandId?.takeIf { it.isNotBlank() && destination.matchedEntity.isNullOrBlank() }?.let {
+                    InvoiceFieldRow("Entitate găsită", it.replace("_", " "))
+                }
+                destination.reasons.take(2).forEach { reason ->
+                    Text("• $reason", fontSize = 12.sp, color = SigurColors.TextSecondary, modifier = Modifier.padding(start = 8.dp, top = 4.dp))
                 }
             }
 
@@ -5693,6 +5706,16 @@ private fun invoiceOfficialFieldLabel(code: String?): String = when (code) {
     "data_emitere" -> "Data emiterii"
     "scadenta" -> "Scadența"
     else -> code?.replace('_', ' ') ?: "Câmpul"
+}
+
+private fun invoicePaymentTrustTierLabel(code: String): String = when (code) {
+    "T0_PARTNER_SIGNED" -> "partener confirmat"
+    "T1_PUBLIC_OFFICIAL" -> "sursă oficială publică"
+    "T2_OFFICIAL_DOCUMENT_CHAIN" -> "document oficial atașat"
+    "T3_LOCAL_VENDOR_MEMORY" -> "istoric furnizor confirmat"
+    "T4_STRUCTURALLY_VALID_UNKNOWN" -> "valid structural, neconfirmat"
+    "ambiguous_shared_destination" -> "destinație ambiguă"
+    else -> code.replace('_', ' ').lowercase(Locale.getDefault()).replaceFirstChar { it.titlecase(Locale.getDefault()) }
 }
 
 private fun invoiceReasonLabel(code: String): String = when (code) {

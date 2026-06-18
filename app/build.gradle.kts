@@ -42,6 +42,12 @@ val enablePlayIntegrity = (
         ?: "false"
     ).trim().lowercase() in setOf("1", "true", "yes", "on")
 
+val allowReleaseStaticApiKey = (
+    localProperties.getProperty("SIGURSCAN_ALLOW_RELEASE_STATIC_API_KEY")
+        ?: System.getenv("SIGURSCAN_ALLOW_RELEASE_STATIC_API_KEY")
+        ?: "false"
+    ).trim().lowercase() in setOf("1", "true", "yes", "on")
+
 fun buildConfigSafeString(key: String, envFallback: String, defaultValue: String = ""): String {
     val value = (localProperties.getProperty(key) ?: System.getenv(envFallback) ?: defaultValue).trim()
     return "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
@@ -50,6 +56,14 @@ fun buildConfigSafeString(key: String, envFallback: String, defaultValue: String
 fun providerBuildConfigSafeString(key: String, envFallback: String): String {
     return if (allowDirectProviderKeys) {
         buildConfigSafeString(key, envFallback)
+    } else {
+        "\"\""
+    }
+}
+
+fun releaseApiKeyBuildConfigString(): String {
+    return if (allowReleaseStaticApiKey) {
+        buildConfigSafeString("SIGURSCAN_RELEASE_API_KEY", "SIGURSCAN_RELEASE_API_KEY")
     } else {
         "\"\""
     }
@@ -116,7 +130,7 @@ android {
         release {
             buildConfigField("String", "SIGURSCAN_BACKEND_BASE_URL", buildConfigSafeString("SIGURSCAN_RELEASE_BACKEND_BASE_URL", "SIGURSCAN_RELEASE_BACKEND_BASE_URL", "https://api.sigurscan.com/"))
             buildConfigField("String", "SIGURSCAN_PRIVACY_URL", buildConfigSafeString("SIGURSCAN_RELEASE_PRIVACY_URL", "SIGURSCAN_RELEASE_PRIVACY_URL"))
-            buildConfigField("String", "SIGURSCAN_API_KEY", buildConfigSafeString("SIGURSCAN_RELEASE_API_KEY", "SIGURSCAN_RELEASE_API_KEY"))
+            buildConfigField("String", "SIGURSCAN_API_KEY", releaseApiKeyBuildConfigString())
             buildConfigField("String", "URLSCAN_API_KEY", "\"\"")
             buildConfigField("String", "GOOGLE_WEB_RISK_API_KEY", "\"\"")
             buildConfigField("Boolean", "SIGURSCAN_ENABLE_AUDIO_ASR", enableAudioAsr.toString())

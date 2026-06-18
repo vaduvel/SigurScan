@@ -10,6 +10,8 @@ class AndroidBuildConfigPolicyTest {
         get() = File("build.gradle.kts").readText()
     private val mainActivityFile: String
         get() = File("src/main/java/ro/sigurscan/app/MainActivity.kt").readText()
+    private val manifest: String
+        get() = File("src/main/AndroidManifest.xml").readText()
 
     @Test
     fun directProviderKeysAreOptInAndProviderBuildConfigFieldsStayEmpty() {
@@ -83,12 +85,46 @@ class AndroidBuildConfigPolicyTest {
     }
 
     @Test
+    fun releaseStaticApiKeyIsExplicitFallbackOnly() {
+        assertTrue(
+            "Release builds must not embed a static client API key unless a conscious fallback flag is set.",
+            gradleFile.contains("""localProperties.getProperty("SIGURSCAN_ALLOW_RELEASE_STATIC_API_KEY")""") &&
+                gradleFile.contains("""fun releaseApiKeyBuildConfigString()""") &&
+                gradleFile.contains("""if (allowReleaseStaticApiKey)""") &&
+                gradleFile.contains("""buildConfigField("String", "SIGURSCAN_API_KEY", releaseApiKeyBuildConfigString())""")
+        )
+    }
+
+    @Test
     fun releaseBackendBaseUrlDefaultsToOfficialApiDomain() {
         assertTrue(
             "Release builds must not silently fall back to offline.sigurscan.invalid when local release config is missing.",
             gradleFile.contains(
                 """buildConfigSafeString("SIGURSCAN_RELEASE_BACKEND_BASE_URL", "SIGURSCAN_RELEASE_BACKEND_BASE_URL", "https://api.sigurscan.com/")"""
             )
+        )
+    }
+
+    @Test
+    fun networkSecurityConfigDisablesCleartextForOfficialApi() {
+        val networkSecurity = File("src/main/res/xml/network_security_config.xml").readText()
+
+        assertTrue(
+            "App manifest must bind Android network security config.",
+            manifest.contains("""android:networkSecurityConfig="@xml/network_security_config"""")
+        )
+        assertTrue(
+            "App manifest must explicitly disable cleartext traffic.",
+            manifest.contains("""android:usesCleartextTraffic="false"""")
+        )
+        assertTrue(
+            "Network security config must disable cleartext by default.",
+            networkSecurity.contains("""<base-config cleartextTrafficPermitted="false">""")
+        )
+        assertTrue(
+            "Official API domain must be declared without cleartext.",
+            networkSecurity.contains(""">api.sigurscan.com</domain>""") &&
+                networkSecurity.contains("""<domain-config cleartextTrafficPermitted="false">""")
         )
     }
 }

@@ -43,11 +43,16 @@ class PlayIntegrityTokenProvider(
                 nonceSource = NoopIntegrityNonceSource
             )
 
-        fun fromContext(context: Context, backendBaseUrl: String, rawApiKey: String?): PlayIntegrityTokenProvider =
+        fun fromContext(
+            context: Context,
+            backendBaseUrl: String,
+            rawApiKey: String?,
+            clientInstanceId: String?
+        ): PlayIntegrityTokenProvider =
             PlayIntegrityTokenProvider(
                 enabled = BuildConfig.SIGURSCAN_ENABLE_PLAY_INTEGRITY,
                 source = PlayCoreIntegrityTokenSource(context.applicationContext),
-                nonceSource = HttpIntegrityNonceSource(backendBaseUrl, rawApiKey)
+                nonceSource = HttpIntegrityNonceSource(backendBaseUrl, rawApiKey, clientInstanceId)
             )
     }
 }
@@ -67,23 +72,29 @@ private data class IntegrityNonceResponse(
 
 internal class HttpIntegrityNonceSource(
     backendBaseUrl: String,
-    rawApiKey: String?
+    rawApiKey: String?,
+    clientInstanceId: String?
 ) : IntegrityNonceSource {
     private val endpoint = "${backendBaseUrl.trimEnd('/')}/v1/security/play-integrity/nonce"
     private val apiKey = normalizedApiKey(rawApiKey)
+    private val clientInstance = normalizedApiKey(clientInstanceId)
     private val gson = Gson()
     private val client = OkHttpClient.Builder()
         .callTimeout(4, TimeUnit.SECONDS)
         .build()
 
     override fun issueNonce(): String? {
-        val key = apiKey ?: return null
-        val request = Request.Builder()
+        val key = apiKey
+        val instance = clientInstance ?: return null
+        val builder = Request.Builder()
             .url(endpoint)
-            .header(SIGURSCAN_API_KEY_HEADER, key)
+            .header(SIGURSCAN_CLIENT_INSTANCE_HEADER, instance)
             .header("User-Agent", SIGURSCAN_USER_AGENT)
             .post(ByteArray(0).toRequestBody("application/json".toMediaType()))
-            .build()
+        if (key != null) {
+            builder.header(SIGURSCAN_API_KEY_HEADER, key)
+        }
+        val request = builder.build()
         return client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) return null
             gson.fromJson(response.body?.charStream(), IntegrityNonceResponse::class.java)

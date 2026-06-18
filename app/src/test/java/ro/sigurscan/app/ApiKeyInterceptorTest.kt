@@ -79,6 +79,19 @@ class ApiKeyInterceptorTest {
     }
 
     @Test
+    fun `adds client instance header when configured`() {
+        val forwarded = requestThrough(
+            ApiKeyInterceptor(
+                rawApiKey = null,
+                clientInstanceId = " android-install-1 "
+            )
+        )
+
+        assertNull(forwarded.header(SIGURSCAN_API_KEY_HEADER))
+        assertEquals("android-install-1", forwarded.header(SIGURSCAN_CLIENT_INSTANCE_HEADER))
+    }
+
+    @Test
     fun `adds play integrity header when token provider returns token`() {
         val forwarded = requestThrough(
             ApiKeyInterceptor(

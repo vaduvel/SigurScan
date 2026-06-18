@@ -81,7 +81,7 @@ class PlayIntegrityTokenProviderTest {
     }
 
     @Test
-    fun httpNonceSourceCallsDedicatedEndpointWithClientKey() {
+    fun httpNonceSourceCallsDedicatedEndpointWithClientInstance() {
         val server = MockWebServer()
         server.enqueue(
             MockResponse()
@@ -91,13 +91,18 @@ class PlayIntegrityTokenProviderTest {
         )
         server.start()
         try {
-            val source = HttpIntegrityNonceSource(server.url("/").toString(), " client-key ")
+            val source = HttpIntegrityNonceSource(
+                backendBaseUrl = server.url("/").toString(),
+                rawApiKey = null,
+                clientInstanceId = " android-install-1 "
+            )
 
             assertEquals("nonce-from-server", source.issueNonce())
             val request = server.takeRequest()
             assertEquals("POST", request.method)
             assertEquals("/v1/security/play-integrity/nonce", request.path)
-            assertEquals("client-key", request.getHeader(SIGURSCAN_API_KEY_HEADER))
+            assertNull(request.getHeader(SIGURSCAN_API_KEY_HEADER))
+            assertEquals("android-install-1", request.getHeader(SIGURSCAN_CLIENT_INSTANCE_HEADER))
         } finally {
             server.shutdown()
         }

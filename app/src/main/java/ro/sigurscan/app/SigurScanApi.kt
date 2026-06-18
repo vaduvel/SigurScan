@@ -458,11 +458,20 @@ data class InvoiceBrandMatchResponse(
 )
 
 data class InvoicePaymentDestinationResponse(
+    val status: String? = null,
+    val verdict: String? = null,
     val matched: Boolean? = null,
+    @SerializedName("trust_tier") val trustTier: String? = null,
+    val display: String? = null,
+    @SerializedName("brand_id") val brandId: String? = null,
     @SerializedName("brand_matches") val brandMatches: Boolean? = null,
     @SerializedName("cui_matches") val cuiMatches: Boolean? = null,
     @SerializedName("iban_matches") val ibanMatches: Boolean? = null,
     @SerializedName("can_contribute_to_safe") val canContributeToSafe: Boolean? = null,
+    @SerializedName("source_kind") val sourceKind: String? = null,
+    @SerializedName("source_refs") val sourceRefs: List<String> = emptyList(),
+    @SerializedName("iban_masked_for_client") val ibanMaskedForClient: String? = null,
+    val reasons: List<String> = emptyList(),
     @SerializedName("matched_entity") val matchedEntity: String? = null,
     @SerializedName("match_reason") val matchReason: String? = null,
 )
