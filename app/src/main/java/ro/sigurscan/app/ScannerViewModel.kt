@@ -271,7 +271,7 @@ internal fun orchestratedScanServerInfo(
     if (isFinal && preview?.status?.trim()?.lowercase(Locale.US) == "unavailable") {
         return previewDetails.ifBlank {
             when (previewReason) {
-                "urlscan_screenshot_timeout", "android_polling_timeout" ->
+                "urlscan_screenshot_timeout", "android_polling_timeout", "android_final_preview_refresh_timeout" ->
                     "Preview-ul securizat nu a fost gata la timp. Verdictul final rămâne afișat; rescanează pentru o captură proaspătă."
                 else ->
                     "Preview-ul securizat nu este disponibil momentan. Folosește verdictul final și verifică destinația oficială înainte de orice acțiune sensibilă."
@@ -1809,7 +1809,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             urls.isNotEmpty() && looksLikeUrlOnly(rawInput.trim(), urls.first()) -> OrchestratedScanRequest(
                 inputType = "url",
                 url = normalizeUrl(urls.first()),
-                sourceChannel = "android_url_scan"
+                sourceChannel = activeEvidenceChannel(rawInput) ?: "android_url_scan"
             )
             else -> OrchestratedScanRequest(
                 inputType = "text",
@@ -2214,7 +2214,36 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 }
                 publishOrchestratedResponse(response, rawInput, urls, existingScanId, resultCacheKey)
             }
+            if (shouldRefreshFinalOrchestratedPreview(response)) {
+                publishFinalOrchestratedPreviewTimeout(response, rawInput, urls, existingScanId)
+            }
         }
+    }
+
+    private suspend fun publishFinalOrchestratedPreviewTimeout(
+        response: OrchestratedScanResponse,
+        rawInput: String,
+        urls: List<String>,
+        existingScanId: String?
+    ) {
+        val timeoutPreview = response.preview?.copy(
+            status = "unavailable",
+            reason = "android_final_preview_refresh_timeout",
+            details = response.preview.details
+                ?: "Preview-ul securizat nu a fost gata la timp. Verdictul final rămâne afișat; rescanează pentru o captură proaspătă."
+        ) ?: OrchestratedPreview(
+            status = "unavailable",
+            reason = "android_final_preview_refresh_timeout",
+            details = "Preview-ul securizat nu a fost gata la timp. Verdictul final rămâne afișat; rescanează pentru o captură proaspătă.",
+            finalUrl = urls.firstOrNull()
+        )
+        publishOrchestratedResponse(
+            response.copy(preview = timeoutPreview),
+            rawInput,
+            urls,
+            existingScanId,
+            resultCacheKey = null
+        )
     }
 
     private fun buildDegradedAssessmentFromBackendScanResponse(

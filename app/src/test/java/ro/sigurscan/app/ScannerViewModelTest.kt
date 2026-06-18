@@ -214,6 +214,40 @@ class ScannerViewModelTest {
     }
 
     @Test
+    fun finalPreviewRefreshExhaustionShowsPreviewUnavailableInsteadOfEndlessSpinner() {
+        val message = orchestratedScanServerInfo(
+            statusMessage = "Scanarea este finalizata.",
+            preview = OrchestratedPreview(
+                status = "unavailable",
+                reason = "android_final_preview_refresh_timeout",
+                finalUrl = "https://www.smart-menu.ro/qr/vbiwmbouhu"
+            ),
+            isFinal = true
+        )
+
+        assertTrue(message.contains("Preview-ul securizat nu a fost gata"))
+        assertFalse(message.contains("generează"))
+    }
+
+    @Test
+    fun finalPreviewRefreshPublishesUnavailableStateAfterBoundedAttempts() {
+        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val helperStart = viewModelSource.indexOf("private fun launchFinalOrchestratedPreviewRefresh")
+        val helperEnd = viewModelSource.indexOf("private fun buildDegradedAssessmentFromBackendScanResponse", helperStart)
+        assertTrue("Preview refresh helper must exist.", helperStart >= 0 && helperEnd > helperStart)
+
+        val helperFlow = viewModelSource.substring(helperStart, helperEnd)
+        assertTrue(
+            "After bounded preview refresh attempts, Android must publish a non-spinning unavailable preview state.",
+            helperFlow.contains("publishFinalOrchestratedPreviewTimeout")
+        )
+        assertTrue(
+            "The timeout state must mark the preview unavailable.",
+            helperFlow.contains("android_final_preview_refresh_timeout")
+        )
+    }
+
+    @Test
     fun resultCacheKeyNormalizesWhitespaceAndUrls() {
         val first = scanResultCacheKey(
             rawInput = "  Verifică   oferta aici: example.com/path  ",
@@ -227,6 +261,25 @@ class ScannerViewModelTest {
         )
 
         assertEquals(first, second)
+    }
+
+    @Test
+    fun urlOnlyOrchestratedRequestPreservesActiveEvidenceChannelForQrScans() {
+        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val requestStart = viewModelSource.indexOf("private fun orchestratedRequest")
+        val requestEnd = viewModelSource.indexOf("private fun linksFromExtraction", requestStart)
+        assertTrue("orchestratedRequest must exist.", requestStart >= 0 && requestEnd > requestStart)
+
+        val requestFlow = viewModelSource.substring(requestStart, requestEnd)
+        val urlOnlyBranch = requestFlow.substring(
+            requestFlow.indexOf("urls.isNotEmpty() && looksLikeUrlOnly"),
+            requestFlow.indexOf("else -> OrchestratedScanRequest")
+        )
+
+        assertTrue(
+            "URL-only scans must preserve qr_scan/share channel instead of flattening every URL into android_url_scan.",
+            urlOnlyBranch.contains("sourceChannel = activeEvidenceChannel(rawInput) ?: \"android_url_scan\"")
+        )
     }
 
     @Test

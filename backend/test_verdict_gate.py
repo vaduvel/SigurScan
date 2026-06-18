@@ -236,6 +236,87 @@ def test_unknown_clean_established_domain_is_unverified_without_registry():
     assert result["reason_codes"] == ["unknown_but_clean_established"]
 
 
+def test_clean_established_qr_menu_without_sensitive_request_is_safe():
+    bundle = {
+        "schema": "sigurscan_evidence_bundle_v2",
+        "input": {
+            "type": "qr_scan",
+            "redacted_text": "https://www.smart-menu.ro/qr/vbiwmbouhu",
+        },
+        "resolution": {"status": "resolved", "completeness": True, "final_url": "https://www.smart-menu.ro/qr/vbiwmbouhu"},
+        "providers": {
+            "verdict": "clean",
+            "hits": ["google_web_risk", "phishing_database", "urlhaus", "urlscan", "infra_dns"],
+            "completeness": True,
+        },
+        "identity": {
+            "claimed_brand": None,
+            "status": "unknown",
+            "tld_suspicious": False,
+            "domain_age_days": 2193,
+            "domain_reputation": "established",
+            "completeness": True,
+        },
+        "request": {"sensitive": "none", "channel": "unofficial_site", "completeness": True},
+        "context": {
+            "urgency": False,
+            "passive_payment": False,
+            "apk_or_remote_mention": False,
+        },
+        "semantic_review": {
+            "status": "done",
+            "claim_matches_known_scam_family": False,
+            "matched_family": None,
+            "claim_matches_legit_template": False,
+            "matched_template": None,
+            "reason_codes": ["semantic:unknown"],
+            "risk_class": "unknown",
+            "completeness": True,
+        },
+    }
+
+    result = verdict(bundle)
+
+    assert result["label"] == "SAFE"
+    assert result["reason_codes"] == ["clean_public_navigation_qr"]
+
+
+def test_clean_established_qr_with_card_request_is_not_safe():
+    bundle = {
+        "schema": "sigurscan_evidence_bundle_v2",
+        "input": {
+            "type": "qr_scan",
+            "redacted_text": "Meniu digital. Pentru acces introdu cardul: https://restaurant.example/card",
+        },
+        "resolution": {"status": "resolved", "completeness": True, "final_url": "https://restaurant.example/card"},
+        "providers": {"verdict": "clean", "hits": ["google_web_risk", "urlscan"], "completeness": True},
+        "identity": {
+            "claimed_brand": None,
+            "status": "unknown",
+            "tld_suspicious": False,
+            "domain_age_days": 1200,
+            "domain_reputation": "established",
+            "completeness": True,
+        },
+        "request": {"sensitive": "card", "channel": "unofficial_site", "completeness": True},
+        "context": {"urgency": False, "passive_payment": False, "apk_or_remote_mention": False},
+        "semantic_review": {
+            "status": "done",
+            "claim_matches_known_scam_family": False,
+            "matched_family": None,
+            "claim_matches_legit_template": False,
+            "matched_template": None,
+            "reason_codes": ["semantic:unknown"],
+            "risk_class": "unknown",
+            "completeness": True,
+        },
+    }
+
+    result = verdict(bundle)
+
+    assert result["label"] != "SAFE"
+
+
 def test_unknown_clean_new_domain_stays_unverified_without_registry():
     bundle = {
         "schema": "sigurscan_evidence_bundle_v2",

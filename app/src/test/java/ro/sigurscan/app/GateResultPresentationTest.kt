@@ -60,6 +60,34 @@ class GateResultPresentationTest {
     }
 
     @Test
+    fun finalUnverifiedBackendCopyDoesNotSayTheScanIsStillIncomplete() {
+        val result = gateResult(
+            GateAction.INSUFFICIENT_EVIDENCE,
+            reasonCodes = listOf("BACKEND_UNVERIFIED"),
+            unknownReason = "BACKEND_UNVERIFIED",
+            finality = GateFinality.FINAL
+        )
+        val copy = listOf(
+            result.userLabel,
+            GateResultPresentation.supportText(result),
+            GateResultPresentation.reasonText(result, null),
+            GateResultPresentation.primaryAction(result)
+        )
+            .plus(GateResultPresentation.recommendedActions(result))
+            .joinToString(" ")
+            .lowercase()
+
+        assertTrue(copy.contains("nu am găsit") || copy.contains("nu am gasit"))
+        assertTrue(copy.contains("confirm"))
+        assertFalse(copy.contains("incomplet"))
+        assertFalse(copy.contains("incompletă"))
+        assertFalse(copy.contains("inca"))
+        assertFalse(copy.contains("încă"))
+        assertFalse(copy.contains("asteapta scanarea"))
+        assertFalse(copy.contains("așteaptă scanarea"))
+    }
+
+    @Test
     fun dangerousCopyTellsTheUserWhatToDoWithoutTechnicalRawDetails() {
         val result = gateResult(
             GateAction.DO_NOT_CONTINUE,

@@ -36,6 +36,7 @@ object GateResultPresentation {
 
     fun supportText(result: GateResult): String = when {
         isScanInProgress(result) -> "Scanăm linkul și pregătim verdictul după verificare."
+        result.action == GateAction.INSUFFICIENT_EVIDENCE && result.unknownReason == "BACKEND_UNVERIFIED" -> "Nu am găsit semnale clare de risc, dar nu avem confirmare oficială pentru această destinație."
         result.action == GateAction.DO_NOT_CONTINUE -> "Scanarea a gasit semnale clare de risc pe destinatie."
         result.action == GateAction.NO_ENTER_DATA -> "Pagina sau mesajul cere date sensibile pe un canal care nu este suficient validat."
         result.action == GateAction.NO_REPLY -> "Mesajul cere raspuns, coduri, bani sau continuarea conversatiei intr-un scenariu riscant."
@@ -46,6 +47,7 @@ object GateResultPresentation {
 
     fun primaryAction(result: GateResult): String = when {
         isScanInProgress(result) -> "Așteaptă finalizarea scanării."
+        result.action == GateAction.INSUFFICIENT_EVIDENCE && result.unknownReason == "BACKEND_UNVERIFIED" -> "Verifică destinația în contextul oficial înainte de date sau plăți."
         result.action == GateAction.DO_NOT_CONTINUE -> "Nu apasa linkul si nu continua fluxul."
         result.action == GateAction.NO_ENTER_DATA -> "Nu introduce card, parola, CNP, IBAN sau cod OTP."
         result.action == GateAction.NO_REPLY -> "Nu raspunde si nu trimite coduri sau bani."
@@ -74,6 +76,7 @@ object GateResultPresentation {
             "OFFICIAL_DESTINATION_AND_CLAIM_CONFIRMED" in codes -> "Linkul ajunge pe domeniu oficial, iar oferta sau contextul mentionat a fost confirmat."
             "OFFICIAL_DESTINATION_NO_SENSITIVE_COLLECTION" in codes -> "Linkul ajunge pe domeniu oficial/delegat si nu cere date sensibile."
             "BACKEND_ORCHESTRATED_VERDICT" in codes -> "Am verificat linkul final, captura securizata si reputatia destinatiei."
+            "BACKEND_UNVERIFIED" in codes -> "Verificarea s-a încheiat fără semnale clare de risc, dar destinația nu are proveniență oficială confirmată."
             "WEAK_OR_EXPLANATORY_EVIDENCE_ONLY" in codes -> "Am gasit doar semnale slabe, precum marketing, CTA, tracking sau explicatii."
             "BRAND_OR_AUTHORITY_CLAIM_NEEDS_VERIFICATION" in codes -> "Mesajul mentioneaza un brand sau o autoritate si trebuie verificat pe canalul oficial."
             "PROVIDER_REVIEW_REQUIRED" in codes && result.unknownReason == "PROVIDERS_PENDING_FOR_TARGET" -> "Se scaneaza linkul. Revenim cu verdictul dupa verificare."
@@ -93,6 +96,11 @@ object GateResultPresentation {
         isScanInProgress(result) -> listOf(
             "Așteaptă verdictul final.",
             "Nu introduce date până nu se termină scanarea."
+        )
+        result.action == GateAction.INSUFFICIENT_EVIDENCE && result.unknownReason == "BACKEND_UNVERIFIED" -> listOf(
+            "Verifică dacă QR-ul sau linkul vine din locația ori aplicația oficială.",
+            "Nu introduce card, parolă sau cod OTP dacă pagina cere date sensibile.",
+            "Pentru plăți, caută manual comerciantul sau cere confirmare pe canal oficial."
         )
         result.action == GateAction.DO_NOT_CONTINUE -> listOf(
             "Nu apasa linkul.",

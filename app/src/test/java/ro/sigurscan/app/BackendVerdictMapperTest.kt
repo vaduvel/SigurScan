@@ -79,6 +79,18 @@ class BackendVerdictMapperTest {
     }
 
     @Test
+    fun finalUnverifiedBackendResultIsRecognizedAsFinalLimitedVerification() {
+        val result = backendGateResult(
+            scanResponse(label = "UNVERIFIED", riskLevel = "info", isFinal = true)
+        )
+
+        assertEquals(GateAction.INSUFFICIENT_EVIDENCE, result.action)
+        assertEquals(GateFinality.FINAL, result.finality)
+        assertEquals("BACKEND_UNVERIFIED", result.unknownReason)
+        assertTrue(result.reasonCodes.contains("BACKEND_UNVERIFIED"))
+    }
+
+    @Test
     fun missingFinalBackendLabelDoesNotTriggerAnotherLocalJudge() {
         val result = backendGateResult(
             scanResponse(label = null, riskLevel = "low", isFinal = true)

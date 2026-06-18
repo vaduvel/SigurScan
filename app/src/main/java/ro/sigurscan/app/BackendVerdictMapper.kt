@@ -11,20 +11,26 @@ internal fun backendGateResult(response: ScanResponse): GateResult {
         "SAFE" -> GateAction.CONTINUE_WITH_CAUTION
         "SUSPECT" -> GateAction.VERIFY_OFFICIAL
         "DANGEROUS" -> GateAction.DO_NOT_CONTINUE
+        "UNVERIFIED" -> GateAction.INSUFFICIENT_EVIDENCE
         else -> GateAction.INSUFFICIENT_EVIDENCE
     }
+    val backendLabel = response.userRiskLabel?.trim()?.uppercase(Locale.ROOT)
     return GateResult(
         action = action,
         finality = GateFinality.FINAL,
         reasonCodes = listOf(
-            if (action == GateAction.INSUFFICIENT_EVIDENCE) {
+            if (backendLabel == "UNVERIFIED") {
+                "BACKEND_UNVERIFIED"
+            } else if (action == GateAction.INSUFFICIENT_EVIDENCE) {
                 "BACKEND_FINAL_LABEL_MISSING"
             } else {
                 "BACKEND_ORCHESTRATED_VERDICT"
             }
         ),
         decisiveSignalIds = emptyList(),
-        unknownReason = if (action == GateAction.INSUFFICIENT_EVIDENCE) {
+        unknownReason = if (backendLabel == "UNVERIFIED") {
+            "BACKEND_UNVERIFIED"
+        } else if (action == GateAction.INSUFFICIENT_EVIDENCE) {
             "BACKEND_FINAL_LABEL_MISSING"
         } else {
             null

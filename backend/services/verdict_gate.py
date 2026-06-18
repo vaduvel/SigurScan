@@ -19,6 +19,15 @@ PROVIDER_PENDING = {"pending", "running", "queued", "scanning"}
 INCOMPLETE_RESOLUTION = {"failed", "partial", "pending", "unknown", ""}
 ESTABLISHED_DOMAIN_AGE_DAYS = 365
 CAMPAIGN_MATCH_HIGH_CONFIDENCE_THRESHOLD = 0.82
+PUBLIC_NAVIGATION_INPUT_TYPES = {
+    "qr",
+    "qr_scan",
+    "android_qr_scan",
+    "url",
+    "url_scan",
+    "android_url_scan",
+    "manual_url_scan",
+}
 
 
 def _section(bundle: Dict[str, Any], name: str) -> Dict[str, Any]:
@@ -237,6 +246,39 @@ def _is_clean_coherent_invoice_without_registry_destination(
     return True
 
 
+def _is_low_risk_public_navigation(
+    *,
+    bundle: Dict[str, Any],
+    identity: Dict[str, Any],
+    identity_status: str,
+    provider_verdict: str,
+    sensitive: str,
+    semantic_risk: str,
+    tld_suspicious: bool,
+) -> bool:
+    input_section = _section(bundle, "input")
+    input_type = _norm(input_section.get("type"))
+    claimed_brand = _norm(identity.get("claimed_brand"))
+    if input_type not in PUBLIC_NAVIGATION_INPUT_TYPES:
+        return False
+    if claimed_brand and claimed_brand not in {"none", "unknown", "nespecificat"}:
+        return False
+    if identity_status != "unknown":
+        return False
+    if provider_verdict not in PROVIDER_CLEAN:
+        return False
+    if sensitive != "none":
+        return False
+    if semantic_risk not in {"unknown", "low", "benign"}:
+        return False
+    if tld_suspicious or not _domain_is_established(identity):
+        return False
+    context = _section(bundle, "context")
+    if _bool(context.get("apk_or_remote_mention")):
+        return False
+    return True
+
+
 def _campaign_match_high_enough(campaign: Dict[str, Any]) -> bool:
     """Campaign fingerprint match solo -> max SUSPECT."""
     status = _norm(campaign.get("status"))
@@ -409,6 +451,24 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
         and not violated_never_asks
     ):
         return _result("SAFE", ["positive_provenance_clean"], confidence=92)
+
+    # ─── Rule 9b: Public navigation QR/URL clean → SAFE ───────────────────
+    # A QR/menu/catalog link is not an invoice, bank login, or identity claim.
+    # If it is a direct public-navigation scan, all providers are clean, the
+    # domain is established, and there is no sensitive ask, do not punish it for
+    # lacking a brand registry entry.
+    if _is_low_risk_public_navigation(
+        bundle=bundle,
+        identity=identity,
+        identity_status=identity_status,
+        provider_verdict=provider_verdict,
+        sensitive=sensitive,
+        semantic_risk=semantic_risk,
+        tld_suspicious=tld_suspicious,
+    ):
+        input_type = _norm(_section(bundle, "input").get("type"))
+        reason = "clean_public_navigation_qr" if "qr" in input_type else "clean_public_navigation_url"
+        return _result("SAFE", [reason], confidence=88)
 
     # ─── Rule 10: Unknown provenance + clean → UNVERIFIED (NOT SAFE) ──────
     if identity_status == "unknown" and provider_verdict in PROVIDER_CLEAN and sensitive == "none":

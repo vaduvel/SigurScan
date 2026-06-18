@@ -1712,6 +1712,54 @@ def test_provider_gate_does_not_mark_url_only_unknown_clean_domain_as_low_risk()
     assert result["evidence"]["decision_bundle"]["identity"]["status"] == "unknown"
 
 
+def test_provider_gate_marks_clean_established_qr_public_navigation_as_low_risk():
+    analysis = {
+        "claimed_brand": "Nespecificat",
+        "risk_level": "medium",
+        "risk_score": 55,
+        "detected_family": "QR meniu",
+        "evidence": {
+            "source_channel": "qr_scan",
+            "external_intel_summary": {
+                "google_web_risk": {"status": "clean", "verdict": "clean", "consulted": True},
+                "phishing_database": {"status": "clean", "verdict": "clean", "consulted": True},
+                "urlhaus": {"status": "clean", "verdict": "clean", "consulted": True},
+                "urlscan": {"status": "clean", "verdict": "clean", "consulted": True},
+                "infra_dns": {"status": "clean", "verdict": "clean", "consulted": True},
+            },
+            "semantic_review": {
+                "status": "done",
+                "risk_class": "unknown",
+                "claim_matches_known_scam_family": False,
+                "claim_matches_legit_template": False,
+                "completeness": True,
+            },
+        },
+    }
+    resolved_urls = [
+        {
+            "url": "https://www.smart-menu.ro/qr/vbiwmbouhu",
+            "final_url": "https://www.smart-menu.ro/qr/vbiwmbouhu",
+            "hostname": "www.smart-menu.ro",
+            "final_hostname": "www.smart-menu.ro",
+            "registered_domain": "smart-menu.ro",
+            "final_registered_domain": "smart-menu.ro",
+            "domain_age_days": 2193,
+            "success": True,
+        }
+    ]
+
+    result = _apply_provider_gate_verdict(
+        analysis,
+        resolved_urls,
+        raw_text="https://www.smart-menu.ro/qr/vbiwmbouhu",
+    )
+
+    assert result["evidence"]["verdict_gate"]["label"] == "SAFE"
+    assert result["evidence"]["verdict_gate"]["reason_codes"] == ["clean_public_navigation_qr"]
+    assert result["evidence"]["decision_bundle"]["input"]["type"] == "qr_scan"
+
+
 def test_rdap_domain_age_uses_valid_url_without_literal_braces(monkeypatch):
     from services import redirect_resolver
 
