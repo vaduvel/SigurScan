@@ -656,3 +656,109 @@ def test_delegated_deeplink_clean_young_domain_can_be_safe():
 
     assert result["label"] == "SAFE"
     assert result["reason_codes"] == ["positive_provenance_clean"]
+
+
+def test_brand_token_lookalike_domain_is_not_safe():
+    """anaf-spv.info conține 'anaf' dar nu e oficial → NU poate fi SAFE."""
+    bundle = {
+        "schema": "sigurscan_evidence_bundle_v2",
+        "input": {"type": "qr_scan", "redacted_text": "https://anaf-spv.info/login/verify"},
+        "resolution": {"status": "resolved", "completeness": True, "final_url": "https://anaf-spv.info/login/verify"},
+        "providers": {"verdict": "clean", "hits": ["google_web_risk", "phishing_database"], "completeness": True},
+        "identity": {
+            "claimed_brand": None,
+            "status": "unknown",
+            "tld_suspicious": False,
+            "domain_age_days": 500,
+            "domain_reputation": "established",
+            "brand_token_mismatch": "ANAF",
+            "completeness": True,
+        },
+        "request": {"sensitive": "none", "channel": "unofficial_site", "completeness": True},
+        "context": {"urgency": False, "passive_payment": False, "apk_or_remote_mention": False},
+        "semantic_review": {
+            "status": "done",
+            "claim_matches_known_scam_family": False,
+            "matched_family": None,
+            "claim_matches_legit_template": False,
+            "matched_template": None,
+            "reason_codes": ["semantic:unknown"],
+            "risk_class": "unknown",
+            "completeness": True,
+        },
+    }
+
+    result = verdict(bundle)
+
+    assert result["label"] == "SUSPECT"
+    assert result["reason_codes"] == ["brand_token_lookalike"]
+
+
+def test_nxdomain_domain_is_not_safe():
+    """Domeniu mort (NXDOMAIN) → NU poate fi SAFE."""
+    bundle = {
+        "schema": "sigurscan_evidence_bundle_v2",
+        "input": {"type": "url_scan", "redacted_text": "https://anaf-spv.info/login"},
+        "resolution": {"status": "resolved", "completeness": True, "final_url": "https://anaf-spv.info/login"},
+        "providers": {"verdict": "clean", "hits": ["google_web_risk"], "completeness": True},
+        "identity": {
+            "claimed_brand": None,
+            "status": "unknown",
+            "tld_suspicious": False,
+            "domain_age_days": 500,
+            "domain_reputation": "established",
+            "host_unreachable": True,
+            "completeness": True,
+        },
+        "request": {"sensitive": "none", "channel": "unofficial_site", "completeness": True},
+        "context": {"urgency": False, "passive_payment": False, "apk_or_remote_mention": False},
+        "semantic_review": {
+            "status": "done",
+            "claim_matches_known_scam_family": False,
+            "matched_family": None,
+            "claim_matches_legit_template": False,
+            "matched_template": None,
+            "reason_codes": ["semantic:unknown"],
+            "risk_class": "unknown",
+            "completeness": True,
+        },
+    }
+
+    result = verdict(bundle)
+
+    assert result["label"] != "SAFE"
+
+
+def test_bare_url_with_no_brand_token_stays_safe():
+    """smart-menu.ro nu conține brand token → rămâne SAFE prin Rule 9b."""
+    bundle = {
+        "schema": "sigurscan_evidence_bundle_v2",
+        "input": {"type": "qr_scan", "redacted_text": "https://www.smart-menu.ro/qr/abc123"},
+        "resolution": {"status": "resolved", "completeness": True, "final_url": "https://www.smart-menu.ro/qr/abc123"},
+        "providers": {"verdict": "clean", "hits": ["google_web_risk", "phishing_database", "urlhaus"], "completeness": True},
+        "identity": {
+            "claimed_brand": None,
+            "status": "unknown",
+            "tld_suspicious": False,
+            "domain_age_days": 2193,
+            "domain_reputation": "established",
+            "completeness": True,
+        },
+        "request": {"sensitive": "none", "channel": "unofficial_site", "completeness": True},
+        "context": {"urgency": False, "passive_payment": False, "apk_or_remote_mention": False},
+        "semantic_review": {
+            "status": "done",
+            "claim_matches_known_scam_family": False,
+            "matched_family": None,
+            "claim_matches_legit_template": False,
+            "matched_template": None,
+            "reason_codes": ["semantic:unknown"],
+            "risk_class": "unknown",
+            "completeness": True,
+        },
+    }
+
+    result = verdict(bundle)
+
+    assert result["label"] == "SAFE"
+    assert result["reason_codes"] == ["clean_public_navigation_qr"]

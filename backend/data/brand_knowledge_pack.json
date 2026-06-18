@@ -25,7 +25,8 @@
       "sigurantaonline.ro"
     ],
     "FAN Courier": [
-      "fancourier.ro"
+      "fancourier.ro",
+      "selfawb.ro"
     ],
     "Poșta Română": [
       "posta-romana.ro",
@@ -182,6 +183,38 @@
     ],
     "Telekom România": [
       "telekom.ro"
+    ],
+    "BVB": [
+      "bvb.ro",
+      "m.bvb.ro"
+    ],
+    "Loteria Română": [
+      "loto.ro",
+      "bilete.loto.ro",
+      "joc-loto.loto.ro",
+      "un-doi.loto.ro"
+    ],
+    "CNAIR/Rovinieta": [
+      "erovinieta.ro",
+      "roviniete.ro",
+      "cnadnr.ro"
+    ],
+    "Depozitarul Central": [
+      "depozitarulcentral.ro"
+    ],
+    "WhatsApp": [
+      "wa.me",
+      "whatsapp.net"
+    ],
+    "AnyDesk": [
+      "anydesk.com"
+    ],
+    "TeamViewer": [
+      "teamviewer.com"
+    ],
+    "Google": [
+      "android.com",
+      "youtube.com"
     ]
   },
   "brand_domain_exceptions": {
@@ -353,7 +386,15 @@
     "smykro": "SMYK România",
     "idroid": "iDroid",
     "idroidro": "iDroid",
-    "telekom": "Telekom România"
+    "telekom": "Telekom România",
+    "bvb": "BVB",
+    "loto": "Loteria Română",
+    "erovinieta": "CNAIR/Rovinieta",
+    "roviniete": "CNAIR/Rovinieta",
+    "cnadnr": "CNAIR/Rovinieta",
+    "depozitarulcentral": "Depozitarul Central",
+    "anydesk": "AnyDesk",
+    "teamviewer": "TeamViewer"
   },
   "brand_aliases": {
     "ANAF": [

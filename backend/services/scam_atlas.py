@@ -495,8 +495,8 @@ MALWARE_APK_PATTERNS = (
 )
 
 SENSITIVE_QR_PATTERNS = (
-    re.compile(r"\b(?:qr|q\\s*r|cod\\s+qr)\b", re.IGNORECASE),
-    re.compile(r"\b(?:scan\\w*|scanare|scan\\-at|scanat)\b", re.IGNORECASE),
+    re.compile(r"\b(?:qr|q\s*r|cod\s+qr)\b", re.IGNORECASE),
+    re.compile(r"\b(?:scan\w*|scanare|scan-at|scanat)\b", re.IGNORECASE),
     re.compile(r"\b(?:pl[aă]t[aă]|factur|abonament|parcare|reducer|taxa)\b", re.IGNORECASE),
 )
 
@@ -1204,7 +1204,7 @@ class ScamAtlasEngine:
         # QR phishing / quishing
         if (
             any(pattern.search(text) for pattern in SENSITIVE_QR_PATTERNS)
-            and re.search(r"\b(?:qr|q\\s*r|cod\\s+qr)\b", text, re.IGNORECASE)
+            and re.search(r"\b(?:qr|q\s*r|cod\s+qr)\b", text, re.IGNORECASE)
         ):
             signals.append("Solicitare de scanare/plată prin QR într-un context de risc")
 

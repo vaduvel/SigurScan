@@ -3241,6 +3241,59 @@ def _provider_verdict_for_decision_bundle(
     return {"verdict": "pending", "hits": [], "completeness": False}
 
 
+def _brand_token_lookalike_in_resolved_urls(resolved_urls: List[Dict[str, Any]]) -> Optional[str]:
+    """Detectează domenii care conțin un token de brand cunoscut dar NU sunt oficiale.
+
+    General: orice domeniu care conține un brand token (ex: 'anaf', 'bcr', 'bt', 'ing')
+    dar NU e în BRAND_REGISTRY pentru acel brand = lookalike.
+
+    Returnează brandul impersonat sau None.
+    Prinde: anaf-spv.info, bcr-secure.info, bt-login.xyz, revolut-verify.top, etc.
+    NU prinde: smart-menu.ro, restaurant.example (nu conțin brand tokens).
+    """
+    if not resolved_urls:
+        return None
+    try:
+        from services.scam_atlas import BRAND_REGISTRY, TRUSTED_BASE_NAMES
+    except Exception:
+        return None
+    for entry in resolved_urls:
+        if not isinstance(entry, dict):
+            continue
+        hostname = str(entry.get("final_hostname") or entry.get("hostname") or "").strip().lower()
+        registered_domain = str(entry.get("final_registered_domain") or entry.get("registered_domain") or "").strip().lower()
+        if not hostname and not registered_domain:
+            continue
+        candidate = registered_domain or hostname
+        # Extrage base name (fără TLD) și tokenizează pe -, _, .
+        try:
+            extracted = tldextract.extract(candidate)
+            base = (extracted.domain or "").strip().lower()
+        except Exception:
+            base = candidate.split(".")[0] if "." in candidate else candidate
+        if not base or len(base) < 3:
+            continue
+        tokens = set()
+        for sep in ("-", "_", "."):
+            if sep in base:
+                tokens.update(t for t in base.split(sep) if t and len(t) >= 3)
+        tokens.add(base)
+        # Verifică fiecare token contra TRUSTED_BASE_NAMES
+        for token in tokens:
+            brand = TRUSTED_BASE_NAMES.get(token)
+            if not brand:
+                continue
+            official_domains = BRAND_REGISTRY.get(brand, [])
+            # Domeniul e oficial dacă registered_domain sau hostname e în listă
+            is_official = any(
+                candidate == d or candidate.endswith(f".{d}") or hostname == d or hostname.endswith(f".{d}")
+                for d in official_domains
+            )
+            if not is_official:
+                return brand
+    return None
+
+
 def _identity_status_for_decision_bundle(
     analysis: Dict[str, Any],
     resolved_urls: List[Dict[str, Any]],
@@ -3341,6 +3394,7 @@ def _identity_status_for_decision_bundle(
             "completeness": True,
         })
 
+    brand_token_mismatch = _brand_token_lookalike_in_resolved_urls(resolved_urls)
     return _with_domain_context({
         "claimed_brand": claimed_brand if _normalize_claimed_brand(claimed_brand) else None,
         "status": "unknown",
@@ -3351,6 +3405,7 @@ def _identity_status_for_decision_bundle(
             or infra_flags.get("very_new_domain")
             or _domain_from_signals_suspicious()
         ),
+        "brand_token_mismatch": brand_token_mismatch,
         "completeness": True,
     })
 
@@ -8657,6 +8712,17 @@ async def _run_orchestrated_fast_lane(job: Dict[str, Any], request: Request) -> 
             )
         except Exception as exc:
             domain_signals = {"signal_score": 0, "flags": ["error"], "error": str(exc)}
+        # DNS liveness check (NXDOMAIN = domeniu mort, posibil phishing luat jos)
+        try:
+            from services.dns_reputation import check_dns_reputation
+            dns_rep = await asyncio.to_thread(check_dns_reputation, primary_final_host)
+            if dns_rep.status in ("nxdomain", "blocked"):
+                domain_signals["unreachable"] = True
+                domain_signals["dns_nxdomain"] = True
+                domain_signals["dns_status"] = dns_rep.status
+                domain_signals["dns_reason_codes"] = dns_rep.reason_codes
+        except Exception:
+            pass
 
     threat_intel = _timed_orchestrated_component(
         job,

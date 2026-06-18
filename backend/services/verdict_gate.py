@@ -294,6 +294,10 @@ def _is_low_risk_public_navigation(
         return False
     if tld_suspicious or not _domain_is_established(identity):
         return False
+    if _bool(identity.get("brand_token_mismatch")):
+        return False
+    if _bool(identity.get("host_unreachable")):
+        return False
     context = _section(bundle, "context")
     if _bool(context.get("apk_or_remote_mention")):
         return False
@@ -490,6 +494,10 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
         input_type = _norm(_section(bundle, "input").get("type"))
         reason = "clean_public_navigation_qr" if "qr" in input_type else "clean_public_navigation_url"
         return _result("SAFE", [reason], confidence=88)
+
+    # ─── Rule 9c: Brand-token lookalike → SUSPECT (never SAFE/UNVERIFIED) ──
+    if _bool(identity.get("brand_token_mismatch")) and provider_verdict in PROVIDER_CLEAN:
+        return _result("SUSPECT", ["brand_token_lookalike"], confidence=75)
 
     # ─── Rule 10: Unknown provenance + clean → UNVERIFIED (NOT SAFE) ──────
     if identity_status == "unknown" and provider_verdict in PROVIDER_CLEAN and sensitive == "none":
