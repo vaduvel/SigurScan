@@ -125,6 +125,40 @@ class InvoiceModelTest {
     }
 
     @Test
+    fun invoiceResponseParsesObjectSourceRefsFromPaymentDestination() {
+        val json = """
+            {
+              "payment_destination": {
+                "status": "clean",
+                "matched": true,
+                "trust_tier": "T1_PUBLIC_OFFICIAL",
+                "can_contribute_to_safe": true,
+                "source_refs": [
+                  {
+                    "url": "https://www.groupama.ro/utile/modalitati-de-plata-primelor-de-asigurare",
+                    "publisher": "Groupama Asigurări",
+                    "accessed_at": "2026-06-19",
+                    "confidence": "high"
+                  }
+                ]
+              }
+            }
+        """.trimIndent()
+
+        val response = Gson().fromJson(json, InvoiceScanResponse::class.java)
+
+        assertEquals("clean", response.paymentDestination?.status)
+        assertEquals(true, response.paymentDestination?.matched)
+        assertEquals("T1_PUBLIC_OFFICIAL", response.paymentDestination?.trustTier)
+        assertEquals(true, response.paymentDestination?.canContributeToSafe)
+        assertEquals(
+            "https://www.groupama.ro/utile/modalitati-de-plata-primelor-de-asigurare",
+            response.paymentDestination?.sourceRefs?.firstOrNull()?.url
+        )
+        assertEquals("Groupama Asigurări", response.paymentDestination?.sourceRefs?.firstOrNull()?.publisher)
+    }
+
+    @Test
     fun invoiceResponseParsesOfficialDocumentMismatch() {
         val json = """
             {

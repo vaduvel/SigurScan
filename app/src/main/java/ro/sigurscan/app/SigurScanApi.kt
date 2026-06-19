@@ -457,6 +457,13 @@ data class InvoiceBrandMatchResponse(
     @SerializedName("impersonation_risk") val impersonationRisk: Boolean = false,
 )
 
+data class InvoicePaymentSourceRef(
+    val url: String? = null,
+    val publisher: String? = null,
+    @SerializedName("accessed_at") val accessedAt: String? = null,
+    val confidence: String? = null,
+)
+
 data class InvoicePaymentDestinationResponse(
     val status: String? = null,
     val verdict: String? = null,
@@ -469,7 +476,7 @@ data class InvoicePaymentDestinationResponse(
     @SerializedName("iban_matches") val ibanMatches: Boolean? = null,
     @SerializedName("can_contribute_to_safe") val canContributeToSafe: Boolean? = null,
     @SerializedName("source_kind") val sourceKind: String? = null,
-    @SerializedName("source_refs") val sourceRefs: List<String> = emptyList(),
+    @SerializedName("source_refs") val sourceRefs: List<InvoicePaymentSourceRef> = emptyList(),
     @SerializedName("iban_masked_for_client") val ibanMaskedForClient: String? = null,
     val reasons: List<String> = emptyList(),
     @SerializedName("matched_entity") val matchedEntity: String? = null,
