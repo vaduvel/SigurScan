@@ -5975,6 +5975,43 @@ def test_fast_preview_memory_cache_reuses_live_signed_url(monkeypatch):
     assert signed_calls == [f"{cache_key}.png"]
 
 
+def test_fast_preview_cache_resigns_persisted_supabase_signed_url(monkeypatch):
+    final_url = "https://www.yoxo.ro/"
+    cache_key = app_main._urlscan_preview_cache_key(final_url)
+    object_path = f"{cache_key}.png"
+    stale_signed_url = (
+        "https://project.supabase.co/storage/v1/object/sign/"
+        f"previews/{object_path}?token=expired"
+    )
+    row = {
+        "url_hash": cache_key,
+        "final_url": final_url,
+        "screenshot_path": stale_signed_url,
+        "image_url": stale_signed_url,
+        "screenshot_url": stale_signed_url,
+        "reachable": True,
+        "status": "ready",
+        "visual_only": True,
+        "verdict_role": "none",
+        "expires_at": int(time.time()) + 3600,
+    }
+    signed_calls = []
+
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main.supabase_store, "load_fast_preview_cache", lambda url_hash: dict(row))
+        patched.setattr(
+            app_main.supabase_store,
+            "create_preview_signed_url",
+            lambda path, **kwargs: signed_calls.append(path) or f"https://fresh.example/{path}",
+        )
+        cached = app_main._load_fast_preview_cache(final_url)
+
+    assert cached is not None
+    assert cached["image_url"] == f"https://fresh.example/{object_path}"
+    assert cached["screenshot_url"] == f"https://fresh.example/{object_path}"
+    assert signed_calls == [object_path]
+
+
 def test_fast_preview_cache_rejects_rows_with_a_verdict_role(monkeypatch):
     final_url = "https://www.fancourier.ro/"
     cache_key = app_main._urlscan_preview_cache_key(final_url)

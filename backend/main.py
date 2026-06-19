@@ -7778,6 +7778,26 @@ def _normalize_screenshot_proxy_url(raw_url: Any) -> str:
     return value
 
 
+def _supabase_signed_preview_object_path(raw_url: Any, *, bucket: str = "previews") -> Optional[str]:
+    value = str(raw_url or "").strip()
+    if not value:
+        return None
+    try:
+        parsed = urllib.parse.urlparse(value)
+    except Exception:
+        return None
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return None
+    path = parsed.path or ""
+    marker = f"/storage/v1/object/sign/{bucket}/"
+    if marker not in path:
+        return None
+    object_path = path.split(marker, 1)[1].strip("/")
+    if not object_path:
+        return None
+    return urllib.parse.unquote(object_path)
+
+
 def _public_route_url(request: Request, route_name: str, **path_params: Any) -> str:
     generated = str(request.url_for(route_name, **path_params))
     public_base = SIGURSCAN_PUBLIC_API_BASE_URL or "https://api.sigurscan.com"
@@ -7957,17 +7977,24 @@ def _normalize_fast_preview_cache_entry(entry: Any) -> Optional[Dict[str, Any]]:
         return None
 
     now = int(time.time())
-    image_url = screenshot_path if screenshot_path.startswith(("http://", "https://")) else None
+    cached_image_url = str(entry.get("image_url") or entry.get("screenshot_url") or "").strip()
+    signed_object_path = (
+        _supabase_signed_preview_object_path(screenshot_path)
+        or _supabase_signed_preview_object_path(cached_image_url)
+    )
+    durable_screenshot_path = signed_object_path or screenshot_path
+    image_url = None if signed_object_path else (
+        screenshot_path if screenshot_path.startswith(("http://", "https://")) else None
+    )
     try:
         signed_url_expires_at = int(entry.get("_signed_url_expires_at") or 0)
     except (TypeError, ValueError):
         signed_url_expires_at = 0
-    cached_image_url = str(entry.get("image_url") or entry.get("screenshot_url") or "").strip()
     if not image_url and cached_image_url and signed_url_expires_at > now + 5:
         image_url = cached_image_url
     if not image_url:
         image_url = supabase_store.create_preview_signed_url(
-            screenshot_path,
+            durable_screenshot_path,
             bucket="previews",
             expires_in_seconds=FAST_PREVIEW_SIGNED_URL_TTL_SECONDS,
         )
@@ -7980,7 +8007,7 @@ def _normalize_fast_preview_cache_entry(entry: Any) -> Optional[Dict[str, Any]]:
     normalized["final_url"] = final_url
     normalized["image_url"] = image_url
     normalized["screenshot_url"] = image_url
-    if not screenshot_path.startswith(("http://", "https://")):
+    if signed_object_path or not screenshot_path.startswith(("http://", "https://")):
         normalized["_signed_url_expires_at"] = now + max(1, FAST_PREVIEW_SIGNED_URL_TTL_SECONDS - 30)
     normalized["cache_hit"] = True
     normalized["reason"] = None
