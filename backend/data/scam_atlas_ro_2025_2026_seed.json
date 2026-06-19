@@ -4290,6 +4290,242 @@
         }
       ],
       "acceptance_test_idea": "Atacatorii folosesc sigle, legitimații, PDF-uri și documente false pentru credibilitate; de multe ori se combină cu BNR/cont sigur, amendă, investigație penală sau plată urgentă."
+    },
+    {
+      "id": "RO_SCN_024_SEXTORTION_SMS_NO_URL",
+      "title": "Sextortion fără URL / șantaj cameră / plată crypto fără link",
+      "family": "sextortion_sms_no_url / RO_SCN_024_SEXTORTION_SMS_NO_URL",
+      "hook": "am acces la camera | te-am inregistrat | ai camera hacked | filmare | video compromis | poze intime | am pozele tale | trimit la contacte | am parolele tale | am parola ta | ti-am spart | ti-am spart camera | am acces la dispozitiv | nu incerca sa blochezi | nu contacta politia | nu suna la politie | nu stinge | nu inchide | amenda politie dispozitiv blocat",
+      "asks_for": [
+        "crypto",
+        "bitcoin",
+        "btc",
+        "euro",
+        "bani",
+        "suma",
+        "voucher",
+        "gift card",
+        "money transfer",
+        "plata",
+        "taxa",
+        "amenda"
+      ],
+      "safe_actions": [
+        "Nu răspundeți și nu faceți nicio plată. Este o înșelătorie clasică de tip sextortion.",
+        "Nu instalați aplicații și nu accesați linkuri la cererea expeditorului.",
+        "Dacă mesajul conține o parolă veche de-a voastră, schimbați parola respectivă și activați 2FA.",
+        "Raportați mesajul la DNSC (1911) sau Poliția Română."
+      ],
+      "channels": [
+        "SMS",
+        "WhatsApp",
+        "Messenger",
+        "Email"
+      ],
+      "claimed_brand_or_role": "Poliția Română",
+      "requested_asset": [
+        "crypto",
+        "gift_card",
+        "money_transfer",
+        "voucher"
+      ],
+      "signals": [
+        "SEXTORTION_NO_URL",
+        "CAMERA_COMPROMISED_CLAIM",
+        "SHAME_PRESSURE",
+        "CRYPTO_PAYMENT_REQUEST",
+        "DO_NOT_CONTACT_AUTHORITIES",
+        "PASSWORD_BREACH_CLAIM",
+        "DEVICE_BLOCKED_CLAIM",
+        "URGENT_DEADLINE_PRESSURE"
+      ],
+      "sources": [
+        "src_dnsc_politia_popup_agerpres",
+        "src_reddit_sextortion_patterns"
+      ],
+      "examples": [
+        {
+          "example_id": "SEXT_NOURL_01",
+          "channel": "SMS",
+          "sample_text": "Am acces la camera ta si la toate parolele. Trimite 500 euro in BTC in 24h sau trimit filmarea la toti contactii tai. Nu incerca sa ma blochezi.",
+          "expected_targets": []
+        },
+        {
+          "example_id": "SEXT_NOURL_02",
+          "channel": "WhatsApp",
+          "sample_text": "Buna, am instalat un software pe pc-ul tau si am inregistrat tot. Am si parolele tale. Vrei sa le sterg? Plateste 200 EUR in bitcoin pana maine.",
+          "expected_targets": []
+        },
+        {
+          "example_id": "SEXT_NOURL_03",
+          "channel": "SMS",
+          "sample_text": "Politia Romana: dispozitivul tau a fost blocat pentru activitati ilegale. Plateste amenda 1500 RON pentru deblocare. Nu inchide acest mesaj.",
+          "expected_targets": []
+        },
+        {
+          "example_id": "SEXT_NOURL_04",
+          "channel": "Email",
+          "sample_text": "Am parola ta: *******. Ti-am spart camera. Trimite 950 USD in BTC la adresa xyz sau trimit tot la rude si colegi.",
+          "expected_targets": []
+        },
+        {
+          "example_id": "SEXT_NOURL_05",
+          "channel": "SMS",
+          "sample_text": "Am pozele tale. Daca nu vrei sa le vad toti prietenii tai, plateste 300 RON pe acest link: https://plata-amenda.test/pay",
+          "expected_targets": []
+        },
+        {
+          "example_id": "SEXT_NOURL_06",
+          "channel": "Messenger",
+          "sample_text": "Nu suna la politie sau trimit videoul la familia ta. Vreau 1000 lei in gift card Amazon. Trimite codul aici.",
+          "expected_targets": []
+        },
+        {
+          "example_id": "SEXT_NOURL_FP_01",
+          "channel": "Email",
+          "sample_text": "A fost detectata o incercare de acces la contul tau. Te rugam sa schimbi parola pentru securitate. Nu raspunde la acest email.",
+          "expected_targets": []
+        }
+      ],
+      "acceptance_test_idea": "SMS/WhatsApp care pretinde acces la camera + parole și cere plată crypto/gift card fără link, sau cu link opțional. Nu trebuie să declanșeze FP pe notificări legitime de securitate."
+    },
+    {
+      "id": "RO_SCN_025_PIG_BUTCHERING",
+      "title": "Pig-butchering / sha zhu pan / romance + investiții + platformă falsă",
+      "family": "pig_butchering_investment_romance / RO_SCN_025_PIG_BUTCHERING",
+      "hook": "am gresit numarul | pari o persoana draguta | as vrea sa te cunosc | povestim putin | iubitule | draga | scumpo | investitie | investesti | investim | castig | castigi | profit | profituri | dubleaza | dubleaza banii | platforma de investitii | cont de investitii | iti fac cont | iti deschid cont | depui bani | depune | retragere | retragi | fara risc | castig garantat | venit pasiv | muncesti de acasa | muncesti de oriunde | free time | parte time | creste valoarea | trading | trader | broker | crypto exchange | portofel crypto | wallet | usdt | tron | bnb | metatrader | platforma sigura | verificata de bn | recomandat de bn",
+      "asks_for": [
+        "investitie initiala",
+        "depozit",
+        "depui",
+        "depune bani",
+        "crypto",
+        "bitcoin",
+        "usdt",
+        "transfer bancar",
+        "revolut",
+        "bani",
+        "card",
+        "date personale",
+        "buletin",
+        "poza buletin",
+        "instaleaza aplicatia",
+        "download app",
+        "aplicație trading",
+        "remote access",
+        "anydesk",
+        "teamviewer",
+        "cont pe platforma",
+        "login credentials",
+        "parola platforma",
+        "investeste",
+        "baga bani"
+      ],
+      "safe_actions": [
+        "Nu investiți bani pe platforme recomandate de persoane cunoscute online.",
+        "Nu instalați aplicații de trading la cererea unei persoane cunoscute doar virtual.",
+        "Verificați platforma de investiții la ASF (Autoritatea de Supraveghere Financiară) înainte de orice depunere.",
+        "Ofertă de profit garantat sau venit pasiv neobișnuit de mare = înșelătorie.,Nu dați date personale, buletin sau acces remote nimănui."
+      ],
+      "channels": [
+        "WhatsApp",
+        "Messenger",
+        "Instagram",
+        "Facebook",
+        "Telegram",
+        "SMS"
+      ],
+      "claimed_brand_or_role": "broker de investiții",
+      "requested_asset": [
+        "crypto",
+        "money_transfer",
+        "bank_transfer",
+        "remote_access",
+        "personal_data",
+        "identity_document",
+        "platform_account"
+      ],
+      "signals": [
+        "ROMANCE_BUILDUP",
+        "WRONG_NUMBER_OPENING",
+        "CRYPTO_INVESTMENT_REQUEST",
+        "GUARANTEED_RETURN_PROMISE",
+        "REMOTE_ACCESS_APP_REQUEST",
+        "FAKE_PLATFORM_INVITE",
+        "PRESSURE_TO_ACT_QUICKLY",
+        "PERSONAL_DATA_REQUEST",
+        "MULTI_STAGE_GROOMING",
+        "PROFIT_WITHDRAWAL_BLOCKED"
+      ],
+      "sources": [
+        "src_dnsc_romance_scam",
+        "src_romance_digi_dnsc",
+        "src_romance_dnsc_8martie",
+        "src_task_scam_ftc"
+      ],
+      "examples": [
+        {
+          "example_id": "PB-01",
+          "channel": "WhatsApp",
+          "sample_text": "Buna! Imi pare rau, cred ca am gresit numarul. Dar pari o persoana draguta. De unde esti? Eu lucrez in investitii, poate povestim.",
+          "expected_targets": []
+        },
+        {
+          "example_id": "PB-02",
+          "channel": "WhatsApp",
+          "sample_text": "Iubitule, ti-am spus ca am grija de noi. Platforma pe care investesc mi-a dublat banii in 3 saptamani. Ti-am creat deja un cont, e simplu. Incepe cu doar 200 de euro ca sa vezi cum creste, apoi construim viitorul nostru impreuna. Iti trimit eu link-ul de instalare.",
+          "expected_targets": []
+        },
+        {
+          "example_id": "PB-03",
+          "channel": "Instagram",
+          "sample_text": "Salut! Am vazut profilul tau si pari o persoana interesanta. Eu castig 5000 euro/luna din trading, pot sa te invat si pe tine. Da-mi mesaj pe WhatsApp.",
+          "expected_targets": []
+        },
+        {
+          "example_id": "PB-04",
+          "channel": "Telegram",
+          "sample_text": "Salut, sunt Andrei, trader profesionist. Am o platforma care face 20% pe luna. Verificata de ASF. Vrei sa incerci cu depozit minim 100€?",
+          "expected_targets": []
+        },
+        {
+          "example_id": "PB-05",
+          "channel": "WhatsApp",
+          "sample_text": "Draga, am facut retragere de 3000 de euro azi. Platforma e legit, iti arat. Hai si tu cu 500 sa vezi cum merge.",
+          "expected_targets": []
+        },
+        {
+          "example_id": "PB-06",
+          "channel": "WhatsApp",
+          "sample_text": "Iarta-ma ca te deranjez, dar am vazut ca esti o persoana de treaba. Vrei sa castigi bani usor? Ai nevoie doar de un cont Revolut si instalezi o aplicatie. Iti explic eu.",
+          "expected_targets": []
+        },
+        {
+          "example_id": "PB-07",
+          "channel": "SMS",
+          "sample_text": "Castiga 1000 RON/zi din confortul casei tale. Platforma sigura, verificata. Inscrie-te aici: https://investitii-rapide.test/register",
+          "expected_targets": []
+        },
+        {
+          "example_id": "PB-08",
+          "channel": "WhatsApp",
+          "sample_text": "Vreau sa retrag profitul dar imi cere o taxa de eliberare. Cred ca e ceva oficial. Poti sa ma imprumuti cu 2000 RON pana maine si iti dau inapoi 4000?",
+          "expected_targets": []
+        },
+        {
+          "example_id": "PB_FP_01",
+          "channel": "WhatsApp",
+          "sample_text": "Buna, am vazut ca ai investit la noi. Sunt de la suport si te ajut cu contul. Ai primit newsletter-ul lunar?",
+          "expected_targets": []
+        },
+        {
+          "example_id": "PB_FP_02",
+          "channel": "WhatsApp",
+          "sample_text": "Salut, sunt vecinu de la 4. Imi poti imprumuta 200 de lei pana maine?",
+          "expected_targets": []
+        }
+      ],
+      "acceptance_test_idea": "WhatsApp: număr greșit → prietenie → încredere → platformă investiții → depunere inițială mică → profit fals → depunere mare → blocare retragere."
     }
   ]
 }

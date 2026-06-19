@@ -2052,6 +2052,8 @@ class ScamAtlasEngine:
             "RO_SCN_012_CRYPTO_BROKER_REMOTE",
             "RO_SCN_013_FAKE_BANK_APK",
             "RO_SCN_018_REVOLUT_CALL_OTP",
+            "RO_SCN_024_SEXTORTION_SMS_NO_URL",
+            "RO_SCN_025_PIG_BUTCHERING",
         }
         high_risk_text_only_family = (
             family_id in legacy_high_risk_text_only_families
@@ -2085,10 +2087,14 @@ class ScamAtlasEngine:
                 score += 20
                 reasons.append("Indicator specific quishing: context QR + semnale de plată/scanare")
 
-        if confidence >= 0.2 and family.get("id") == "ro-2025-sextortion":
+        if confidence >= 0.2 and family.get("id") in ("MINOR_017_ADULT_SHAME_SEXTORTION_EMAIL", "RO_SCN_024_SEXTORTION_SMS_NO_URL"):
             if any(pattern.search(text) for pattern in SENSITIVE_SEXTORTION_PATTERNS):
                 score += 20
                 reasons.append("Indicator specific sextortion: șantaj digital + cerere financiară")
+
+        if confidence >= 0.2 and family.get("id") == "RO_SCN_025_PIG_BUTCHERING":
+            score += 30
+            reasons.append("Indicator specific pig-butchering: construire încredere + cerere investiție/platformă falsă")
 
         if confidence >= 0.2 and family.get("id") == "ro-2025-telecom-sim-swap":
             if any(pattern.search(text) for pattern in SENSITIVE_SIM_SWAP_PATTERNS):

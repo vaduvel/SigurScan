@@ -5098,6 +5098,101 @@
       "false_positive_guard": "Un PDF cu siglă nu este dovadă. Corpus similarity-only maximum SUSPECT; PERICULOS când cere bani/date/cont sigur/remote access sau link neoficial.",
       "acceptance_test_idea": "Atacatorii folosesc sigle, legitimații, PDF-uri și documente false pentru credibilitate; de multe ori se combină cu BNR/cont sigur, amendă, investigație penală sau plată urgentă.",
       "integration_role": "minor_family_context_only_not_verdict_authority"
+    },
+    {
+      "scenario_id": "RO_SCN_024_SEXTORTION_SMS_NO_URL",
+      "family": "sextortion_sms_no_url",
+      "names_used_in_romania": [
+        "șantaj cameră",
+        "am pozele tale",
+        "amenda politie dispozitiv blocat",
+        "sextortion fără link"
+      ],
+      "channels": [
+        "SMS",
+        "WhatsApp",
+        "Messenger",
+        "Email"
+      ],
+      "claimed_brand_or_role": "Poliția Română",
+      "typical_text_patterns": [
+        "am acces la camera ta",
+        "te-am inregistrat",
+        "am pozele tale",
+        "trimit la contacte",
+        "parola ta e",
+        "nu contacta politia",
+        "dispozitiv blocat amenda",
+        "platforma de investitii"
+      ],
+      "requested_asset": [
+        "crypto",
+        "gift_card",
+        "money_transfer",
+        "voucher"
+      ],
+      "hard_evidence_sources": [
+        {
+          "source_id": "src_dnsc_politia_popup_agerpres",
+          "url": "https://sigurantaonline.ro/",
+          "published": "2025",
+          "accessed": "2026-06-18"
+        }
+      ],
+      "community_noisy_sources": [],
+      "acceptance_test_idea": "SMS/WhatsApp care pretinde acces la camera + parole și cere plată crypto/gift card fără link, sau cu link opțional."
+    },
+    {
+      "scenario_id": "RO_SCN_025_PIG_BUTCHERING",
+      "family": "pig_butchering_investment_romance",
+      "names_used_in_romania": [
+        "sha zhu pan",
+        "am gresit numarul",
+        "romance + investitii",
+        "platforma de investitii falsa"
+      ],
+      "channels": [
+        "WhatsApp",
+        "Messenger",
+        "Instagram",
+        "Facebook",
+        "Telegram",
+        "SMS"
+      ],
+      "claimed_brand_or_role": "broker de investiții",
+      "typical_text_patterns": [
+        "am gresit numarul dar pari draguta",
+        "investitia ti-a dublat banii",
+        "platforma pe care investesc",
+        "iti deschid cont",
+        "incepe cu doar",
+        "vreau sa retrag dar cere taxa",
+        "castig 5000 euro luna din trading",
+        "fara risc castig garantat"
+      ],
+      "requested_asset": [
+        "crypto",
+        "money_transfer",
+        "remote_access",
+        "personal_data",
+        "identity_document"
+      ],
+      "hard_evidence_sources": [
+        {
+          "source_id": "src_romance_digi_dnsc",
+          "url": "https://www.digi24.ro/digieconomic/digital/romance-scam-capcana-tot-mai-peric",
+          "published": "2025",
+          "accessed": "2026-06-18"
+        },
+        {
+          "source_id": "src_romance_dnsc_8martie",
+          "url": "https://www.dnsc.ro/vezi/document/comunicat-de-presa-cu-ocazia-zilei-internationale-a-femeii-partenerii-proie",
+          "published": "2025",
+          "accessed": "2026-06-18"
+        }
+      ],
+      "community_noisy_sources": [],
+      "acceptance_test_idea": "WhatsApp: număr greșit → prietenie → încredere → platformă investiții → depunere inițială mică → profit fals → depunere mare → blocare retragere."
     }
   ],
   "claim_verifier_targets": [
