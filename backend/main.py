@@ -3107,7 +3107,7 @@ def _looks_like_official_safety_education(raw_text: str) -> bool:
         r"doar\s+(?:[îi]n|in)\s+(?:caseta|formularul|c[âa]mpul)\b|"
         r"(?:[îi]n|in)\s+afar[ăa]\s+de|"
         r"folose[șs]te\s+noul\s+cont|"
-        r"nu\s+(?:suna|sun[aă]|verifica|accesa|face\s+callback|[îi]nchide|inchide)|"
+        r"nu\s+(?:suna|sun[aă]|verifica|face\s+callback|[îi]nchide|inchide)|"
         r"r[ăa]m[aâ]ne[țt]i\s+la\s+telefon"
         r")\b"
     )
@@ -3125,6 +3125,7 @@ def _looks_like_official_safety_education(raw_text: str) -> bool:
         r"(?:cnp|pin|cvv|cvc|otp|cod(?:ul|uri?)?(?:\s+sms)?|parol[ăa]|date\s+de\s+card|date(?:le)?\s+bancare|"
         r"datele\s+cardului|num[aă]r(?:ul)?\s+(?:de\s+)?card|iban|cont\s+(?:nou|sigur|temporar|seif)|"
         r"conturi\s+(?:noi|sigure|temporare|seif)|"
+        r"acces(?:ul)?\s+la\s+(?:dispozitiv|telefon|calculator)|"
         r"transfer(?:[ăa]|a)?\s+bani|transfer\s+preventiv|bani|crypto\s+atm|usdt|tax(?:[ăa]|e)\s+de\s+retragere|profit\s+garantat|"
         r"obliga[țt]ii?\s+de\s+plat[ăa]|schimbare\s+de\s+iban|"
         r"copie\s+(?:ci|act)|ci\s+fa[țt][ăa][-\s]?verso|act(?:ul)?\s+(?:de\s+)?identitate|"
@@ -3142,13 +3143,17 @@ def _looks_like_official_safety_education(raw_text: str) -> bool:
         r"|nu\s+se\s+modific[ăa]"
         r"|nu\s+pune"
         r"|nu\s+permitem"
+        r"|nu\s+permite\w*"
         r"|nu\s+r[ăa]spunde"
         r"|nu\s+te\s+loga"
+        r"|nu\s+acces\w*"
+        r"|nu\s+deschid\w*"
         r"|nu\s+introdu\w*"
         r"|nu\s+instal\w*"
         r"|nu\s+desc[aă]rc\w*"
         r"|nu\s+folos\w*"
         r"|nu\s+pl[ăa]t\w*"
+        r"|nu\s+schimb\w*"
         r"|nu\s+depun\w*"
         r"|nu\s+transfer\w*"
         r"|nu\s+(?:(?:il|îl|le)\s+)?comunic\w*"
@@ -3168,6 +3173,38 @@ def _looks_like_official_safety_education(raw_text: str) -> bool:
         return True
     if re.search(
         r"nu\s+(?:îți|[îi]ti|iti)\s+va\s+cere\b(?=.{0,160}\b(?:transfer\s+preventiv|cont\s+sigur|iban|bani|datele\s+cardului|otp|cod|parol[ăa])\b)",
+        normalized,
+        re.IGNORECASE,
+    ):
+        return True
+    if re.search(
+        r"nu\s+(?:îți|[îi]ti|iti|v[ăa])\s+(?:(?:va|vom)\s+)?cere(?:m)?\s+niciodat[aă]\b"
+        r"(?=.{0,180}\b(?:introdu\w*|trimite\w*|comunic\w*|parol[ăa]|otp|cod|pin|cvv|date(?:le)?\s+bancare|date(?:le)?\s+card)\b)",
+        normalized,
+        re.IGNORECASE,
+    ):
+        return True
+    if re.search(
+        r"nu\s+(?:acces\w*|deschid\w*)\b(?=.{0,120}\b(?:linkuri?|ata[șs]amente?|fi[șs]iere?)\b)"
+        r"(?=.{0,160}\b(?:false|suspecte|nesolicitate|neoficiale|date\s+bancare|date\s+card|fraud)\b)",
+        normalized,
+        re.IGNORECASE,
+    ):
+        return True
+    if re.search(
+        r"nu\s+deschid\w*\b(?=.{0,80}\bfi[șs]iere?\b)(?=.{0,160}\b(?:email|mail|solicitat\s+explicit|solicitate\s+explicit)\b)",
+        normalized,
+        re.IGNORECASE,
+    ):
+        return True
+    if re.search(
+        r"nu\s+permite\w*(?:\s+niciodat[aă])?\b(?=.{0,140}\bacces(?:ul)?\s+la\s+(?:dispozitiv|telefon|calculator)\b)",
+        normalized,
+        re.IGNORECASE,
+    ):
+        return True
+    if re.search(
+        r"\biban(?:-ul|ul)?\b(?=.{0,120}\b(?:identic|neschimbat|r[ăa]m[aâ]n(?:e|)\s+cel|contractul\s+ini[țt]ial)\b)",
         normalized,
         re.IGNORECASE,
     ):
@@ -3231,7 +3268,9 @@ def _has_direct_sensitive_request(raw_text: str) -> bool:
         return False
     verbs = (
         r"(?:introdu\w*|completeaz\w*|trimite\w*|r[ăa]spunde\w*|spune\w*|comunic\w*|"
-        r"cite[șs]te|citeste|captur\w*|poz[ăa]|screenshot|confirm\w*|valideaz\w*|verific\w*|"
+        r"d[ăa](?:[-\s]?(?:mi|ne))?|da[țt]i(?:[-\s]?(?:mi|ne))?|dati(?:[-\s]?(?:mi|ne))?|"
+        r"furnizeaz\w*|ofer[ăa]\w*|cite[șs]te|citeste|captur\w*|poz[ăa]|screenshot|"
+        r"confirm\w*|valideaz\w*|verific\w*|"
         r"logheaz[ăa][-\s]?te|autentific[ăa][-\s]?te)"
     )
     sensitive = (
@@ -3250,6 +3289,65 @@ def _has_direct_sensitive_request(raw_text: str) -> bool:
         re.search(verbs + r"(?:\W+\w+){0,8}\W+" + sensitive, normalized, re.IGNORECASE)
         or re.search(sensitive + r"(?:\W+\w+){0,8}\W+" + verbs, normalized, re.IGNORECASE)
     )
+
+
+def _has_positive_user_action_request(raw_text: str) -> bool:
+    normalized = _normalise_obfuscated_text(raw_text or "").lower()
+    if not normalized or _looks_like_official_safety_education(normalized):
+        return False
+    action_pattern = re.compile(
+        r"\b("
+        r"acces(?:eaz[ăa]|a[țt]i|ati)|deschid(?:e|e[țt]i|eti)|intr[ăa]|intra[țt]i|intrati|"
+        r"logheaz[ăa][-\s]?te|autentific[ăa][-\s]?te|login|"
+        r"introdu\w*|completeaz\w*|trimite\w*|r[ăa]spunde\w*|spune\w*|comunic\w*|"
+        r"d[ăa](?:[-\s]?(?:mi|ne))?|da[țt]i(?:[-\s]?(?:mi|ne))?|dati(?:[-\s]?(?:mi|ne))?|"
+        r"furnizeaz\w*|ofer[ăa]\w*|cite[șs]te|citeste|captur\w*|screenshot|poz[ăa]|"
+        r"confirm\w*|valideaz\w*|verific\w*|activeaz\w*|reactiveaz\w*|"
+        r"pl[ăa]t(?:e[șs]te|i[țt]i|iti)|achit(?:[ăa]|a[țt]i|ati)|transfer(?:[ăa]|a[țt]i|ati)|"
+        r"depune\w*|instal\w*|descarc\w*|sun[ăa]|suna[țt]i|sunati|apeleaz\w*"
+        r")\b",
+        re.IGNORECASE,
+    )
+    for match in action_pattern.finditer(normalized):
+        window_before = normalized[max(0, match.start() - 32) : match.start()]
+        if re.search(r"\b(nu|niciodat[ăa]|f[ăa]r[ăa]|evit[ăa]|evita[țt]i|evitati)\b", window_before):
+            continue
+        return True
+    return False
+
+
+def _looks_like_descriptive_or_status_context(raw_text: str) -> bool:
+    normalized = _normalise_obfuscated_text(raw_text or "").lower()
+    if not normalized:
+        return False
+    patterns = (
+        r"\btranzac[țt]ie\s+autorizat[ăa]\b",
+        r"\bsold\s+disponibil\b",
+        r"\b(dkim\s+pass|spf\s+pass|dmarc\s+pass|hmac\s+match|vendor\s+profile|total\s+coerent)\b",
+        r"\b(corespunde\s+pdf-?ului|corespunde\s+pdf|match\s+vendor\s+local|iban[-\s]ul\s+match)\b",
+        r"\b(articol|ghid|newsletter|material\s+educa[țt]ional|red\s+flag)\b.{0,120}\b(scam|fraud|phishing|sextortion|tech\s+support|iban)\b",
+        r"\bnu\s+(?:[îi]nseamn[ăa]|inseamna)\s+c[ăa]\b",
+        r"\bf[ăa]r[ăa]\s+(?:wallet|plat[ăa]|plata|link\s+card|cerere\s+de\s+(?:bani|date|card|otp)|crypto)\b",
+        r"\bf[ăa]r[ăa]\s+(?:linkuri?|cerere|solicitare)\s+(?:de\s+)?(?:plat[ăa]|date|card|otp|login)\b",
+        r"\b(?:cui|iban)\s+(?:activ|valid|confirmat|verificat)\b.{0,80}\b(?:anaf|mod-?97|registry|registru)\b",
+        r"\b(?:furnizor|platform[ăa]|document|factur[ăa])\s+(?:cunoscut|autorizat|oficial|verificat)\b",
+    )
+    return any(re.search(pattern, normalized, re.IGNORECASE) for pattern in patterns)
+
+
+def _local_request_intent_analysis(raw_text: str) -> Dict[str, Any]:
+    official_safety_education = _looks_like_official_safety_education(raw_text)
+    positive_action_request = _has_positive_user_action_request(raw_text)
+    descriptive_context = _looks_like_descriptive_or_status_context(raw_text)
+    if official_safety_education:
+        positive_action_request = False
+    return {
+        "status": "done",
+        "positive_action_request": bool(positive_action_request),
+        "protective_warning": bool(official_safety_education),
+        "descriptive_context": bool(descriptive_context),
+        "source": "local_request_intent_v1",
+    }
 
 
 def _has_investment_money_risk(raw_text: str) -> bool:
@@ -3352,6 +3450,11 @@ def _has_sensitive_url_path(resolved_urls: List[Dict[str, Any]]) -> bool:
         "formular",
         "form",
         "identitate",
+        "pay",
+        "plata",
+        "plată",
+        "checkout",
+        "achita",
         "securitate",
         "security",
         "update",
@@ -4634,6 +4737,9 @@ Reguli:
 - Tratează ca high transferurile către cont/beneficiar de siguranță, cont nou, IBAN migrat, transfer test, depozit rambursabil de colet sau taxă/token de eliberare pachet.
 - Tratează ca high URL-urile cu userinfo spoofing de forma brand.ro@alt-domeniu și deeplink-urile/native/data URL care cer acțiuni sensibile.
 - Textul educațional legitim de tip "nu comunica OTP/parola, sună canalul oficial" este benign doar dacă nu cere apoi login, transfer, cod, instalare sau contact prin canal neoficial.
+- Separă intenția de textul descriptiv: un articol, ghid, status de tranzacție, control de audit sau factură care doar menționează OTP/card/IBAN/scam NU este cerere de acțiune.
+- Marchează positive_action_request=true doar când utilizatorului i se cere să facă ceva: să introducă/dateze/trimită coduri, card, parolă, să plătească/transfere, să instaleze, să sune/continue apelul sau să apese un link pentru verificare.
+- Rezolvă negațiile: "nu comunica OTP", "nu accesa linkuri", "IBAN-ul nu s-a schimbat", "fără plată/link/card" sunt protective/descriptive dacă nu există o cerere opusă după ele.
 - Nu inventa branduri, domenii, provider hits sau fapte lipsă.
 Răspunde strict JSON:
 {
@@ -4651,6 +4757,18 @@ Răspunde strict JSON:
     "persona_targeting": "elderly|parent|jobseeker|investor|employee|bereaved|generic",
     "channel_coherence": "coherent|mismatch|unknown",
     "urgency_score": 0.0,
+    "confidence": 0.0
+  },
+  "intent_analysis": {
+    "positive_action_request": false,
+    "is_protective_warning": false,
+    "is_descriptive_or_status": false,
+    "negation_scope_resolved": true,
+    "invoice_or_payment_document": false,
+    "payment_instruction_present": false,
+    "payment_instruction_is_requested": false,
+    "payment_instruction_is_descriptive": false,
+    "describes_fraud_without_request": false,
     "confidence": 0.0
   }
 }
@@ -4691,7 +4809,9 @@ def _normalize_mistral_semantic_review(raw: Dict[str, Any], fallback: Dict[str, 
 
     legit_template = (bool(raw.get("claim_matches_legit_template")) or risk_class == "benign") and risk_class == "benign"
 
-    return {
+    intent_analysis = _normalize_model_intent_analysis(raw.get("intent_analysis"), {})
+
+    review = {
         "status": "done",
         "claim_matches_known_scam_family": (
             bool(raw.get("claim_matches_known_scam_family"))
@@ -4708,6 +4828,9 @@ def _normalize_mistral_semantic_review(raw: Dict[str, Any], fallback: Dict[str, 
         "source": "mistral_semantic_pillar",
         "fallback_source": fallback.get("source"),
     }
+    if intent_analysis.get("status") == "done":
+        review["intent_analysis"] = intent_analysis
+    return review
 
 
 _SOCIAL_ENGINEERING_PRESSURE_PATTERNS = (
@@ -4817,6 +4940,45 @@ def _se_bool(value: Any) -> bool:
     if isinstance(value, str):
         return value.strip().lower() in {"1", "true", "yes", "da", "y"}
     return False
+
+
+def _normalize_model_intent_analysis(raw: Any, fallback: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    fallback = fallback if isinstance(fallback, dict) else {}
+    if not isinstance(raw, dict):
+        return fallback
+
+    confidence = _se_float(raw.get("confidence"), _se_float(fallback.get("confidence"), 0.0))
+    model_positive = _se_bool(raw.get("positive_action_request"))
+    model_protective = _se_bool(raw.get("is_protective_warning")) or _se_bool(raw.get("protective_warning"))
+    model_descriptive = _se_bool(raw.get("is_descriptive_or_status")) or _se_bool(raw.get("descriptive_context"))
+    negation_resolved = _se_bool(raw.get("negation_scope_resolved"))
+
+    positive_action_request = bool(fallback.get("positive_action_request", False))
+    if confidence >= 0.55 and model_positive:
+        positive_action_request = True
+    elif (
+        confidence >= 0.80
+        and negation_resolved
+        and (model_protective or model_descriptive or _se_bool(raw.get("describes_fraud_without_request")))
+        and not model_positive
+    ):
+        positive_action_request = False
+
+    return {
+        "status": "done",
+        "positive_action_request": bool(positive_action_request),
+        "protective_warning": bool(fallback.get("protective_warning", False) or model_protective),
+        "descriptive_context": bool(fallback.get("descriptive_context", False) or model_descriptive),
+        "negation_scope_resolved": bool(negation_resolved),
+        "invoice_or_payment_document": _se_bool(raw.get("invoice_or_payment_document")),
+        "payment_instruction_present": _se_bool(raw.get("payment_instruction_present")),
+        "payment_instruction_is_requested": _se_bool(raw.get("payment_instruction_is_requested")),
+        "payment_instruction_is_descriptive": _se_bool(raw.get("payment_instruction_is_descriptive")),
+        "describes_fraud_without_request": _se_bool(raw.get("describes_fraud_without_request")),
+        "confidence": round(confidence, 2),
+        "source": "mistral_intent_analysis" if confidence else str(fallback.get("source") or "mistral_intent_analysis"),
+        "fallback_source": fallback.get("source"),
+    }
 
 
 def _social_engineering_signal_for_decision_bundle(
@@ -5373,6 +5535,7 @@ def _build_decision_evidence_bundle(
     evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
     if isinstance(evidence, dict):
         source_channel = evidence.get("source_channel")
+    request_intent = _local_request_intent_analysis(raw_text)
     request_channel = _request_channel_for_decision_bundle(
         source_channel=source_channel,
         input_type=None,
@@ -5385,6 +5548,13 @@ def _build_decision_evidence_bundle(
         official_destination=official_destination,
         provider_verdict=str(provider_section.get("verdict") or "unknown"),
     )
+    request_intent = _normalize_model_intent_analysis(semantic_review.get("intent_analysis"), request_intent)
+    if sensitive_url_path and not official_destination:
+        request_intent = {
+            **request_intent,
+            "positive_action_request": True,
+            "source": "local_request_intent_v1:sensitive_url_path",
+        }
     local_social_engineering = _social_engineering_signal_for_decision_bundle(
         raw_text,
         request_sensitive=request_sensitive,
@@ -5444,6 +5614,9 @@ def _build_decision_evidence_bundle(
         "request": {
             "sensitive": request_sensitive,
             "channel": request_channel,
+            "positive_action_request": request_intent.get("positive_action_request", False),
+            "protective_warning": request_intent.get("protective_warning", False),
+            "descriptive_context": request_intent.get("descriptive_context", False),
             "completeness": True,
         },
         "provenance": provenance_section,
@@ -5453,6 +5626,7 @@ def _build_decision_evidence_bundle(
             "apk_or_remote_mention": bool(re.search(r"\b(apk|anydesk|teamviewer|remote access|control la distan[țt][ăa])\b", str(raw_text or ""), re.IGNORECASE)),
             "non_http_deeplink": non_http_deeplink,
             "cross_scan_knowledge": cross_scan,
+            "intent_analysis": request_intent,
         },
         "semantic_review": semantic_review,
         "social_engineering": social_engineering,
@@ -5513,6 +5687,8 @@ def _apply_decision_contract_result(
     reason_codes = list(gate_result.get("reason_codes") or [])
     primary_reason = reason_codes[0] if reason_codes else "residual"
     gate_family_id = family_id_by_reason.get(primary_reason, "provider-gate-residual")
+    if primary_reason == "semantic_high_value_request" and provider_gate.get("sensitive_url_path"):
+        gate_family_id = "provider-gate-decisive-structural-danger"
     if primary_reason in {"clean_public_navigation_qr", "clean_public_navigation_url"}:
         gate_family_name = "Navigare publică verificată"
     else:
@@ -9617,6 +9793,110 @@ async def _submit_orchestrated_urlscan_preview_once(job: Dict[str, Any], request
     return job
 
 
+def _looks_like_structured_invoice_text(raw_text: str) -> bool:
+    """Detects an actual invoice/proforma body, not a generic "view invoice" SMS.
+
+    This is deliberately conservative: auto-routing to the invoice reducer only
+    happens when the text has both invoice semantics and payment/document fields
+    such as IBAN/CUI/amount/e-Factura markers. A plain URL notification stays on
+    the generic URL/text route.
+    """
+    text = _normalise_obfuscated_text(raw_text or "")
+    if len(text.strip()) < 40:
+        return False
+    lower = text.lower()
+    has_invoice_term = bool(
+        re.search(r"\b(factur[ăa]?|factura|proform[ăa]?|proforma|invoice|e[-\s]?factura|roefactura|spv)\b", lower)
+    )
+    if not has_invoice_term:
+        return False
+
+    def _has_valid_iban_candidate(candidate_text: str) -> bool:
+        try:
+            from services.iban_validator import IBAN_LENGTH_BY_COUNTRY, normalize_iban, validate_iban
+            from services.invoice_parser import ANY_IBAN_PATTERN
+        except Exception:
+            return False
+        for match in ANY_IBAN_PATTERN.finditer(candidate_text or ""):
+            normalized = normalize_iban(match.group(0))
+            if not normalized:
+                continue
+            expected_len = IBAN_LENGTH_BY_COUNTRY.get(normalized[:2])
+            candidates = [normalized]
+            if expected_len and len(normalized) > expected_len:
+                candidates.append(normalized[:expected_len])
+            for candidate in candidates:
+                if validate_iban(candidate).valid_structure:
+                    return True
+        return False
+
+    try:
+        from services.invoice_parser import AMOUNT_FALLBACK, AMOUNT_PATTERN, CUI_PATTERN
+
+        has_iban = _has_valid_iban_candidate(text) or bool(
+            re.search(r"\biban\b\s*[:#-]?\s*[A-Z]{2}\s*\d{2}(?:[\s-]*[A-Z0-9]){11,30}\b", text, re.IGNORECASE)
+        )
+        has_cui = bool(CUI_PATTERN.search(text))
+        has_amount = bool(AMOUNT_PATTERN.search(text) or AMOUNT_FALLBACK.search(text))
+    except Exception:
+        has_iban = _has_valid_iban_candidate(text)
+        has_cui = bool(re.search(r"\b(?:CUI|CIF)\s*:?\s*(?:RO\s*)?\d{2,10}\b", text, re.IGNORECASE))
+        has_amount = bool(re.search(r"\b\d+(?:[.,]\d{1,2})?\s*(?:RON|LEI|EUR|USD|GBP)\b", text, re.IGNORECASE))
+    has_invoice_number = bool(
+        re.search(r"\bfactur[ăa]?\s+(?:seria\s+\S+\s*/\s*)?(?:nr\.?|num[ăa]r|#)\s*[:#]?\s*[A-Z0-9][A-Z0-9._/-]{2,}\b", lower, re.IGNORECASE)
+        or re.search(r"\bnr\.?\s*factur[ăa]\s*[:#]?\s*[A-Z0-9][A-Z0-9._/-]{2,}\b", lower, re.IGNORECASE)
+    )
+    has_due_or_issue_date = bool(
+        re.search(r"\b(data\s+(?:emiterii|facturii)|scaden[țt][ăa]|termen\s+plat[ăa]|due\s+date|issued\s+on)\b", lower)
+    )
+    has_official_invoice_artifact = bool(
+        re.search(r"\b(xml|semnat(?:[ăa])?\s+electronic|num[ăa]r\s+de\s+[îi]nregistrare|roefactura|spv|peppol)\b", lower)
+    )
+    structural_score = sum(
+        bool(value)
+        for value in (
+            has_iban,
+            has_cui,
+            has_amount,
+            has_invoice_number,
+            has_due_or_issue_date,
+            has_official_invoice_artifact,
+        )
+    )
+    if has_iban and structural_score >= 2:
+        return True
+    if has_official_invoice_artifact and structural_score >= 3:
+        return True
+    return False
+
+
+def _invoice_auto_route_context(
+    *,
+    source_channel: str,
+    raw_text: str,
+    urls: List[str],
+    extra_fields: Optional[Dict[str, Any]] = None,
+    original_input_type: str = "text",
+) -> Optional[Dict[str, Any]]:
+    if not _looks_like_structured_invoice_text(raw_text):
+        return None
+    fields = dict(extra_fields or {})
+    fields.update(
+        {
+            "invoice_scan": True,
+            "auto_invoice_route": True,
+            "original_input_type": original_input_type,
+        }
+    )
+    return {
+        "input_type": "invoice",
+        "source_channel": source_channel,
+        "raw_text": raw_text,
+        "urls": urls,
+        "extra_fields": fields,
+    }
+
+
 def _build_orchestrated_text_context(payload: OrchestratedScanRequest) -> Dict[str, Any]:
     input_type = (payload.input_type or "text").strip().lower()
     source_channel = payload.source_channel or "android_native"
@@ -9706,6 +9986,21 @@ def _build_orchestrated_text_context(payload: OrchestratedScanRequest) -> Dict[s
             ]
             if str(part or "").strip()
         )
+        auto_invoice = _invoice_auto_route_context(
+            source_channel=source_channel,
+            raw_text=raw_text,
+            urls=discovered_urls,
+            extra_fields={
+                "buttons": buttons,
+                "inferred_brand_hints": inferred_brand_hints,
+                "email_mime_parsed": bool(mime_parts),
+                "form_context": form_context,
+                "is_forwarded_warning": True,
+            },
+            original_input_type=input_type,
+        )
+        if auto_invoice:
+            return auto_invoice
         return {
             "input_type": "email",
             "source_channel": source_channel,
@@ -9744,6 +10039,14 @@ def _build_orchestrated_text_context(payload: OrchestratedScanRequest) -> Dict[s
 
     raw_text = _normalise_obfuscated_text((payload.text or payload.url or "").strip())
     _validate_text_input("Textul trimis", raw_text, MAX_TEXT_CHARS)
+    auto_invoice = _invoice_auto_route_context(
+        source_channel=source_channel,
+        raw_text=raw_text,
+        urls=extract_urls(raw_text),
+        original_input_type=input_type,
+    )
+    if auto_invoice:
+        return auto_invoice
     return {
         "input_type": "text",
         "source_channel": source_channel,

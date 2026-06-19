@@ -152,6 +152,22 @@ def _is_safety_education_semantic(semantic: Dict[str, Any]) -> bool:
     }
 
 
+def _has_positive_action_request(request: Dict[str, Any], social_engineering: Dict[str, Any]) -> bool:
+    if "positive_action_request" in request:
+        if _bool(request.get("positive_action_request")):
+            return True
+        if _bool(request.get("protective_warning")) or _bool(request.get("descriptive_context")):
+            return False
+        return _bool(social_engineering.get("ask_present")) and _float(social_engineering.get("confidence")) >= 0.78
+    return True
+
+
+def _is_non_action_request(request: Dict[str, Any], social_engineering: Dict[str, Any]) -> bool:
+    if _has_positive_action_request(request, social_engineering):
+        return False
+    return _bool(request.get("protective_warning")) or _bool(request.get("descriptive_context"))
+
+
 def _float(value: Any, default: float = 0.0) -> float:
     try:
         return float(value)
@@ -463,6 +479,8 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
     hard_sensitive = sensitive in HARD_SENSITIVE_REQUESTS
     value_sensitive = sensitive in MONEY_OR_VALUE_REQUESTS
     wrong_channel = channel in WRONG_CHANNELS
+    positive_action_request = _has_positive_action_request(request, social_engineering)
+    non_action_request = _is_non_action_request(request, social_engineering)
     has_provenance = _has_positive_provenance(identity, provenance)
     provenance_contradicted = _has_positive_provenance_contradiction(identity, provenance, semantic)
     campaign_high = _campaign_match_high_enough(campaign)
@@ -485,8 +503,15 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
             return _result("SAFE", ["positive_provenance_clean", "safety_education_not_action_request"], confidence=92)
         return _result("UNVERIFIED", ["safety_education_not_action_request"], confidence=0, is_final=True)
 
+    if non_action_request and not positive_action_request:
+        if has_provenance and provider_verdict in PROVIDER_CLEAN:
+            return _result("SAFE", ["positive_provenance_clean", "safety_education_not_action_request"], confidence=92)
+        return _result("UNVERIFIED", ["safety_education_not_action_request"], confidence=0, is_final=True)
+
     # ─── Rule 2: BTR mismatch + sensitive request ───────────────────────────
-    if identity_status in BAD_IDENTITY and (hard_sensitive or value_sensitive or tld_suspicious):
+    if identity_status in BAD_IDENTITY and (
+        ((hard_sensitive or value_sensitive) and positive_action_request) or tld_suspicious
+    ):
         return _result("DANGEROUS", ["identity_spoof"], confidence=90)
 
     # ─── Rule 2b: Determinist combo ────────────────────────────────────────
@@ -507,7 +532,7 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
         return _result("DANGEROUS", reason_codes, confidence=94)
 
     # ─── Rule 2d: BTR "never_asks" violated on wrong channel ───────────────
-    if violated_never_asks and wrong_channel:
+    if violated_never_asks and wrong_channel and positive_action_request:
         reason_codes = [f"never_asks_violated:{v}" for v in violated_never_asks]
         return _result("DANGEROUS", reason_codes, confidence=92)
 
@@ -515,15 +540,15 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
     # (whitelist official domain violated would come via identity_status mismatch)
 
     # ─── Rule 3: Sensitive on wrong channel ─────────────────────────────────
-    if hard_sensitive and wrong_channel:
+    if hard_sensitive and wrong_channel and positive_action_request:
         return _result("DANGEROUS", ["sensitive_wrong_channel"], confidence=90)
-    if value_sensitive and wrong_channel and semantic_risk == "high":
+    if value_sensitive and wrong_channel and semantic_risk == "high" and positive_action_request:
         return _result(
             "DANGEROUS",
             ["semantic_high_value_request"],
             confidence=88,
         )
-    if identity_status in BAD_IDENTITY and value_sensitive and (
+    if identity_status in BAD_IDENTITY and value_sensitive and positive_action_request and (
         semantic_risk == "high" or tld_suspicious
     ):
         return _result(
