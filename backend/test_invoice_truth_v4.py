@@ -69,7 +69,8 @@ async def test_invoice_truth_keeps_clean_unknown_iban_human_clear_not_red(monkey
     assert any(item["code"] == "PAYMENT_BENEFICIARY_UNCONFIRMED" for item in truth["unconfirmed_items"])
     assert truth["next_action"]["type"] == "VERIFY_BENEFICIARY_IN_BANK"
     assert truth["hard_conflicts"] == []
-    assert evaluated["gate"]["label"] != "DANGEROUS"
+    assert evaluated["gate"]["label"] == "UNVERIFIED"
+    assert evaluated["gate"]["risk_level"] == "unknown"
 
 
 @pytest.mark.asyncio

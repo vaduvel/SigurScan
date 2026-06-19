@@ -571,7 +571,7 @@ class TestInvoiceChannelProvenance:
         assert whatsapp["gate"]["label"] != "DANGEROUS"
 
     @pytest.mark.asyncio
-    async def test_active_company_with_unconfirmed_payment_iban_can_be_safe_with_bank_check_guidance(self):
+    async def test_active_company_with_unconfirmed_payment_iban_requires_bank_check_guidance(self):
         from services.anaf_cui import CuiResult
         from services.invoice_orchestrator import evaluate_invoice_verdict
 
@@ -604,5 +604,6 @@ class TestInvoiceChannelProvenance:
         assert verdict["bundle"]["identity"]["status"] == "coherent"
         assert result.beneficiary_name_check is not None
         assert result.beneficiary_name_check["recommended"] is True
-        assert verdict["gate"]["label"] == "SAFE"
-        assert verdict["gate"]["reason_codes"] == ["positive_provenance_clean"]
+        assert verdict["gate"]["label"] == "UNVERIFIED"
+        assert verdict["gate"]["risk_level"] == "unknown"
+        assert verdict["gate"]["reason_codes"] == ["UNCONFIRMED_DESTINATION"]

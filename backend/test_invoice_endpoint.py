@@ -152,7 +152,8 @@ def test_scan_invoice_pdf_merges_embedded_text_when_ocr_misses_cui(monkeypatch):
     assert payload["evidence_bundle"]["identity"]["status"] == "coherent"
     assert payload["payment_destination"]["matched"] is False
     assert payload["beneficiary_name_check"]["recommended"] is True
-    assert payload["verdict_gate"]["label"] != "DANGEROUS"
+    assert payload["verdict_gate"]["label"] == "UNVERIFIED"
+    assert payload["verdict_gate"]["risk_level"] == "unknown"
     assert payload["invoice_truth"]["verdict"] == "VERIFY_BEFORE_PAYING"
     assert payload["invoice_truth"]["safe_to_pay"] is False
     assert payload["invoice_truth"]["display"]["title"] == "Verifică înainte să plătești"

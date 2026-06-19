@@ -329,7 +329,7 @@ def _verify_truth_blocks_safe(truth: Dict[str, Any]) -> bool:
         return False
     if issuer_state and issuer_state != "CONFIRMED":
         return True
-    if destination_state in {"INVALID_STRUCTURE", "MISMATCH", "REPORTED_NEGATIVE"}:
+    if destination_state in {"INVALID_STRUCTURE", "MISMATCH", "REPORTED_NEGATIVE", "UNCONFIRMED_VALID", "UNKNOWN"}:
         return True
     return False
 
