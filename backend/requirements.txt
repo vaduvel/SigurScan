@@ -11,5 +11,7 @@ python-multipart==0.0.22
 email-validator==2.3.0
 python-dotenv==1.2.1
 pypdf==6.9.1
+Pillow==12.0.0
+zxing-cpp==3.0.0
 feedparser==6.0.11
 defusedxml==0.7.1

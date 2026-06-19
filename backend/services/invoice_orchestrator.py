@@ -6,8 +6,8 @@ import re
 import time
 from typing import Any, List, Optional, TYPE_CHECKING
 from dataclasses import dataclass, field, replace
-from services.invoice_parser import parse_invoice, InvoiceFields
-from services.iban_validator import validate_iban, IbanResult
+from services.invoice_parser import ANY_IBAN_PATTERN, parse_invoice, InvoiceFields
+from services.iban_validator import IBAN_LENGTH_BY_COUNTRY, normalize_iban, validate_iban, IbanResult
 from services.invoice_coherence import CoherenceResult, check_coherence
 from services.invoice_readiness_gate import evaluate_readiness, ReadinessGateResult
 from services.brand_registry import detect_claimed_brand, match_brand, BrandMatchResult
@@ -128,6 +128,11 @@ _PRESSURE_RE = re.compile(
 _NAME_STOPWORDS = {"sc", "srl", "sa", "pfa", "ii", "snc", "de", "si"}
 B2B_HIGH_RISK_FLAGS = {
     "BEC_REPLY_TO_ACCOUNT_CHANGE",
+    "QR_PRINTED_IBAN_MISMATCH",
+    "FAKE_EFACTURA_RECONCILIATION_PAYMENT",
+    "FRAGMENTED_IBAN_PAYMENT_TARGET",
+    "UNDISCLOSED_INTERMEDIARY_BENEFICIARY",
+    "DOCUMENT_LAYER_IBAN_CONFLICT",
     "CEO_CONFIDENTIAL_PAYMENT",
     "PHISHING_LINK_IN_INVOICE_EMAIL",
     "INVOICE_ATTACHMENT_EXECUTABLE",
@@ -181,6 +186,56 @@ def _foreign_ibans(all_ibans: list[str]) -> list[str]:
     return output
 
 
+def _unique_ibans(values: list[str], *, require_valid: bool = True) -> list[str]:
+    seen: set[str] = set()
+    output: list[str] = []
+    for raw in values or []:
+        normalized = normalize_iban(str(raw or ""))
+        if not normalized or normalized in seen:
+            continue
+        expected_len = IBAN_LENGTH_BY_COUNTRY.get(normalized[:2])
+        if expected_len and len(normalized) > expected_len:
+            normalized = normalized[:expected_len]
+            if normalized in seen:
+                continue
+        if normalized.startswith("RO") and len(normalized) >= 8 and not normalized[4:8].isalpha():
+            continue
+        if require_valid and not validate_iban(normalized).valid_structure:
+            continue
+        seen.add(normalized)
+        output.append(normalized)
+    return output
+
+
+def _extract_ibans_from_fragments(fragments: list[str], *, require_valid: bool = True) -> list[str]:
+    candidates: list[str] = []
+    for fragment in fragments or []:
+        text = str(fragment or "")
+        normalized_spacing = re.sub(r"\s+", " ", text)
+        for candidate_text in (text, normalized_spacing):
+            for match in ANY_IBAN_PATTERN.finditer(candidate_text):
+                candidates.append(match.group(0))
+    return _unique_ibans(candidates, require_valid=require_valid)
+
+
+def _has_fake_efactura_reconciliation_payment(normalized_text: str, *, has_payment_target: bool) -> bool:
+    if not has_payment_target:
+        return False
+    if not re.search(r"\b(?:e-?factura|efactura|spv)\b", normalized_text):
+        return False
+    if not re.search(
+        r"\b(?:reconciliere|sincronizare|potrivire|regularizare|deblocare|validare|confirmare)\b",
+        normalized_text,
+    ):
+        return False
+    return bool(
+        re.search(
+            r"\b(?:taxa|comision|fee|plata|plateste|achita|iban|link|checkout|transfer)\b",
+            normalized_text,
+        )
+    )
+
+
 def _name_tokens(name: str) -> set[str]:
     cleaned = _COMPANY_MARKERS.sub(" ", _txt_norm(name))
     return {token for token in re.findall(r"[a-z]{2,}", cleaned) if token not in _NAME_STOPWORDS}
@@ -193,6 +248,10 @@ def _beneficiary_is_person(name: Optional[str]) -> bool:
     return 2 <= len(tokens) <= 4
 
 
+def _beneficiary_is_company(name: Optional[str]) -> bool:
+    return bool(name and _COMPANY_MARKERS.search(name))
+
+
 def _beneficiary_mismatch(beneficiary: Optional[str], issuer: Optional[str]) -> bool:
     if not _beneficiary_is_person(beneficiary):
         return False
@@ -203,6 +262,16 @@ def _beneficiary_mismatch(beneficiary: Optional[str], issuer: Optional[str]) -> 
     ):
         return False
     return True
+
+
+def _beneficiary_company_mismatch(beneficiary: Optional[str], issuer: Optional[str]) -> bool:
+    if not _beneficiary_is_company(beneficiary):
+        return False
+    beneficiary_tokens = _name_tokens(beneficiary or "")
+    issuer_tokens = _name_tokens(issuer or "")
+    if not beneficiary_tokens or not issuer_tokens:
+        return False
+    return not bool(beneficiary_tokens & issuer_tokens)
 
 
 def _anaf_identity_matches_invoice(anaf: Optional[dict], issuer: Optional[str]) -> bool:
@@ -476,6 +545,19 @@ def with_official_document_check(result: InvoiceScanResult, check: Optional[dict
 
 async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> InvoiceScanResult:
     fields = parse_invoice(ocr_text)
+    all_links = links or []
+    text_ibans = _extract_ibans_from_fragments([ocr_text], require_valid=False)
+    line_ibans = _extract_ibans_from_fragments((ocr_text or "").splitlines(), require_valid=False)
+    fragmented_text_ibans = [iban for iban in text_ibans if iban not in set(line_ibans)]
+    link_ibans = _extract_ibans_from_fragments(all_links, require_valid=False)
+    printed_ibans = _unique_ibans(list(getattr(fields, "all_ibans", []) or []) + text_ibans, require_valid=False)
+    if printed_ibans or link_ibans:
+        fields.all_ibans = _unique_ibans(printed_ibans + link_ibans, require_valid=False)
+        if not fields.iban:
+            fields.iban = next((iban for iban in printed_ibans if iban.startswith("RO")), None) or next(
+                (iban for iban in link_ibans if iban.startswith("RO")),
+                None,
+            )
     coherence = _fields_to_coherence(fields)
     if _has_no_extractable_data(fields):
         fraud_flags, warnings = _detect_textual_b2b_flags(ocr_text, claimed_vendor=fields.emitent)
@@ -486,7 +568,6 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
             warnings=warnings, fraud_flags=fraud_flags,
         )
 
-    all_links = links or []
     cached = _get_cached_verdict(fields, all_links)
     if cached is not None:
         return cached
@@ -562,6 +643,7 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
         elif not cui_check["activ"]:
             warnings.append(f"Company {cui_check['denumire']} is inactive")
 
+    normalized_text = _txt_norm(ocr_text)
     fraud_flags: list[str] = []
     candidate_ibans = list(getattr(fields, "all_ibans", []) or [])
     if fields.iban:
@@ -581,10 +663,29 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
             "Beneficiarul plății pare o persoană fizică, nu firma emitentă. "
             "Confirmă direct cu furnizorul înainte de plată."
         )
+    elif _beneficiary_company_mismatch(getattr(fields, "payment_beneficiary", None), fields.emitent):
+        if re.search(
+            r"\b(?:nu\s+este\s+necesar\s+act|f[ăa]r[ăa]\s+act|fara\s+act|act\s+adi[țt]ional|"
+            r"intermediar|procesator|mandatar|cesiune|pl[ăa]ti[țt]i\s+c[ăa]tre)\b",
+            normalized_text,
+            re.IGNORECASE,
+        ):
+            fraud_flags.append("UNDISCLOSED_INTERMEDIARY_BENEFICIARY")
+            warnings.append(
+                "Beneficiarul plății este o altă companie decât emitentul, fără dovadă clară de mandat/cesiune."
+            )
 
     if _foreign_ibans(candidate_ibans):
         fraud_flags.append("FOREIGN_IBAN")
         warnings.append("IBAN-ul de plată nu este românesc; verifică destinația pe un canal oficial.")
+
+    if fragmented_text_ibans and re.search(r"\b(?:iban|cont|plat[ăa]|plata|achit[ăa]|transfer)\b", normalized_text):
+        fraud_flags.append("FRAGMENTED_IBAN_PAYMENT_TARGET")
+        warnings.append("IBAN-ul de plată pare rupt pe mai multe rânduri; verifică atent înainte de plată.")
+
+    if printed_ibans and link_ibans and any(iban not in set(printed_ibans) for iban in link_ibans):
+        fraud_flags.append("QR_PRINTED_IBAN_MISMATCH")
+        warnings.append("IBAN-ul din QR/link diferă de IBAN-ul tipărit pe factură.")
 
     payment_destination = None
     if fields.iban:
@@ -617,7 +718,6 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
         except Exception:
             payment_destination = None
 
-    normalized_text = _txt_norm(ocr_text)
     if _ACCOUNT_CHANGE_RE.search(normalized_text):
         fraud_flags.append("ACCOUNT_CHANGE_LANGUAGE")
         warnings.append("Textul anunță cont bancar/IBAN schimbat; confirmă pe un canal separat.")
@@ -625,6 +725,16 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
         fraud_flags.append("PAYMENT_PRESSURE")
     if len(set(candidate_ibans)) >= 2:
         fraud_flags.append("MULTIPLE_IBANS")
+        if re.search(
+            r"\b(?:iban\s+tip[ăa]rit|instruc[țt]iuni\s+procesare|utiliza[țt]i\s+iban|folosi[țt]i\s+iban|"
+            r"text\s+invizibil|strat(?:ul)?\s+text|hidden\s+text)\b",
+            normalized_text,
+            re.IGNORECASE,
+        ):
+            fraud_flags.append("DOCUMENT_LAYER_IBAN_CONFLICT")
+            warnings.append(
+                "Documentul conține instrucțiuni de plată către un IBAN diferit de cel tipărit/vizibil."
+            )
 
     textual_flags, textual_warnings = _detect_textual_b2b_flags(ocr_text, claimed_vendor=fields.emitent)
     for flag in textual_flags:
@@ -633,6 +743,20 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
     for warning in textual_warnings:
         if warning not in warnings:
             warnings.append(warning)
+
+    if (
+        "EFACTURA_CLAIM_WITHOUT_DOCUMENT" in fraud_flags
+        and _has_fake_efactura_reconciliation_payment(
+            normalized_text,
+            has_payment_target=bool(fields.iban or all_links),
+        )
+        and "FAKE_EFACTURA_RECONCILIATION_PAYMENT" not in fraud_flags
+    ):
+        fraud_flags.append("FAKE_EFACTURA_RECONCILIATION_PAYMENT")
+        warnings.append(
+            "Mesajul invocă e-Factura/SPV ca pretext pentru reconciliere sau taxă de plată, "
+            "fără document oficial atașat."
+        )
 
     email_domain_intel = None
     try:

@@ -599,6 +599,10 @@ NON_HTTP_DEEPLINK_REGEX = re.compile(
     r"\b([a-zA-Z][a-zA-Z0-9+.-]{1,31})://[^\s<>()\"']+",
     re.IGNORECASE,
 )
+DATA_URL_REGEX = re.compile(
+    r"\bdata:(?P<mime>text/html|text/plain|application/xhtml\+xml)[^,\s<>()\"']*,(?P<body>[^\s<>()\"']{8,8192})",
+    re.IGNORECASE,
+)
 _PDF_URI_LITERAL_RE = re.compile(rb"/URI\s*\(((?:\\.|[^\\)]){0,8192})\)", re.IGNORECASE | re.DOTALL)
 _PDF_URI_HEX_RE = re.compile(rb"/URI\s*<([0-9A-Fa-f\s]{6,16384})>", re.IGNORECASE)
 _AUTH_RESULT_RE = re.compile(r"\b(spf|dkim|dmarc)\s*=\s*([a-z]+)", re.IGNORECASE)
@@ -1369,14 +1373,16 @@ def extract_urls(text: str) -> List[str]:
     urls: List[str] = []
     seen = set()
 
-    for raw_url in raw_urls:
+    def append_url(raw_url: str) -> None:
+        if len(urls) >= MAX_URLS_PER_SCAN:
+            return
         url = _canonicalize_url(raw_url)
         if not url or not _is_allowed_origin(url):
-            continue
+            return
         parsed = urllib.parse.urlparse(url)
         host = (parsed.hostname or "").lower()
         if not host or _is_noise_plain_url(raw_url, host):
-            continue
+            return
         try:
             ipaddress.ip_address(host)
         except Exception:
@@ -1384,12 +1390,43 @@ def extract_urls(text: str) -> List[str]:
             has_explicit_scheme = bool(re.match(r"^https?://", str(raw_url).strip(), re.IGNORECASE))
             if not tld_suffix and not has_explicit_scheme:
                 logger.debug("Skipping extracted token without valid public suffix: %s", host)
-                continue
+                return
         if url not in seen:
             seen.add(url)
             urls.append(url)
+
+    def decoded_variants(value: str) -> List[str]:
+        variants: List[str] = []
+        current = html.unescape(str(value or ""))
+        for _ in range(3):
+            decoded = urllib.parse.unquote(current)
+            if decoded == current:
+                break
+            current = decoded
+            if current not in variants:
+                variants.append(current)
+        return variants
+
+    for raw_url in raw_urls:
+        append_url(raw_url)
         if len(urls) >= MAX_URLS_PER_SCAN:
             break
+        canonical = _canonicalize_url(raw_url)
+        if not canonical:
+            continue
+        parsed = urllib.parse.urlparse(canonical)
+        query_values = [value for _, value in urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)]
+        fragment_values = [parsed.fragment] if parsed.fragment else []
+        for value in query_values + fragment_values:
+            for decoded in decoded_variants(value):
+                for embedded in URL_REGEX.findall(decoded):
+                    append_url(embedded)
+                    if len(urls) >= MAX_URLS_PER_SCAN:
+                        break
+                if len(urls) >= MAX_URLS_PER_SCAN:
+                    break
+            if len(urls) >= MAX_URLS_PER_SCAN:
+                break
     return urls
 
 
@@ -1406,12 +1443,46 @@ def _non_http_deeplink_context(text: str) -> Dict[str, Any]:
             schemes.append(scheme)
         if len(schemes) >= MAX_URLS_PER_SCAN:
             break
+    if DATA_URL_REGEX.search(normalized_text) and "data" not in seen:
+        seen.add("data")
+        schemes.append("data")
     return {
         "present": bool(schemes),
         "count": len(schemes),
         "schemes": schemes,
         "preview_supported": False,
     }
+
+
+def _decoded_data_url_text(raw_text: str) -> str:
+    normalized = _normalise_obfuscated_text(raw_text or "")
+    decoded_parts: List[str] = []
+    for match in DATA_URL_REGEX.finditer(normalized):
+        whole = match.group(0) or ""
+        body = match.group("body") or ""
+        try:
+            if ";base64" in whole[:80].lower():
+                padded = body + ("=" * (-len(body) % 4))
+                raw = base64.b64decode(padded, validate=False)
+            else:
+                raw = urllib.parse.unquote_to_bytes(body)
+            decoded = raw[:8192].decode("utf-8", errors="replace")
+        except Exception:
+            continue
+        if decoded:
+            decoded_parts.append(_normalise_obfuscated_text(decoded))
+    return "\n".join(decoded_parts)
+
+
+def _data_url_contains_sensitive_form(raw_text: str) -> bool:
+    decoded = _decoded_data_url_text(raw_text)
+    if not decoded:
+        return False
+    normalized = decoded.lower()
+    return bool(
+        re.search(r"<\s*form\b|<\s*input\b|action\s*=", normalized, re.IGNORECASE)
+        and re.search(r"\b(login|auth|password|parol[ăa]|otp|cod|card|cvv|cvc|user|utilizator)\b", normalized, re.IGNORECASE)
+    )
 
 
 def _decode_pdf_string_bytes(value: bytes) -> str:
@@ -1535,6 +1606,77 @@ def _extract_pdf_embedded_text(pdf_bytes: bytes, *, max_chars: int = MAX_TEXT_CH
     except Exception as exc:
         logger.info("PDF embedded text extraction failed: %s", exc)
         return ""
+
+
+def _decode_qr_payloads_from_pil_images(images: List[Any], *, max_payloads: int = MAX_URLS_PER_SCAN) -> List[str]:
+    if not images:
+        return []
+    try:
+        import zxingcpp  # type: ignore
+    except Exception:
+        return []
+
+    payloads: List[str] = []
+    for image in images:
+        try:
+            decoded = zxingcpp.read_barcodes(image)
+        except Exception as exc:
+            logger.info("QR/barcode decode failed: %s", exc)
+            continue
+        for item in decoded or []:
+            text = str(getattr(item, "text", "") or "").strip()
+            if text and text not in payloads:
+                payloads.append(text)
+            if len(payloads) >= max_payloads:
+                return payloads
+    return payloads
+
+
+def _extract_image_qr_payloads(image_bytes: bytes, *, max_payloads: int = MAX_URLS_PER_SCAN) -> List[str]:
+    if not image_bytes:
+        return []
+    try:
+        from io import BytesIO
+        from PIL import Image
+
+        with Image.open(BytesIO(image_bytes)) as image:
+            image.load()
+            return _decode_qr_payloads_from_pil_images([image], max_payloads=max_payloads)
+    except Exception as exc:
+        logger.info("Image QR extraction failed: %s", exc)
+        return []
+
+
+def _extract_pdf_qr_payloads(pdf_bytes: bytes, *, max_payloads: int = MAX_URLS_PER_SCAN) -> List[str]:
+    if not pdf_bytes:
+        return []
+    try:
+        from io import BytesIO
+
+        reader = PdfReader(BytesIO(pdf_bytes))
+        images: List[Any] = []
+        for page in reader.pages[:5]:
+            for image_file in list(page.images)[:20]:
+                image = getattr(image_file, "image", None)
+                if image is not None:
+                    images.append(image)
+                    continue
+                data = getattr(image_file, "data", None)
+                if data:
+                    try:
+                        from PIL import Image
+
+                        images.append(Image.open(BytesIO(data)))
+                    except Exception:
+                        continue
+                if len(images) >= 20:
+                    break
+            if len(images) >= 20:
+                break
+        return _decode_qr_payloads_from_pil_images(images, max_payloads=max_payloads)
+    except Exception as exc:
+        logger.info("PDF QR extraction failed: %s", exc)
+        return []
 
 
 def _merge_ocr_and_embedded_text(ocr_text: str, embedded_text: str) -> str:
@@ -1807,9 +1949,14 @@ def _collect_click_targets_from_html(soup: BeautifulSoup) -> list[Dict[str, Any]
     # Standard links
     for link in soup.find_all("a"):
         button_text = _extract_button_text(link) or "[Buton/Imagine fără text]"
-        href = link.get("href")
+        href = link.get("href") or link.get("xlink:href")
         if href:
-            append_target(button_text, href, "a", "href")
+            style = str(link.get("style") or "").lower()
+            is_overlay = bool(
+                re.search(r"position\s*:\s*absolute|inset\s*:\s*0|color\s*:\s*transparent", style)
+            )
+            attr_name = "href" if link.get("href") else "xlink:href"
+            append_target(button_text, href, "a", "href_overlay" if is_overlay else attr_name)
         for attr in ("data-href", "data-url", "data-action", "data-link", "data-target", "onclick"):
             value = link.get(attr)
             if value:
@@ -1884,8 +2031,9 @@ def _collect_click_targets_from_html(soup: BeautifulSoup) -> list[Dict[str, Any]
             continue
 
         button_text = _extract_button_text(tag) or "[Buton/Imagine fără text]"
-        if tag.get("href"):
-            append_target(button_text, tag.get("href"), tag_name, "href")
+        href = tag.get("href") or tag.get("xlink:href")
+        if href:
+            append_target(button_text, href, tag_name, "href" if tag.get("href") else "xlink:href")
         if tag.get("onclick"):
             append_target(button_text, tag.get("onclick"), tag_name, "onclick")
         for attr in _GENERIC_CLICK_ATTRS:
@@ -1909,6 +2057,104 @@ def _collect_click_targets_from_html(soup: BeautifulSoup) -> list[Dict[str, Any]
         append_target(button_text, form.get("action"), "form", "action")
 
     return targets
+
+
+def _extract_email_mime_parts(raw_email: str) -> Dict[str, str]:
+    raw = str(raw_email or "")
+    if not raw.strip():
+        return {}
+
+    header_sample = raw.lstrip()[:4096]
+    if not re.search(r"(?im)^(from|to|subject|mime-version|content-type|content-transfer-encoding):", header_sample):
+        return {}
+
+    try:
+        parsed = email.message_from_string(raw.lstrip(), policy=policy.default)
+    except Exception:
+        return {}
+
+    parts: Dict[str, List[str]] = {"plain": [], "html": []}
+
+    def part_content(part: Message) -> str:
+        try:
+            content = part.get_content()
+        except Exception:
+            payload = part.get_payload(decode=True)
+            if not payload:
+                return ""
+            charset = part.get_content_charset() or "utf-8"
+            try:
+                return payload.decode(charset, errors="replace")
+            except Exception:
+                return payload.decode("utf-8", errors="replace")
+        if isinstance(content, bytes):
+            charset = part.get_content_charset() or "utf-8"
+            return content.decode(charset, errors="replace")
+        return str(content or "")
+
+    walkable = parsed.walk() if parsed.is_multipart() else [parsed]
+    for part in walkable:
+        if part.is_multipart():
+            continue
+        disposition = str(part.get_content_disposition() or "").lower()
+        if disposition == "attachment":
+            continue
+        content_type = str(part.get_content_type() or "").lower()
+        if content_type not in {"text/plain", "text/html"}:
+            continue
+        content = part_content(part).strip()
+        if not content:
+            continue
+        if content_type == "text/html":
+            parts["html"].append(content)
+        else:
+            parts["plain"].append(content)
+
+    return {
+        "plain": "\n".join(parts["plain"]).strip(),
+        "html": "\n".join(parts["html"]).strip(),
+        "subject": str(parsed.get("Subject") or "").strip(),
+        "from": str(parsed.get("From") or "").strip(),
+        "reply_to": str(parsed.get("Reply-To") or "").strip(),
+    }
+
+
+def _collect_form_context_from_html(soup: BeautifulSoup) -> list[str]:
+    contexts: list[str] = []
+    for form in soup.find_all("form"):
+        raw_action = str(form.get("action") or "").strip()
+        action_urls = _extract_urls_from_click_attr(raw_action) if raw_action else []
+        field_tokens: list[str] = []
+        for field in form.find_all(["input", "textarea", "select"], recursive=True):
+            field_bits = [
+                field.name,
+                field.get("type"),
+                field.get("name"),
+                field.get("id"),
+                field.get("autocomplete"),
+                field.get("placeholder"),
+            ]
+            compact = ":".join(str(bit).strip() for bit in field_bits if str(bit or "").strip())
+            if compact and compact not in field_tokens:
+                field_tokens.append(compact)
+        submit_texts: list[str] = []
+        for node in form.find_all(["button", "input"], recursive=True):
+            node_type = (node.get("type") or "").lower()
+            if node.name == "button" or not node_type or node_type in _BUTTON_TYPES:
+                label = _extract_button_text(node)
+                if label and label not in submit_texts:
+                    submit_texts.append(label)
+        if not raw_action and not field_tokens and not submit_texts:
+            continue
+        contexts.append(
+            "FORM action: "
+            + (", ".join(action_urls) if action_urls else raw_action or "[no-action]")
+            + " fields: "
+            + (", ".join(field_tokens) if field_tokens else "[none]")
+            + " submit: "
+            + (", ".join(submit_texts) if submit_texts else "[none]")
+        )
+    return contexts
 
 
 _APP_SCHEME_BRAND_HINTS = {
@@ -2857,6 +3103,8 @@ def _looks_like_official_safety_education(raw_text: str) -> bool:
         r"\b("
         r"doar\s+(?:aici|acest(?:ui)?\s+agent|codul)|"
         r"doar\s+(?:primele|ultimele|\d+)|"
+        r"(?:introdu|introduce|trimite)[-\s]?(?:l|le)?\s+doar|"
+        r"doar\s+(?:[îi]n|in)\s+(?:caseta|formularul|c[âa]mpul)\b|"
         r"(?:[îi]n|in)\s+afar[ăa]\s+de|"
         r"folose[șs]te\s+noul\s+cont|"
         r"nu\s+(?:suna|sun[aă]|verifica|accesa|face\s+callback|[îi]nchide|inchide)|"
@@ -2864,6 +3112,14 @@ def _looks_like_official_safety_education(raw_text: str) -> bool:
         r")\b"
     )
     if re.search(scope_trick, normalized, re.IGNORECASE):
+        return False
+    action_after_warning = (
+        r"(?:pentru\s+a\s+(?:demonstra|confirma|verifica)|ca\s+s[ăa]\s+(?:demonstrezi|confirmi|verifici)|"
+        r"simulator|test\s+de\s+(?:siguran[țt][ăa]|securitate))"
+        r".{0,140}\b(?:autentific[ăa][-\s]?te|logheaz[ăa][-\s]?te|login|introdu|completeaz[ăa]|"
+        r"trimite|cod|otp|parol[ăa]|date(?:le)?\s+(?:de\s+)?card)\b"
+    )
+    if re.search(action_after_warning, normalized, re.IGNORECASE):
         return False
     sensitive_terms = (
         r"(?:cnp|pin|cvv|cvc|otp|cod(?:ul|uri?)?(?:\s+sms)?|parol[ăa]|date\s+de\s+card|date(?:le)?\s+bancare|"
@@ -2968,16 +3224,23 @@ def _looks_like_official_safety_education(raw_text: str) -> bool:
 
 
 def _has_direct_sensitive_request(raw_text: str) -> bool:
+    if _data_url_contains_sensitive_form(raw_text):
+        return True
     normalized = _normalise_obfuscated_text(raw_text or "").lower()
     if not normalized or _looks_like_official_safety_education(normalized):
         return False
     verbs = (
         r"(?:introdu\w*|completeaz\w*|trimite\w*|r[ăa]spunde\w*|spune\w*|comunic\w*|"
-        r"confirm\w*|valideaz\w*|verific\w*|logheaz[ăa][-\s]?te|autentific[ăa][-\s]?te)"
+        r"cite[șs]te|citeste|captur\w*|poz[ăa]|screenshot|confirm\w*|valideaz\w*|verific\w*|"
+        r"logheaz[ăa][-\s]?te|autentific[ăa][-\s]?te)"
     )
     sensitive = (
         r"(?:parol[ăa]|password|otp|cod(?:ul)?(?:\s+(?:pe\s+)?(?:sms|whatsapp)|"
-        r"\s+de\s+(?:verificare|confirmare|autorizare|autentificare)|\s+3ds)?|"
+        r"\s+de\s+(?:verificare|confirmare|autorizare|autentificare)|\s+3ds)?|cod(?:ul)?\s+unic|"
+        r"cod(?:ul)?.{0,40}aplica[țt]ia\s+bancar[ăa]|"
+        r"(?:prima|a\s+treia|a\s+cincea|ultimele|primele).{0,50}(?:cifr[ăa]|cifre).{0,50}cod|"
+        r"(?:cod\s+qr|qr).{0,40}(?:esim|e-sim|profil(?:ul)?\s+sim)|"
+        r"(?:esim|e-sim|profil(?:ul)?\s+sim).{0,40}(?:cod\s+qr|qr)|"
         r"pin(?:-ul|ul)?|cvv|cvc|date(?:le)?\s+(?:de\s+)?card(?:ului)?|datele\s+cardului|"
         r"num[aă]r(?:ul)?\s+(?:de\s+)?card(?:ului)?|"
         r"ultimele\s+\d+\s+cifre\s+(?:ale\s+)?card(?:ului)?|"
@@ -3088,19 +3351,18 @@ def _has_sensitive_url_path(resolved_urls: List[Dict[str, Any]]) -> bool:
         "date",
         "formular",
         "form",
-        "pay",
-        "plata",
-        "plată",
         "identitate",
-        "confirmare",
-        "validare",
+        "securitate",
+        "security",
+        "update",
+        "install",
         "session",
     )
     for entry in resolved_urls or []:
         url = str(entry.get("final_url") or entry.get("url") or "")
         parsed = urllib.parse.urlparse(url)
-        path = urllib.parse.unquote(parsed.path or "").lower()
-        if any(token in path for token in sensitive_path_tokens):
+        target = urllib.parse.unquote(f"{parsed.path or ''}?{parsed.query or ''}").lower()
+        if any(token in target for token in sensitive_path_tokens):
             return True
     return False
 
@@ -3319,6 +3581,27 @@ def _provider_verdict_for_decision_bundle(
     return {"verdict": "pending", "hits": [], "completeness": False}
 
 
+GENERIC_LOOKALIKE_TOKENS = {
+    "account",
+    "accounts",
+    "app",
+    "client",
+    "cont",
+    "eportal",
+    "login",
+    "online",
+    "pay",
+    "payment",
+    "plata",
+    "plati",
+    "portal",
+    "secure",
+    "service",
+    "servicii",
+    "verify",
+}
+
+
 def _brand_token_lookalike_in_resolved_urls(resolved_urls: List[Dict[str, Any]]) -> Optional[str]:
     """Detectează domenii care conțin un token de brand cunoscut dar NU sunt oficiale.
 
@@ -3373,6 +3656,8 @@ def _brand_token_lookalike_in_resolved_urls(resolved_urls: List[Dict[str, Any]])
         # Verifică fiecare token contra TRUSTED_BASE_NAMES
         for token in sorted(tokens, key=len, reverse=True):
             normalized_token = str(token or "").strip().lower()
+            if normalized_token in GENERIC_LOOKALIKE_TOKENS:
+                continue
             brand = TRUSTED_BASE_NAMES.get(normalized_token) or OFFICIAL_REGISTRY_LOOKALIKE_TOKENS.get(normalized_token)
             if not brand:
                 continue
@@ -3391,6 +3676,62 @@ def _brand_token_lookalike_in_resolved_urls(resolved_urls: List[Dict[str, Any]])
                 )
             if not is_official:
                 return brand
+    return None
+
+
+def _brand_userinfo_spoof_in_resolved_urls(resolved_urls: List[Dict[str, Any]]) -> Optional[str]:
+    """Detect URLs abusing userinfo to display a trusted brand before '@'.
+
+    Example: https://bt.ro@secure-beneficiar.example/ shows "bt.ro" first but
+    the real host is secure-beneficiar.example. This is a generic credential/
+    brand-spoof primitive, not a domain-specific exception.
+    """
+    if not resolved_urls:
+        return None
+    try:
+        from services.scam_atlas import OFFICIAL_REGISTRY_LOOKALIKE_TOKENS, TRUSTED_BASE_NAMES
+    except Exception:
+        OFFICIAL_REGISTRY_LOOKALIKE_TOKENS = {}
+        TRUSTED_BASE_NAMES = {}
+
+    for entry in resolved_urls:
+        if not isinstance(entry, dict):
+            continue
+        privacy = entry.get("url_privacy") if isinstance(entry.get("url_privacy"), dict) else {}
+        if privacy.get("reason") == "url_credentials_removed":
+            return "url_userinfo"
+        for key in ("final_url", "url", "original_url"):
+            candidate_url = str(entry.get(key) or "").strip()
+            if not candidate_url:
+                continue
+            try:
+                parsed = urllib.parse.urlparse(candidate_url)
+            except Exception:
+                continue
+            userinfo = parsed.username or ""
+            if parsed.password:
+                userinfo = f"{userinfo}:{parsed.password}" if userinfo else parsed.password
+            if not userinfo:
+                continue
+            host = (parsed.hostname or "").strip().lower()
+            userinfo_lower = urllib.parse.unquote(userinfo).strip().lower()
+            userinfo_tokens = {
+                token
+                for token in re.split(r"[^a-z0-9ăâîșț]+", userinfo_lower)
+                if len(token) >= 2
+            }
+            extracted = tldextract.extract(userinfo_lower)
+            if extracted.domain:
+                userinfo_tokens.add(extracted.domain.lower())
+                compact = _compact_brand_match_token(extracted.domain)
+                if compact:
+                    userinfo_tokens.add(compact)
+            for token in sorted(userinfo_tokens, key=len, reverse=True):
+                brand = TRUSTED_BASE_NAMES.get(token) or OFFICIAL_REGISTRY_LOOKALIKE_TOKENS.get(token)
+                if brand:
+                    return brand
+            if "." in userinfo_lower and host and not userinfo_lower.endswith(host):
+                return userinfo_lower
     return None
 
 
@@ -3449,6 +3790,16 @@ def _identity_status_for_decision_bundle(
 
     normalized_claim = _normalize_claimed_brand(claimed_brand)
     has_resolved_destination = bool(_first_final_url(resolved_urls))
+    userinfo_brand_mismatch = _brand_userinfo_spoof_in_resolved_urls(resolved_urls)
+    if userinfo_brand_mismatch and has_resolved_destination:
+        return _with_domain_context({
+            "claimed_brand": userinfo_brand_mismatch,
+            "status": "lookalike",
+            "tld_suspicious": True,
+            "brand_token_mismatch": userinfo_brand_mismatch,
+            "userinfo_spoof": True,
+            "completeness": True,
+        })
     if normalized_claim and has_resolved_destination:
         exact_domain_claim = _claimed_brand_exact_domain_match(claimed_brand, resolved_urls)
         if exact_domain_claim and not (
@@ -3530,11 +3881,21 @@ def _request_sensitivity_from_signals(
         matched_family = str(local_high_risk.get("matched_family") or "")
         if matched_family == "otp_code_exfiltration":
             return "otp"
+        if matched_family in {
+            "esim_qr_exfiltration",
+            "bank_app_code_exfiltration",
+            "partial_code_exfiltration",
+        }:
+            return "otp"
         if matched_family == "remote_access_install_request":
             return "remote"
         if matched_family in {
             "family_emergency_money_request",
+            "family_voice_clone_emergency_payment",
             "fake_authority_safe_account",
+            "digital_custody_transfer",
+            "cfo_approval_bypass_payment",
+            "recovery_audit_fee_before_refund",
             "gift_card_payment",
             "job_task_topup",
             "domain_or_trademark_scare_payment",
@@ -3553,13 +3914,17 @@ def _request_sensitivity_from_signals(
             "tech_support_gift_card_payment",
             "urgent_payment_link_pressure",
             "beneficiary_mismatch_new_account",
+            "safe_beneficiary_test_transfer",
+            "courier_refundable_deposit_link",
+            "package_release_token_fee",
+            "migrated_account_new_iban",
         }:
             return "transfer"
         if matched_family in {"bank_data_collection", "external_card_cvv_otp_collection"}:
             return "card"
-        if matched_family in {"brand_login_update_link", "password_update_link"}:
+        if matched_family in {"brand_login_update_link", "password_update_link", "safety_education_login_pretext", "data_url_credential_form"}:
             return "password"
-        if matched_family == "executable_invoice_attachment":
+        if matched_family in {"executable_invoice_attachment", "security_update_install_link", "deeplink_fallback_login_or_install"}:
             return "remote"
         if matched_family == "anti_verification_pressure":
             if re.search(r"\b(transfer\w*|iban|cont\w*|pl[ăa]t\w*|achit\w*|bani|lei|ron)\b", normalized):
@@ -3606,6 +3971,16 @@ def _request_sensitivity_from_signals(
         normalized,
     ) and direct_sensitive_request:
         return "otp"
+    if re.search(
+        r"\b(?:cod(?:ul)?\s+unic|cod(?:ul)?.{0,40}aplica[țt]ia\s+bancar[ăa]|"
+        r"(?:prima|a\s+treia|a\s+cincea|primele|ultimele).{0,60}(?:cifr[ăa]|cifre).{0,60}cod|"
+        r"(?:cod\s+qr|qr).{0,50}(?:esim|e-sim|profil(?:ul)?\s+sim)|"
+        r"(?:esim|e-sim|profil(?:ul)?\s+sim).{0,50}(?:cod\s+qr|qr))\b",
+        normalized,
+    ) and direct_sensitive_request:
+        return "otp"
+    if _data_url_contains_sensitive_form(raw_text):
+        return "password"
     if re.search(r"\b(logheaz[ăa][-\s]?te|autentific[ăa][-\s]?te|login|session)\b", normalized) and (
         direct_sensitive_request or (sensitive_url_path and not official_destination)
     ):
@@ -3617,13 +3992,32 @@ def _request_sensitivity_from_signals(
     if _has_investment_money_risk(normalized):
         return "transfer"
 
+    payment_url_context = False
+    for entry in resolved_urls or []:
+        url = str(entry.get("final_url") or entry.get("url") or "")
+        parsed = urllib.parse.urlparse(url)
+        target = urllib.parse.unquote(f"{parsed.path or ''}?{parsed.query or ''}").lower()
+        if any(token in target for token in ("pay", "plata", "plată", "checkout", "achita")):
+            payment_url_context = True
+            break
+    non_url_text = URL_REGEX.sub(" ", normalized)
+    if payment_url_context and re.search(
+        r"\b(?:colet\w*|livrare|curier|vamal[ăa]?|tax[ăa]|factur[ăa]|abonament|restan[țt][ăa]|"
+        r"sum[ăa]|ron|lei|eur|euro|usd|dolari)\b",
+        non_url_text,
+        re.IGNORECASE,
+    ):
+        return "transfer"
+
     if sensitive_url_path and not official_destination:
         for entry in resolved_urls or []:
             url = str(entry.get("final_url") or entry.get("url") or "")
             path = urllib.parse.unquote(urllib.parse.urlparse(url).path or "").lower()
-            if any(token in path for token in ("card", "cvv", "cvc", "pay", "plata", "plată")):
+            if any(token in path for token in ("card", "cvv", "cvc")):
                 return "card"
-            if any(token in path for token in ("otp", "login", "auth", "password", "parola")):
+            if any(token in path for token in ("otp", "cod")):
+                return "otp"
+            if any(token in path for token in ("login", "auth", "password", "parola", "session")):
                 return "password"
 
     money_request_pattern = (
@@ -3691,9 +4085,36 @@ def _request_channel_for_decision_bundle(
 
 
 def _local_high_risk_semantic_review(raw_text: str) -> Optional[Dict[str, Any]]:
+    if _data_url_contains_sensitive_form(raw_text):
+        return {
+            "status": "done",
+            "claim_matches_known_scam_family": True,
+            "matched_family": "data_url_credential_form",
+            "claim_matches_legit_template": False,
+            "matched_template": None,
+            "reason_codes": ["semantic:data_url_credential_form", "semantic:local_high_risk_pattern"],
+            "risk_class": "high",
+            "confidence_class": "high",
+            "family_confidence": 0.88,
+            "completeness": True,
+            "source": "local_high_risk_semantic_patterns",
+        }
     normalized = _normalise_obfuscated_text(raw_text or "").lower()
     if not normalized or _looks_like_official_safety_education(normalized):
         return None
+    decoded_data_url = _decoded_data_url_text(normalized).lower()
+    decoded_url_text = normalized
+    for _ in range(3):
+        next_decoded = urllib.parse.unquote(decoded_url_text)
+        if next_decoded == decoded_url_text:
+            break
+        decoded_url_text = next_decoded
+    semantic_text_parts = [normalized]
+    if decoded_url_text != normalized:
+        semantic_text_parts.append(decoded_url_text)
+    if decoded_data_url:
+        semantic_text_parts.append(decoded_data_url)
+    semantic_text = re.sub(r"\s+", " ", "\n".join(semantic_text_parts)).strip()
 
     checks: List[Tuple[str, str, str]] = [
         (
@@ -3709,6 +4130,132 @@ def _local_high_risk_semantic_review(raw_text: str) -> Optional[Dict[str, Any]]:
             "otp_code_exfiltration",
             r"(\b(cod|otp)\b.{0,80}\b(sms|whatsapp|verificare|confirmare)\b.{0,100}\b(trimite|spune|comunic[ăa]|d[ăa][-\s]?mi|da[-\s]?mi)\b)"
             r"|(\b(trimite|spune|comunic[ăa]|d[ăa][-\s]?mi|da[-\s]?mi)\b.{0,100}\b(cod|otp)\b.{0,80}\b(sms|whatsapp|verificare|confirmare)\b)",
+        ),
+        (
+            "semantic:esim_qr_exfiltration",
+            "esim_qr_exfiltration",
+            r"(?=.{0,220}\b(?:esim|e-sim|profil(?:ul)?\s+sim|sim)\b)"
+            r"(?=.{0,220}\b(?:cod(?:ul)?\s+qr|qr)\b)"
+            r"(?=.{0,220}\b(?:trimite|captur\w*|screenshot|poz[ăa]|agent(?:ului)?|recuperare|confirmare)\b)",
+        ),
+        (
+            "semantic:bank_app_code_exfiltration",
+            "bank_app_code_exfiltration",
+            r"(?=.{0,220}\b(?:cod(?:ul)?\s+unic|cod(?:ul)?.{0,50}afi[șs]at|cod(?:ul)?.{0,50}aplica[țt]ia\s+bancar[ăa])\b)"
+            r"(?=.{0,220}\b(?:cite[șs]te|citeste|spune|comunic[ăa]|sun[ăa]|suna|num[ăa]rul\s+din\s+mesaj|agent)\b)",
+        ),
+        (
+            "semantic:partial_code_exfiltration",
+            "partial_code_exfiltration",
+            r"(?=.{0,220}\b(?:cod(?:ul)?|otp)\b)"
+            r"(?=.{0,220}\b(?:nu\s+(?:imi|îmi|ne)\s+spune\s+codul\s+complet|doar\s+(?:prima|primele|ultimele)|a\s+treia|a\s+cincea|cifr[ăa])\b)"
+            r"(?=.{0,220}\b(?:trimite|spune|comunic[ăa]|verificare|confirmare)\b)",
+        ),
+        (
+            "semantic:split_message_code_exfiltration",
+            "otp_code_exfiltration",
+            r"(?=.{0,260}\b(?:identificare|verificare|alert[ăa])\b)"
+            r"(?=.{0,260}\b(?:cod(?:ul)?\s+primit|cod\s+sms|otp)\b)"
+            r"(?=.{0,260}\b(?:trimite[-\s]?l|trimite\s+codul|spune[-\s]?l|aici)\b)",
+        ),
+        (
+            "semantic:userinfo_url_spoof",
+            "userinfo_url_spoof",
+            r"\bhttps?://[^/\s<>()\"']{2,120}@[a-z0-9.-]+\.[a-z]{2,}\b",
+        ),
+        (
+            "semantic:data_url_credential_form",
+            "data_url_credential_form",
+            r"(?=.{0,400}\bdata:text/(?:html|plain)\b|.{0,400}<\s*(?:form|input)\b)"
+            r"(?=.{0,800}\b(?:login|auth|password|parol[ăa]|otp|cod|card|cvv|cvc|utilizator|user)\b)",
+        ),
+        (
+            "semantic:deeplink_fallback_login_or_install",
+            "deeplink_fallback_login_or_install",
+            r"(?=.{0,400}\b(?:_dl|deeplink|fallback(?:_redirect)?|browser_fallback_url|intent://|bankapp%3a|bank-secure|bankapp)\b)"
+            r"(?=.{0,500}\b(?:login|beneficiary|beneficiar|install|actualizare|securitate|security|verify|verifica)\b)",
+        ),
+        (
+            "semantic:hidden_redirect_sensitive_target",
+            "deeplink_fallback_login_or_install",
+            r"(?=.{0,700}\b(?:dest|next|redirect|redirect_url|fallback(?:_redirect)?|browser_fallback_url|target|url)\s*=\s*https?://)"
+            r"(?=.{0,900}\b(?:login|auth|plata|plată|pay|confirm|verify|validare|install|actualizare|securitate|security)\b)",
+        ),
+        (
+            "semantic:hidden_html_svg_click_target",
+            "hidden_click_payment_or_confirm_cta",
+            r"(?=.{0,900}(?:<\s*svg\b|xlink:href\s*[:=]|<\s*v:roundrect\b|<\s*v:rect\b))"
+            r"(?=.{0,900}https?://)"
+            r"(?=.{0,900}\b(?:sold(?:ul)?|plata|plată|pay|confirm|verify|verific[ăa]|validare|beneficiar|iban|cont)\b)",
+        ),
+        (
+            "semantic:hidden_sensitive_form_action",
+            "hidden_click_payment_or_confirm_cta",
+            r"(?=.{0,900}\bFORM\s+action\b)"
+            r"(?=.{0,900}https?://)"
+            r"(?=.{0,900}\bfields?:.{0,180}\b(?:card|cvv|cvc|otp|password|parol[ăa]|pin|cnp)\b)",
+        ),
+        (
+            "semantic:css_overlay_click_target",
+            "hidden_click_payment_or_confirm_cta",
+            r"(?=.{0,900}\bCTA\s+a/href_overlay\b)"
+            r"(?=.{0,900}https?://)"
+            r"(?=.{0,900}\b(?:plata|plată|pay|confirm|verify|verific[ăa]|validare|beneficiar|iban|cont|factur[ăa])\b)",
+        ),
+        (
+            "semantic:security_update_install_link",
+            "security_update_install_link",
+            r"(?=.{0,240}\b(?:actualizare|update|securitate|security|bank-alert|alert[ăa]\s+bancar[ăa])\b)"
+            r"(?=.{0,240}\b(?:install|instalare|instaleaz[ăa]|descarc[ăa]|apk|package|aplica[țt]ie)\b)",
+        ),
+        (
+            "semantic:qr_epc_safe_account_payment",
+            "safe_account_or_protective_transfer",
+            r"(?=.{0,500}\bBCD\b)"
+            r"(?=.{0,500}\bSCT\b)"
+            r"(?=.{0,500}\b(?:AGENT\s+SECURITATE|PROTEC[ȚT]IE\s+CONT|CONT\s+SIGUR|SECURITY\s+AGENT)\b)"
+            r"(?=.{0,500}(?:\bRO[A-Z0-9]{16,30}\b|\[IBAN_REDACTED\]|IBAN_REDACTED))"
+            r"(?=.{0,500}\b(?:RON|EUR)\s*\d)",
+        ),
+        (
+            "semantic:qr_totp_enrollment_takeover",
+            "otp_code_exfiltration",
+            r"\botpauth://totp/[^\s<>()\"']{3,400}\bsecret=",
+        ),
+        (
+            "semantic:qr_prefilled_sensitive_email",
+            "bank_data_collection",
+            r"(?=.{0,500}\bmailto:[^\s<>()\"']+)"
+            r"(?=.{0,700}\b(?:body=|subject=))"
+            r"(?=.{0,900}\b(?:CUI|IBAN|card|cvv|otp|cod|parol[ăa])\b)",
+        ),
+        (
+            "semantic:qr_wifi_captive_payment_pretext",
+            "qr_wifi_captive_payment_pretext",
+            r"(?=.{0,500}wifi:)"
+            r"(?=.{0,500}(?:parcare|parking|oficial|official))"
+            r"(?=.{0,500}(?:plata\s*acum|plataacum|pay\s*now|paynow|captiv|captive|portal|confirm))",
+        ),
+        (
+            "semantic:official_poster_payment_qr_overlay",
+            "official_poster_payment_qr_overlay",
+            r"(?=.{0,500}\b(?:portal\s+oficial|afi[șs]\s+actualizat|poster\s+oficial)\b)"
+            r"(?=.{0,500}\b(?:scaneaz[ăa]|scana[țt]i|afi[șs]\s+actualizat|poster\s+oficial)\b)"
+            r"(?=.{0,500}\b(?:plata\s+rapid[ăa]|factur[ăa]|confirm)\b)",
+        ),
+        (
+            "semantic:safety_education_login_pretext",
+            "safety_education_login_pretext",
+            r"(?=.{0,180}\b(?:nu\s+(?:comunica|trimite|introdu|da)\w*.{0,40}(?:parol[ăa]|otp|cod|card)|alert[ăa]\s+de\s+siguran[țt][ăa])\b)"
+            r"(?=.{0,240}\b(?:pentru\s+a\s+(?:demonstra|confirma|verifica)|simulator|test\s+de\s+(?:siguran[țt][ăa]|securitate))\b)"
+            r"(?=.{0,260}\b(?:autentific[ăa][-\s]?te|logheaz[ăa][-\s]?te|login|introdu|completeaz[ăa])\b)",
+        ),
+        (
+            "semantic:safety_negation_exception_code_entry",
+            "safety_education_login_pretext",
+            r"(?=.{0,180}\bnu\s+(?:trimite|comunica|spune)\w*.{0,80}\bcod(?:ul)?\b)"
+            r"(?=.{0,220}\b(?:introdu|introduce|trimite)[-\s]?(?:l|le)?\s+doar\b)"
+            r"(?=.{0,240}\b(?:caseta|formular|verificarea\s+automat[ăa]|cod\s+sms|otp)\b)",
         ),
         (
             "semantic:fake_authority_safe_account",
@@ -3741,6 +4288,21 @@ def _local_high_risk_semantic_review(raw_text: str) -> Optional[Dict[str, Any]]:
             r"(?=.{0,240}\b(?:compromis|proteja|verific[ăa]ri|transfer[ăa]?|achit[ăa]?|trimite|mut[ăa])\b)",
         ),
         (
+            "semantic:safe_beneficiary_test_transfer",
+            "safe_beneficiary_test_transfer",
+            r"(?=.{0,220}\b(?:beneficiar(?:ul)?\s+(?:de\s+)?(?:siguran[țt][ăa]|temporar)|beneficiar\s+nou|cont(?:ul)?\s+(?:de\s+)?siguran[țt][ăa])\b)"
+            r"(?=.{0,260}\b(?:transfer(?:ul)?\s+(?:de\s+)?test|test\s+de\s+(?:1|un)\s+leu|trimite|adauga|adaug[ăa]|ad[ăa]ug[ăa]m|ad[ăa]ugi|confirm[ăa])\b)"
+            r"(?=.{0,260}\b(?:clon[ăa]|blocarea|proteja|siguran[țt][ăa])\b)",
+        ),
+        (
+            "semantic:digital_custody_transfer",
+            "digital_custody_transfer",
+            r"(?=.{0,240}\b(?:sesizare|executare|suspendarea|poli[țt]ie|parchet|agent)\b)"
+            r"(?=.{0,260}\b(?:suma|banii|fondurile)\b)"
+            r"(?=.{0,260}\b(?:mutat[ăa]?|transferat[ăa]?|transfer|muta[țt]i?)\b)"
+            r"(?=.{0,260}\b(?:custodie\s+digital[ăa]|cont\s+de\s+custodie|cont\s+temporar|comunicat\s+de\s+agent)\b)",
+        ),
+        (
             "semantic:anti_verification_pressure",
             "anti_verification_pressure",
             r"\b(?:nu\s+(?:suna|sun[ăa]|verifica|face\s+callback|[îi]nchide|inchide)|r[ăa]m[aâ]ne[țt]i\s+la\s+telefon)\b"
@@ -3760,10 +4322,24 @@ def _local_high_risk_semantic_review(raw_text: str) -> Optional[Dict[str, Any]]:
             r"(?=.{0,180}\b(?:link|nu\s+verifica|10\s+minute|pierde)\b)",
         ),
         (
+            "semantic:courier_refundable_deposit_link",
+            "courier_refundable_deposit_link",
+            r"(?=.{0,220}\b(?:colet\w*|livrare|curier|ambalaj)\b)"
+            r"(?=.{0,220}\b(?:depozit(?:ul)?\s+rambursabil|garan[țt]ie\s+rambursabil[ăa]|rambursarea)\b)"
+            r"(?=.{0,220}\b(?:achit[ăa]|pl[ăa]te[șs]te|plata|https?://|aici)\b)",
+        ),
+        (
             "semantic:bec_urgent_confidential_transfer",
             "bec_urgent_confidential_transfer",
             r"(?=.{0,180}\b(?:plat[ăa]|aprob[ăa]|transfer)\b)"
             r"(?=.{0,220}\b(?:urgent|confiden[țt]ial|f[ăa]r[ăa]\s+tichet|director|[șs]edin[țt][ăa])\b)",
+        ),
+        (
+            "semantic:cfo_approval_bypass_payment",
+            "cfo_approval_bypass_payment",
+            r"(?=.{0,220}\b(?:director(?:ul)?\s+financiar|cfo|manager(?:ul)?|șef(?:ul)?|sef(?:ul)?)\b)"
+            r"(?=.{0,220}\b(?:achit[ăa]|pl[ăa]te[șs]te|transfer[ăa]?|avans|partener(?:ul)?\s+nou)\b)"
+            r"(?=.{0,260}\b(?:nu\s+porni|f[ăa]r[ăa]\s+aprobare|aprobarea\s+intern[ăa]|documentele\s+vor\s+veni\s+dup[ăa]|confiden[țt]ial)\b)",
         ),
         (
             "semantic:executable_invoice_attachment",
@@ -3777,6 +4353,13 @@ def _local_high_risk_semantic_review(raw_text: str) -> Optional[Dict[str, Any]]:
             r"(?=.{0,220}\b(?:broker|profit|randament|investi[țt]ii?)\b)"
             r"(?=.{0,220}\b(?:garanteaz[ăa]|garantat)\b)"
             r"(?=.{0,220}\b(?:depunere|depun[ei]|trimite|cont\s+de\s+activare)\b)",
+        ),
+        (
+            "semantic:recovery_audit_fee_before_refund",
+            "recovery_audit_fee_before_refund",
+            r"(?=.{0,240}\b(?:fondurile\s+pierdute|recuper(?:are|[ăa]m|ezi)|rambursare|blockchain|traseul)\b)"
+            r"(?=.{0,260}\b(?:tax[ăa]\s+de\s+audit|tax[ăa]|comision|achit[ăa]|pl[ăa]te[șs]te)\b)"
+            r"(?=.{0,260}\b(?:[îi]nainte\s+de\s+rambursare|semna|audit|deblocare)\b)",
         ),
         (
             "semantic:authority_unavailable_payment_pressure",
@@ -3806,6 +4389,19 @@ def _local_high_risk_semantic_review(raw_text: str) -> Optional[Dict[str, Any]]:
             r"(?=.{0,160}\b(?:iban\s+nou|cont\s+nou)\b)",
         ),
         (
+            "semantic:migrated_account_new_iban",
+            "migrated_account_new_iban",
+            r"(?=.{0,280}\b(?:migrat|migrare|contul\s+(?:a\s+fost\s+)?schimbat|conturile\s+(?:au\s+fost\s+)?(?:schimbate|migrat[ea]?)|banca\s+nou[ăa])\b)"
+            r"(?=.{0,320}\b(?:plata|achit[ăa]|ref[ăa]cut[ăa]?|folosi[țt]i|utiliza[țt]i|iban|cont(?:ul)?\s+nou)\b)",
+        ),
+        (
+            "semantic:callback_poison_new_payment_destination",
+            "new_iban_callback_suppression",
+            r"(?=.{0,340}\b(?:num[ăa]r(?:ul)?\s+nou|semn[ăa]tura\s+acestui\s+mesaj|vechiul\s+departament|nu\s+mai\s+are\s+acces)\b)"
+            r"(?=.{0,360}\b(?:confirma(?:re)?\s+telefonic[ăa]?|pot\s+confirma|suna|telefonic)\b)"
+            r"(?=.{0,380}\b(?:iban\s+nou|noul\s+iban|plata\s+trebuie\s+ref[ăa]cut[ăa]?|cont(?:ul)?\s+nou)\b)",
+        ),
+        (
             "semantic:supplier_bank_details_change",
             "supplier_bank_details_change",
             r"(?=.{0,160}\b(?:se\s+modific[ăa]|modificare)\b)"
@@ -3825,6 +4421,20 @@ def _local_high_risk_semantic_review(raw_text: str) -> Optional[Dict[str, Any]]:
             r"(?=.{0,180}\b(?:spital|cau[țt]iune|cautiune|accident)\b)"
             r"(?=.{0,180}\b(?:nu\s+suna|nu\s+sun[ăa]|nu\s+spune)\b)"
             r"(?=.{0,180}\b(?:trimite|transfer[ăa]?|banii|bani|imediat)\b)",
+        ),
+        (
+            "semantic:family_voice_clone_emergency_payment",
+            "family_voice_clone_emergency_payment",
+            r"(?=.{0,280}\b(?:sunt\s+eu|parola\s+noastr[ăa]\s+de\s+familie|vocea\s+mea|vocea\s+pe\s+care\s+o\s+cuno[șs]ti|nu\s+merge\s+bine\s+vocea|accident|opera[țt]ie|externare)\b)"
+            r"(?=.{0,320}\b(?:urgent|acum|imediat|azi|dup[ăa])\b)"
+            r"(?=.{0,340}\b(?:bani|lei|ron|transfer|trimite|garan[țt]ia|am\s+nevoie)\b)",
+        ),
+        (
+            "semantic:package_release_token_fee",
+            "package_release_token_fee",
+            r"(?=.{0,280}\b(?:pachet|colet|vamal|destinatar|medical|robotul\s+vamal)\b)"
+            r"(?=.{0,300}\b(?:token(?:ul)?|cod|asocia|eliberare|release)\b)"
+            r"(?=.{0,340}\b(?:tax[ăa]|pl[ăa]te[șs]te|achit[ăa]|comision|lei|ron|transfer|rambursez)\b)",
         ),
         (
             "semantic:tech_support_gift_card_payment",
@@ -3853,6 +4463,12 @@ def _local_high_risk_semantic_review(raw_text: str) -> Optional[Dict[str, Any]]:
             r"(?=.{0,180}\b(?:link|extern)\b)",
         ),
         (
+            "semantic:visual_homoglyph_brand_collection",
+            "brand_login_update_link",
+            r"(?=.{0,260}\b(?:paypai|paypa1|paypaI|g00gle|go0gle|micros0ft|faceb00k|app1e|revo1ut)\b)"
+            r"(?=.{0,320}\b(?:card|cont|login|verify|confirm|parol[ăa]|otp|cvv|blocarea)\b)",
+        ),
+        (
             "semantic:beneficiary_mismatch_new_account",
             "beneficiary_mismatch_new_account",
             r"(?=.{0,180}\b(?:beneficiar\w*)\b)"
@@ -3879,7 +4495,7 @@ def _local_high_risk_semantic_review(raw_text: str) -> Optional[Dict[str, Any]]:
         ),
     ]
     for reason_code, family_id, pattern in checks:
-        if re.search(pattern, normalized, re.IGNORECASE):
+        if re.search(pattern, semantic_text, re.IGNORECASE):
             return {
                 "status": "done",
                 "claim_matches_known_scam_family": True,
@@ -4013,6 +4629,11 @@ Reguli:
 - Marchează high doar când claim-ul seamănă clar cu o familie scam sau cere acțiuni sensibile/social-engineering.
 - Marchează benign doar când claim-ul seamănă cu un șablon legitim/marketing normal și nu cere date sensibile.
 - Marketing language, CTA, reduceri, catalog, newsletter sau link sub buton nu sunt suficiente pentru high.
+- Tratează ca high cererile de cod/OTP parțial sau complet, cod unic din aplicația bancară, captură/screenshot de cod QR eSIM, PIN/CVV/card, parole, seed phrase sau date de identitate.
+- Tratează ca high pretextele de siguranță care cer login/autentificare într-un simulator, link extern, formular data: sau deeplink de aplicație.
+- Tratează ca high transferurile către cont/beneficiar de siguranță, cont nou, IBAN migrat, transfer test, depozit rambursabil de colet sau taxă/token de eliberare pachet.
+- Tratează ca high URL-urile cu userinfo spoofing de forma brand.ro@alt-domeniu și deeplink-urile/native/data URL care cer acțiuni sensibile.
+- Textul educațional legitim de tip "nu comunica OTP/parola, sună canalul oficial" este benign doar dacă nu cere apoi login, transfer, cod, instalare sau contact prin canal neoficial.
 - Nu inventa branduri, domenii, provider hits sau fapte lipsă.
 Răspunde strict JSON:
 {
@@ -4103,8 +4724,10 @@ _SOCIAL_ENGINEERING_PRESSURE_PATTERNS = (
     # safe-account / move funds to a "protective" account
     r"\bcont(?:ul)?\s+(?:de\s+)?(?:siguran[țt][ăa]|protec[țt]ie|seif|temporar)\b",
     r"\b(transfera(?:ti|ți)?|muta(?:ti|ți)?|mut[ăa])\b.{0,60}\bcont(?:ul)?\s+(?:nou|sigur)\b",
+    r"\bbeneficiar(?:ul)?\s+(?:de\s+)?(?:siguran[țt][ăa]|temporar)\b",
+    r"\b(?:cod(?:ul)?\s+unic|cod(?:ul)?.{0,50}aplica[țt]ia\s+bancar[ăa]|cod(?:ul)?\s+qr.{0,40}esim)\b",
     # threat + coercion
-    r"\b(arest|aresta(?:t|re)|re[țt]inere|re[țt]inut)\b",
+    r"\b(arest|aresta(?:t|re)|re[țt]inere|re[țt]inut|dezactivat|clon[ăa])\b",
 )
 
 
@@ -4236,6 +4859,8 @@ def _social_engineering_signal_for_decision_bundle(
         add_lever("authority")
     if _se_pattern(text, r"\b(arest|aresta(?:t|re)|re[țt]inere|re[țt]inut|dosar\s+penal|atacator|fraud[ăa]|bloc(?:at|are)|suspend(?:at|are)|compromis)\b"):
         add_lever("fear")
+    if _se_pattern(text, r"\b(dezactivat|clon[ăa]|blocarea\s+clonei|profilul\s+sim\s+va\s+fi\s+dezactivat)\b"):
+        add_lever("fear")
     if _se_pattern(text, r"\b(urgent|imediat|acum|azi|10\s+minute|24\s*(?:de\s*)?ore|expir[ăa]|ultima\s+[șs]ans[ăa])\b"):
         add_lever("urgency")
     if _se_pattern(text, r"\b(nu\s+spune(?:ti|ți)?\s+nim[ăa]nui|confiden[țt]ial|clasificat[ăa]?|nu\s+(?:discuta(?:ti|ți)?|spune(?:ti|ți)?).{0,40}\b(?:familie|colegi|superiori|nim[ăa]nui))\b"):
@@ -4273,9 +4898,19 @@ def _social_engineering_signal_for_decision_bundle(
         add_ask("seed_phrase")
     if _se_pattern(text, r"\b(carduri?\s+cadou|gift\s*card|voucher)\b"):
         add_ask("gift_card")
+    if _se_pattern(
+        text,
+        r"\b(?:cod(?:ul)?\s+unic|cod(?:ul)?.{0,50}aplica[țt]ia\s+bancar[ăa]|"
+        r"(?:prima|a\s+treia|a\s+cincea|primele|ultimele).{0,60}(?:cifr[ăa]|cifre).{0,60}cod|"
+        r"(?:cod\s+qr|qr).{0,50}(?:esim|e-sim|profil(?:ul)?\s+sim)|"
+        r"(?:esim|e-sim|profil(?:ul)?\s+sim).{0,50}(?:cod\s+qr|qr))\b",
+    ):
+        add_ask("otp")
     if _se_pattern(text, r"\b(transfera(?:ti|ți)?|muta(?:ti|ți)?|trimite(?:ti|ți)?|depune(?:ti|ți)?|achit(?:a|[ăa])|pl[ăa]te(?:[șs]te|sti|[șs]ti)?)\b.{0,90}\b(sold|bani|suma|lei|ron|eur|cont(?:ul)?\s+(?:nou|sigur|de\s+protec[țt]ie|temporar|seif)|iban\s+nou)\b"):
         add_ask("transfer")
     if _se_pattern(text, r"\bcont(?:ul)?\s+(?:de\s+)?(?:siguran[țt][ăa]|protec[țt]ie|seif|temporar)\b"):
+        add_ask("transfer")
+    if _se_pattern(text, r"\bbeneficiar(?:ul)?\s+(?:de\s+)?(?:siguran[țt][ăa]|temporar)\b.{0,100}\b(?:transfer\s+test|trimite|adauga|adaug[ăa])\b"):
         add_ask("transfer")
 
     ask_present = bool([ask for ask in ask_types if ask != "none"])
@@ -4295,7 +4930,9 @@ def _social_engineering_signal_for_decision_bundle(
         intent = "payment_redirection"
     elif _se_pattern(text, r"\b(trading|investi[țt]ii|investitii|crypto|randament|profituri\s+zilnice|broker|platform[ăa])\b"):
         intent = "investment_fraud"
-    elif set(ask_types) & {"card", "otp", "callback"} and ({"authority", "fear", "secrecy"} & set(levers)):
+    elif set(ask_types) & {"card", "otp"}:
+        intent = "credential_theft"
+    elif set(ask_types) & {"callback"} and ({"authority", "fear", "secrecy"} & set(levers)):
         intent = "credential_theft"
     elif "authority" in levers:
         intent = "impersonation"
@@ -7861,6 +8498,7 @@ def _build_orchestrated_pillars(job: Dict[str, Any]) -> Dict[str, Dict[str, Any]
     raw_urls = job.get("urls") if isinstance(job.get("urls"), list) else []
     has_urls = bool(raw_urls or resolved_urls)
     final_url = job.get("primary_final_url") or _first_final_url(resolved_urls)
+    job_input_type = str(job.get("input_type") or "").strip().lower()
 
     claim = evidence.get("offer_claim_verification") if isinstance(evidence.get("offer_claim_verification"), dict) else {}
     claim_status = str(claim.get("status") or "").strip().lower()
@@ -7873,6 +8511,7 @@ def _build_orchestrated_pillars(job: Dict[str, Any]) -> Dict[str, Dict[str, Any]
     provider_projection_verdict = str(provider_projection.get("verdict") or "unknown").strip().lower()
     semantic_complete = (
         (semantic_status == "done" and semantic_review.get("completeness") is not False)
+        or (job_input_type == "invoice" and semantic_status == "done")
         or provider_projection_verdict == "malicious"
         or (official_destination and provider_projection_verdict == "clean")
     )
@@ -8992,10 +9631,21 @@ def _build_orchestrated_text_context(payload: OrchestratedScanRequest) -> Dict[s
         }
 
     if input_type in {"email", "email_html", "html"}:
-        html_to_parse = _normalise_obfuscated_text(payload.html_content or payload.text or "")
-        _validate_text_input("Conținutul HTML trimis", html_to_parse, MAX_TEXT_CHARS * 8)
+        raw_email_or_html = payload.html_content or payload.text or ""
+        mime_parts = _extract_email_mime_parts(payload.text or "") if input_type == "email" and not payload.html_content else {}
+        plain_text_context = _normalise_obfuscated_text(mime_parts.get("plain") or "")
+        email_subject = _normalise_obfuscated_text(mime_parts.get("subject") or "")
+        html_to_parse = _normalise_obfuscated_text(
+            payload.html_content
+            or mime_parts.get("html")
+            or plain_text_context
+            or payload.text
+            or ""
+        )
+        _validate_text_input("Conținutul HTML trimis", raw_email_or_html, MAX_TEXT_CHARS * 8)
         soup = BeautifulSoup(html_to_parse, "html.parser")
         click_targets = _collect_click_targets_from_html(soup)
+        form_context = _collect_form_context_from_html(soup)
         discovered_urls: List[str] = []
         buttons: List[Dict[str, Any]] = []
         cta_words = ["verific", "confirm", "plăte", "plate", "cont", "login", "conect", "intrare", "detalii", "colet", "awb", "reactivare", "urgent"]
@@ -9015,11 +9665,31 @@ def _build_orchestrated_text_context(payload: OrchestratedScanRequest) -> Dict[s
                 }
             )
         visible_text = soup.get_text(separator=" ", strip=True)
+        for url in extract_urls(plain_text_context):
+            if url not in discovered_urls:
+                discovered_urls.append(url)
         for url in extract_urls(visible_text):
             if url not in discovered_urls:
                 discovered_urls.append(url)
         inferred_brand_hints = _infer_brand_hints_from_click_targets(click_targets)
-        raw_text = "\n".join(part for part in [visible_text, " ".join(inferred_brand_hints)] if part.strip())
+        click_context = [
+            f"CTA {button.get('source_tag')}/{button.get('source_attr')}: "
+            f"{button.get('button_text')} -> {button.get('original_url')}"
+            for button in buttons
+            if button.get("original_url")
+        ]
+        raw_text = "\n".join(
+            part
+            for part in [
+                email_subject,
+                plain_text_context,
+                visible_text,
+                " ".join(inferred_brand_hints),
+                *form_context,
+                *click_context,
+            ]
+            if str(part or "").strip()
+        )
         return {
             "input_type": "email",
             "source_channel": source_channel,
@@ -9028,6 +9698,8 @@ def _build_orchestrated_text_context(payload: OrchestratedScanRequest) -> Dict[s
             "extra_fields": {
                 "buttons": buttons,
                 "inferred_brand_hints": inferred_brand_hints,
+                "email_mime_parsed": bool(mime_parts),
+                "form_context": form_context,
                 "is_forwarded_warning": True,
             },
         }
@@ -10740,16 +11412,22 @@ async def extract_image_for_orchestration(
         file_bytes=image_bytes,
         extract_fn=extract_text_with_vision,
     )
+    qr_payloads = _extract_image_qr_payloads(image_bytes)
     redacted_text = redact_pii(ocr_text)
-    extracted_urls = _dedupe_preserve_order(extract_urls(ocr_text) + extract_urls(redacted_text))
+    extracted_urls = _dedupe_preserve_order(
+        extract_urls(ocr_text)
+        + extract_urls(redacted_text)
+        + [url for payload in qr_payloads for url in extract_urls(payload)]
+    )
     return {
         "input_type": "image_ocr",
         "source_channel": source_channel,
         "redacted_text": redacted_text,
         "extracted_urls": extracted_urls,
+        "qr_payloads": qr_payloads,
         "html_content": None,
         "warning": ocr_warning,
-        "hidden_url_visibility": False,
+        "hidden_url_visibility": bool(qr_payloads),
     }
 
 
@@ -10778,6 +11456,7 @@ async def extract_pdf_for_orchestration(
         raise HTTPException(status_code=400, detail="Format PDF invalid.")
 
     annotation_urls = _extract_pdf_annotation_links(pdf_bytes)
+    qr_payloads = _extract_pdf_qr_payloads(pdf_bytes)
     embedded_text = _extract_pdf_embedded_text(pdf_bytes)
     try:
         ocr_text, ocr_warning = await extract_text_for_scan(
@@ -10794,15 +11473,21 @@ async def extract_pdf_for_orchestration(
     ocr_text = _merge_ocr_and_embedded_text(ocr_text, embedded_text)
 
     redacted_text = redact_pii(ocr_text)
-    extracted_urls = _dedupe_preserve_order(annotation_urls + extract_urls(ocr_text) + extract_urls(redacted_text))
+    extracted_urls = _dedupe_preserve_order(
+        annotation_urls
+        + extract_urls(ocr_text)
+        + extract_urls(redacted_text)
+        + [url for payload in qr_payloads for url in extract_urls(payload)]
+    )
     return {
         "input_type": "pdf_ocr",
         "source_channel": source_channel,
         "redacted_text": redacted_text,
         "extracted_urls": extracted_urls,
+        "qr_payloads": qr_payloads,
         "html_content": None,
         "warning": ocr_warning,
-        "hidden_url_visibility": bool(annotation_urls),
+        "hidden_url_visibility": bool(annotation_urls or qr_payloads),
     }
 
 
@@ -10919,10 +11604,18 @@ def _assemble_extracted_text_for_orchestration(extraction: Dict[str, Any], fallb
         for url in extraction.get("extracted_urls") or []
         if str(url).strip()
     ]
+    qr_payloads = [
+        str(payload).strip()
+        for payload in extraction.get("qr_payloads") or []
+        if str(payload).strip()
+    ]
     parts = [text or f"Conținut extras din {fallback_label}."]
     if urls:
         parts.append("Linkuri extrase:")
         parts.extend(urls)
+    if qr_payloads:
+        parts.append("Coduri QR extrase:")
+        parts.extend(qr_payloads)
     return "\n".join(parts).strip()
 
 
@@ -11078,6 +11771,7 @@ async def scan_invoice_endpoint(
         )
 
     pdf_annotation_urls: List[str] = []
+    qr_payloads: List[str] = []
     if pdf_file is not None:
         filename = pdf_file.filename or "invoice.pdf"
         file_bytes = await pdf_file.read()
@@ -11094,6 +11788,7 @@ async def scan_invoice_endpoint(
         if not file_bytes.startswith(b"%PDF-"):
             raise HTTPException(status_code=400, detail="Fișierul nu pare să fie un PDF valid.")
         pdf_annotation_urls = _extract_pdf_annotation_links(file_bytes)
+        qr_payloads = _extract_pdf_qr_payloads(file_bytes)
         embedded_text = _extract_pdf_embedded_text(file_bytes)
         try:
             ocr_text, ocr_warning = await extract_text_for_scan(
@@ -11128,9 +11823,15 @@ async def scan_invoice_endpoint(
             file_bytes=file_bytes,
             extract_fn=extract_text_with_vision,
         )
+        qr_payloads = _extract_image_qr_payloads(file_bytes)
         source_type = "image"
 
-    extracted_urls = _dedupe_preserve_order(pdf_annotation_urls + extract_urls(ocr_text))
+    extracted_urls = _dedupe_preserve_order(
+        pdf_annotation_urls
+        + extract_urls(ocr_text)
+        + qr_payloads
+        + [url for payload in qr_payloads for url in extract_urls(payload)]
+    )
     result = await scan_invoice(ocr_text, links=extracted_urls)
     official_document_check = {"provided": False, "status": "not_provided"}
     if official_xml_file is not None:
@@ -11216,6 +11917,7 @@ async def scan_invoice_endpoint(
         "warnings": result.warnings,
         "error": result.error,
         "ocr_warning": ocr_warning,
+        "qr_payloads": qr_payloads,
     }
     return response
 

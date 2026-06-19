@@ -40,6 +40,13 @@ def _disable_live_mistral(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _reset_rate_limiter_memory():
+    app_main.rate_limiter.reset_memory_buckets()
+    yield
+    app_main.rate_limiter.reset_memory_buckets()
+
+
+@pytest.fixture(autouse=True)
 def _mock_whois_ssl_signals(monkeypatch):
     monkeypatch.setattr(app_main, "check_domain_ssl_parallel", _fake_domain_signals_neutral)
 

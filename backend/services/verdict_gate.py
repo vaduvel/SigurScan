@@ -19,6 +19,11 @@ DANGEROUS_SOCIAL_ENGINEERING_INTENTS = {
     "recovery_scam",
 }
 BUILDUP_SOCIAL_ENGINEERING_INTENTS = DANGEROUS_SOCIAL_ENGINEERING_INTENTS | {"impersonation"}
+DANGEROUS_SEMANTIC_FAMILIES = {
+    "hidden_click_payment_or_confirm_cta",
+    "qr_wifi_captive_payment_pretext",
+    "official_poster_payment_qr_overlay",
+}
 PROVIDER_MALICIOUS = {"malicious", "phishing", "malware", "dangerous", "blacklisted"}
 PROVIDER_SUSPICIOUS = {"suspicious"}
 PROVIDER_CLEAN = {"clean", "no_match", "safe"}
@@ -548,7 +553,11 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
         return _result("SUSPECT", ["social_engineering_build_up"], confidence=72)
 
     # ─── Rule 4c: Native/app deeplink cannot be web-previewed ──────────────
-    if non_http_deeplink_present and not has_provenance:
+    if (
+        non_http_deeplink_present
+        and not has_provenance
+        and not (hard_sensitive or value_sensitive or semantic_risk == "high")
+    ):
         return _result("SUSPECT", ["non_http_deeplink_unverified"], confidence=66, is_final=True)
 
     # ─── Rule 5: Provider error blocks SAFE but allows SUSPECT ─────────────
@@ -588,6 +597,8 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
             and not _bool(identity.get("brand_token_mismatch"))
         )
     ):
+        if matched_family in DANGEROUS_SEMANTIC_FAMILIES:
+            return _result("DANGEROUS", ["semantic_high_structural_hidden_action"], confidence=86)
         return _result("SUSPECT", ["semantic_high_family_match"], confidence=72)
 
     # ─── Rule 6: Weighted provider warning → SUSPECT, not DANGEROUS ────────

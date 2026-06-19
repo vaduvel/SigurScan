@@ -118,6 +118,88 @@ async def test_efactura_claim_without_xml_proof_blocks_safe_but_not_hard_dangero
     assert verdict["gate"]["label"] in {"SUSPECT", "UNVERIFIED"}
 
 
+@pytest.mark.asyncio
+async def test_fragmented_iban_is_reassembled_from_ocr_text():
+    result = await scan_invoice(
+        "Furnizor: TEST SRL\n"
+        "CUI: RO12345678\n"
+        "IBAN: RO33 RNCB 1234\n"
+        "5678 9012 3456\n"
+        "Total 100 RON"
+    )
+    verdict = evaluate_invoice_verdict(result, result.raw_text, source_channel="android_native")
+
+    assert result.fields.iban == "RO33RNCB1234567890123456"
+    assert "RO33RNCB1234567890123456" in result.fields.all_ibans
+    assert "FRAGMENTED_IBAN_PAYMENT_TARGET" in result.fraud_flags
+    assert verdict["gate"]["label"] == "DANGEROUS"
+
+
+@pytest.mark.asyncio
+async def test_qr_payment_iban_mismatch_with_printed_invoice_is_dangerous():
+    result = await scan_invoice(
+        "Furnizor: TEST SRL\n"
+        "CUI: RO12345678\n"
+        "IBAN: RO33RNCB1234567890123456\n"
+        "Total 200 RON",
+        links=[
+            "BCD\n002\n1\nSCT\nTEST SRL\nRO49AAAA1B31007593840000\nRON200.00\n\nFactura TEST"
+        ],
+    )
+    verdict = evaluate_invoice_verdict(result, result.raw_text, source_channel="android_native")
+
+    assert "QR_PRINTED_IBAN_MISMATCH" in result.fraud_flags
+    assert verdict["gate"]["label"] == "DANGEROUS"
+
+
+@pytest.mark.asyncio
+async def test_efactura_reconciliation_payment_pretext_is_dangerous():
+    result = await scan_invoice(
+        "Furnizor: TEST SRL CUI RO12345678\n"
+        "Factura este în e-Factura/SPV, dar trebuie validată prin reconciliere manuală.\n"
+        "Achitați taxa de deblocare în IBAN RO33RNCB1234567890123456.\n"
+        "Total 100 RON"
+    )
+    verdict = evaluate_invoice_verdict(result, result.raw_text, source_channel="email")
+
+    assert "EFACTURA_CLAIM_WITHOUT_DOCUMENT" in result.fraud_flags
+    assert "FAKE_EFACTURA_RECONCILIATION_PAYMENT" in result.fraud_flags
+    assert verdict["gate"]["label"] == "DANGEROUS"
+
+
+@pytest.mark.asyncio
+async def test_undisclosed_intermediary_company_beneficiary_is_dangerous():
+    result = await scan_invoice(
+        "Factura nr. 8844\n"
+        "Emitent: Service Expert SRL\n"
+        "CUI: 12345678\n"
+        "Total: 6200 RON\n"
+        "IBAN: RO06MIDL0000000000000005\n"
+        "Beneficiar plată: Procesator Rapid SRL\n"
+        "Nu este necesar act adițional."
+    )
+    verdict = evaluate_invoice_verdict(result, result.raw_text, source_channel="email")
+
+    assert "UNDISCLOSED_INTERMEDIARY_BENEFICIARY" in result.fraud_flags
+    assert verdict["gate"]["label"] == "DANGEROUS"
+
+
+@pytest.mark.asyncio
+async def test_pdf_text_layer_iban_conflict_is_dangerous():
+    result = await scan_invoice(
+        "Factura nr. 8841\n"
+        "Total: 1280 RON\n"
+        "IBAN tipărit: RO39SAFE0000000000000004\n"
+        "Beneficiar: Furnizor Demo SRL\n"
+        "Instrucțiuni procesare: utilizați IBAN RO27FAKE0000000000000003"
+    )
+    verdict = evaluate_invoice_verdict(result, result.raw_text, source_channel="pdf_invoice")
+
+    assert "MULTIPLE_IBANS" in result.fraud_flags
+    assert "DOCUMENT_LAYER_IBAN_CONFLICT" in result.fraud_flags
+    assert verdict["gate"]["label"] == "DANGEROUS"
+
+
 def test_cross_scan_exports_b2b_invoice_signals_for_non_invoice_text():
     result = evaluate_cross_scan_knowledge(
         text=(
