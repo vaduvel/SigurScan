@@ -155,4 +155,53 @@ class InvoiceModelTest {
         assertEquals("iban", response.officialDocumentCheck?.mismatches?.firstOrNull()?.field)
         assertEquals("high", response.officialDocumentCheck?.mismatches?.firstOrNull()?.severity)
     }
+
+    @Test
+    fun invoiceResponseParsesHumanInvoiceTruthContract() {
+        val json = """
+            {
+              "invoice_truth": {
+                "schema": "sigurscan_invoice_truth_v4",
+                "verdict": "VERIFY_BEFORE_PAYING",
+                "decision_status": "ACTION_REQUIRED",
+                "safe_to_pay": false,
+                "primary_reason_code": "UNCONFIRMED_DESTINATION",
+                "display": {
+                  "title": "Verifică înainte să plătești",
+                  "message": "Factura nu pare fraudă, dar verifică înainte să plătești.",
+                  "tone": "pending"
+                },
+                "verified_items": [
+                  {"code": "ISSUER_CONFIRMED", "label": "Firma este verificată"}
+                ],
+                "unconfirmed_items": [
+                  {"code": "PAYMENT_BENEFICIARY_UNCONFIRMED", "label": "Beneficiarul plății nu este confirmat automat"}
+                ],
+                "hard_conflicts": [
+                  {"code": "VISIBLE_VS_QR_PAYMENT_HIJACK", "label": "IBAN-ul din QR diferă de cel tipărit"}
+                ],
+                "next_action": {
+                  "type": "VERIFY_BENEFICIARY_IN_BANK",
+                  "title": "Verifică numele beneficiarului în aplicația băncii",
+                  "requires_authorization": false
+                }
+              }
+            }
+        """.trimIndent()
+
+        val response = Gson().fromJson(json, InvoiceScanResponse::class.java)
+
+        assertEquals("VERIFY_BEFORE_PAYING", response.invoiceTruth?.verdict)
+        assertEquals("ACTION_REQUIRED", response.invoiceTruth?.decisionStatus)
+        assertEquals(false, response.invoiceTruth?.safeToPay)
+        assertEquals("Verifică înainte să plătești", response.invoiceTruth?.display?.title)
+        assertEquals("pending", response.invoiceTruth?.display?.tone)
+        assertEquals("ISSUER_CONFIRMED", response.invoiceTruth?.verifiedItems?.firstOrNull()?.code)
+        assertEquals(
+            "PAYMENT_BENEFICIARY_UNCONFIRMED",
+            response.invoiceTruth?.unconfirmedItems?.firstOrNull()?.code
+        )
+        assertEquals("VISIBLE_VS_QR_PAYMENT_HIJACK", response.invoiceTruth?.hardConflicts?.firstOrNull()?.code)
+        assertEquals("VERIFY_BENEFICIARY_IN_BANK", response.invoiceTruth?.nextAction?.type)
+    }
 }

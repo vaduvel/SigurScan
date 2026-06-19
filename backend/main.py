@@ -10264,6 +10264,7 @@ async def _run_orchestrated_invoice_fast_lane(job: Dict[str, Any], request: Requ
     canonical = json.dumps(bundle, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     bundle["evidence_hash"] = "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
+    invoice_truth = None
     try:
         from services.invoice_orchestrator import evaluate_invoice_verdict
 
@@ -10274,6 +10275,7 @@ async def _run_orchestrated_invoice_fast_lane(job: Dict[str, Any], request: Requ
         )
         bundle = invoice_gate["bundle"]
         gate_result = invoice_gate["gate"]
+        invoice_truth = invoice_gate.get("invoice_truth")
         semantic_section = bundle.get("semantic_review") or semantic_section
     except Exception:
         gate_result = reduce_verdict(bundle)
@@ -10286,6 +10288,21 @@ async def _run_orchestrated_invoice_fast_lane(job: Dict[str, Any], request: Requ
             "confidence": 95,
             "is_final": True,
         }
+        if isinstance(invoice_truth, dict):
+            invoice_truth = {
+                **invoice_truth,
+                "verdict": "NU_PLATI",
+                "decision_status": "DO_NOT_PAY",
+                "safe_to_pay": False,
+                "primary_reason_code": "provider_malicious",
+                "display": {
+                    "title": "Nu plăti",
+                    "message": "Un provider de securitate a raportat risc ridicat. Nu continua plata.",
+                    "tone": "danger",
+                },
+                "hard_conflicts": list(invoice_truth.get("hard_conflicts") or [])
+                + [{"code": "PROVIDER_MALICIOUS", "label": "Provider de securitate a raportat risc"}],
+            }
     invoice_client_payment_destination = _invoice_payment_destination_for_client(
         result,
         {"bundle": bundle, "gate": gate_result},
@@ -10351,6 +10368,7 @@ async def _run_orchestrated_invoice_fast_lane(job: Dict[str, Any], request: Requ
                 "fraud_flags": list(getattr(result, "fraud_flags", []) or []) if result else [],
                 "warnings": list(result.warnings) if result else [],
                 "verdict_gate": gate_result,
+                "invoice_truth": invoice_truth,
             },
         },
     }
@@ -10374,18 +10392,31 @@ async def _run_orchestrated_invoice_fast_lane(job: Dict[str, Any], request: Requ
     evidence["semantic_review"] = semantic_section
 
     label = str(gate_result.get("label") or "UNVERIFIED").upper()
-    reasons = {
-        "SAFE": ["Datele facturii sunt coerente și corespund unui emitent cunoscut."],
-        "SUSPECT": ["Nu avem dovezi suficiente pentru a confirma factura ca sigură; verifică pe canalul oficial."],
-        "DANGEROUS": ["Dovezile indică risc ridicat: nu efectua plata și nu furniza date."],
-        "UNVERIFIED": ["Scanarea nu a găsit semnale de risc dar nici proveniență pozitivă."],
-    }.get(label, ["Verifică pe canalul oficial înainte de plată."])
-    safe_actions = {
-        "SAFE": ["Poți efectua plata dacă recunoști emitentul și suma."],
-        "SUSPECT": ["Verifică factura în aplicația/site-ul emitentului, nu din linkul din document."],
-        "DANGEROUS": ["Nu plăti.", "Nu introduce date personale sau bancare.", "Raportează incidentul."],
-        "UNVERIFIED": ["Fără proveniență confirmată; acționează cu prudență."],
-    }.get(label, ["Așteaptă finalizarea scanării."])
+    if isinstance(invoice_truth, dict):
+        display = invoice_truth.get("display") if isinstance(invoice_truth.get("display"), dict) else {}
+        next_action = invoice_truth.get("next_action") if isinstance(invoice_truth.get("next_action"), dict) else {}
+        hard_conflicts = [
+            str(item.get("label") or item.get("code") or "").strip()
+            for item in (invoice_truth.get("hard_conflicts") or [])
+            if isinstance(item, dict) and str(item.get("label") or item.get("code") or "").strip()
+        ]
+        reasons = [str(display.get("message") or "Verifică factura înainte de plată.")]
+        if hard_conflicts:
+            reasons.extend(hard_conflicts[:3])
+        safe_actions = [str(next_action.get("title") or "Verifică pe canalul oficial înainte de plată.")]
+    else:
+        reasons = {
+            "SAFE": ["Datele facturii sunt coerente și corespund unui emitent cunoscut."],
+            "SUSPECT": ["Nu avem dovezi suficiente pentru a confirma factura ca sigură; verifică pe canalul oficial."],
+            "DANGEROUS": ["Dovezile indică risc ridicat: nu efectua plata și nu furniza date."],
+            "UNVERIFIED": ["Scanarea nu a găsit semnale de risc dar nici proveniență pozitivă."],
+        }.get(label, ["Verifică pe canalul oficial înainte de plată."])
+        safe_actions = {
+            "SAFE": ["Poți efectua plata dacă recunoști emitentul și suma."],
+            "SUSPECT": ["Verifică factura în aplicația/site-ul emitentului, nu din linkul din document."],
+            "DANGEROUS": ["Nu plăti.", "Nu introduce date personale sau bancare.", "Raportează incidentul."],
+            "UNVERIFIED": ["Fără proveniență confirmată; acționează cu prudență."],
+        }.get(label, ["Așteaptă finalizarea scanării."])
 
     analysis["risk_level"] = gate_result.get("risk_level")
     analysis["risk_score"] = gate_result.get("risk_score")
@@ -11930,6 +11961,7 @@ async def scan_invoice_endpoint(
         "fraud_flags": result.fraud_flags,
         "evidence_bundle": invoice_gate["bundle"],
         "verdict_gate": invoice_gate["gate"],
+        "invoice_truth": invoice_gate.get("invoice_truth"),
         "warnings": result.warnings,
         "error": result.error,
         "ocr_warning": ocr_warning,

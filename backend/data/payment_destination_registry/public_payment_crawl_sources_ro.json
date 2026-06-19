@@ -1,0 +1,85 @@
+{
+  "version": "public-payment-crawl-sources-ro-2026.06.19",
+  "output_version": "pdr-public-crawl-ro-2026.06.19",
+  "policy": {
+    "purpose": "Crawler seed list for public/official Romanian payment destination pages.",
+    "default_behavior": "Extracted IBANs are review candidates. They do not contribute to SAFE unless a source is explicitly marked allow_safe_contribution=true after human review.",
+    "backend_only": true
+  },
+  "sources": [
+    {
+      "url": "https://www.ppcenergy.ro/servicii-digitale/modalitati-de-plata-factura/",
+      "publisher": "PPC Energy / PPC Energie",
+      "brand_id": "ppc_energy",
+      "display_name": "PPC Energy / PPC Energie",
+      "source_kind": "official_webpage",
+      "trust_tier": "T1_PUBLIC_OFFICIAL",
+      "scope": "energy_bill_payment",
+      "confidence": "high"
+    },
+    {
+      "url": "https://www.eon.ro/modalitati-de-plata-factura",
+      "publisher": "E.ON România",
+      "brand_id": "eon_energie_romania",
+      "display_name": "E.ON Energie România",
+      "source_kind": "official_webpage",
+      "trust_tier": "T1_PUBLIC_OFFICIAL",
+      "scope": "energy_bill_payment",
+      "confidence": "high"
+    },
+    {
+      "url": "https://www.apavital.ro/modalitati-de-plata",
+      "publisher": "APAVITAL Iași",
+      "brand_id": "apavital_iasi",
+      "display_name": "APAVITAL Iași",
+      "source_kind": "official_webpage",
+      "trust_tier": "T1_PUBLIC_OFFICIAL",
+      "scope": "water_bill_payment",
+      "confidence": "high"
+    },
+    {
+      "url": "https://www.apabrasov.ro/",
+      "publisher": "Compania Apa Brașov",
+      "brand_id": "compania_apa_brasov",
+      "display_name": "Compania Apa Brașov",
+      "cui": "1096128",
+      "source_kind": "official_webpage",
+      "trust_tier": "T1_PUBLIC_OFFICIAL",
+      "scope": "water_bill_payment",
+      "confidence": "high"
+    },
+    {
+      "url": "https://www.electricafurnizare.ro/modalitati-de-plata-factura-electrica-furnizare/",
+      "publisher": "Electrica Furnizare",
+      "brand_id": "electrica_furnizare",
+      "display_name": "Electrica Furnizare",
+      "source_kind": "official_webpage",
+      "trust_tier": "T1_PUBLIC_OFFICIAL",
+      "scope": "energy_bill_payment",
+      "confidence": "high"
+    },
+    {
+      "url": "https://www.apanovabucuresti.ro/",
+      "publisher": "Apa Nova București",
+      "brand_id": "apa_nova_bucuresti",
+      "display_name": "Apa Nova București",
+      "source_kind": "official_webpage",
+      "trust_tier": "T1_PUBLIC_OFFICIAL",
+      "scope": "water_bill_payment",
+      "confidence": "high"
+    },
+    {
+      "url": "https://data.gov.ro/api/3/action/package_show?id=achizitii-publice-2025",
+      "publisher": "data.gov.ro",
+      "brand_id": "data_gov_ro_procurement",
+      "display_name": "data.gov.ro achiziții publice",
+      "source_kind": "public_dataset_catalog",
+      "resource_source_kind": "public_dataset_resource",
+      "trust_tier": "T4_STRUCTURALLY_VALID_UNKNOWN",
+      "scope": "public_contract_payment_context",
+      "confidence": "medium",
+      "discover_resources": true,
+      "max_resource_urls": 5
+    }
+  ]
+}

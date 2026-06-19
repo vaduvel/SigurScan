@@ -5488,9 +5488,14 @@ fun InvoiceResultCard(result: InvoiceScanResponse, onBack: () -> Unit) {
     val gateLabel = result.verdictGate?.label?.uppercase(Locale.getDefault())
     val fraudFlags = result.fraudFlags.orEmpty()
     val reasonCodes = result.verdictGate?.reasonCodes.orEmpty()
+    val invoiceTruth = result.invoiceTruth
+    val truthVerdict = invoiceTruth?.verdict?.uppercase(Locale.getDefault())
 
     val tone = when {
         isError -> DSChipTone.Danger
+        truthVerdict == "NU_PLATI" -> DSChipTone.Danger
+        truthVerdict == "DATE_CONFIRMATE" -> DSChipTone.Safe
+        truthVerdict == "VERIFY_BEFORE_PAYING" -> DSChipTone.Pending
         gateLabel == "DANGEROUS" -> DSChipTone.Danger
         gateLabel == "SUSPECT" -> DSChipTone.Suspect
         gateLabel == "UNVERIFIED" -> DSChipTone.Pending
@@ -5503,6 +5508,10 @@ fun InvoiceResultCard(result: InvoiceScanResponse, onBack: () -> Unit) {
     }
     val verdictText = when {
         isError -> "Eroare"
+        !invoiceTruth?.display?.title.isNullOrBlank() -> invoiceTruth?.display?.title ?: "Verifică"
+        truthVerdict == "NU_PLATI" -> "Nu plăti"
+        truthVerdict == "DATE_CONFIRMATE" -> "Date confirmate"
+        truthVerdict == "VERIFY_BEFORE_PAYING" -> "Verifică înainte"
         gateLabel == "DANGEROUS" -> "Periculos"
         gateLabel == "SUSPECT" -> "Suspect"
         gateLabel == "UNVERIFIED" -> "Neverificat"
@@ -5532,6 +5541,46 @@ fun InvoiceResultCard(result: InvoiceScanResponse, onBack: () -> Unit) {
             result.error?.let { err ->
                 Text(err, color = SigurColors.Dangerous, fontSize = 14.sp)
                 Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            invoiceTruth?.display?.message?.takeIf { it.isNotBlank() }?.let { message ->
+                Text(message, color = SigurColors.TextPrimary, fontSize = 14.sp, lineHeight = 20.sp)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            invoiceTruth?.hardConflicts?.takeIf { it.isNotEmpty() }?.let { items ->
+                Text("Problemă găsită", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = SigurColors.Dangerous)
+                items.take(4).forEach { item ->
+                    item.label?.takeIf { it.isNotBlank() }?.let { label ->
+                        Text("• $label", fontSize = 12.sp, color = SigurColors.TextSecondary, modifier = Modifier.padding(start = 8.dp, top = 3.dp))
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            invoiceTruth?.verifiedItems?.takeIf { it.isNotEmpty() }?.let { items ->
+                Text("Am verificat", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = SigurColors.Safe)
+                items.take(4).forEach { item ->
+                    item.label?.takeIf { it.isNotBlank() }?.let { label ->
+                        Text("• $label", fontSize = 12.sp, color = SigurColors.TextSecondary, modifier = Modifier.padding(start = 8.dp, top = 3.dp))
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            invoiceTruth?.unconfirmedItems?.takeIf { it.isNotEmpty() }?.let { items ->
+                Text("Mai verifică", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = SigurColors.Pending)
+                items.take(4).forEach { item ->
+                    item.label?.takeIf { it.isNotBlank() }?.let { label ->
+                        Text("• $label", fontSize = 12.sp, color = SigurColors.TextSecondary, modifier = Modifier.padding(start = 8.dp, top = 3.dp))
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            invoiceTruth?.nextAction?.title?.takeIf { it.isNotBlank() }?.let { action ->
+                InvoiceFieldRow("Următorul pas", action, tone)
+                Spacer(modifier = Modifier.height(8.dp))
             }
 
             result.fields?.let { f ->

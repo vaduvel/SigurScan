@@ -1330,8 +1330,12 @@ def evaluate_invoice_verdict(
     redacted_text: str = "",
     source_channel: Optional[str] = None,
 ) -> dict:
-    """Factură -> bundle v2 -> reduce_verdict (gate unic). {bundle, gate}."""
+    """Factură -> bundle v2 + InvoiceTruth v4 -> gate compatibil."""
     from services.verdict_gate import verdict as reduce_verdict
+    from services.invoice_truth_v4 import evaluate_invoice_truth_v4, gate_from_invoice_truth
 
     bundle = build_invoice_evidence_bundle(result, redacted_text, source_channel=source_channel)
-    return {"bundle": bundle, "gate": reduce_verdict(bundle)}
+    base_gate = reduce_verdict(bundle)
+    invoice_truth = evaluate_invoice_truth_v4(result, source_channel=source_channel)
+    gate = gate_from_invoice_truth(invoice_truth, base_gate)
+    return {"bundle": bundle, "gate": gate, "invoice_truth": invoice_truth}

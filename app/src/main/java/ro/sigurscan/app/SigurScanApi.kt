@@ -483,6 +483,37 @@ data class InvoiceVerdictGateResponse(
     @SerializedName("reason_codes") val reasonCodes: List<String>? = null,
 )
 
+data class InvoiceTruthDisplayResponse(
+    val title: String? = null,
+    val message: String? = null,
+    val tone: String? = null,
+)
+
+data class InvoiceTruthItemResponse(
+    val code: String? = null,
+    val label: String? = null,
+)
+
+data class InvoiceTruthNextActionResponse(
+    val type: String? = null,
+    val title: String? = null,
+    @SerializedName("requires_authorization") val requiresAuthorization: Boolean? = null,
+    val available: Boolean? = null,
+)
+
+data class InvoiceTruthResponse(
+    val schema: String? = null,
+    val verdict: String? = null,
+    @SerializedName("decision_status") val decisionStatus: String? = null,
+    @SerializedName("safe_to_pay") val safeToPay: Boolean? = null,
+    @SerializedName("primary_reason_code") val primaryReasonCode: String? = null,
+    val display: InvoiceTruthDisplayResponse? = null,
+    @SerializedName("verified_items") val verifiedItems: List<InvoiceTruthItemResponse> = emptyList(),
+    @SerializedName("unconfirmed_items") val unconfirmedItems: List<InvoiceTruthItemResponse> = emptyList(),
+    @SerializedName("hard_conflicts") val hardConflicts: List<InvoiceTruthItemResponse> = emptyList(),
+    @SerializedName("next_action") val nextAction: InvoiceTruthNextActionResponse? = null,
+)
+
 data class SanbCheckResponse(
     @SerializedName("payee_bank_participant") val payeeBankParticipant: Boolean = false,
     @SerializedName("participant_name") val participantName: String? = null,
@@ -536,6 +567,7 @@ data class InvoiceScanResponse(
     val anaf: Map<String, Any>? = null,
     @SerializedName("fraud_flags") val fraudFlags: List<String>? = null,
     @SerializedName("verdict_gate") val verdictGate: InvoiceVerdictGateResponse? = null,
+    @SerializedName("invoice_truth") val invoiceTruth: InvoiceTruthResponse? = null,
     val warnings: List<String>? = null,
     val error: String? = null,
     @SerializedName("ocr_warning") val ocrWarning: String? = null,

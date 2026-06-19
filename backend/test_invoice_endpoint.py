@@ -152,8 +152,14 @@ def test_scan_invoice_pdf_merges_embedded_text_when_ocr_misses_cui(monkeypatch):
     assert payload["evidence_bundle"]["identity"]["status"] == "coherent"
     assert payload["payment_destination"]["matched"] is False
     assert payload["beneficiary_name_check"]["recommended"] is True
-    assert payload["verdict_gate"]["label"] == "SAFE"
-    assert payload["verdict_gate"]["reason_codes"] == ["positive_provenance_clean"]
+    assert payload["verdict_gate"]["label"] != "DANGEROUS"
+    assert payload["invoice_truth"]["verdict"] == "VERIFY_BEFORE_PAYING"
+    assert payload["invoice_truth"]["safe_to_pay"] is False
+    assert payload["invoice_truth"]["display"]["title"] == "Verifică înainte să plătești"
+    assert any(
+        item["code"] == "PAYMENT_BENEFICIARY_UNCONFIRMED"
+        for item in payload["invoice_truth"]["unconfirmed_items"]
+    )
 
 
 def test_scan_invoice_pdf_qr_payload_participates_in_payment_destination_verdict(monkeypatch):
@@ -255,7 +261,13 @@ def test_scan_invoice_manual_xml_match_does_not_confirm_payment_destination_t2(m
     assert evidence_document["status"] == "clean"
     assert evidence_document["source_kind"] == "user_uploaded_efactura_xml"
     assert evidence_document["verification_scope"] == "consistency_check"
-    assert payload["verdict_gate"]["label"] == "SAFE"
+    assert payload["verdict_gate"]["label"] != "DANGEROUS"
+    assert payload["invoice_truth"]["verdict"] == "VERIFY_BEFORE_PAYING"
+    assert payload["invoice_truth"]["safe_to_pay"] is False
+    assert any(
+        item["code"] == "PAYMENT_BENEFICIARY_UNCONFIRMED"
+        for item in payload["invoice_truth"]["unconfirmed_items"]
+    )
 
 
 def test_scan_invoice_flags_official_xml_mismatch(monkeypatch):
