@@ -29,8 +29,10 @@ HARD_CONFLICT_FLAGS = {
     "PO_OR_OVERPAYMENT_RETURN_REQUEST": "HIGH_RISK_B2B_PAYMENT_PATTERN",
     "PAYROLL_OR_EMPLOYEE_DATA_REQUEST_VIA_INVOICE_THREAD": "HIGH_RISK_B2B_PAYMENT_PATTERN",
     "SAAS_LICENSE_AUDIT_URGENT_PAYMENT": "HIGH_RISK_B2B_PAYMENT_PATTERN",
+    "BEC_REPLY_TO_ACCOUNT_CHANGE": "BEC_ACCOUNT_CHANGE_COMBO",
     "BEC_EXCLUSIVE_NEW_IBAN_WITH_OLD_DETAILS_SUPPRESSION": "BEC_ACCOUNT_CHANGE_COMBO",
     "BEC_INVOICE_THREAD_IBAN_CHANGE": "BEC_ACCOUNT_CHANGE_COMBO",
+    "UNDISCLOSED_INTERMEDIARY_BENEFICIARY": "UNDISCLOSED_PAYMENT_INTERMEDIARY",
     "TAX_AUTHORITY_PAYMENT_REQUEST_UNOFFICIAL_CHANNEL": "CLAIMED_PUBLIC_AUTHORITY_PAYMENT_CONTRADICTION",
     "TAX_AUTHORITY_SENSITIVE_DATA_REQUEST": "SENSITIVE_CAPTURE_ON_WRONG_CHANNEL",
     "COURIER_OTP_OR_WHATSAPP_CODE_REQUEST": "SENSITIVE_CAPTURE_ON_WRONG_CHANNEL",
@@ -39,6 +41,11 @@ HARD_CONFLICT_FLAGS = {
     "URGENT_PAYMENT_OVERRIDE_NO_TICKET": "HIGH_RISK_B2B_PAYMENT_PATTERN",
     "PAYMENT_DIVERSION_HOLD_INSTRUCTIONS": "HIGH_RISK_B2B_PAYMENT_PATTERN",
     "IP_OFFICE_PAYMENT_REQUEST_UNOFFICIAL_CHANNEL": "HIGH_RISK_B2B_PAYMENT_PATTERN",
+}
+
+_SOFT_SEMANTIC_DANGEROUS_REASONS = {
+    "semantic_high_risk_match",
+    "semantic_high_value_request",
 }
 
 
@@ -213,7 +220,12 @@ def gate_from_invoice_truth(truth: Dict[str, Any], fallback_gate: Optional[Dict[
     fallback_gate = dict(fallback_gate or {})
     verdict = str(truth.get("verdict") or "")
     fallback_label = str(fallback_gate.get("label") or "").upper()
-    if fallback_label == "DANGEROUS" and verdict != "DATE_CONFIRMATE" and not _truth_is_inactive_only(truth):
+    if (
+        fallback_label == "DANGEROUS"
+        and verdict != "DATE_CONFIRMATE"
+        and not _truth_is_inactive_only(truth)
+        and _generic_dangerous_can_override_invoice(fallback_gate)
+    ):
         return {**fallback_gate, "is_final": True}
     if verdict == "NU_PLATI":
         return {
@@ -297,8 +309,16 @@ def _hard_conflict_label(code: str) -> str:
         "CLAIMED_PUBLIC_AUTHORITY_PAYMENT_CONTRADICTION": "Pretext e-Factura/SPV cu plată neconfirmată",
         "HIGH_RISK_B2B_PAYMENT_PATTERN": "Tipar B2B cunoscut de fraudă la plată",
         "BEC_ACCOUNT_CHANGE_COMBO": "Schimbare de cont cu semnale de deturnare plată",
+        "UNDISCLOSED_PAYMENT_INTERMEDIARY": "Beneficiar intermediar neconfirmat pentru plata facturii",
     }
     return labels.get(code, code.replace("_", " ").lower())
+
+
+def _generic_dangerous_can_override_invoice(fallback_gate: Dict[str, Any]) -> bool:
+    reasons = [str(code or "") for code in (fallback_gate.get("reason_codes") or []) if str(code or "")]
+    if not reasons:
+        return True
+    return not all(reason in _SOFT_SEMANTIC_DANGEROUS_REASONS for reason in reasons)
 
 
 def _truth_is_inactive_only(truth: Dict[str, Any]) -> bool:
