@@ -1345,13 +1345,21 @@ def evaluate_invoice_verdict(
     result: "InvoiceScanResult",
     redacted_text: str = "",
     source_channel: Optional[str] = None,
+    sanb_attestation: Optional[str] = None,
 ) -> dict:
-    """Factură -> bundle v2 + InvoiceTruth v4 -> gate compatibil."""
+    """Factură -> bundle v2 + InvoiceTruth v4 -> gate compatibil.
+
+    sanb_attestation is the user's guided bank-app (SANB / Verification-of-Payee)
+    answer for the payment destination: "match" | "close_match" | "no_match" |
+    "not_shown". Provided on re-evaluation after the user performs the check.
+    """
     from services.verdict_gate import verdict as reduce_verdict
     from services.invoice_truth_v4 import evaluate_invoice_truth_v4, gate_from_invoice_truth
 
     bundle = build_invoice_evidence_bundle(result, redacted_text, source_channel=source_channel)
     base_gate = reduce_verdict(bundle)
-    invoice_truth = evaluate_invoice_truth_v4(result, source_channel=source_channel)
+    invoice_truth = evaluate_invoice_truth_v4(
+        result, source_channel=source_channel, sanb_attestation=sanb_attestation
+    )
     gate = gate_from_invoice_truth(invoice_truth, base_gate)
     return {"bundle": bundle, "gate": gate, "invoice_truth": invoice_truth}

@@ -73,6 +73,7 @@ def evaluate_invoice_truth_v4(
     result: Any,
     *,
     source_channel: Optional[str] = None,
+    sanb_attestation: Optional[str] = None,
 ) -> Dict[str, Any]:
     fields = getattr(result, "fields", None)
     anaf = getattr(result, "anaf_cui_check", None) or {}
@@ -83,6 +84,9 @@ def evaluate_invoice_truth_v4(
     official_document_check = getattr(result, "official_document_check", None) or {}
     beneficiary_name_check = getattr(result, "beneficiary_name_check", None)
     fraud_flags = list(getattr(result, "fraud_flags", []) or [])
+    # The user's SANB / Verification-of-Payee answer, if they performed the guided
+    # bank-app check. May be passed explicitly or carried on the scan result.
+    sanb_attestation = sanb_attestation or getattr(result, "sanb_attestation", None)
 
     verified_items: list[dict] = []
     unconfirmed_items: list[dict] = []
@@ -109,7 +113,7 @@ def evaluate_invoice_truth_v4(
     elif coherence is not None:
         unconfirmed_items.append(_item("DOCUMENT_NOT_FULLY_COHERENT", "Datele facturii nu sunt complet coerente"))
 
-    destination_state = _payment_destination_state(payment_destination, official_document_check)
+    destination_state = _payment_destination_state(payment_destination, official_document_check, sanb_attestation)
     if destination_state in {"OFFICIAL_REGISTRY_MATCH", "OFFICIAL_DOCUMENT_MATCH", "LOCAL_APPROVED_MATCH", "BANK_MATCH"}:
         verified_items.append(_item("PAYMENT_DESTINATION_CONFIRMED", "Contul de plată este confirmat"))
     elif destination_state == "REPORTED_NEGATIVE":
@@ -385,9 +389,23 @@ def _issuer_state(anaf: Dict[str, Any]) -> str:
     return "CONFIRMED"
 
 
-def _payment_destination_state(payment_destination: Dict[str, Any], official_document_check: Dict[str, Any]) -> str:
+def _payment_destination_state(
+    payment_destination: Dict[str, Any],
+    official_document_check: Dict[str, Any],
+    sanb_attestation: Optional[str] = None,
+) -> str:
     if official_document_check and official_document_check.get("status") == "mismatch":
         return "MISMATCH"
+    # User-assist SANB / Verification-of-Payee result (free VoP substitute): the
+    # user checked the beneficiary name in their own bank app and reported back.
+    # A hard official contradiction above still wins; below, the user's answer
+    # decides. "match" -> BANK_MATCH reaches SAFE only through the Safe Eligibility
+    # Gate (issuer + obligation must also be confirmed) -> anti-poisoning.
+    attestation = str(sanb_attestation or "").strip().lower()
+    if attestation == "no_match":
+        return "MISMATCH"
+    if attestation in {"match", "close_match"}:
+        return "BANK_MATCH"
     if official_document_check and official_document_check.get("can_confirm_payment_destination") is True:
         if official_document_check.get("status") == "match" and not official_document_check.get("risk_flag"):
             return "OFFICIAL_DOCUMENT_MATCH"
