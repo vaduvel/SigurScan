@@ -305,3 +305,58 @@ def test_provider_gate_uses_cross_scan_official_payment_destination_for_text_sca
     assert bundle["providers"]["payment_destination"]["trust_tier"] == "T1_PUBLIC_OFFICIAL"
     assert result["evidence"]["provider_gate"]["label"] == "SAFE"
     assert result["evidence"]["provider_gate"]["reason"] == "positive_provenance_clean"
+
+
+def test_provider_gate_preserves_pre_redaction_payment_destination():
+    raw_text = (
+        "OSIM: plata taxa marca se poate face catre contul oficial "
+        "RO38RNCB0080005630320005 mentionat pe site-ul osim.ro."
+    )
+    cross = evaluate_cross_scan_knowledge(
+        text=raw_text,
+        claimed_brand="OSIM",
+        source_channel="sms",
+    )
+    redacted_text = "OSIM: plata taxa marca se poate face catre contul oficial [IBAN] mentionat pe site-ul osim.ro."
+    analysis = {
+        "risk_level": "high",
+        "risk_score": 90,
+        "detected_family_id": "domain_or_trademark_scare_payment",
+        "claimed_brand": "OSIM",
+        "evidence": {
+            "source_channel": "sms",
+            "cross_scan_knowledge": cross,
+            "external_intel_summary": {
+                "google_web_risk": {"status": "clean", "consulted": True},
+                "urlscan": {"status": "clean", "consulted": True},
+                "urlhaus": {"status": "clean", "consulted": True},
+                "phishing_database": {"status": "clean", "consulted": True},
+                "infra_dns": {"status": "clean", "consulted": True},
+                "infra_domain_age": {"status": "clean", "consulted": True},
+            },
+            "semantic_review": {
+                "status": "done",
+                "risk_class": "high",
+                "confidence": 0.9,
+                "claim_matches_known_scam_family": True,
+                "matched_family": "domain_or_trademark_scare_payment",
+                "reason_codes": ["semantic:domain_or_trademark_scare_payment"],
+                "completeness": True,
+            },
+        },
+    }
+    resolved = [
+        {
+            "url": "https://osim.ro/",
+            "final_url": "https://osim.ro/",
+            "final_hostname": "osim.ro",
+            "final_registered_domain": "osim.ro",
+        }
+    ]
+
+    result = app_main._apply_provider_gate_verdict(analysis, resolved, raw_text=redacted_text)
+    bundle = result["evidence"]["decision_bundle"]
+
+    assert bundle["providers"]["payment_destination"]["matched"] is True
+    assert bundle["providers"]["payment_destination"]["trust_tier"] == "T1_PUBLIC_OFFICIAL"
+    assert result["evidence"]["provider_gate"]["label"] == "SAFE"

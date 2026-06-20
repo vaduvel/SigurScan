@@ -5989,16 +5989,29 @@ def _apply_provider_gate_verdict(
     evidence["external_intel_summary"] = summary
 
     source_channel = evidence.get("source_channel") if isinstance(evidence, dict) else None
+    existing_cross_scan = evidence.get("cross_scan_knowledge") if isinstance(evidence.get("cross_scan_knowledge"), dict) else {}
     try:
         from services.cross_scan_knowledge import evaluate_cross_scan_knowledge
 
-        evidence["cross_scan_knowledge"] = evaluate_cross_scan_knowledge(
+        computed_cross_scan = evaluate_cross_scan_knowledge(
             text=raw_text,
             claimed_brand=None if claimed_brand == "Nespecificat" else claimed_brand,
             source_channel=source_channel,
         )
     except Exception:
-        evidence.setdefault("cross_scan_knowledge", {})
+        computed_cross_scan = {}
+    if existing_cross_scan:
+        merged_cross_scan = dict(computed_cross_scan or {})
+        merged_cross_scan.update(existing_cross_scan)
+        computed_flags = list((computed_cross_scan or {}).get("fraud_flags") or [])
+        for flag in existing_cross_scan.get("fraud_flags") or []:
+            if flag not in computed_flags:
+                computed_flags.append(flag)
+        if computed_flags:
+            merged_cross_scan["fraud_flags"] = computed_flags
+        evidence["cross_scan_knowledge"] = merged_cross_scan
+    else:
+        evidence["cross_scan_knowledge"] = computed_cross_scan or {}
     has_urls = bool(resolved_urls)
     offer = evidence.get("offer_claim_verification")
     offer_status = str(offer.get("status", "")).lower() if isinstance(offer, dict) else ""
@@ -9847,6 +9860,11 @@ async def _finalize_orchestrated_job_if_ready(job: Dict[str, Any], request: Requ
         and _existing_bundle["input"].get("type") in {"offer", "invoice"}
     )
     if not _is_specialized_bundle:
+        job_cross_scan = job.get("cross_scan_knowledge") if isinstance(job.get("cross_scan_knowledge"), dict) else {}
+        if job_cross_scan:
+            evidence_for_gate = analysis.setdefault("evidence", {})
+            if isinstance(evidence_for_gate, dict) and not isinstance(evidence_for_gate.get("cross_scan_knowledge"), dict):
+                evidence_for_gate["cross_scan_knowledge"] = job_cross_scan
         _apply_provider_gate_verdict(
             analysis,
             resolved_urls,
