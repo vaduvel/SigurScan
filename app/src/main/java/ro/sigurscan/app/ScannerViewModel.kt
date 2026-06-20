@@ -78,7 +78,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         val uri: Uri,
         val officialXmlUri: Uri? = null
     )
-    private data class CachedThreatIntelResult(
+    internal data class CachedThreatIntelResult(
         val result: ThreatIntelSourceResult,
         val expiresAtMillis: Long
     )
@@ -97,13 +97,13 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         val familyAlerts: List<FamilyAlert> = emptyList()
     )
 
-    private companion object {
-        private const val MAX_UPLOAD_BYTES = 25L * 1024L * 1024L
-        private const val MAX_INVOICE_IMAGE_EDGE_PX = 1800
-        private const val INVOICE_IMAGE_JPEG_QUALITY = 88
-        private const val TMP_UPLOAD_PREFIX = "temp_upload_"
-        private const val WEB_RISK_NO_THREAT_CACHE_MS = 10L * 60L * 1000L
-        private const val WEB_RISK_THREAT_FALLBACK_CACHE_MS = 5L * 60L * 1000L
+    internal companion object {
+        internal const val MAX_UPLOAD_BYTES = 25L * 1024L * 1024L
+        internal const val MAX_INVOICE_IMAGE_EDGE_PX = 1800
+        internal const val INVOICE_IMAGE_JPEG_QUALITY = 88
+        internal const val TMP_UPLOAD_PREFIX = "temp_upload_"
+        internal const val WEB_RISK_NO_THREAT_CACHE_MS = 10L * 60L * 1000L
+        internal const val WEB_RISK_THREAT_FALLBACK_CACHE_MS = 5L * 60L * 1000L
         private const val RESULT_CACHE_PREF_KEY = "scan_result_cache_v3"
         private const val MAX_RESULT_CACHE_ITEMS = 50
         private const val URLSCAN_PERSONA_COUNTRY = "ro"
@@ -218,9 +218,9 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     private val recognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
     private val barcodeScanner by lazy { BarcodeScanning.getClient() }
     private val URLSCAN_API_KEY = BuildConfig.URLSCAN_API_KEY
-    private val GOOGLE_WEB_RISK_API_KEY = BuildConfig.GOOGLE_WEB_RISK_API_KEY
+    internal val GOOGLE_WEB_RISK_API_KEY = BuildConfig.GOOGLE_WEB_RISK_API_KEY
     private val pendingScreenshotRefreshes = mutableSetOf<String>()
-    private val threatIntelClient = OkHttpClient.Builder()
+    internal val threatIntelClient = OkHttpClient.Builder()
         .callTimeout(12, TimeUnit.SECONDS)
         .readTimeout(12, TimeUnit.SECONDS)
         .connectTimeout(12, TimeUnit.SECONDS)
@@ -228,7 +228,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             level = HttpLoggingInterceptor.Level.NONE
         })
         .build()
-    private val webRiskCache = Collections.synchronizedMap(mutableMapOf<String, CachedThreatIntelResult>())
+    internal val webRiskCache = Collections.synchronizedMap(mutableMapOf<String, CachedThreatIntelResult>())
     private val evidenceGate = EvidenceGate()
     private var stagedEvidenceHtml: String? = null
     private var stagedEvidenceLinks: List<String> = emptyList()
@@ -563,7 +563,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
-    private fun reevaluateGateWithThreatIntel(
+    internal fun reevaluateGateWithThreatIntel(
         current: OfflineAssessment,
         threatIntel: List<ThreatIntelSourceResult>,
         finalUrl: String? = current.finalUrl,
@@ -2979,7 +2979,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         return name
     }
 
-    private fun normalizeCandidateUrl(raw: String?): String? {
+    internal fun normalizeCandidateUrl(raw: String?): String? {
         if (raw == null) return null
 
         var candidate = raw
@@ -3012,518 +3012,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         return MailShareInputAssembler.sanitizeSharedText(content)
     }
 
-    private fun mapButtons(rawButtons: List<Map<String, Any>>?): List<String> {
-        if (rawButtons == null || rawButtons.isEmpty()) return emptyList()
-
-        return rawButtons.mapNotNull { button ->
-            val label = (button["text"] ?: button["label"] ?: "").toString().trim()
-            val url = (button["url"] ?: button["href"] ?: button["action"] ?: "").toString().trim()
-            if (url.isBlank()) return@mapNotNull null
-            val prettyLabel = if (label.isBlank()) "Buton" else label
-            "$prettyLabel → $url"
-        }.filter { it.isNotBlank() }.distinct()
-    }
-
-    private fun mapEmailAuth(rawEmailAuth: Map<String, Any>?): String? {
-        if (rawEmailAuth == null) return null
-        fun pick(vararg keys: String): String? {
-            val value = keys.firstNotNullOfOrNull { key -> rawEmailAuth[key]?.toString() }?.trim()
-            return value?.takeIf { it.isNotBlank() }
-        }
-
-        val dkim = pick("dkim", "dkim_result", "dkim_check")
-        val spf = pick("spf", "spf_result", "spf_check")
-        val dmarc = pick("dmarc", "dmarc_result", "dmarc_status")
-        val details = listOfNotNull(
-            dkim?.let { "DKIM: $it" },
-            spf?.let { "SPF: $it" },
-            dmarc?.let { "DMARC: $it" }
-        )
-        return if (details.isNotEmpty()) details.joinToString(" | ") else null
-    }
-
-    private fun mapList(value: Any?): List<Map<*, *>> {
-        return (value as? List<*>)?.filterIsInstance<Map<*, *>>() ?: emptyList()
-    }
-
-    private fun buildThreatIntel(evidence: Map<String, Any>?, response: ScanResponse): List<ThreatIntelSourceResult> {
-        val results = mutableListOf(
-            ThreatIntelSourceResult(
-                source = "SigurScan Backend",
-                verdict = response.riskLevel.uppercase(Locale.getDefault()),
-                severity = response.riskLevel,
-                details = "Analiza principală a fost primită."
-            )
-        )
-
-        val summary = evidence?.get("external_intel_summary") as? Map<*, *>
-        summary?.forEach { (rawSource, rawPayload) ->
-            val source = rawSource?.toString()?.takeIf { it.isNotBlank() } ?: return@forEach
-            val payload = rawPayload as? Map<*, *>
-            val verdict = firstString(payload, "verdict", "status", "result", "threat", "category")
-                ?: rawPayload?.toString()?.take(80)
-                ?: "raport primit"
-            val severity = firstString(payload, "severity", "risk_level", "level") ?: inferSeverity(verdict)
-            val details = threatIntelDetails(payload)
-            results.add(
-                ThreatIntelSourceResult(
-                    source = source.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() },
-                    verdict = verdict,
-                    severity = severity,
-                    details = details
-                )
-            )
-        }
-
-        val claimPayload = firstMap(
-            evidence,
-            "offer_claim_verification",
-            "claim_verification",
-            "offer_claim",
-            "claim_verifier"
-        )
-        if (claimPayload != null && results.none { providerSourceKeyForScan(it.source).contains("offerclaim") || providerSourceKeyForScan(it.source).contains("aiofferwebcheck") }) {
-            val verdict = firstString(
-                claimPayload,
-                "verdict",
-                "status",
-                "result",
-                "claim_status",
-                "official_source_found"
-            ) ?: "inconclusive"
-            val details = threatIntelDetails(claimPayload)
-            results.add(
-                ThreatIntelSourceResult(
-                    source = "ai_offer_web_check",
-                    verdict = verdict,
-                    severity = inferSeverity(verdict),
-                    details = details
-                )
-            )
-        }
-
-        if (
-            !response.offerAnalysis.isNullOrBlank() &&
-            results.none { providerSourceKeyForScan(it.source).contains("offerclaim") || providerSourceKeyForScan(it.source).contains("aiofferwebcheck") }
-        ) {
-            results.add(
-                ThreatIntelSourceResult(
-                    source = "ai_offer_web_check",
-                    verdict = "inconclusive",
-                    severity = "unknown",
-                    details = response.offerAnalysis.take(500)
-                )
-            )
-        }
-
-        return results.distinctBy { it.source.lowercase(Locale.getDefault()) }
-    }
-
-    private fun offerEvidenceFrom(evidence: Map<String, Any>?): OfferEvidenceSummary? {
-        val offer = firstMap(evidence, "offer") ?: return null
-        val fieldsMap = offer["fields"] as? Map<*, *> ?: emptyMap<Any, Any>()
-        val entityMap = offer["entity"] as? Map<*, *>
-        val coherenceMap = offer["coherence"] as? Map<*, *>
-        val gateMap = offer["verdict_gate"] as? Map<*, *>
-        val signals = (offer["signals"] as? List<*>)
-            ?.mapNotNull { it?.toString()?.trim()?.takeIf { value -> value.isNotBlank() } }
-            ?.distinct()
-            .orEmpty()
-        val warnings = (offer["warnings"] as? List<*>)
-            ?.mapNotNull { it?.toString()?.trim()?.takeIf { value -> value.isNotBlank() } }
-            ?.distinct()
-            .orEmpty()
-
-        return OfferEvidenceSummary(
-            fields = OfferFieldsSummary(
-                issuerName = firstString(fieldsMap, "issuer_name"),
-                issuerCui = firstString(fieldsMap, "issuer_cui"),
-                iban = firstString(fieldsMap, "iban"),
-                paymentBeneficiary = firstString(fieldsMap, "payment_beneficiary"),
-                totalAmount = firstDouble(fieldsMap, "total_amount"),
-                currency = firstString(fieldsMap, "currency"),
-                paymentMethod = firstString(fieldsMap, "payment_method"),
-                documentType = firstString(fieldsMap, "document_type"),
-                familyCode = firstString(fieldsMap, "family")
-            ),
-            signals = signals,
-            warnings = warnings,
-            entity = entityMap?.let {
-                OfferEntitySummary(
-                    cuiChecked = firstBoolean(it, "cui_checked"),
-                    cuiExists = firstBoolean(it, "cui_exists"),
-                    cuiActive = firstBoolean(it, "cui_active"),
-                    denumire = firstString(it, "denumire"),
-                    nameMatches = firstBoolean(it, "name_matches"),
-                    brandImpersonation = firstBoolean(it, "brand_impersonation")
-                )
-            },
-            coherenceOk = firstBoolean(coherenceMap, "all_ok"),
-            gateLabel = firstString(gateMap, "label")
-        )
-    }
-
-    private fun threatIntelDetails(payload: Map<*, *>?): String? {
-        if (payload == null) return null
-        val base = firstString(payload, "details", "description", "message", "summary", "source_url")
-        val officialDomains = (payload["official_domains"] as? List<*>)
-            ?.mapNotNull { it?.toString()?.takeIf { value -> value.isNotBlank() } }
-            ?.joinToString(",")
-        val officialSourceFound = payload["official_source_found"]?.toString()
-        val matchedAssets = (payload["matched_assets"] as? List<*>)
-            ?.mapNotNull { it?.toString()?.takeIf { value -> value.isNotBlank() } }
-            ?.joinToString(",")
-        val knowledgeTarget = firstString(payload, "knowledge_target")
-        val signal = firstString(payload, "signal")
-        return listOfNotNull(
-            base,
-            officialDomains?.let { "official_domains=$it" },
-            officialSourceFound?.let { "official_source_found=$it" },
-            matchedAssets?.let { "matched_assets=$it" },
-            knowledgeTarget?.let { "knowledge_target=$it" },
-            signal?.let { "signal=$it" }
-        ).joinToString("; ").takeIf { it.isNotBlank() }
-    }
-
-    private fun firstMap(map: Map<String, Any>?, vararg keys: String): Map<*, *>? {
-        if (map == null) return null
-        return keys.firstNotNullOfOrNull { key ->
-            map[key] as? Map<*, *>
-        }
-    }
-
-    private fun firstString(map: Map<*, *>?, vararg keys: String): String? {
-        if (map == null) return null
-        return keys.firstNotNullOfOrNull { key ->
-            map[key]?.toString()?.trim()?.takeIf { it.isNotBlank() && it != "null" }
-        }
-    }
-
-    private fun firstBoolean(map: Map<*, *>?, vararg keys: String): Boolean? {
-        if (map == null) return null
-        return keys.firstNotNullOfOrNull { key ->
-            when (val value = map[key]) {
-                is Boolean -> value
-                is String -> when (value.trim().lowercase(Locale.US)) {
-                    "true", "yes", "da", "1" -> true
-                    "false", "no", "nu", "0" -> false
-                    else -> null
-                }
-                is Number -> value.toInt() != 0
-                else -> null
-            }
-        }
-    }
-
-    private fun firstDouble(map: Map<*, *>?, vararg keys: String): Double? {
-        if (map == null) return null
-        return keys.firstNotNullOfOrNull { key ->
-            when (val value = map[key]) {
-                is Number -> value.toDouble()
-                is String -> value.trim().replace(",", ".").toDoubleOrNull()
-                else -> null
-            }
-        }
-    }
-
-    private fun providerSourceKeyForScan(value: String): String {
-        return value.lowercase(Locale.US).filter { it.isLetterOrDigit() }
-    }
-
-    private fun inferSeverity(value: String): String {
-        val normalized = value.lowercase(Locale.getDefault())
-        return when {
-            listOf("malicious", "phishing", "malware", "danger", "high", "critical", "unsafe").any { normalized.contains(it) } -> "high"
-            listOf("suspicious", "medium", "warning", "unknown", "unrated").any { normalized.contains(it) } -> "medium"
-            listOf("safe", "clean", "harmless", "low").any { normalized.contains(it) } -> "low"
-            else -> "unknown"
-        }
-    }
-
-    private fun upsertThreatIntel(
-        current: List<ThreatIntelSourceResult>,
-        item: ThreatIntelSourceResult
-    ): List<ThreatIntelSourceResult> {
-        return (current.filterNot { it.source.equals(item.source, ignoreCase = true) } + item)
-    }
-
-    private fun summarizeUrlscanResult(result: Map<*, *>?, attempts: Int): ThreatIntelSourceResult {
-        val page = result?.get("page") as? Map<*, *>
-        val verdicts = result?.get("verdicts") as? Map<*, *>
-        val overall = verdicts?.get("overall") as? Map<*, *>
-
-        val isMalicious = overall?.get("malicious") as? Boolean ?: false
-        val score = (overall?.get("score") as? Number)?.toInt()
-        val verdict = when {
-            isMalicious -> "Malicious"
-            score != null && score > 0 -> "Suspicious score $score"
-            else -> "No malicious verdict"
-        }
-        val severity = when {
-            isMalicious -> "high"
-            score != null && score > 0 -> "medium"
-            else -> "low"
-        }
-
-        val parts = mutableListOf("Analiză Sandbox finalizată (${attempts} verificări)")
-        page?.get("status")?.toString()?.takeIf { it.isNotBlank() }?.let { parts.add("HTTP $it") }
-        page?.get("ip")?.toString()?.takeIf { it.isNotBlank() }?.let { parts.add("IP $it") }
-        page?.get("country")?.toString()?.takeIf { it.isNotBlank() }?.let { parts.add("Țară $it") }
-        page?.get("server")?.toString()?.takeIf { it.isNotBlank() }?.let { parts.add("Server $it") }
-
-        return ThreatIntelSourceResult(
-            source = "urlscan.io",
-            verdict = verdict,
-            severity = severity,
-            details = parts.joinToString(" • ")
-        )
-    }
-
-    private fun pickPrimaryThreatIntelUrl(response: ScanResponse, rawText: String = text): String {
-        val candidates = linkedSetOf<String>()
-
-        response.extractedUrls?.forEach { item ->
-            pickUrlFromMap(item)?.let { candidates.add(it) }
-        }
-
-        response.resolvedUrls?.forEach { item ->
-            pickUrlFromMap(item)?.let { candidates.add(it) }
-        }
-
-        val evidenceMap = response.evidence
-        mapList(evidenceMap?.get("extracted_urls")).forEach { item ->
-            pickUrlFromMap(item)?.let { candidates.add(it) }
-        }
-        mapList(evidenceMap?.get("resolved_urls")).forEach { item ->
-            pickUrlFromMap(item)?.let { candidates.add(it) }
-        }
-
-        evidenceMap?.let { map ->
-            listOf("url", "final_url", "redirect_url", "source_url", "destination_url").forEach { key ->
-                val candidate = map[key]?.toString()
-                normalizeCandidateUrl(candidate)?.let { candidates.add(it) }
-            }
-            val intelSummary = map["external_intel_summary"] as? Map<*, *>
-            intelSummary?.values?.filterIsInstance<Map<*, *>>()?.forEach { sourcePayload ->
-                normalizeCandidateUrl(sourcePayload["url_example"]?.toString())?.let { candidates.add(it) }
-            }
-        }
-
-        extractUrls(rawText).forEach {
-            normalizeCandidateUrl(it)?.let { candidates.add(it) }
-                ?: if (it.startsWith("www.", ignoreCase = true)) {
-                    candidates.add(normalizeUrl(it))
-                } else {
-                    null
-                }
-        }
-
-        return PrimaryUrlPicker.pick(
-            candidates = candidates,
-            rawText = rawText
-        )
-    }
-
-    private fun pickUrlFromMap(item: Map<*, *>): String? {
-        val directCandidates = listOf(
-            item["url"],
-            item["final_url"],
-            item["source_url"],
-            item["destination_url"],
-            item["redirect_url"],
-            item["link"],
-            item["href"]
-        )
-
-        directCandidates.forEach { candidate ->
-            normalizeCandidateUrl(candidate?.toString())?.let { return it }
-        }
-
-        return null
-    }
-
-    private suspend fun enrichThreatIntelFromServices(
-        targetUrl: String,
-        existingThreatIntel: List<ThreatIntelSourceResult>,
-        riskLevel: String
-    ): List<ThreatIntelSourceResult> = coroutineScope {
-        var result = existingThreatIntel.toMutableList()
-
-        val url = normalizeCandidateUrl(targetUrl)
-            ?: normalizeUrl(targetUrl)
-
-        val webRisk = async { fetchGoogleWebRiskThreatIntel(url) }.await()
-        webRisk?.let { result = upsertThreatIntel(result, it).toMutableList() }
-
-        return@coroutineScope result.distinctBy { it.source.lowercase(Locale.getDefault()) }
-    }
-
-    private fun parseThreatIntelEngineFlags(raw: Any?): String {
-        val map = raw as? Map<*, *> ?: return ""
-        val flagged = mutableListOf<String>()
-
-        map.forEach { (rawEngine, rawResult) ->
-            val engine = rawEngine?.toString() ?: return@forEach
-            val cat = firstString(rawResult as? Map<*, *>, "category", "result", "method")
-            if (!cat.isNullOrBlank() && (cat.equals("malicious", ignoreCase = true) || cat.equals("suspicious", ignoreCase = true))) {
-                flagged.add(engine)
-            }
-        }
-
-        return flagged.take(4).joinToString(", ")
-    }
-
-    private suspend fun fetchGoogleWebRiskThreatIntel(url: String): ThreatIntelSourceResult? {
-        if (GOOGLE_WEB_RISK_API_KEY.isBlank()) return null
-
-        getCachedWebRiskResult(url)?.let { return it }
-
-        val urlWithKey = okhttp3.HttpUrl.Builder()
-            .scheme("https")
-            .host("webrisk.googleapis.com")
-            .addPathSegments("v1/uris:search")
-            .addQueryParameter("uri", url)
-            .addQueryParameter("threatTypes", "MALWARE")
-            .addQueryParameter("threatTypes", "SOCIAL_ENGINEERING")
-            .addQueryParameter("threatTypes", "UNWANTED_SOFTWARE")
-            .addQueryParameter("threatTypes", "SOCIAL_ENGINEERING_EXTENDED_COVERAGE")
-            .addQueryParameter("key", GOOGLE_WEB_RISK_API_KEY)
-            .build()
-
-        val request = Request.Builder()
-            .url(urlWithKey)
-            .get()
-            .build()
-
-        return runCatching {
-            threatIntelClient.newCall(request).execute().use { response ->
-                val responseBody = response.body?.string() ?: return@runCatching null
-                if (!response.isSuccessful) return@runCatching null
-
-                val payload = gson.fromJson(responseBody, Map::class.java) as? Map<*, *> ?: return@runCatching null
-                val threat = payload["threat"] as? Map<*, *>
-                if (threat.isNullOrEmpty()) {
-                    return@runCatching cacheWebRiskResult(
-                        url,
-                        ThreatIntelSourceResult(
-                            source = "Google Web Risk",
-                            verdict = "No Threats",
-                            severity = "low",
-                            details = "URL nou sau fără semnale de tip phishing/malware în baza Google Web Risk."
-                        ),
-                        expiresAtMillis = System.currentTimeMillis() + WEB_RISK_NO_THREAT_CACHE_MS
-                    )
-                }
-
-                val threatTypes = (threat["threatTypes"] as? List<*>)
-                    ?.mapNotNull { it?.toString() }
-                    ?.distinct()
-                    ?.sorted()
-                    ?: emptyList()
-                val expireTime = firstString(threat, "expireTime")
-
-                val result = ThreatIntelSourceResult(
-                    source = "Google Web Risk",
-                    verdict = "Threats Detected",
-                    severity = "high",
-                    details = buildString {
-                        append("Tipuri: ${threatTypes.joinToString(",")}.")
-                        if (!expireTime.isNullOrBlank()) {
-                            append(" Expiră: $expireTime.")
-                        }
-                    }
-                )
-                cacheWebRiskResult(
-                    url,
-                    result,
-                    expiresAtMillis = parseWebRiskExpireTimeMillis(expireTime)
-                        ?: (System.currentTimeMillis() + WEB_RISK_THREAT_FALLBACK_CACHE_MS)
-                )
-            }
-        }.getOrElse { null }
-    }
-
-    private fun getCachedWebRiskResult(url: String): ThreatIntelSourceResult? {
-        val cacheKey = url.lowercase(Locale.US)
-        val cached = webRiskCache[cacheKey] ?: return null
-        return if (cached.expiresAtMillis > System.currentTimeMillis()) {
-            cached.result
-        } else {
-            webRiskCache.remove(cacheKey)
-            null
-        }
-    }
-
-    private fun cacheWebRiskResult(
-        url: String,
-        result: ThreatIntelSourceResult,
-        expiresAtMillis: Long
-    ): ThreatIntelSourceResult {
-        webRiskCache[url.lowercase(Locale.US)] = CachedThreatIntelResult(
-            result = result,
-            expiresAtMillis = expiresAtMillis
-        )
-        return result
-    }
-
-    private fun parseWebRiskExpireTimeMillis(expireTime: String?): Long? {
-        if (expireTime.isNullOrBlank()) return null
-        val normalized = normalizeWebRiskTimestamp(expireTime) ?: return null
-        val formatter = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
-            timeZone = TimeZone.getTimeZone("UTC")
-        }
-        return runCatching { formatter.parse(normalized)?.time }
-            .getOrNull()
-            ?.takeIf { it > System.currentTimeMillis() }
-    }
-
-    private fun normalizeWebRiskTimestamp(raw: String): String? {
-        val trimmed = raw.trim()
-        if (!trimmed.endsWith("Z")) return null
-        val withoutZone = trimmed.dropLast(1)
-        val dotIndex = withoutZone.indexOf('.')
-        return if (dotIndex == -1) {
-            "$withoutZone.000Z"
-        } else {
-            val seconds = withoutZone.substring(0, dotIndex)
-            val fraction = withoutZone.substring(dotIndex + 1)
-                .take(3)
-                .padEnd(3, '0')
-            "$seconds.${fraction}Z"
-        }
-    }
-
-    private fun virusTotalUrlId(url: String): String {
-        val trimmed = normalizeCandidateUrl(url) ?: return ""
-        return Base64.encodeToString(trimmed.toByteArray(StandardCharsets.UTF_8), Base64.URL_SAFE or Base64.NO_WRAP)
-            .replace("=", "")
-    }
-
-    private fun asInt(raw: Any?): Int {
-        return when (raw) {
-            is Number -> raw.toInt()
-            is String -> raw.toIntOrNull() ?: 0
-            else -> 0
-        }
-    }
-
-    private suspend fun updateThreatIntelInHistory(scanId: String, threatIntel: List<ThreatIntelSourceResult>) {
-        withContext(Dispatchers.Main) {
-            val merged = threatIntel.distinctBy { it.source.lowercase(Locale.getDefault()) }
-            val current = currentAssessmentForScan(scanId)
-            if (current != null) {
-                val updated = reevaluateGateWithThreatIntel(
-                    current = current,
-                    threatIntel = merged,
-                    finalUrl = current.finalUrl,
-                    redirectChain = current.redirectChain
-                )
-                replaceAssessment(scanId, updated)
-            }
-        }
-    }
-
-    private fun currentAssessmentForScan(scanId: String): OfflineAssessment? {
+    internal fun currentAssessmentForScan(scanId: String): OfflineAssessment? {
         return assessment?.takeIf { it.scanId == scanId }
             ?: historyItems.firstOrNull { it.scanId == scanId }
     }
@@ -3536,7 +3025,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         replaceAssessment(scanId, transform(current))
     }
 
-    private fun replaceAssessment(scanId: String, updated: OfflineAssessment) {
+    internal fun replaceAssessment(scanId: String, updated: OfflineAssessment) {
         val idx = historyItems.indexOfFirst { it.scanId == scanId }
         if (idx >= 0) {
             historyItems[idx] = updated
@@ -3546,161 +3035,6 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         }
         calculateStats()
         saveHistory()
-    }
-
-    private fun extractHtmlLinks(content: String): List<String> {
-        if (content.isBlank()) return emptyList()
-        return HtmlLinkExtractor.extractHtmlLinks(content, this::decodeHtmlForParser)
-    }
-
-    private fun decodeHtmlForParser(input: String): String {
-        return Html.fromHtml(input, Html.FROM_HTML_MODE_LEGACY).toString()
-    }
-
-    private fun prepareInvoiceImageUpload(uri: Uri, context: Context): File {
-        val sourceSize = queryContentSize(uri, context)
-        val normalized = runCatching { normalizeInvoiceImageToJpeg(uri, context) }.getOrNull()
-        if (normalized != null && normalized.length() > 0L) {
-            if (normalized.length() <= MAX_UPLOAD_BYTES) {
-                return normalized
-            }
-            normalized.delete()
-            throw UploadSizeExceededException("Imaginea facturii este prea mare pentru upload.")
-        }
-        if (sourceSize != null && sourceSize > MAX_UPLOAD_BYTES) {
-            throw UploadSizeExceededException("Imaginea facturii este prea mare pentru upload.")
-        }
-        return uriToFile(uri, context, MAX_UPLOAD_BYTES)
-    }
-
-    private fun normalizeInvoiceImageToJpeg(uri: Uri, context: Context): File? {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            BitmapFactory.decodeStream(input, null, bounds)
-        } ?: return null
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-
-        val decodeOptions = BitmapFactory.Options().apply {
-            inSampleSize = invoiceImageSampleSize(bounds.outWidth, bounds.outHeight)
-            inPreferredConfig = Bitmap.Config.RGB_565
-        }
-        val bitmap = context.contentResolver.openInputStream(uri)?.use { input ->
-            BitmapFactory.decodeStream(input, null, decodeOptions)
-        } ?: return null
-
-        val file = File(context.cacheDir, "${TMP_UPLOAD_PREFIX}invoice_${System.currentTimeMillis()}.jpg")
-        try {
-            ByteArrayOutputStream().use { buffer ->
-                if (!bitmap.compress(Bitmap.CompressFormat.JPEG, INVOICE_IMAGE_JPEG_QUALITY, buffer)) {
-                    return null
-                }
-                val bytes = buffer.toByteArray()
-                if (bytes.size.toLong() > MAX_UPLOAD_BYTES) {
-                    throw UploadSizeExceededException("Imaginea facturii este prea mare pentru upload.")
-                }
-                FileOutputStream(file).use { it.write(bytes) }
-            }
-            return file
-        } catch (e: Exception) {
-            file.delete()
-            throw e
-        } finally {
-            bitmap.recycle()
-        }
-    }
-
-    private fun invoiceImageSampleSize(width: Int, height: Int): Int {
-        var sampleSize = 1
-        var longest = max(width, height)
-        while (longest / 2 >= MAX_INVOICE_IMAGE_EDGE_PX) {
-            sampleSize *= 2
-            longest /= 2
-        }
-        return sampleSize
-    }
-
-    private fun uriToFile(uri: Uri, context: Context, maxBytes: Long = MAX_UPLOAD_BYTES): File {
-        val file = File(context.cacheDir, "${TMP_UPLOAD_PREFIX}${System.currentTimeMillis()}")
-        var copiedBytes = 0L
-        val buffer = ByteArray(8 * 1024)
-
-        try {
-            val inputStream = context.contentResolver.openInputStream(uri)
-                ?: throw IllegalArgumentException("Nu s-a putut deschide fișierul.")
-
-            FileOutputStream(file).use { outputStream ->
-                inputStream.use { input ->
-                    while (true) {
-                        val read = input.read(buffer)
-                        if (read == -1) break
-                        copiedBytes += read.toLong()
-                        if (copiedBytes > maxBytes) {
-                            throw UploadSizeExceededException("Fișier prea mare pentru upload.")
-                        }
-                        outputStream.write(buffer, 0, read)
-                    }
-                }
-            }
-            return file
-        } catch (sizeExceeded: UploadSizeExceededException) {
-            file.delete()
-            throw sizeExceeded
-        } catch (e: Exception) {
-            file.delete()
-            throw e
-        }
-    }
-
-    private fun cleanupLegacyTempUploads() {
-        runCatching {
-            val staleThresholdMs = 24L * 60L * 60L * 1000L
-            val now = System.currentTimeMillis()
-            getApplication<Application>().cacheDir.listFiles { file ->
-                file.isFile && file.name.startsWith(TMP_UPLOAD_PREFIX)
-            }?.forEach { file ->
-                if (now - file.lastModified() > staleThresholdMs) {
-                    file.delete()
-                }
-            }
-        }
-    }
-
-    private class UploadSizeExceededException(message: String) : IllegalArgumentException(message)
-
-    private fun isUploadSizeAllowed(uri: Uri, context: Context): Boolean {
-        val sizeBytes = queryContentSize(uri, context) ?: return true
-        return sizeBytes <= MAX_UPLOAD_BYTES
-    }
-
-    private fun queryContentSize(uri: Uri, context: Context): Long? {
-        val cursor = runCatching {
-            context.contentResolver.query(
-                uri,
-                arrayOf(OpenableColumns.SIZE),
-                null,
-                null,
-                null
-            )
-        }.getOrNull()
-        cursor?.use {
-            if (!it.moveToFirst()) return null
-            val sizeIndex = it.getColumnIndex(OpenableColumns.SIZE)
-            if (sizeIndex == -1) return null
-            return try {
-                it.getLong(sizeIndex)
-            } catch (_: Exception) {
-                null
-            }
-        }
-        return null
-    }
-
-    private fun readTextFromUri(uri: Uri, context: Context): String {
-        context.contentResolver.openInputStream(uri)?.use { stream ->
-            val reader = stream.bufferedReader(Charsets.UTF_8)
-            return reader.use { it.readText() }
-        }
-        throw IllegalArgumentException("Nu se poate citi conținutul fișierului.")
     }
 
     private fun buildNeutralPendingAssessment(scannedText: String): OfflineAssessment {
@@ -3743,7 +3077,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    private fun extractUrls(input: String): List<String> {
+    internal fun extractUrls(input: String): List<String> {
         return UrlTextExtractor.extract(input)
     }
 
@@ -3759,7 +3093,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 normalizedInput.startsWith("www.", ignoreCase = true)
     }
 
-    private fun normalizeUrl(url: String): String {
+    internal fun normalizeUrl(url: String): String {
         val cleaned = url.trim().trimEnd('.', ',', ';', ')', ']')
         return if (cleaned.startsWith("http://", ignoreCase = true) ||
             cleaned.startsWith("https://", ignoreCase = true)
