@@ -545,21 +545,17 @@ internal fun ScannerViewModel.buildConfirmedOfferInput(
 }
 
 internal fun ScannerViewModel.publishOfferExtractionIncomplete(fileName: String, reason: String) {
-    val result = applyEvidenceGate(
+    val result = localUnverifiedAssessment(
         current = OfflineAssessment(
             family = "Ofertă neverificată",
             riskScore = 0,
-            riskLevel = "unknown",
+            riskLevel = "info",
             reasons = listOf(reason),
             safeActions = listOf("Reîncearcă cu o poză mai clară, un PDF cu text sau copiază oferta în câmpul de scanare."),
-            keyDangers = listOf("Nu avem suficiente dovezi tehnice pentru verdict."),
+            keyDangers = emptyList(),
             originalText = "Nu s-a extras conținut verificabil din $fileName."
         ),
-        rawInput = "Ofertă fără conținut verificabil: $fileName",
-        inputKind = "offer_upload",
-        channel = "offer_file_import",
-        providerStates = unavailableProviderStates(),
-        completeness = EvidenceCompleteness.LOCAL_ONLY
+        reasonCode = "LOCAL_OFFER_EXTRACTION_INCOMPLETE"
     )
     publishAssessmentResult(null, result)
 }

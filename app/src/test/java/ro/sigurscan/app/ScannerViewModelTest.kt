@@ -739,8 +739,9 @@ class ScannerViewModelTest {
             qrFlow.contains("publishQrExtractionIncomplete(\"Nu am putut citi codul QR din imagine. Reîncearcă cu o poză mai clară.\")")
         )
         assertTrue(
-            "QR incomplete result must stay unknown, not local-risk.",
-            qrFlow.contains("""riskLevel = "unknown"""")
+            "QR incomplete result must stay neutral info, not local-risk.",
+            qrFlow.contains("""riskLevel = "info"""") &&
+                qrFlow.contains("LOCAL_QR_EXTRACTION_INCOMPLETE")
         )
     }
 
@@ -872,8 +873,9 @@ class ScannerViewModelTest {
             fileFlow.contains("Fișierul depășește limita de")
         )
         assertTrue(
-            "Oversized/unsupported file paths must stay unknown, not local-risk.",
-            fileFlow.contains("""riskLevel = "unknown"""")
+            "Oversized/unsupported file paths must stay neutral info, not local-risk.",
+            fileFlow.contains("""riskLevel = "info"""") &&
+                fileFlow.contains("LOCAL_FILE_UNSUPPORTED")
         )
         assertFalse(
             "PDF incomplete paths should use the same pdf_ocr telemetry channel consistently.",

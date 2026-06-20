@@ -136,6 +136,7 @@ internal fun handleIncomingIntent(context: Context, intent: Intent?, viewModel: 
                     uri = uri,
                     context = context,
                     sourceLabel = sourceLabelForSharedUri(context, uri, fallbackMime),
+                    fallbackMime = fallbackMime,
                     preserveSharedTextState = preserveSharedTextState
                 )
             }

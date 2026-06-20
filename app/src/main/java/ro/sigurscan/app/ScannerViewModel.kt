@@ -496,6 +496,31 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
+    internal fun localUnverifiedAssessment(
+        current: OfflineAssessment,
+        reasonCode: String
+    ): OfflineAssessment {
+        val gateResult = GateResult(
+            action = GateAction.UNVERIFIED,
+            finality = GateFinality.FINAL,
+            reasonCodes = listOf(reasonCode),
+            decisiveSignalIds = emptyList(),
+            unknownReason = reasonCode
+        )
+        val reason = GateResultPresentation.reasonText(gateResult, null)
+        val actions = GateResultPresentation.recommendedActions(gateResult)
+        return current.copy(
+            family = GateResultPresentation.familyLabel(gateResult, current.family),
+            riskScore = GateResultPresentation.legacyRiskScore(gateResult),
+            riskLevel = GateResultPresentation.legacyRiskLevel(gateResult),
+            reasons = (listOf(reason) + current.reasons).map { it.trim() }.filter { it.isNotBlank() }.distinct(),
+            safeActions = (actions + current.safeActions).map { it.trim() }.filter { it.isNotBlank() }.distinct(),
+            keyDangers = emptyList(),
+            gateResult = gateResult,
+            inputFidelity = sharedContentFidelity
+        )
+    }
+
     internal fun reevaluateGateWithThreatIntel(
         current: OfflineAssessment,
         threatIntel: List<ThreatIntelSourceResult>,
@@ -1432,17 +1457,23 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         uri: Uri,
         context: Context,
         sourceLabel: String,
+        fallbackMime: String = "",
         preserveSharedTextState: Boolean = false
     ) {
         if (uri.toString().isBlank()) return
 
-        val mime = runCatching {
-            context.contentResolver.getType(uri)?.lowercase(Locale.getDefault()) ?: ""
-        }.getOrElse { "" }
-
         val fileName = runCatching {
             getFileName(uri, context)
         }.getOrElse { "document" }
+
+        val resolverMime = runCatching {
+            context.contentResolver.getType(uri)
+        }.getOrElse { "" }
+        val mime = resolveSharedMimeType(
+            resolverMime = resolverMime,
+            fallbackMime = fallbackMime,
+            fileName = fileName
+        )
 
         if (!preserveSharedTextState) {
             pendingSharedInput = null
@@ -1949,21 +1980,17 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun publishQrExtractionIncomplete(reason: String) {
-        val result = applyEvidenceGate(
+        val result = localUnverifiedAssessment(
             current = OfflineAssessment(
                 family = "Scanare QR incompletă",
                 riskScore = 0,
-                riskLevel = "unknown",
+                riskLevel = "info",
                 reasons = listOf(reason),
                 safeActions = listOf("Reîncearcă scanarea QR sau copiază manual linkul/textul afișat lângă cod."),
-                keyDangers = listOf("Nu avem suficiente dovezi tehnice pentru verdict."),
+                keyDangers = emptyList(),
                 originalText = "Nu s-a extras conținut verificabil din codul QR."
             ),
-            rawInput = "QR fără conținut verificabil",
-            inputKind = "qr",
-            channel = "qr_scan",
-            providerStates = unavailableProviderStates(),
-            completeness = EvidenceCompleteness.LOCAL_ONLY
+            reasonCode = "LOCAL_QR_EXTRACTION_INCOMPLETE"
         )
         publishAssessmentResult(null, result)
         loading = false
@@ -2042,21 +2069,17 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun publishImageExtractionIncomplete(fileName: String, reason: String) {
-        val result = applyEvidenceGate(
+        val result = localUnverifiedAssessment(
             current = OfflineAssessment(
                 family = "Scanare incompletă",
                 riskScore = 0,
-                riskLevel = "unknown",
+                riskLevel = "info",
                 reasons = listOf(reason),
                 safeActions = listOf("Reîncearcă scanarea cu o imagine mai clară sau copiază textul/linkul în câmpul de scanare."),
-                keyDangers = listOf("Nu avem suficiente dovezi tehnice pentru verdict."),
+                keyDangers = emptyList(),
                 originalText = "Nu s-a extras conținut verificabil din $fileName."
             ),
-            rawInput = "Imagine fără text OCR verificabil: $fileName",
-            inputKind = "upload_image",
-            channel = "image_ocr",
-            providerStates = unavailableProviderStates(),
-            completeness = EvidenceCompleteness.LOCAL_ONLY
+            reasonCode = "LOCAL_IMAGE_OCR_INCOMPLETE"
         )
         publishAssessmentResult(null, result)
     }
@@ -2107,24 +2130,20 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             } else {
                 "Tipul fișierului nu este suportat pentru scanare. Acceptăm momentan PDF, EML, HTML și TXT."
             }
-            assessment = applyEvidenceGate(
+            assessment = localUnverifiedAssessment(
                 current = OfflineAssessment(
                     family = "Tip fișier nesuportat",
                     riskScore = 0,
-                    riskLevel = "unknown",
+                    riskLevel = "info",
                     reasons = listOf(reason),
                     safeActions = listOf(
                         "Încarcă un PDF, .eml, .html sau .txt.",
                         "Pentru poze folosește opțiunea Screenshot/Imagine, iar pentru coduri QR folosește scanarea QR."
                     ),
-                    keyDangers = listOf("Nu avem suficiente dovezi tehnice pentru verdict."),
+                    keyDangers = emptyList(),
                     originalText = "Fișierul nu a fost scanat: $fileName."
                 ),
-                rawInput = "Tip fișier nesuportat: $fileName",
-                inputKind = "import_unsupported_file",
-                channel = "file_import",
-                providerStates = unavailableProviderStates(),
-                completeness = EvidenceCompleteness.LOCAL_ONLY
+                reasonCode = "LOCAL_FILE_UNSUPPORTED"
             )
             loading = false
             return
