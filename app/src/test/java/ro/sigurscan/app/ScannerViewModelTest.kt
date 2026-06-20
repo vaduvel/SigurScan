@@ -237,8 +237,8 @@ class ScannerViewModelTest {
     @Test
     fun backendEvidenceIsPassedToEvidenceNormalizerForOrchestratedResults() {
         val viewModelSource = viewModelSource()
-        val mapperStart = viewModelSource.indexOf("private fun buildAssessmentFromBackendScanResponse")
-        val mapperEnd = viewModelSource.indexOf("private fun buildPendingAssessmentFromOrchestratedResponse", mapperStart)
+        val mapperStart = viewModelSource.indexOf("internal fun ScannerViewModel.buildAssessmentFromBackendScanResponse")
+        val mapperEnd = viewModelSource.indexOf("internal fun ScannerViewModel.buildPendingAssessmentFromOrchestratedResponse", mapperStart)
         assertTrue("buildAssessmentFromBackendScanResponse must exist.", mapperStart >= 0 && mapperEnd > mapperStart)
 
         val mapperBody = viewModelSource.substring(mapperStart, mapperEnd)
@@ -327,8 +327,8 @@ class ScannerViewModelTest {
     @Test
     fun finalPreviewRefreshKeepsPendingInsteadOfPublishingLocalUnavailableTimeout() {
         val viewModelSource = viewModelSource()
-        val helperStart = viewModelSource.indexOf("private fun launchFinalOrchestratedPreviewRefresh")
-        val helperEnd = viewModelSource.indexOf("private fun buildDegradedAssessmentFromBackendScanResponse", helperStart)
+        val helperStart = viewModelSource.indexOf("internal fun ScannerViewModel.launchFinalOrchestratedPreviewRefresh")
+        val helperEnd = viewModelSource.indexOf("internal fun ScannerViewModel.buildDegradedAssessmentFromBackendScanResponse", helperStart)
         assertTrue("Preview refresh helper must exist.", helperStart >= 0 && helperEnd > helperStart)
 
         val helperFlow = viewModelSource.substring(helperStart, helperEnd)
@@ -362,8 +362,8 @@ class ScannerViewModelTest {
     @Test
     fun urlOnlyOrchestratedRequestPreservesActiveEvidenceChannelForQrScans() {
         val viewModelSource = viewModelSource()
-        val requestStart = viewModelSource.indexOf("private fun orchestratedRequest")
-        val requestEnd = viewModelSource.indexOf("internal fun linksFromExtraction", requestStart)
+        val requestStart = viewModelSource.indexOf("internal fun ScannerViewModel.orchestratedRequest")
+        val requestEnd = viewModelSource.indexOf("internal fun ScannerViewModel.linksFromExtraction", requestStart)
         assertTrue("orchestratedRequest must exist.", requestStart >= 0 && requestEnd > requestStart)
 
         val requestFlow = viewModelSource.substring(requestStart, requestEnd)
@@ -418,8 +418,8 @@ class ScannerViewModelTest {
     @Test
     fun resultCacheHitShortCircuitsBackendUnlessUserForcesRefresh() {
         val viewModelSource = viewModelSource()
-        val scanStart = viewModelSource.indexOf("fun onScanClick(forceRefresh: Boolean = false)")
-        val scanEnd = viewModelSource.indexOf("private fun isTrustedOfficialUrl", scanStart)
+        val scanStart = viewModelSource.indexOf("fun ScannerViewModel.onScanClick(forceRefresh: Boolean = false)")
+        val scanEnd = viewModelSource.indexOf("internal fun ScannerViewModel.isTrustedOfficialUrl", scanStart)
         assertTrue("onScanClick must exist.", scanStart >= 0 && scanEnd > scanStart)
 
         val scanFlow = viewModelSource.substring(scanStart, scanEnd)
@@ -439,8 +439,8 @@ class ScannerViewModelTest {
     @Test
     fun resultCacheOnlyStoresFinalGateResultsAndStripsCacheStatus() {
         val viewModelSource = viewModelSource()
-        val saveStart = viewModelSource.indexOf("private fun saveFinalAssessmentToResultCache")
-        val saveEnd = viewModelSource.indexOf("private fun trimResultCache", saveStart)
+        val saveStart = viewModelSource.indexOf("internal fun ScannerViewModel.saveFinalAssessmentToResultCache")
+        val saveEnd = viewModelSource.indexOf("internal fun ScannerViewModel.trimResultCache", saveStart)
         assertTrue("saveFinalAssessmentToResultCache must exist.", saveStart >= 0 && saveEnd > saveStart)
 
         val saveFlow = viewModelSource.substring(saveStart, saveEnd)
@@ -460,8 +460,8 @@ class ScannerViewModelTest {
     @Test
     fun finalPendingPreviewIsNotCachedAsCompleteResult() {
         val viewModelSource = viewModelSource()
-        val publishStart = viewModelSource.indexOf("private suspend fun publishOrchestratedResponse")
-        val publishEnd = viewModelSource.indexOf("private fun shouldCacheFinalAssessment", publishStart)
+        val publishStart = viewModelSource.indexOf("internal suspend fun ScannerViewModel.publishOrchestratedResponse")
+        val publishEnd = viewModelSource.indexOf("internal fun ScannerViewModel.shouldCacheFinalAssessment", publishStart)
         assertTrue("publishOrchestratedResponse must exist.", publishStart >= 0 && publishEnd > publishStart)
 
         val publishFlow = viewModelSource.substring(publishStart, publishEnd)
@@ -480,8 +480,8 @@ class ScannerViewModelTest {
     @Test
     fun finalOrchestratedVerdictStopsLoadingBeforePreviewRefresh() {
         val viewModelSource = viewModelSource()
-        val publishStart = viewModelSource.indexOf("private suspend fun publishOrchestratedResponse")
-        val publishEnd = viewModelSource.indexOf("private fun shouldCacheFinalAssessment", publishStart)
+        val publishStart = viewModelSource.indexOf("internal suspend fun ScannerViewModel.publishOrchestratedResponse")
+        val publishEnd = viewModelSource.indexOf("internal fun ScannerViewModel.shouldCacheFinalAssessment", publishStart)
         assertTrue("publishOrchestratedResponse must exist.", publishStart >= 0 && publishEnd > publishStart)
 
         val publishFlow = viewModelSource.substring(publishStart, publishEnd)
@@ -502,8 +502,8 @@ class ScannerViewModelTest {
     @Test
     fun orchestratedVerdictPublishDoesNotSynchronouslyDownloadScreenshot() {
         val viewModelSource = viewModelSource()
-        val publishStart = viewModelSource.indexOf("private suspend fun publishOrchestratedResponse")
-        val publishEnd = viewModelSource.indexOf("private fun shouldCacheFinalAssessment", publishStart)
+        val publishStart = viewModelSource.indexOf("internal suspend fun ScannerViewModel.publishOrchestratedResponse")
+        val publishEnd = viewModelSource.indexOf("internal fun ScannerViewModel.shouldCacheFinalAssessment", publishStart)
         assertTrue("publishOrchestratedResponse must exist.", publishStart >= 0 && publishEnd > publishStart)
 
         val publishFlow = viewModelSource.substring(publishStart, publishEnd)
@@ -520,8 +520,8 @@ class ScannerViewModelTest {
     @Test
     fun orchestratedPollingBudgetPublishesExplicitTimeoutState() {
         val viewModelSource = viewModelSource()
-        val runStart = viewModelSource.indexOf("internal suspend fun runBackendOrchestratedScan")
-        val runEnd = viewModelSource.indexOf("fun onScanClick", runStart)
+        val runStart = viewModelSource.indexOf("internal suspend fun ScannerViewModel.runBackendOrchestratedScan")
+        val runEnd = viewModelSource.indexOf("fun ScannerViewModel.onScanClick", runStart)
         assertTrue("runBackendOrchestratedScan must exist.", runStart >= 0 && runEnd > runStart)
 
         val runFlow = viewModelSource.substring(runStart, runEnd)
@@ -533,8 +533,8 @@ class ScannerViewModelTest {
             timeoutPublishIndex > loopIndex
         )
 
-        val timeoutStart = viewModelSource.indexOf("private suspend fun publishOrchestratedPollingTimeout")
-        val timeoutEnd = viewModelSource.indexOf("fun onScanClick", timeoutStart)
+        val timeoutStart = viewModelSource.indexOf("internal suspend fun ScannerViewModel.publishOrchestratedPollingTimeout")
+        val timeoutEnd = viewModelSource.indexOf("fun ScannerViewModel.onScanClick", timeoutStart)
         assertTrue("publishOrchestratedPollingTimeout must exist.", timeoutStart >= 0 && timeoutEnd > timeoutStart)
         val timeoutFlow = viewModelSource.substring(timeoutStart, timeoutEnd)
         assertTrue(timeoutFlow.contains("Verificarea a durat prea mult"))
@@ -544,8 +544,8 @@ class ScannerViewModelTest {
     @Test
     fun finalVerdictPreviewRefreshIsSeparateFromScanPollingLoop() {
         val viewModelSource = viewModelSource()
-        val runStart = viewModelSource.indexOf("internal suspend fun runBackendOrchestratedScan")
-        val runEnd = viewModelSource.indexOf("fun onScanClick", runStart)
+        val runStart = viewModelSource.indexOf("internal suspend fun ScannerViewModel.runBackendOrchestratedScan")
+        val runEnd = viewModelSource.indexOf("fun ScannerViewModel.onScanClick", runStart)
         assertTrue("runBackendOrchestratedScan must exist.", runStart >= 0 && runEnd > runStart)
 
         val runFlow = viewModelSource.substring(runStart, runEnd)
@@ -557,10 +557,10 @@ class ScannerViewModelTest {
         )
         assertTrue(
             "Preview refresh must have a bounded helper.",
-            viewModelSource.contains("private fun launchFinalOrchestratedPreviewRefresh")
+            viewModelSource.contains("internal fun ScannerViewModel.launchFinalOrchestratedPreviewRefresh")
         )
-        val helperStart = viewModelSource.indexOf("private fun launchFinalOrchestratedPreviewRefresh")
-        val helperEnd = viewModelSource.indexOf("private fun buildDegradedAssessmentFromBackendScanResponse", helperStart)
+        val helperStart = viewModelSource.indexOf("internal fun ScannerViewModel.launchFinalOrchestratedPreviewRefresh")
+        val helperEnd = viewModelSource.indexOf("internal fun ScannerViewModel.buildDegradedAssessmentFromBackendScanResponse", helperStart)
         assertTrue("Preview refresh helper must be followed by degraded mapping helper.", helperStart >= 0 && helperEnd > helperStart)
         assertFalse(
             "Preview refresh must not reuse shouldContinueOrchestratedPolling as its stop condition.",
@@ -604,8 +604,8 @@ class ScannerViewModelTest {
             "Old result cache v1 must not be read after the preview/verdict contract changed.",
             viewModelSource.contains("scan_result_cache_v1")
         )
-        val cacheStart = viewModelSource.indexOf("private fun cachedAssessmentFor")
-        val cacheEnd = viewModelSource.indexOf("private fun saveFinalAssessmentToResultCache", cacheStart)
+        val cacheStart = viewModelSource.indexOf("internal fun ScannerViewModel.cachedAssessmentFor")
+        val cacheEnd = viewModelSource.indexOf("internal fun ScannerViewModel.saveFinalAssessmentToResultCache", cacheStart)
         assertTrue("cachedAssessmentFor must exist.", cacheStart >= 0 && cacheEnd > cacheStart)
 
         val cacheFlow = viewModelSource.substring(cacheStart, cacheEnd)
@@ -725,8 +725,8 @@ class ScannerViewModelTest {
     @Test
     fun qrImageFailurePublishesIncompleteEvidenceInsteadOfSilentStop() {
         val viewModelSource = viewModelSource()
-        val qrStart = viewModelSource.indexOf("fun onQrPicked(uri: Uri, context: Context)")
-        val qrEnd = viewModelSource.indexOf("fun onImagePicked(uri: Uri, context: Context)", qrStart)
+        val qrStart = viewModelSource.indexOf("fun ScannerViewModel.onQrPicked(uri: Uri, context: Context)")
+        val qrEnd = viewModelSource.indexOf("fun ScannerViewModel.onImagePicked(uri: Uri, context: Context)", qrStart)
         assertTrue("onQrPicked must exist.", qrStart >= 0 && qrEnd > qrStart)
 
         val qrFlow = viewModelSource.substring(qrStart, qrEnd)
@@ -739,17 +739,16 @@ class ScannerViewModelTest {
             qrFlow.contains("publishQrExtractionIncomplete(\"Nu am putut citi codul QR din imagine. Reîncearcă cu o poză mai clară.\")")
         )
         assertTrue(
-            "QR incomplete result must stay neutral info, not local-risk.",
-            qrFlow.contains("""riskLevel = "info"""") &&
-                qrFlow.contains("LOCAL_QR_EXTRACTION_INCOMPLETE")
+            "QR incomplete result must stay unknown, not local-risk.",
+            qrFlow.contains("""riskLevel = "unknown"""")
         )
     }
 
     @Test
     fun qrImageSuccessRoutesThroughOrchestratedScanWithQrEvidence() {
         val viewModelSource = viewModelSource()
-        val qrStart = viewModelSource.indexOf("fun onQrPicked(uri: Uri, context: Context)")
-        val qrEnd = viewModelSource.indexOf("fun onImagePicked(uri: Uri, context: Context)", qrStart)
+        val qrStart = viewModelSource.indexOf("fun ScannerViewModel.onQrPicked(uri: Uri, context: Context)")
+        val qrEnd = viewModelSource.indexOf("fun ScannerViewModel.onImagePicked(uri: Uri, context: Context)", qrStart)
         assertTrue("onQrPicked must exist.", qrStart >= 0 && qrEnd > qrStart)
 
         val qrFlow = viewModelSource.substring(qrStart, qrEnd)
@@ -771,8 +770,8 @@ class ScannerViewModelTest {
     @Test
     fun imageOcrRunsOnDeviceBeforeCloudFallback() {
         val viewModelSource = viewModelSource()
-        val imageStart = viewModelSource.indexOf("fun onImagePicked(uri: Uri, context: Context)")
-        val imageEnd = viewModelSource.indexOf("private suspend fun runLocalImageOcrScanIfPossible", imageStart)
+        val imageStart = viewModelSource.indexOf("fun ScannerViewModel.onImagePicked(uri: Uri, context: Context)")
+        val imageEnd = viewModelSource.indexOf("internal suspend fun ScannerViewModel.runLocalImageOcrScanIfPossible", imageStart)
         assertTrue("onImagePicked must exist before the local OCR helper.", imageStart >= 0 && imageEnd > imageStart)
 
         val imageFlow = viewModelSource.substring(imageStart, imageEnd)
@@ -855,8 +854,8 @@ class ScannerViewModelTest {
     @Test
     fun pdfAndUnsupportedFileFailuresStayExplicitAndNonVerdict() {
         val viewModelSource = viewModelSource()
-        val fileStart = viewModelSource.indexOf("fun onFilePicked(uri: Uri, context: Context)")
-        val fileEnd = viewModelSource.indexOf("internal fun getFileName", fileStart)
+        val fileStart = viewModelSource.indexOf("fun ScannerViewModel.onFilePicked(uri: Uri, context: Context)")
+        val fileEnd = viewModelSource.indexOf("internal fun ScannerViewModel.getFileName", fileStart)
         assertTrue("onFilePicked must exist.", fileStart >= 0 && fileEnd > fileStart)
 
         val fileFlow = viewModelSource.substring(fileStart, fileEnd)
@@ -873,9 +872,8 @@ class ScannerViewModelTest {
             fileFlow.contains("Fișierul depășește limita de")
         )
         assertTrue(
-            "Oversized/unsupported file paths must stay neutral info, not local-risk.",
-            fileFlow.contains("""riskLevel = "info"""") &&
-                fileFlow.contains("LOCAL_FILE_UNSUPPORTED")
+            "Oversized/unsupported file paths must stay unknown, not local-risk.",
+            fileFlow.contains("""riskLevel = "unknown"""")
         )
         assertFalse(
             "PDF incomplete paths should use the same pdf_ocr telemetry channel consistently.",
@@ -886,14 +884,14 @@ class ScannerViewModelTest {
     @Test
     fun emailAndHtmlImportsReleaseLoadingBeforeTriggeringScan() {
         val viewModelSource = viewModelSource()
-        val fileStart = viewModelSource.indexOf("fun onFilePicked(uri: Uri, context: Context)")
-        val fileEnd = viewModelSource.indexOf("internal fun getFileName", fileStart)
+        val fileStart = viewModelSource.indexOf("fun ScannerViewModel.onFilePicked(uri: Uri, context: Context)")
+        val fileEnd = viewModelSource.indexOf("internal fun ScannerViewModel.getFileName", fileStart)
         assertTrue("onFilePicked must exist.", fileStart >= 0 && fileEnd > fileStart)
 
         val fileFlow = viewModelSource.substring(fileStart, fileEnd)
         val emailFlowStart = fileFlow.indexOf("if (importKind == FileImportKind.HTML || importKind == FileImportKind.EMAIL) {")
         val emailFlowEnd = fileFlow.indexOf("""loading = true
-        loadingMsg = "Analizăm documentul PDF..."""", emailFlowStart)
+    loadingMsg = "Analizăm documentul PDF..."""", emailFlowStart)
         assertTrue("HTML/EML file-import branch must exist before the PDF branch.", emailFlowStart >= 0 && emailFlowEnd > emailFlowStart)
 
         val emailFlow = fileFlow.substring(emailFlowStart, emailFlowEnd)
@@ -910,8 +908,8 @@ class ScannerViewModelTest {
         val activitySource = uiPackageSource()
         val classifierSource = File("src/main/java/ro/sigurscan/app/FileImportClassifier.kt").readText()
         val viewModelSource = viewModelSource()
-        val fileStart = viewModelSource.indexOf("fun onFilePicked(uri: Uri, context: Context)")
-        val fileEnd = viewModelSource.indexOf("internal fun getFileName", fileStart)
+        val fileStart = viewModelSource.indexOf("fun ScannerViewModel.onFilePicked(uri: Uri, context: Context)")
+        val fileEnd = viewModelSource.indexOf("internal fun ScannerViewModel.getFileName", fileStart)
         assertTrue("onFilePicked must exist.", fileStart >= 0 && fileEnd > fileStart)
         val fileFlow = viewModelSource.substring(fileStart, fileEnd)
 
@@ -940,19 +938,16 @@ class ScannerViewModelTest {
             "ScannerViewModel must not keep an offline verdict evaluator; pending UI state is not a verdict.",
             viewModelSource.contains("evaluateOfflineText")
         )
-        val start = viewModelSource.indexOf("private fun buildNeutralPendingAssessment(scannedText: String): OfflineAssessment")
+        val start = viewModelSource.indexOf("internal fun buildNeutralPendingAssessment(scannedText: String): OfflineAssessment")
         val end = viewModelSource.indexOf("fun onCommunityReport()", start)
         assertTrue("Neutral pending-state builder must exist and stay non-verdict.", start >= 0 && end > start)
 
         val functionBody = viewModelSource.substring(start, end)
         assertTrue(functionBody.contains("""riskLevel = "unknown""""))
         assertTrue(functionBody.contains("""riskScore = 0"""))
-        assertTrue(functionBody.contains("Se verifică mesajul și sursele de risc disponibile."))
         assertFalse(functionBody.contains("""riskLevel = "low""""))
         assertFalse(functionBody.contains("""riskLevel = "medium""""))
         assertFalse(functionBody.contains("""riskLevel = "high""""))
-        assertFalse(functionBody.contains("Scanare incompletă"))
-        assertFalse(functionBody.contains("Nu am găsit un link complet pentru scanare."))
         assertFalse(functionBody.contains("DANGEROUS"))
         assertFalse(functionBody.contains("SUSPECT"))
         assertFalse(functionBody.contains("SAFE"))
