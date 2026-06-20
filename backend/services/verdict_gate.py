@@ -301,8 +301,18 @@ def _has_trusted_payment_destination(providers: Dict[str, Any]) -> bool:
         return False
     status = _norm(payment.get("status") or payment.get("verdict"))
     trust_tier = _norm(payment.get("trust_tier"))
+    structurally_confirmed = (
+        _bool(payment.get("matched"))
+        and _bool(payment.get("can_contribute_to_safe"))
+        and trust_tier
+        in {
+            "t0_partner_signed",
+            "t1_public_official",
+            "t2_official_document_chain",
+        }
+    )
     return (
-        status in PROVIDER_CLEAN
+        (status in PROVIDER_CLEAN or (not status and structurally_confirmed))
         and _bool(payment.get("matched"))
         and (
             _bool(payment.get("brand_matches"))
@@ -477,6 +487,15 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
     non_action_request = _is_non_action_request(request, social_engineering)
     has_provenance = _has_positive_provenance(identity, provenance)
     provenance_contradicted = _has_positive_provenance_contradiction(identity, provenance, semantic)
+    trusted_payment_destination = _has_trusted_payment_destination(providers)
+    value_request_has_confirmed_destination = (
+        value_sensitive
+        and has_provenance
+        and trusted_payment_destination
+        and provider_verdict in PROVIDER_CLEAN
+        and not provenance_contradicted
+        and identity_status not in BAD_IDENTITY
+    )
     campaign_high = _campaign_match_high_enough(campaign)
     try:
         community_reports = int(community.get("reports") or 0)
@@ -536,7 +555,13 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
     # ─── Rule 3: Sensitive on wrong channel ─────────────────────────────────
     if hard_sensitive and wrong_channel and positive_action_request:
         return _result("DANGEROUS", ["sensitive_wrong_channel"], confidence=90)
-    if value_sensitive and wrong_channel and semantic_risk == "high" and positive_action_request:
+    if (
+        value_sensitive
+        and wrong_channel
+        and semantic_risk == "high"
+        and positive_action_request
+        and not value_request_has_confirmed_destination
+    ):
         return _result(
             "DANGEROUS",
             ["semantic_high_value_request"],
@@ -591,7 +616,11 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
         return _result("SUSPECT", ["campaign_match_only"], confidence=68)
 
     # ─── Rule 8: Semantic high + sensitive combo ───────────────────────────
-    if semantic_risk == "high" and (hard_sensitive or value_sensitive or identity_status in BAD_IDENTITY):
+    if semantic_risk == "high" and (
+        hard_sensitive
+        or identity_status in BAD_IDENTITY
+        or (value_sensitive and not value_request_has_confirmed_destination)
+    ):
         return _result("DANGEROUS", ["semantic_high_risk_match"], confidence=86)
 
     # ─── Rule 8a: Semantic high + known scam family, even without sensitive ──
@@ -634,7 +663,7 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
     if (
         value_sensitive
         and has_provenance
-        and not _has_trusted_payment_destination(providers)
+        and not trusted_payment_destination
         and not _is_clean_coherent_invoice_without_registry_destination(
             identity_status=identity_status,
             channel=channel,
