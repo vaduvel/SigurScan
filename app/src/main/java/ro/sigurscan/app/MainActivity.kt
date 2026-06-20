@@ -3789,7 +3789,13 @@ private fun GateEvidenceSummary(assessment: OfflineAssessment, riskUi: RiskDispl
         snapshot?.completeness?.let {
             when (it) {
                 EvidenceCompleteness.FULL -> "Verificări complete"
-                EvidenceCompleteness.PARTIAL_ONLINE -> "Se verifică linkul"
+                EvidenceCompleteness.PARTIAL_ONLINE -> {
+                    if (!snapshot.primaryUrl.isNullOrBlank() || !snapshot.finalUrl.isNullOrBlank()) {
+                        "Se verifică linkul"
+                    } else {
+                        "Se verifică mesajul"
+                    }
+                }
                 EvidenceCompleteness.LOCAL_ONLY -> "Mai trebuie informații"
             }
         }

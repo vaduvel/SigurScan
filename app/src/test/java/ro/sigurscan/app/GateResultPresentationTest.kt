@@ -114,6 +114,31 @@ class GateResultPresentationTest {
     }
 
     @Test
+    fun backendVerdictCopyDoesNotInventUrlEvidenceForTextOnlyScans() {
+        val result = gateResult(
+            GateAction.DO_NOT_CONTINUE,
+            reasonCodes = listOf("BACKEND_ORCHESTRATED_VERDICT")
+        )
+        val textOnlySnapshot = EvidenceSnapshot(
+            scanId = "text-only",
+            inputKind = "share_text",
+            channel = "visible_text"
+        )
+        val urlSnapshot = textOnlySnapshot.copy(
+            primaryUrl = "https://example.com"
+        )
+
+        val textOnlyReason = GateResultPresentation.reasonText(result, textOnlySnapshot).lowercase()
+        val urlReason = GateResultPresentation.reasonText(result, urlSnapshot).lowercase()
+
+        assertTrue(textOnlyReason.contains("mesaj"))
+        assertFalse(textOnlyReason.contains("linkul final"))
+        assertFalse(textOnlyReason.contains("captura"))
+        assertTrue(urlReason.contains("linkul final"))
+        assertTrue(urlReason.contains("captura"))
+    }
+
+    @Test
     fun pendingScanCopyHidesProviderAndPillarJargonFromUsers() {
         val result = gateResult(
             GateAction.INSUFFICIENT_EVIDENCE,
@@ -144,6 +169,8 @@ class GateResultPresentationTest {
     fun provisionalBackendResultUsesNeutralPendingCopyInsteadOfRiskVerdict() {
         val result = backendScanInProgressGateResult()
         val copy = listOf(
+            GateResultPresentation.familyLabel(result, "fallback"),
+            GateResultPresentation.legacyRiskLevel(result),
             GateResultPresentation.userHeadline(result),
             GateResultPresentation.supportText(result),
             GateResultPresentation.reasonText(result, null),
@@ -154,7 +181,10 @@ class GateResultPresentationTest {
             .lowercase()
 
         assertTrue(GateResultPresentation.isScanInProgress(result))
+        assertTrue(GateResultPresentation.familyLabel(result, "fallback") == "Se verifică")
+        assertTrue(GateResultPresentation.legacyRiskLevel(result) == "info")
         assertTrue(GateResultPresentation.userHeadline(result) == "Se verifică...")
+        assertTrue(copy.contains("mesaj"))
         assertFalse(copy.contains("suspect"))
         assertFalse(copy.contains("periculos"))
         assertFalse(copy.contains("preview"))

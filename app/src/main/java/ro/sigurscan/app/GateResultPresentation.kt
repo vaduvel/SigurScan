@@ -41,10 +41,24 @@ object GateResultPresentation {
         GateAction.INSUFFICIENT_EVIDENCE -> "Suspect"
     }.ifBlank { fallback }
 
+    fun familyLabel(result: GateResult, fallback: String): String =
+        if (isScanInProgress(result)) {
+            "Se verifică"
+        } else {
+            familyLabel(result.action, fallback)
+        }
+
+    fun legacyRiskLevel(result: GateResult): String =
+        if (isScanInProgress(result)) {
+            "info"
+        } else {
+            legacyRiskLevel(result.action)
+        }
+
     fun supportText(result: GateResult): String = when {
-        isScanInProgress(result) -> "Se verifică destinația și sursele de risc."
+        isScanInProgress(result) -> "Se verifică mesajul, destinația și sursele de risc."
         isFinalUnverified(result) -> "Nu am găsit semnale clare de risc, dar nu avem confirmare oficială pentru această destinație."
-        result.action == GateAction.DO_NOT_CONTINUE -> "Scanarea a gasit semnale clare de risc pe destinatie."
+        result.action == GateAction.DO_NOT_CONTINUE -> "Scanarea a gasit semnale clare de risc."
         result.action == GateAction.NO_ENTER_DATA -> "Pagina sau mesajul cere date sensibile pe un canal care nu este suficient validat."
         result.action == GateAction.NO_REPLY -> "Mesajul cere raspuns, coduri, bani sau continuarea conversatiei intr-un scenariu riscant."
         result.action == GateAction.VERIFY_OFFICIAL -> "Exista semnale care cer verificare manuala pe canalul oficial."
@@ -82,7 +96,8 @@ object GateResultPresentation {
             "SENSITIVE_FORM_UNOFFICIAL" in codes -> "Am gasit formular sensibil pe un domeniu nevalidat."
             "OFFICIAL_DESTINATION_AND_CLAIM_CONFIRMED" in codes -> "Linkul ajunge pe domeniu oficial, iar oferta sau contextul mentionat a fost confirmat."
             "OFFICIAL_DESTINATION_NO_SENSITIVE_COLLECTION" in codes -> "Linkul ajunge pe domeniu oficial/delegat si nu cere date sensibile."
-            "BACKEND_ORCHESTRATED_VERDICT" in codes -> "Am verificat linkul final, captura securizata si reputatia destinatiei."
+            "BACKEND_ORCHESTRATED_VERDICT" in codes && snapshot.hasUrlEvidence() -> "Am verificat linkul final, captura securizata si reputatia destinatiei."
+            "BACKEND_ORCHESTRATED_VERDICT" in codes -> "Am analizat mesajul si semnalele de risc disponibile."
             "BACKEND_UNVERIFIED" in codes -> "Verificarea s-a încheiat fără semnale clare de risc, dar destinația nu are proveniență oficială confirmată."
             "WEAK_OR_EXPLANATORY_EVIDENCE_ONLY" in codes -> "Am gasit doar semnale slabe, precum marketing, CTA, tracking sau explicatii."
             "BRAND_OR_AUTHORITY_CLAIM_NEEDS_VERIFICATION" in codes -> "Mesajul mentioneaza un brand sau o autoritate si trebuie verificat pe canalul oficial."
@@ -99,6 +114,14 @@ object GateResultPresentation {
             else -> supportText(result)
         }
     }
+
+    private fun EvidenceSnapshot?.hasUrlEvidence(): Boolean =
+        this != null && (
+            !primaryUrl.isNullOrBlank() ||
+                !finalUrl.isNullOrBlank() ||
+                !formActionUrl.isNullOrBlank() ||
+                redirectChain.any { it.isNotBlank() }
+            )
 
     fun recommendedActions(result: GateResult): List<String> = when {
         isScanInProgress(result) -> listOf(

@@ -1496,18 +1496,32 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         rawInput: String,
         mergedThreatIntel: List<ThreatIntelSourceResult> = threatIntel
     ): OfflineAssessment {
+        val scanInProgress = GateResultPresentation.isScanInProgress(gateResult)
         val gateReason = GateResultPresentation.reasonText(gateResult, snapshot)
         val gateActions = GateResultPresentation.recommendedActions(gateResult)
+        val mergedReasons = if (scanInProgress) {
+            listOf(gateReason)
+        } else {
+            listOf(gateReason) + reasons
+        }
+        val mergedSafeActions = if (scanInProgress) {
+            gateActions
+        } else {
+            gateActions + safeActions
+        }
         return copy(
-            family = GateResultPresentation.familyLabel(gateResult.action, family),
+            family = GateResultPresentation.familyLabel(gateResult, family),
             riskScore = GateResultPresentation.legacyRiskScore(gateResult.action),
-            riskLevel = GateResultPresentation.legacyRiskLevel(gateResult.action),
-            reasons = (listOf(gateReason) + reasons).map { it.trim() }.filter { it.isNotBlank() }.distinct(),
-            safeActions = (gateActions + safeActions).map { it.trim() }.filter { it.isNotBlank() }.distinct(),
-            keyDangers = when (gateResult.action) {
-                GateAction.DO_NOT_CONTINUE,
-                GateAction.NO_ENTER_DATA,
-                GateAction.NO_REPLY -> (listOf(GateResultPresentation.supportText(gateResult)) + keyDangers)
+            riskLevel = GateResultPresentation.legacyRiskLevel(gateResult),
+            reasons = mergedReasons.map { it.trim() }.filter { it.isNotBlank() }.distinct(),
+            safeActions = mergedSafeActions.map { it.trim() }.filter { it.isNotBlank() }.distinct(),
+            keyDangers = when {
+                scanInProgress -> emptyList()
+                gateResult.action in listOf(
+                    GateAction.DO_NOT_CONTINUE,
+                    GateAction.NO_ENTER_DATA,
+                    GateAction.NO_REPLY
+                ) -> (listOf(GateResultPresentation.supportText(gateResult)) + keyDangers)
                 else -> keyDangers
             }.map { it.trim() }.filter { it.isNotBlank() }.distinct(),
             originalText = redactedAuditSummary(rawInput, snapshot),
@@ -4670,13 +4684,13 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         val urls = extractUrls(scannedText)
 
         return OfflineAssessment(
-            family = if (urls.isNotEmpty()) "Scanare în curs" else "Scanare incompletă",
+            family = "Scanare în curs",
             riskScore = 0,
             riskLevel = "unknown",
             reasons = if (urls.isNotEmpty()) {
                 listOf("Se scanează linkul. Revenim cu verdictul după verificare.")
             } else {
-                listOf("Nu am găsit un link complet pentru scanare.")
+                listOf("Se verifică mesajul și sursele de risc disponibile.")
             },
             safeActions = listOf(
                 "Așteaptă finalizarea scanării.",
