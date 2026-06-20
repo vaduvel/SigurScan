@@ -164,7 +164,7 @@ def _post_scan(base_url: str, case: LiveSmokeCase, timeout: float) -> Dict[str, 
         "input_type": "text",
         "text": case.text,
         "source_channel": "live_provider_smoke",
-        "visibility": os.getenv("SIGURSCAN_LIVE_SMOKE_URLSCAN_VISIBILITY", "private"),
+        "visibility": os.getenv("SIGURSCAN_LIVE_SMOKE_URLSCAN_VISIBILITY", "unlisted"),
         "country": os.getenv("SIGURSCAN_LIVE_SMOKE_URLSCAN_COUNTRY", "ro"),
         "customagent": os.getenv("SIGURSCAN_LIVE_SMOKE_USER_AGENT", DEFAULT_MOBILE_USER_AGENT),
     }
