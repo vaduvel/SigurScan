@@ -9083,6 +9083,31 @@ def _official_clean_can_finalize_before_urlscan(
     )
 
 
+def _public_navigation_clean_can_finalize_before_urlscan(
+    job: Dict[str, Any],
+    analysis: Dict[str, Any],
+    pillars: Optional[Dict[str, Dict[str, Any]]] = None,
+) -> bool:
+    if not isinstance(analysis, dict):
+        return False
+    evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
+    gate = evidence.get("verdict_gate") if isinstance(evidence.get("verdict_gate"), dict) else {}
+    provider_gate = evidence.get("provider_gate") if isinstance(evidence.get("provider_gate"), dict) else {}
+    summary = evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {}
+    family_id = str(
+        analysis.get("detected_family_id")
+        or provider_gate.get("detected_family_id")
+        or gate.get("detected_family_id")
+        or ""
+    )
+    return (
+        str(gate.get("label") or "").upper() == "SAFE"
+        and family_id == "provider-gate-clean-public-navigation"
+        and _baseline_pillars_ready_without_urlscan(pillars or {})
+        and not _has_bad_provider_verdict(summary)
+    )
+
+
 def _baseline_pillars_ready_without_urlscan(pillars: Dict[str, Dict[str, Any]]) -> bool:
     required_names = ("final_url", "google_web_risk", "phishing_database", "claim_verifier")
     for name in required_names:
@@ -9836,6 +9861,7 @@ async def _finalize_orchestrated_job_if_ready(job: Dict[str, Any], request: Requ
         and (
             _urlscan_result_ready_for_verdict(job)
             or _official_clean_can_finalize_before_urlscan(job, analysis, pillars)
+            or _public_navigation_clean_can_finalize_before_urlscan(job, analysis, pillars)
         )
         and not deferred_explanation
     )
