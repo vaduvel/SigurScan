@@ -9672,9 +9672,9 @@ def _orchestrated_status_payload(job: Dict[str, Any]) -> Dict[str, Any]:
             if status == "complete" and not enhancement_done
             else "Verdict preliminar disponibil. Verificarea suplimentara (sandbox) continua si poate doar creste nivelul de risc."
             if status == "scanning" and result is not None
-            else "Scanarea continua pana cand pilonii necesari returneaza date."
+            else "Scanarea continua pana cand verificarile necesare returneaza date."
             if status == "scanning"
-            else "Scanarea nu are toti pilonii necesari pentru verdict sigur."
+            else "Scanarea nu are inca toate verificarile necesare pentru verdict sigur."
         ),
         "poll_after_ms": poll_after_ms,
         "pillars": pillars,

@@ -199,6 +199,13 @@ internal fun mapGateDisplayState(result: GateResult): RiskDisplayState {
             color = SigurColors.Pending
         )
     }
+    if (GateResultPresentation.isFinalUnverified(result) || GateResultPresentation.isVerificationUnavailable(result)) {
+        return RiskDisplayState(
+            level = "Neverificat",
+            label = "Neverificat",
+            color = SigurColors.Pending
+        )
+    }
     return mapGateDisplayState(result.action)
 }
 

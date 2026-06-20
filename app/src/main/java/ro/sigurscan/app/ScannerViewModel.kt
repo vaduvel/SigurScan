@@ -475,9 +475,9 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         val gateReason = GateResultPresentation.reasonText(gateResult, snapshot)
         val gateActions = GateResultPresentation.recommendedActions(gateResult)
         return copy(
-            family = GateResultPresentation.familyLabel(gateResult.action, family),
-            riskScore = GateResultPresentation.legacyRiskScore(gateResult.action),
-            riskLevel = GateResultPresentation.legacyRiskLevel(gateResult.action),
+            family = GateResultPresentation.familyLabel(gateResult, family),
+            riskScore = GateResultPresentation.legacyRiskScore(gateResult),
+            riskLevel = GateResultPresentation.legacyRiskLevel(gateResult),
             reasons = (listOf(gateReason) + reasons).map { it.trim() }.filter { it.isNotBlank() }.distinct(),
             safeActions = (gateActions + safeActions).map { it.trim() }.filter { it.isNotBlank() }.distinct(),
             keyDangers = when (gateResult.action) {
@@ -652,7 +652,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             source = "SigurScan Backend",
             verdict = "Scanning",
             severity = "unknown",
-            details = "Scanarea rulează pe backend prin pilonii necesari."
+            details = "Scanarea rulează prin verificările necesare."
         )
         val preliminary = buildNeutralPendingAssessment(rawInput).copy(
             scanId = UUID.randomUUID().toString(),
@@ -1009,13 +1009,17 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 source = "SigurScan Backend",
                 verdict = "Scanning",
                 severity = "unknown",
-                details = response.statusMessage ?: "Scanarea rulează."
+                details = userSafeOrchestratedStatusMessage(response.statusMessage)
             )
         )
         val base = currentAssessmentForScan(response.scanId) ?: buildNeutralPendingAssessment(rawInput).copy(scanId = response.scanId)
         val updated = base.copy(
             scanId = response.scanId,
-            serverInfo = response.statusMessage ?: "Se verifică mesajul și sursele de risc disponibile.",
+            serverInfo = orchestratedScanServerInfo(
+                statusMessage = response.statusMessage,
+                preview = response.preview,
+                isFinal = false
+            ),
             redirectChain = primaryUrl?.let { listOf(it) }.orEmpty(),
             finalUrl = primaryUrl,
             reputationVerdict = "Se verifică",
@@ -1328,7 +1332,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 val result = applyEvidenceGate(
                     current = buildNeutralPendingAssessment(rawInput).copy(
                         scanId = UUID.randomUUID().toString(),
-                        serverInfo = "Nu am putut obține rezultatele pilonilor. Reîncearcă scanarea. Cod: $diagnosticCode.",
+                        serverInfo = "Nu am putut finaliza verificarea online. Reîncearcă scanarea. Cod: $diagnosticCode.",
                         finalUrl = fallbackPrimaryUrl,
                         redirectChain = fallbackPrimaryUrl?.let { listOf(it) }.orEmpty()
                     ),
@@ -1855,9 +1859,21 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
 	        if (screenshotUrl.isNullOrBlank()) return null
 	        if (screenshotUrl.startsWith("file://", ignoreCase = true)) return screenshotUrl
 
-	        val request = Request.Builder()
+	        val requestBuilder = Request.Builder()
 	            .url(screenshotUrl)
-	            .build()
+                .header("User-Agent", SIGURSCAN_USER_AGENT)
+                .header("Accept", "image/*")
+            val backendHost = runCatching { Uri.parse(configuredBackendBaseUrl()).host }.getOrNull()
+            val screenshotHost = runCatching { Uri.parse(screenshotUrl).host }.getOrNull()
+            if (!backendHost.isNullOrBlank() && backendHost.equals(screenshotHost, ignoreCase = true)) {
+                normalizedApiKey(BuildConfig.SIGURSCAN_API_KEY)?.let { apiKey ->
+                    requestBuilder.header(SIGURSCAN_API_KEY_HEADER, apiKey)
+                }
+                normalizedApiKey(clientInstanceId)?.let { clientId ->
+                    requestBuilder.header(SIGURSCAN_CLIENT_INSTANCE_HEADER, clientId)
+                }
+            }
+	        val request = requestBuilder.build()
 
 	        return runCatching {
 	            threatIntelClient.newCall(request).execute().use { response ->

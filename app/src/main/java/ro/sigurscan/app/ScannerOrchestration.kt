@@ -170,9 +170,24 @@ internal fun orchestratedScanServerInfo(
         return "Preview-ul securizat se generează."
     }
     return if (!isFinal) {
-        statusMessage ?: "Se verifică destinația și sursele de risc."
+        userSafeOrchestratedStatusMessage(statusMessage)
     } else {
         "Scanarea completă a fost finalizată."
+    }
+}
+
+internal fun userSafeOrchestratedStatusMessage(statusMessage: String?): String {
+    val value = statusMessage?.trim()?.takeIf { it.isNotBlank() }
+        ?: return "Se verifică destinația și sursele de risc."
+    val normalized = value.lowercase(Locale.US)
+    return if (
+        normalized.contains("pilon") ||
+        normalized.contains("pillar") ||
+        normalized.contains("provider")
+    ) {
+        "Se verifică destinația și sursele de risc."
+    } else {
+        value.take(140)
     }
 }
 

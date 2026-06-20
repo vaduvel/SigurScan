@@ -60,6 +60,39 @@ class GateResultPresentationTest {
     }
 
     @Test
+    fun providerUnavailableFinalUsesNeutralNeverificatPresentation() {
+        val result = gateResult(
+            GateAction.INSUFFICIENT_EVIDENCE,
+            reasonCodes = listOf("PROVIDER_REVIEW_REQUIRED"),
+            unknownReason = "PROVIDERS_UNAVAILABLE",
+            finality = GateFinality.FINAL
+        )
+        val display = mapGateDisplayState(result)
+        val copy = listOf(
+            GateResultPresentation.familyLabel(result, "fallback"),
+            GateResultPresentation.legacyRiskLevel(result),
+            GateResultPresentation.userHeadline(result),
+            GateResultPresentation.supportText(result),
+            GateResultPresentation.reasonText(result, null),
+            GateResultPresentation.primaryAction(result)
+        )
+            .plus(GateResultPresentation.recommendedActions(result))
+            .joinToString(" ")
+            .lowercase()
+
+        assertTrue(GateResultPresentation.familyLabel(result, "fallback") == "Neverificat")
+        assertTrue(GateResultPresentation.legacyRiskLevel(result) == "info")
+        assertTrue(GateResultPresentation.legacyRiskScore(result) == 0)
+        assertTrue(GateResultPresentation.userHeadline(result) == "Neverificat")
+        assertTrue(display.level == "Neverificat")
+        assertTrue(display.label == "Neverificat")
+        assertFalse(copy.contains("suspect"))
+        assertFalse(copy.contains("periculos"))
+        assertFalse(copy.contains("scanarea nu este completa"))
+        assertFalse(copy.contains("scanarea nu este completă"))
+    }
+
+    @Test
     fun finalUnverifiedBackendCopyDoesNotSayTheScanIsStillIncomplete() {
         val result = gateResult(
             GateAction.UNVERIFIED,
@@ -163,6 +196,23 @@ class GateResultPresentationTest {
         listOf("web risk", "virustotal", "urlscan", "sandbox", "provider", "pilon", "tehnic").forEach { jargon ->
             assertFalse("User-facing copy leaked '$jargon': $copy", copy.contains(jargon))
         }
+    }
+
+    @Test
+    fun previewOverlayCopyHidesPillarJargon() {
+        val copy = publicServerInfo("Scanarea continua pana cand pilonii necesari returneaza date.").lowercase()
+        assertTrue(copy.contains("verific"))
+        assertFalse(copy.contains("pilon"))
+        assertFalse(copy.contains("provider"))
+    }
+
+    @Test
+    fun screenshotProxyUrlWaitsForLocalCachedFileBeforeImageRendering() {
+        val proxyUrl = "https://api.sigurscan.com/v1/sandbox/urlscan/urlscan-123/screenshot"
+        val localUrl = "file:///tmp/urlscan-123.png"
+
+        assertTrue(sandboxScreenshotModel(proxyUrl) == null)
+        assertTrue(sandboxScreenshotModel(localUrl) == localUrl)
     }
 
     @Test

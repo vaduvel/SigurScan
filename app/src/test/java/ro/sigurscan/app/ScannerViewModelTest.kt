@@ -134,6 +134,23 @@ class ScannerViewModelTest {
     }
 
     @Test
+    fun provisionalOrchestratedMessageHidesBackendPillarJargon() {
+        val message = orchestratedScanServerInfo(
+            statusMessage = "Scanarea continua pana cand pilonii necesari returneaza date.",
+            preview = OrchestratedPreview(
+                status = "pending",
+                reason = "urlscan_pending",
+                finalUrl = "https://www.yoxo.ro"
+            ),
+            isFinal = false
+        ).lowercase()
+
+        assertTrue(message.contains("verific"))
+        assertFalse(message.contains("pilon"))
+        assertFalse(message.contains("provider"))
+    }
+
+    @Test
     fun finalUrlscanPendingPreviewStopsScanPollingAfterFinalVerdict() {
         val response = OrchestratedScanResponse(
             scanId = "orch-yoxo-preview",

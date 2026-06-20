@@ -8,8 +8,17 @@ object GateResultPresentation {
         result.finality == GateFinality.FINAL &&
             (result.action == GateAction.UNVERIFIED || result.unknownReason == "BACKEND_UNVERIFIED")
 
+    fun isVerificationUnavailable(result: GateResult): Boolean =
+        result.finality == GateFinality.FINAL &&
+            result.action == GateAction.INSUFFICIENT_EVIDENCE &&
+            result.unknownReason in setOf("PROVIDERS_UNAVAILABLE", "BACKEND_UNAVAILABLE", "NETWORK_UNAVAILABLE")
+
     fun userHeadline(result: GateResult): String =
-        if (isScanInProgress(result)) "Se verifică..." else result.userLabel
+        when {
+            isScanInProgress(result) -> "Se verifică..."
+            isFinalUnverified(result) || isVerificationUnavailable(result) -> "Neverificat"
+            else -> result.userLabel
+        }
 
     fun legacyRiskLevel(action: GateAction): String = when (action) {
         GateAction.DO_NOT_CONTINUE,
@@ -31,6 +40,13 @@ object GateResultPresentation {
         GateAction.INSUFFICIENT_EVIDENCE -> 0
     }
 
+    fun legacyRiskScore(result: GateResult): Int =
+        if (isScanInProgress(result) || isFinalUnverified(result) || isVerificationUnavailable(result)) {
+            0
+        } else {
+            legacyRiskScore(result.action)
+        }
+
     fun familyLabel(action: GateAction, fallback: String): String = when (action) {
         GateAction.DO_NOT_CONTINUE,
         GateAction.NO_ENTER_DATA,
@@ -42,14 +58,14 @@ object GateResultPresentation {
     }.ifBlank { fallback }
 
     fun familyLabel(result: GateResult, fallback: String): String =
-        if (isScanInProgress(result)) {
-            "Se verifică"
-        } else {
-            familyLabel(result.action, fallback)
+        when {
+            isScanInProgress(result) -> "Se verifică"
+            isFinalUnverified(result) || isVerificationUnavailable(result) -> "Neverificat"
+            else -> familyLabel(result.action, fallback)
         }
 
     fun legacyRiskLevel(result: GateResult): String =
-        if (isScanInProgress(result)) {
+        if (isScanInProgress(result) || isFinalUnverified(result) || isVerificationUnavailable(result)) {
             "info"
         } else {
             legacyRiskLevel(result.action)
@@ -58,6 +74,7 @@ object GateResultPresentation {
     fun supportText(result: GateResult): String = when {
         isScanInProgress(result) -> "Se verifică mesajul, destinația și sursele de risc."
         isFinalUnverified(result) -> "Nu am găsit semnale clare de risc, dar nu avem confirmare oficială pentru această destinație."
+        isVerificationUnavailable(result) -> "Nu am putut finaliza verificarea online. Reîncearcă după ce conexiunea este stabilă."
         result.action == GateAction.DO_NOT_CONTINUE -> "Scanarea a gasit semnale clare de risc."
         result.action == GateAction.NO_ENTER_DATA -> "Pagina sau mesajul cere date sensibile pe un canal care nu este suficient validat."
         result.action == GateAction.NO_REPLY -> "Mesajul cere raspuns, coduri, bani sau continuarea conversatiei intr-un scenariu riscant."
@@ -69,6 +86,7 @@ object GateResultPresentation {
     fun primaryAction(result: GateResult): String = when {
         isScanInProgress(result) -> "Așteaptă verdictul final."
         isFinalUnverified(result) -> "Verifică destinația în contextul oficial înainte de date sau plăți."
+        isVerificationUnavailable(result) -> "Reîncearcă scanarea înainte să continui."
         result.action == GateAction.DO_NOT_CONTINUE -> "Nu apasa linkul si nu continua fluxul."
         result.action == GateAction.NO_ENTER_DATA -> "Nu introduce card, parola, CNP, IBAN sau cod OTP."
         result.action == GateAction.NO_REPLY -> "Nu raspunde si nu trimite coduri sau bani."
@@ -101,6 +119,7 @@ object GateResultPresentation {
             "BACKEND_UNVERIFIED" in codes -> "Verificarea s-a încheiat fără semnale clare de risc, dar destinația nu are proveniență oficială confirmată."
             "WEAK_OR_EXPLANATORY_EVIDENCE_ONLY" in codes -> "Am gasit doar semnale slabe, precum marketing, CTA, tracking sau explicatii."
             "BRAND_OR_AUTHORITY_CLAIM_NEEDS_VERIFICATION" in codes -> "Mesajul mentioneaza un brand sau o autoritate si trebuie verificat pe canalul oficial."
+            isVerificationUnavailable(result) -> "Nu am putut contacta serviciul de verificare. Reîncearcă scanarea când conexiunea este stabilă."
             "PROVIDER_REVIEW_REQUIRED" in codes && result.unknownReason == "PROVIDERS_PENDING_FOR_TARGET" -> "Se scaneaza linkul. Revenim cu verdictul dupa verificare."
             "PROVIDER_REVIEW_REQUIRED" in codes && result.unknownReason == "PROVIDERS_NOT_RUN_FOR_TARGET" -> "Se scaneaza linkul. Revenim cu verdictul dupa verificare."
             "PROVIDER_REVIEW_REQUIRED" in codes && result.unknownReason == "FINAL_URL_NOT_RESOLVED" -> "Urmarim destinatia finala a linkului inainte sa dam verdict."
@@ -132,6 +151,11 @@ object GateResultPresentation {
             "Verifică dacă QR-ul sau linkul vine din locația ori aplicația oficială.",
             "Nu introduce card, parolă sau cod OTP dacă pagina cere date sensibile.",
             "Pentru plăți, caută manual comerciantul sau cere confirmare pe canal oficial."
+        )
+        isVerificationUnavailable(result) -> listOf(
+            "Reîncearcă scanarea când ai conexiune stabilă.",
+            "Nu introduce card, parolă sau cod OTP până nu primești verdictul.",
+            "Dacă este urgent, deschide manual aplicația sau site-ul oficial."
         )
         result.action == GateAction.DO_NOT_CONTINUE -> listOf(
             "Nu apasa linkul.",

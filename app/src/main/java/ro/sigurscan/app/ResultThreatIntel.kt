@@ -385,6 +385,10 @@ fun EvidenceSection(screenshotUrl: String?, serverInfo: String?, finalUrl: Strin
 internal fun sandboxScreenshotModel(screenshotUrl: String?): String? =
     screenshotUrl
         ?.takeIf { it.isNotBlank() }
+        ?.takeIf {
+            it.startsWith("file://", ignoreCase = true) ||
+                !it.contains("/v1/sandbox/urlscan/", ignoreCase = true)
+        }
 
 internal fun publicServerInfo(serverInfo: String?): String {
     val value = serverInfo?.trim()?.takeIf { it.isNotBlank() } ?: return "Preview securizat al paginii finale"
@@ -392,6 +396,8 @@ internal fun publicServerInfo(serverInfo: String?): String {
     return when {
         normalized.contains("server:") || normalized.contains("backend") || normalized.contains("http ") || normalized.contains("sandbox") ->
             "Preview securizat al paginii finale"
+        normalized.contains("pilon") || normalized.contains("pillar") || normalized.contains("provider") ->
+            "Se verifică destinația și sursele de risc."
         normalized.contains("genere") || normalized.contains("processing") || normalized.contains("pending") ->
             "Preview-ul securizat se generează."
         else -> value.take(140)
