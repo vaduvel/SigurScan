@@ -157,6 +157,44 @@ class ScannerViewModelTest {
     }
 
     @Test
+    fun finalUnavailablePreviewWithTerminalProviderErrorIsComplete() {
+        val completeness = orchestratedEvidenceCompleteness(
+            preview = OrchestratedPreview(
+                status = "unavailable",
+                reason = "final_url_unresolved",
+                finalUrl = "https://anaf-spv.info/login/verify"
+            ),
+            providerStates = mapOf(
+                ProviderId.WEB_RISK to ProviderState(ProviderId.WEB_RISK, ProviderStatus.OK),
+                ProviderId.URLSCAN to ProviderState(ProviderId.URLSCAN, ProviderStatus.ERROR)
+            ),
+            finalUrl = "https://anaf-spv.info/login/verify",
+            isFinal = true
+        )
+
+        assertEquals(EvidenceCompleteness.FULL, completeness)
+    }
+
+    @Test
+    fun provisionalUnavailablePreviewStillKeepsEvidenceCompletenessPartial() {
+        val completeness = orchestratedEvidenceCompleteness(
+            preview = OrchestratedPreview(
+                status = "unavailable",
+                reason = "final_url_unresolved",
+                finalUrl = "https://anaf-spv.info/login/verify"
+            ),
+            providerStates = mapOf(
+                ProviderId.WEB_RISK to ProviderState(ProviderId.WEB_RISK, ProviderStatus.OK),
+                ProviderId.URLSCAN to ProviderState(ProviderId.URLSCAN, ProviderStatus.ERROR)
+            ),
+            finalUrl = "https://anaf-spv.info/login/verify",
+            isFinal = false
+        )
+
+        assertEquals(EvidenceCompleteness.PARTIAL_ONLINE, completeness)
+    }
+
+    @Test
     fun backendEvidenceIsPassedToEvidenceNormalizerForOrchestratedResults() {
         val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
         val mapperStart = viewModelSource.indexOf("private fun buildAssessmentFromBackendScanResponse")
