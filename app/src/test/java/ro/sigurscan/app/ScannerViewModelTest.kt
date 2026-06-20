@@ -799,8 +799,8 @@ class ScannerViewModelTest {
     @Test
     fun pdfAndUnsupportedFileFailuresStayExplicitAndNonVerdict() {
         val viewModelSource = viewModelSource()
-        val fileStart = viewModelSource.indexOf("fun onFilePicked(uri: Uri, context: Context)")
-        val fileEnd = viewModelSource.indexOf("internal fun getFileName", fileStart)
+        val fileStart = viewModelSource.indexOf("fun ScannerViewModel.onFilePicked(uri: Uri, context: Context)")
+        val fileEnd = viewModelSource.indexOf("internal fun ScannerViewModel.getFileName", fileStart)
         assertTrue("onFilePicked must exist.", fileStart >= 0 && fileEnd > fileStart)
 
         val fileFlow = viewModelSource.substring(fileStart, fileEnd)
@@ -829,14 +829,14 @@ class ScannerViewModelTest {
     @Test
     fun emailAndHtmlImportsReleaseLoadingBeforeTriggeringScan() {
         val viewModelSource = viewModelSource()
-        val fileStart = viewModelSource.indexOf("fun onFilePicked(uri: Uri, context: Context)")
-        val fileEnd = viewModelSource.indexOf("internal fun getFileName", fileStart)
+        val fileStart = viewModelSource.indexOf("fun ScannerViewModel.onFilePicked(uri: Uri, context: Context)")
+        val fileEnd = viewModelSource.indexOf("internal fun ScannerViewModel.getFileName", fileStart)
         assertTrue("onFilePicked must exist.", fileStart >= 0 && fileEnd > fileStart)
 
         val fileFlow = viewModelSource.substring(fileStart, fileEnd)
         val emailFlowStart = fileFlow.indexOf("if (importKind == FileImportKind.HTML || importKind == FileImportKind.EMAIL) {")
         val emailFlowEnd = fileFlow.indexOf("""loading = true
-        loadingMsg = "Analizăm documentul PDF..."""", emailFlowStart)
+    loadingMsg = "Analizăm documentul PDF..."""", emailFlowStart)
         assertTrue("HTML/EML file-import branch must exist before the PDF branch.", emailFlowStart >= 0 && emailFlowEnd > emailFlowStart)
 
         val emailFlow = fileFlow.substring(emailFlowStart, emailFlowEnd)
@@ -853,8 +853,8 @@ class ScannerViewModelTest {
         val activitySource = uiPackageSource()
         val classifierSource = File("src/main/java/ro/sigurscan/app/FileImportClassifier.kt").readText()
         val viewModelSource = viewModelSource()
-        val fileStart = viewModelSource.indexOf("fun onFilePicked(uri: Uri, context: Context)")
-        val fileEnd = viewModelSource.indexOf("internal fun getFileName", fileStart)
+        val fileStart = viewModelSource.indexOf("fun ScannerViewModel.onFilePicked(uri: Uri, context: Context)")
+        val fileEnd = viewModelSource.indexOf("internal fun ScannerViewModel.getFileName", fileStart)
         assertTrue("onFilePicked must exist.", fileStart >= 0 && fileEnd > fileStart)
         val fileFlow = viewModelSource.substring(fileStart, fileEnd)
 
