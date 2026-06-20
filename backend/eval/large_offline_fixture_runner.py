@@ -9,7 +9,9 @@ URLs represented as already-resolved to themselves.
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
+import os
 import sys
 import zipfile
 from collections import Counter, defaultdict
@@ -25,6 +27,7 @@ if str(BACKEND_DIR) not in sys.path:
 from main import (  # noqa: E402
     _apply_provider_gate_verdict,
     _canonicalize_url,
+    _looks_like_structured_invoice_text,
     _normalise_obfuscated_text,
     engine,
     extract_urls,
@@ -286,37 +289,122 @@ def _resolved_urls(text: str) -> List[Dict[str, Any]]:
     return out
 
 
+def _source_channel(case: Dict[str, Any]) -> str:
+    meta = case.get("meta") if isinstance(case.get("meta"), dict) else {}
+    return str(meta.get("input_type") or meta.get("channel") or "offline_eval")
+
+
+def _should_route_invoice_case(case: Dict[str, Any], text: str) -> bool:
+    meta = case.get("meta") if isinstance(case.get("meta"), dict) else {}
+    if str(meta.get("input_type") or "").lower() == "invoice":
+        return True
+    return _looks_like_structured_invoice_text(text)
+
+
+async def _offline_unchecked_cui(cui: str, *, allow_paid_fallback: bool = False):
+    from services.anaf_cui import CuiResult
+
+    return CuiResult(
+        exists=False,
+        checked=False,
+        denumire=None,
+        activ=False,
+        data_inactivare=None,
+        platitor_tva=False,
+        enrolled_efactura=False,
+        raw=None,
+        source="offline_eval",
+    )
+
+
+def _run_invoice_route(text: str, resolved: List[Dict[str, Any]], source_channel: str) -> Dict[str, Any]:
+    """Evaluate structured invoice fixtures through the invoice reducer.
+
+    The large runner is explicitly offline, so CUI/ANAF lookup is stubbed as
+    unavailable. This keeps the report useful for reducer/gate regressions
+    without spending live provider calls or turning network availability into
+    a test result.
+    """
+    os.environ.setdefault("INVOICE_CACHE_HMAC_KEY", "offline-eval-key")
+    from services import invoice_orchestrator
+
+    original_cui_check = getattr(invoice_orchestrator, "_check_cui_for_invoice", None)
+    invoice_orchestrator._check_cui_for_invoice = _offline_unchecked_cui
+    try:
+        invoice_result = asyncio.run(
+            invoice_orchestrator.scan_invoice(
+                text,
+                links=[str(item.get("final_url") or item.get("url") or "") for item in resolved],
+            )
+        )
+        invoice_gate = invoice_orchestrator.evaluate_invoice_verdict(
+            invoice_result,
+            text,
+            source_channel=source_channel,
+        )
+    finally:
+        if original_cui_check is not None:
+            invoice_orchestrator._check_cui_for_invoice = original_cui_check
+
+    gate_result = invoice_gate.get("gate") if isinstance(invoice_gate.get("gate"), dict) else {}
+    invoice_truth = invoice_gate.get("invoice_truth") if isinstance(invoice_gate.get("invoice_truth"), dict) else {}
+    return {
+        "risk_level": gate_result.get("risk_level"),
+        "risk_score": gate_result.get("risk_score"),
+        "detected_family_id": "invoice",
+        "evidence": {
+            "provider_gate": {
+                "reason": ", ".join(gate_result.get("reason_codes") or []),
+                "label": gate_result.get("label"),
+            },
+            "verdict_gate": gate_result,
+            "invoice_truth": invoice_truth,
+        },
+    }
+
+
+def _run_case(case: Dict[str, Any]) -> Dict[str, Any]:
+    analysis_text = _normalise_obfuscated_text(case["text"])
+    redacted_text = redact_pii(analysis_text)
+    route_text = analysis_text
+    resolved = _resolved_urls(redacted_text)
+    source_channel = _source_channel(case)
+    route = "invoice" if _should_route_invoice_case(case, route_text) else "generic"
+    if route == "invoice":
+        final = _run_invoice_route(analysis_text, resolved, source_channel)
+    else:
+        analysis = engine.analyze(redacted_text, urls=resolved, external_threat_intel={})
+        evidence = analysis.setdefault("evidence", {})
+        evidence["source_channel"] = source_channel
+        final = _apply_provider_gate_verdict(analysis, resolved, raw_text=redacted_text, pillars={})
+
+    actual = _final_label(final)
+    expected = case["expected"]
+    passed = (_comparable_label(actual) == _comparable_label(expected)) if expected else None
+    final_evidence = final.get("evidence") if isinstance(final.get("evidence"), dict) else {}
+    provider_gate = final_evidence.get("provider_gate") if isinstance(final_evidence.get("provider_gate"), dict) else {}
+    verdict_gate = final_evidence.get("verdict_gate") if isinstance(final_evidence.get("verdict_gate"), dict) else {}
+    return {
+        "source": case["source"],
+        "id": case["id"],
+        "expected": expected,
+        "actual": actual,
+        "passed": passed,
+        "route": route,
+        "risk_level": final.get("risk_level"),
+        "risk_score": final.get("risk_score"),
+        "detected_family_id": final.get("detected_family_id"),
+        "gate_reason": provider_gate.get("reason"),
+        "reason_codes": verdict_gate.get("reason_codes"),
+        "text_preview": case["text"][:240],
+    }
+
+
 def run(downloads_dir: Path, zip_names: Iterable[str]) -> Dict[str, Any]:
     rows: List[Dict[str, Any]] = []
     for case in load_cases(downloads_dir, zip_names):
-        text = redact_pii(_normalise_obfuscated_text(case["text"]))
         try:
-            resolved = _resolved_urls(text)
-            analysis = engine.analyze(text, urls=resolved, external_threat_intel={})
-            evidence = analysis.setdefault("evidence", {})
-            evidence["source_channel"] = case["meta"].get("input_type") or case["meta"].get("channel") or "offline_eval"
-            final = _apply_provider_gate_verdict(analysis, resolved, raw_text=text, pillars={})
-            actual = _final_label(final)
-            expected = case["expected"]
-            passed = (_comparable_label(actual) == _comparable_label(expected)) if expected else None
-            final_evidence = final.get("evidence") if isinstance(final.get("evidence"), dict) else {}
-            provider_gate = final_evidence.get("provider_gate") if isinstance(final_evidence.get("provider_gate"), dict) else {}
-            verdict_gate = final_evidence.get("verdict_gate") if isinstance(final_evidence.get("verdict_gate"), dict) else {}
-            rows.append(
-                {
-                    "source": case["source"],
-                    "id": case["id"],
-                    "expected": expected,
-                    "actual": actual,
-                    "passed": passed,
-                    "risk_level": final.get("risk_level"),
-                    "risk_score": final.get("risk_score"),
-                    "detected_family_id": final.get("detected_family_id"),
-                    "gate_reason": provider_gate.get("reason"),
-                    "reason_codes": verdict_gate.get("reason_codes"),
-                    "text_preview": case["text"][:240],
-                }
-            )
+            rows.append(_run_case(case))
         except Exception as exc:
             rows.append(
                 {
@@ -344,11 +432,12 @@ def run(downloads_dir: Path, zip_names: Iterable[str]) -> Dict[str, Any]:
         bucket["failed"] += 1 if row.get("passed") is False else 0
 
     return {
-        "mode": "offline_provider_gate_no_live_providers_no_mistral",
+        "mode": "offline_provider_gate_invoice_route_no_live_providers_no_mistral",
         "total_cases": len(rows),
         "labeled_cases": len(labeled),
         "passed": len(labeled) - len(failures),
         "failed": len(failures),
+        "route_counts": dict(Counter(row.get("route") or "error" for row in rows)),
         "actual_counts": dict(Counter(row["actual"] for row in rows)),
         "expected_counts": dict(Counter(row["expected"] for row in labeled)),
         "confusion": {key: dict(value) for key, value in confusion.items()},
