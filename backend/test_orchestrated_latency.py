@@ -28,6 +28,8 @@ YOXO_MESSAGE = (
     "Afla cat valoreaza dispozitivul tau si incepe procesul chiar acum: buyback.yoxo.ro"
 )
 
+SMART_MENU_QR_URL = "https://www.smart-menu.ro/qr/vbiwmbouhu"
+
 
 async def _fake_domain_signals_neutral(domain: str) -> dict:
     return {"ssl": {"valid": True, "cert_age_days": 365, "issuer_org": "Test CA"},
@@ -87,6 +89,50 @@ def _start_scan(client):
         "/v1/scan/orchestrated",
         json={"input_type": "text", "text": YOXO_MESSAGE, "source_channel": "android_native"},
     ).json()
+
+
+def _fake_smart_menu_safe_scan(urls):
+    return [
+        {
+            "url": raw_url,
+            "original_url": raw_url,
+            "final_url": SMART_MENU_QR_URL,
+            "hostname": "www.smart-menu.ro",
+            "final_hostname": "www.smart-menu.ro",
+            "registered_domain": "smart-menu.ro",
+            "final_registered_domain": "smart-menu.ro",
+            "redirect_chain": [{"url": SMART_MENU_QR_URL, "status_code": "200"}],
+            "redirect_count": 0,
+            "shortener_count": 0,
+            "uses_shortener": False,
+            "success": True,
+            "domain_age_days": 2193,
+        }
+        for raw_url in urls
+    ]
+
+
+def test_clean_public_qr_verdict_finalizes_before_urlscan_preview(monkeypatch):
+    client = TestClient(app_main.app)
+    with monkeypatch.context() as patched:
+        _patch_clean_scan(patched, urlscan_get=None)
+        patched.setattr(app_main, "_safe_scan_url_list", _fake_smart_menu_safe_scan)
+
+        start = client.post(
+            "/v1/scan/orchestrated",
+            json={"input_type": "url", "url": SMART_MENU_QR_URL, "source_channel": "qr_scan"},
+        ).json()
+        _, provisional = _poll_orchestrated(client, start["scan_id"], count=1)
+        _, payload = _poll_orchestrated(client, start["scan_id"], count=1)
+
+    assert provisional["result"]["user_risk_label"] == "SAFE"
+    assert provisional["result"]["is_final"] is False
+    assert payload["status"] == "complete"
+    assert payload["result"]["user_risk_label"] == "SAFE"
+    assert payload["result"]["is_final"] is True
+    assert payload["result"]["detected_family_id"] == "provider-gate-clean-public-navigation"
+    assert payload["pillars"]["urlscan"]["status"] == "pending"
+    assert payload["preview"]["status"] == "pending"
 
 
 def test_first_poll_publishes_provisional_verdict_before_urlscan(monkeypatch):
