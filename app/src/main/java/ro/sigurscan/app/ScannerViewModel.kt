@@ -584,17 +584,17 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         onScanClick()
     }
 
-	    internal fun triggerSandboxAnalysis(url: String, scanId: String? = assessment?.scanId) {
-	        val targetScanId = scanId ?: return
-	        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-	            try {
-	                if (tryBackendSandboxAnalysis(url, targetScanId)) {
-	                    return@launch
-	                }
+    internal fun triggerSandboxAnalysis(url: String, scanId: String? = assessment?.scanId) {
+        val targetScanId = scanId ?: return
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                if (tryBackendSandboxAnalysis(url, targetScanId)) {
+                    return@launch
+                }
 
-	                if (URLSCAN_API_KEY.isBlank()) {
-	                    applySandboxThreatIntelUpdate(
-	                        scanId = targetScanId,
+                if (URLSCAN_API_KEY.isBlank()) {
+                    applySandboxThreatIntelUpdate(
+                        scanId = targetScanId,
                         item = ThreatIntelSourceResult(
                             source = "urlscan.io",
                             verdict = "Skipped",
@@ -776,106 +776,106 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                     finalUrl = url
                 )
             }
-	        }
-	    }
+        }
+    }
 
-	    private suspend fun tryBackendSandboxAnalysis(url: String, scanId: String): Boolean {
-	        return try {
-	            val submitted = api.submitUrlscanSandbox(
-	                UrlscanSandboxSubmitRequest(
-	                    url = url,
-	                    visibility = "private",
-	                    country = URLSCAN_PERSONA_COUNTRY,
-	                    customagent = URLSCAN_MOBILE_ANDROID_AGENT,
-	                    sourceChannel = "android_native"
-	                )
-	            )
-	            val uuid = submitted.uuid?.takeIf { it.isNotBlank() } ?: return false
-	            val reportUrl = submitted.reportUrl
-	            val screenshotUrl = submitted.screenshotUrl
+    private suspend fun tryBackendSandboxAnalysis(url: String, scanId: String): Boolean {
+        return try {
+            val submitted = api.submitUrlscanSandbox(
+                UrlscanSandboxSubmitRequest(
+                    url = url,
+                    visibility = "private",
+                    country = URLSCAN_PERSONA_COUNTRY,
+                    customagent = URLSCAN_MOBILE_ANDROID_AGENT,
+                    sourceChannel = "android_native"
+                )
+            )
+            val uuid = submitted.uuid?.takeIf { it.isNotBlank() } ?: return false
+            val reportUrl = submitted.reportUrl
+            val screenshotUrl = submitted.screenshotUrl
 
-	            applySandboxThreatIntelUpdate(
-	                scanId = scanId,
-	                item = ThreatIntelSourceResult(
-	                    source = "urlscan.io",
-	                    verdict = "Pending",
-	                    severity = "unknown",
-	                    details = "Se generează captura paginii finale."
-	                ),
-	                serverInfo = "Se generează captura paginii finale...",
-	                reportUrl = reportUrl,
-	                screenshotUrl = null,
-	                finalUrl = url
-	            )
+            applySandboxThreatIntelUpdate(
+                scanId = scanId,
+                item = ThreatIntelSourceResult(
+                    source = "urlscan.io",
+                    verdict = "Pending",
+                    severity = "unknown",
+                    details = "Se generează captura paginii finale."
+                ),
+                serverInfo = "Se generează captura paginii finale...",
+                reportUrl = reportUrl,
+                screenshotUrl = null,
+                finalUrl = url
+            )
 
-	            kotlinx.coroutines.delay(10000)
-	            var isFinished = false
-	            val maxAttempts = 9
-	            for (attempt in 1..maxAttempts) {
-	                kotlinx.coroutines.delay(5000)
-	                val result = api.getUrlscanSandboxResult(uuid)
-	                val status = result.status.orEmpty().lowercase(Locale.US)
-	                if (status == "pending") {
-	                    applySandboxThreatIntelUpdate(
-	                        scanId = scanId,
-	                        item = ThreatIntelSourceResult(
-	                            source = "urlscan.io",
-	                            verdict = "Pending",
-	                            severity = "unknown",
-	                            details = "Se generează captura paginii finale."
-	                        ),
-	                        serverInfo = "Se generează captura paginii finale... (Pas $attempt/$maxAttempts)",
-	                        reportUrl = result.reportUrl ?: reportUrl,
-	                        screenshotUrl = null,
-	                        finalUrl = result.finalUrl ?: submitted.submittedUrl ?: url
-	                    )
-	                    continue
-	                }
+            kotlinx.coroutines.delay(10000)
+            var isFinished = false
+            val maxAttempts = 9
+            for (attempt in 1..maxAttempts) {
+                kotlinx.coroutines.delay(5000)
+                val result = api.getUrlscanSandboxResult(uuid)
+                val status = result.status.orEmpty().lowercase(Locale.US)
+                if (status == "pending") {
+                    applySandboxThreatIntelUpdate(
+                        scanId = scanId,
+                        item = ThreatIntelSourceResult(
+                            source = "urlscan.io",
+                            verdict = "Pending",
+                            severity = "unknown",
+                            details = "Se generează captura paginii finale."
+                        ),
+                        serverInfo = "Se generează captura paginii finale... (Pas $attempt/$maxAttempts)",
+                        reportUrl = result.reportUrl ?: reportUrl,
+                        screenshotUrl = null,
+                        finalUrl = result.finalUrl ?: submitted.submittedUrl ?: url
+                    )
+                    continue
+                }
 
-	                isFinished = true
-	                val details = result.details ?: "Captura paginii finale a fost generată."
-	                val remoteScreenshotUrl = result.screenshotUrl ?: screenshotUrl
-	                val stableScreenshotUrl = downloadSandboxScreenshotProxy(remoteScreenshotUrl) ?: remoteScreenshotUrl
-	                applySandboxThreatIntelUpdate(
-	                    scanId = scanId,
-	                    item = ThreatIntelSourceResult(
-	                        source = "urlscan.io",
-	                        verdict = result.verdict ?: "No malicious classification",
-	                        severity = result.severity ?: "low",
-	                        details = details
-	                    ),
-	                    serverInfo = details,
-	                    reportUrl = result.reportUrl ?: reportUrl,
-	                    screenshotUrl = stableScreenshotUrl,
-	                    finalUrl = result.finalUrl ?: submitted.submittedUrl ?: url
-	                )
-	                break
-	            }
+                isFinished = true
+                val details = result.details ?: "Captura paginii finale a fost generată."
+                val remoteScreenshotUrl = result.screenshotUrl ?: screenshotUrl
+                val stableScreenshotUrl = downloadSandboxScreenshotProxy(remoteScreenshotUrl) ?: remoteScreenshotUrl
+                applySandboxThreatIntelUpdate(
+                    scanId = scanId,
+                    item = ThreatIntelSourceResult(
+                        source = "urlscan.io",
+                        verdict = result.verdict ?: "No malicious classification",
+                        severity = result.severity ?: "low",
+                        details = details
+                    ),
+                    serverInfo = details,
+                    reportUrl = result.reportUrl ?: reportUrl,
+                    screenshotUrl = stableScreenshotUrl,
+                    finalUrl = result.finalUrl ?: submitted.submittedUrl ?: url
+                )
+                break
+            }
 
-	            if (!isFinished) {
-	                applySandboxThreatIntelUpdate(
-	                    scanId = scanId,
-	                    item = ThreatIntelSourceResult(
-	                        source = "urlscan.io",
-	                        verdict = "Timeout",
-	                        severity = "unknown",
-	                        details = "Captura paginii finale nu a fost gata la timp."
-	                    ),
-	                    serverInfo = "Captura paginii finale nu a fost gata la timp. Scanarea poate continua după reîncercare.",
-	                    reportUrl = reportUrl,
-	                    screenshotUrl = null,
-	                    finalUrl = submitted.submittedUrl ?: url
-	                )
-	            }
+            if (!isFinished) {
+                applySandboxThreatIntelUpdate(
+                    scanId = scanId,
+                    item = ThreatIntelSourceResult(
+                        source = "urlscan.io",
+                        verdict = "Timeout",
+                        severity = "unknown",
+                        details = "Captura paginii finale nu a fost gata la timp."
+                    ),
+                    serverInfo = "Captura paginii finale nu a fost gata la timp. Scanarea poate continua după reîncercare.",
+                    reportUrl = reportUrl,
+                    screenshotUrl = null,
+                    finalUrl = submitted.submittedUrl ?: url
+                )
+            }
 
-	            true
-	        } catch (_: Exception) {
-	            false
-	        }
-	    }
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
 
-	    private suspend fun applySandboxThreatIntelUpdate(
-	        scanId: String,
+    private suspend fun applySandboxThreatIntelUpdate(
+        scanId: String,
         item: ThreatIntelSourceResult,
         serverInfo: String,
         reportUrl: String? = null,
@@ -899,10 +899,10 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-	    private fun downloadUrlscanScreenshot(uuid: String, client: OkHttpClient): String? {
-	        if (URLSCAN_API_KEY.isBlank()) return null
+    private fun downloadUrlscanScreenshot(uuid: String, client: OkHttpClient): String? {
+        if (URLSCAN_API_KEY.isBlank()) return null
 
-	        val request = Request.Builder()
+        val request = Request.Builder()
             .url(urlscanScreenshotUrl(uuid))
             .addHeader("api-key", URLSCAN_API_KEY)
             .build()
@@ -916,41 +916,41 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 val dir = File(getApplication<Application>().cacheDir, "urlscan-screenshots").apply {
                     mkdirs()
                 }
-	                val safeUuid = uuid.replace(Regex("[^A-Za-z0-9._-]"), "_")
-	                val screenshotFile = File(dir, "$safeUuid.png")
-	                FileOutputStream(screenshotFile).use { it.write(bytes) }
-	                Uri.fromFile(screenshotFile).toString()
-	            }
-	        }.getOrNull()
-	    }
+                val safeUuid = uuid.replace(Regex("[^A-Za-z0-9._-]"), "_")
+                val screenshotFile = File(dir, "$safeUuid.png")
+                FileOutputStream(screenshotFile).use { it.write(bytes) }
+                Uri.fromFile(screenshotFile).toString()
+            }
+        }.getOrNull()
+    }
 
-	    private fun downloadSandboxScreenshotProxy(screenshotUrl: String?): String? {
-	        if (screenshotUrl.isNullOrBlank()) return null
-	        if (screenshotUrl.startsWith("file://", ignoreCase = true)) return screenshotUrl
+    private fun downloadSandboxScreenshotProxy(screenshotUrl: String?): String? {
+        if (screenshotUrl.isNullOrBlank()) return null
+        if (screenshotUrl.startsWith("file://", ignoreCase = true)) return screenshotUrl
 
-	        val request = Request.Builder()
-	            .url(screenshotUrl)
-	            .build()
+        val request = Request.Builder()
+            .url(screenshotUrl)
+            .build()
 
-	        return runCatching {
-	            threatIntelClient.newCall(request).execute().use { response ->
-	                if (!response.isSuccessful) return@runCatching null
-	                val bytes = response.body?.bytes() ?: return@runCatching null
-	                if (bytes.isEmpty()) return@runCatching null
+        return runCatching {
+            threatIntelClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@runCatching null
+                val bytes = response.body?.bytes() ?: return@runCatching null
+                if (bytes.isEmpty()) return@runCatching null
 
-	                val dir = File(getApplication<Application>().cacheDir, "urlscan-screenshots").apply {
-	                    mkdirs()
-	                }
-	                val digest = MessageDigest.getInstance("SHA-256")
-	                    .digest(screenshotUrl.toByteArray(StandardCharsets.UTF_8))
-	                    .joinToString("") { "%02x".format(it) }
-	                    .take(32)
-	                val screenshotFile = File(dir, "backend-$digest.png")
-	                FileOutputStream(screenshotFile).use { it.write(bytes) }
-	                Uri.fromFile(screenshotFile).toString()
-	            }
-	        }.getOrNull()
-	    }
+                val dir = File(getApplication<Application>().cacheDir, "urlscan-screenshots").apply {
+                    mkdirs()
+                }
+                val digest = MessageDigest.getInstance("SHA-256")
+                    .digest(screenshotUrl.toByteArray(StandardCharsets.UTF_8))
+                    .joinToString("") { "%02x".format(it) }
+                    .take(32)
+                val screenshotFile = File(dir, "backend-$digest.png")
+                FileOutputStream(screenshotFile).use { it.write(bytes) }
+                Uri.fromFile(screenshotFile).toString()
+            }
+        }.getOrNull()
+    }
 
     internal fun scheduleSandboxScreenshotRefresh(scanId: String, screenshotUrl: String) {
         if (!pendingScreenshotRefreshes.add(scanId)) return
