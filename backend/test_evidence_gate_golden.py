@@ -368,6 +368,29 @@ def test_coherent_identity_with_checked_unknown_payment_destination_is_suspect()
     assert "value_request_needs_verification" in r["reason_codes"]
 
 
+def test_trusted_payment_destination_blocks_soft_semantic_value_escalation():
+    b = _bundle(
+        identity_status="official",
+        providers_verdict="clean",
+        sensitive="transfer",
+        channel="sms",
+        semantic_risk="high",
+        provenance_domain_match=True,
+    )
+    b["providers"]["payment_destination"] = {
+        "matched": True,
+        "brand_matches": True,
+        "registry_has_brand_destinations": True,
+        "trust_tier": "T1_PUBLIC_OFFICIAL",
+        "can_contribute_to_safe": True,
+    }
+
+    r = verdict(b)
+
+    assert r["label"] == "SAFE"
+    assert r["reason_codes"] == ["positive_provenance_clean"]
+
+
 def test_coherent_generic_invoice_without_confirmed_payment_destination_can_be_safe():
     b = _bundle(
         identity_status="coherent",

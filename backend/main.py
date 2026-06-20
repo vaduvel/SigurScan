@@ -5761,6 +5761,10 @@ def _build_decision_evidence_bundle(
     cross_never_asks = cross_scan.get("brand_never_asks") if isinstance(cross_scan.get("brand_never_asks"), dict) else {}
     cross_violated_never_asks = list(cross_never_asks.get("violated_never_asks") or [])
     fraud_flags = set(cross_scan.get("fraud_flags") or [])
+    payment_destinations = cross_scan.get("payment_destinations") if isinstance(cross_scan.get("payment_destinations"), list) else []
+    primary_payment_destination = next((item for item in payment_destinations if isinstance(item, dict)), None)
+    if primary_payment_destination:
+        provider_section["payment_destination"] = dict(primary_payment_destination)
     official_safety_education = _looks_like_official_safety_education(raw_text)
     if provenance_proto.get("violated_never_asks") and not official_safety_education:
         identity_section["violated_never_asks"] = provenance_proto["violated_never_asks"]
