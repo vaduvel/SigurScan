@@ -670,8 +670,8 @@ class ScannerViewModelTest {
     @Test
     fun qrImageFailurePublishesIncompleteEvidenceInsteadOfSilentStop() {
         val viewModelSource = viewModelSource()
-        val qrStart = viewModelSource.indexOf("fun onQrPicked(uri: Uri, context: Context)")
-        val qrEnd = viewModelSource.indexOf("fun onImagePicked(uri: Uri, context: Context)", qrStart)
+        val qrStart = viewModelSource.indexOf("fun ScannerViewModel.onQrPicked(uri: Uri, context: Context)")
+        val qrEnd = viewModelSource.indexOf("fun ScannerViewModel.onImagePicked(uri: Uri, context: Context)", qrStart)
         assertTrue("onQrPicked must exist.", qrStart >= 0 && qrEnd > qrStart)
 
         val qrFlow = viewModelSource.substring(qrStart, qrEnd)
@@ -692,8 +692,8 @@ class ScannerViewModelTest {
     @Test
     fun qrImageSuccessRoutesThroughOrchestratedScanWithQrEvidence() {
         val viewModelSource = viewModelSource()
-        val qrStart = viewModelSource.indexOf("fun onQrPicked(uri: Uri, context: Context)")
-        val qrEnd = viewModelSource.indexOf("fun onImagePicked(uri: Uri, context: Context)", qrStart)
+        val qrStart = viewModelSource.indexOf("fun ScannerViewModel.onQrPicked(uri: Uri, context: Context)")
+        val qrEnd = viewModelSource.indexOf("fun ScannerViewModel.onImagePicked(uri: Uri, context: Context)", qrStart)
         assertTrue("onQrPicked must exist.", qrStart >= 0 && qrEnd > qrStart)
 
         val qrFlow = viewModelSource.substring(qrStart, qrEnd)
@@ -715,8 +715,8 @@ class ScannerViewModelTest {
     @Test
     fun imageOcrRunsOnDeviceBeforeCloudFallback() {
         val viewModelSource = viewModelSource()
-        val imageStart = viewModelSource.indexOf("fun onImagePicked(uri: Uri, context: Context)")
-        val imageEnd = viewModelSource.indexOf("private suspend fun runLocalImageOcrScanIfPossible", imageStart)
+        val imageStart = viewModelSource.indexOf("fun ScannerViewModel.onImagePicked(uri: Uri, context: Context)")
+        val imageEnd = viewModelSource.indexOf("internal suspend fun ScannerViewModel.runLocalImageOcrScanIfPossible", imageStart)
         assertTrue("onImagePicked must exist before the local OCR helper.", imageStart >= 0 && imageEnd > imageStart)
 
         val imageFlow = viewModelSource.substring(imageStart, imageEnd)

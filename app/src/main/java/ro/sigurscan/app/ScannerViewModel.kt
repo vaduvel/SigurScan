@@ -216,7 +216,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     private val clientInstanceId: String by lazy { loadOrCreateClientInstanceId() }
     internal val gson = Gson()
     internal val recognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
-    private val barcodeScanner by lazy { BarcodeScanning.getClient() }
+    internal val barcodeScanner by lazy { BarcodeScanning.getClient() }
     private val URLSCAN_API_KEY = BuildConfig.URLSCAN_API_KEY
     internal val GOOGLE_WEB_RISK_API_KEY = BuildConfig.GOOGLE_WEB_RISK_API_KEY
     private val pendingScreenshotRefreshes = mutableSetOf<String>()
@@ -818,7 +818,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             .distinct()
     }
 
-    private suspend fun runBackendOrchestratedScanFromExtraction(
+    internal suspend fun runBackendOrchestratedScanFromExtraction(
         response: ExtractionResponse,
         fileName: String,
         inputKind: String,
@@ -1895,148 +1895,6 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
         }
-    }
-
-    fun onQrPicked(uri: Uri, context: Context) {
-        loading = true
-        loadingMsg = "Scanăm codul QR..."
-        
-        try {
-            val image = InputImage.fromFilePath(context, uri)
-            barcodeScanner.process(image)
-                .addOnSuccessListener { barcodes ->
-                    val qrText = barcodes.firstOrNull()?.rawValue?.trim()
-                    if (!qrText.isNullOrBlank()) {
-                        text = qrText
-                        stagedEvidenceHtml = null
-                        stagedEvidenceLinks = extractUrls(qrText)
-                        stagedEvidenceText = qrText
-                        stagedEvidenceInputKind = "qr"
-                        stagedEvidenceChannel = "qr_scan"
-                        onScanClick()
-                    } else {
-                        publishQrExtractionIncomplete("Nu am găsit un cod QR lizibil în imagine.")
-                    }
-                }
-                .addOnFailureListener {
-                    publishQrExtractionIncomplete("Nu am putut citi codul QR din imagine. Reîncearcă cu o poză mai clară.")
-                }
-        } catch (e: Exception) {
-            publishQrExtractionIncomplete("Nu am putut deschide imaginea pentru citirea codului QR.")
-        }
-    }
-
-    private fun publishQrExtractionIncomplete(reason: String) {
-        val result = applyEvidenceGate(
-            current = OfflineAssessment(
-                family = "Scanare QR incompletă",
-                riskScore = 0,
-                riskLevel = "unknown",
-                reasons = listOf(reason),
-                safeActions = listOf("Reîncearcă scanarea QR sau copiază manual linkul/textul afișat lângă cod."),
-                keyDangers = listOf("Nu avem suficiente dovezi tehnice pentru verdict."),
-                originalText = "Nu s-a extras conținut verificabil din codul QR."
-            ),
-            rawInput = "QR fără conținut verificabil",
-            inputKind = "qr",
-            channel = "qr_scan",
-            providerStates = unavailableProviderStates(),
-            completeness = EvidenceCompleteness.LOCAL_ONLY
-        )
-        publishAssessmentResult(null, result)
-        loading = false
-    }
-
-    fun onImagePicked(uri: Uri, context: Context) {
-        loading = true
-        loadingMsg = "Citim imaginea pe device..."
-        
-        viewModelScope.launch {
-            var file: File? = null
-            try {
-                val handledLocally = runCatching {
-                    runLocalImageOcrScanIfPossible(uri, context)
-                }.getOrDefault(false)
-                if (handledLocally) return@launch
-
-                loadingMsg = "OCR local neclar. Încercăm extragerea cloud..."
-                if (!isUploadSizeAllowed(uri, context)) {
-                    publishImageExtractionIncomplete(
-                        fileName = getFileName(uri, context),
-                        reason = "Imaginea este prea mare pentru scanarea cloud, iar OCR-ul local nu a extras text verificabil."
-                    )
-                } else {
-                    file = uriToFile(uri, context, MAX_UPLOAD_BYTES)
-                    val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
-                    val body = MultipartBody.Part.createFormData("image_file", file.name, requestFile)
-                    val source = "android_image_upload".toRequestBody("text/plain".toMediaTypeOrNull())
-
-                    val response = uploadApi.extractImage(body, source)
-                    runBackendOrchestratedScanFromExtraction(
-                        response = response,
-                        fileName = file.name,
-                        inputKind = "upload_image",
-                        channel = "image_ocr"
-                    )
-                }
-            } catch (e: Exception) {
-                val reason = if (e is UploadSizeExceededException) {
-                    "Imaginea este prea mare pentru scanarea cloud, iar OCR-ul local nu a extras text verificabil."
-                } else {
-                    "Nu am putut extrage text verificabil din imagine. Reîncearcă cu o captură mai clară."
-                }
-                publishImageExtractionIncomplete(
-                    fileName = getFileName(uri, context),
-                    reason = reason
-                )
-            } finally {
-                file?.delete()
-                loading = false
-            }
-        }
-    }
-
-    private suspend fun runLocalImageOcrScanIfPossible(uri: Uri, context: Context): Boolean {
-        val image = InputImage.fromFilePath(context, uri)
-        val extractedText = runCatching { extractTextFromImage(image) }.getOrNull().orEmpty().trim()
-        if (extractedText.isBlank()) return false
-
-        val extractedLinks = (extractUrls(extractedText) + extractHtmlLinks(extractedText))
-            .mapNotNull { normalizeCandidateUrl(it) ?: it.takeIf { candidate -> candidate.isNotBlank() } }
-            .distinct()
-        val assembledInput = MailShareInputAssembler.buildMailScanInput(
-            extractedText,
-            extractedLinks,
-            getFileName(uri, context)
-        )
-        text = assembledInput
-        stagedEvidenceHtml = null
-        stagedEvidenceLinks = extractedLinks
-        stagedEvidenceText = assembledInput
-        stagedEvidenceInputKind = "upload_image"
-        stagedEvidenceChannel = "image_ocr"
-        runBackendOrchestratedScan(assembledInput, null, extractedLinks)
-        return true
-    }
-
-    private fun publishImageExtractionIncomplete(fileName: String, reason: String) {
-        val result = applyEvidenceGate(
-            current = OfflineAssessment(
-                family = "Scanare incompletă",
-                riskScore = 0,
-                riskLevel = "unknown",
-                reasons = listOf(reason),
-                safeActions = listOf("Reîncearcă scanarea cu o imagine mai clară sau copiază textul/linkul în câmpul de scanare."),
-                keyDangers = listOf("Nu avem suficiente dovezi tehnice pentru verdict."),
-                originalText = "Nu s-a extras conținut verificabil din $fileName."
-            ),
-            rawInput = "Imagine fără text OCR verificabil: $fileName",
-            inputKind = "upload_image",
-            channel = "image_ocr",
-            providerStates = unavailableProviderStates(),
-            completeness = EvidenceCompleteness.LOCAL_ONLY
-        )
-        publishAssessmentResult(null, result)
     }
 
     fun onSharedTextPayload(payload: String, mimeType: String? = null) {
