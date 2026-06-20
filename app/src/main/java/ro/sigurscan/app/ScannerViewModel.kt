@@ -213,20 +213,25 @@ internal fun orchestratedPreviewStillPending(preview: OrchestratedPreview?): Boo
 internal fun orchestratedEvidenceCompleteness(
     preview: OrchestratedPreview?,
     providerStates: Map<ProviderId, ProviderState>,
-    finalUrl: String?
+    finalUrl: String?,
+    isFinal: Boolean = true
 ): EvidenceCompleteness {
     if (orchestratedPreviewStillPending(preview)) return EvidenceCompleteness.PARTIAL_ONLINE
-    if (providerStates.values.any {
-            it.status in setOf(
-                ProviderStatus.PENDING,
-                ProviderStatus.TIMEOUT,
-                ProviderStatus.RATE_LIMITED,
-                ProviderStatus.ERROR
-            )
-        }
-    ) {
+    if (providerStates.values.any { it.status == ProviderStatus.PENDING }) {
         return EvidenceCompleteness.PARTIAL_ONLINE
     }
+    if (!isFinal) return EvidenceCompleteness.PARTIAL_ONLINE
+    val previewStatus = preview?.status?.trim()?.lowercase(Locale.US)
+    val previewIsTerminal = !preview?.screenshotUrl.isNullOrBlank() ||
+        previewStatus in setOf("ready", "unavailable", "not_applicable")
+    val providerHasTerminalFailure = providerStates.values.any {
+        it.status in setOf(
+            ProviderStatus.TIMEOUT,
+            ProviderStatus.RATE_LIMITED,
+            ProviderStatus.ERROR
+        )
+    }
+    if (providerHasTerminalFailure && !previewIsTerminal) return EvidenceCompleteness.PARTIAL_ONLINE
     if (!finalUrl.isNullOrBlank()) return EvidenceCompleteness.FULL
     if (providerStates.values.any { it.status == ProviderStatus.OK }) return EvidenceCompleteness.PARTIAL_ONLINE
     return EvidenceCompleteness.LOCAL_ONLY
@@ -1999,7 +2004,8 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 completeness = orchestratedEvidenceCompleteness(
                     preview = preview,
                     providerStates = providerStates,
-                    finalUrl = visualEvidenceUrl.takeIf { it.isNotBlank() }
+                    finalUrl = visualEvidenceUrl.takeIf { it.isNotBlank() },
+                    isFinal = response.isFinal != false
                 ),
                 registryVersion = BrandKnowledgeRegistry.registryVersion(),
                 corpusVersion = BrandKnowledgeRegistry.corpusVersion(),
@@ -2289,7 +2295,12 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             providerStates = providerStates,
             registryVersion = BrandKnowledgeRegistry.registryVersion(),
             corpusVersion = BrandKnowledgeRegistry.corpusVersion(),
-            completeness = orchestratedEvidenceCompleteness(preview, providerStates, finalUrl)
+            completeness = orchestratedEvidenceCompleteness(
+                preview = preview,
+                providerStates = providerStates,
+                finalUrl = finalUrl,
+                isFinal = response.isFinal != false
+            )
         )
         return base.withGate(snapshot, backendGateResult(response), rawInput, threatIntel)
     }
