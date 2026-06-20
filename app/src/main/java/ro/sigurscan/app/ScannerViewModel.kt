@@ -399,73 +399,6 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         calculateStats()
     }
 
-    fun requestPostIncidentActionPlan(impacts: List<String>) {
-        val current = assessment ?: return
-        if (actionPlanLoading || impacts.isEmpty()) return
-        actionPlanLoading = true
-        actionPlanStatus = "Construim planul pentru ce s-a întâmplat."
-        viewModelScope.launch {
-            try {
-                val plan = api.getActionPlan(
-                    ActionPlanRequest(
-                        verdict = when (current.riskLevel.lowercase(Locale.US)) {
-                            "high", "critical" -> "DANGEROUS"
-                            "medium" -> "SUSPECT"
-                            else -> current.gateResult?.action?.userLabel ?: "SUSPECT"
-                        },
-                        family = current.offerEvidence?.fields?.familyCode ?: current.family,
-                        impacts = impacts,
-                        targetType = if (current.finalUrl != null) "url" else null,
-                        targetRedacted = current.finalUrl
-                    )
-                )
-                val updated = current.copy(actionPlan = plan)
-                assessment = updated
-                replaceAssessment(current.scanId, updated)
-                actionPlanStatus = "Plan actualizat pentru impacturile selectate."
-            } catch (_: Exception) {
-                actionPlanStatus = "Nu am putut actualiza planul. Reîncearcă."
-            } finally {
-                actionPlanLoading = false
-            }
-        }
-    }
-
-    fun requestOfficialReportPackage() {
-        val current = assessment ?: return
-        if (officialReportLoading) return
-        officialReportLoading = true
-        officialReportStatus = "Pregătim raportul oficial precompletat."
-        viewModelScope.launch {
-            try {
-                val targetRedacted = current.finalUrl
-                    ?.substringBefore("?")
-                    ?.takeIf { it.isNotBlank() }
-                    ?: "[redactat]"
-                val report = api.buildOneTapReport(
-                    OneTapReportRequest(
-                        targetType = if (current.finalUrl != null) "url" else "unknown",
-                        targetRedacted = targetRedacted,
-                        family = current.offerEvidence?.fields?.familyCode ?: current.family,
-                        verdict = when (current.riskLevel.lowercase(Locale.US)) {
-                            "high", "critical" -> "DANGEROUS"
-                            "medium" -> "SUSPECT"
-                            else -> current.gateResult?.action?.userLabel ?: "SUSPECT"
-                        },
-                        redactedSummary = current.reasons.take(3).joinToString(" ")
-                            .takeIf { it.isNotBlank() }
-                    )
-                )
-                officialReportPackage = report
-                officialReportStatus = "Raport pregătit: ${report.channels.orEmpty().size} canale."
-            } catch (_: Exception) {
-                officialReportStatus = "Nu am putut pregăti raportul oficial. Reîncearcă."
-            } finally {
-                officialReportLoading = false
-            }
-        }
-    }
-
     fun clearLiveCampaignEvent() {
         liveCampaignEvent = null
     }
@@ -488,7 +421,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    private fun calculateStats() {
+    internal fun calculateStats() {
         scamsBlocked = historyItems.count { it.riskLevel in listOf("high", "critical", "dangerous") }
         cyberScore = Math.min(100, (historyItems.size * 5) + (scamsBlocked * 10))
     }
@@ -2569,40 +2502,6 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         officialReportStatus = null
         text = ""
         clearAllPendingShared()
-    }
-
-    private fun addToHistory(item: OfflineAssessment) {
-        historyItems.add(0, item)
-        calculateStats()
-        saveHistory()
-    }
-
-    fun deleteHistoryItem(item: OfflineAssessment) {
-        historyItems.remove(item)
-        saveHistory()
-    }
-
-    fun clearHistory() {
-        historyItems.clear()
-        saveHistory()
-    }
-
-    private fun saveHistory() {
-        val snapshot = historyItems.toList().take(50)
-        viewModelScope.launch(Dispatchers.IO) {
-            val json = gson.toJson(snapshot)
-            prefs.edit().putString("history", json).apply()
-        }
-    }
-
-    private fun loadHistory() {
-        val json = prefs.getString("history", null)
-        if (json != null) {
-            val type = object : TypeToken<List<OfflineAssessment>>() {}.type
-            val items: List<OfflineAssessment> = gson.fromJson(json, type)
-            historyItems.clear()
-            historyItems.addAll(items)
-        }
     }
 
     override fun onCleared() {
