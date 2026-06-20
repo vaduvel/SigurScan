@@ -61,7 +61,7 @@ def test_invoice_verify_blocks_safe_when_required_proof_is_missing():
     out = gate_from_invoice_truth(truth, base)
 
     assert out["label"] == "UNVERIFIED"
-    assert out["risk_level"] == "unknown"
+    assert out["risk_level"] == "info"
     assert out["risk_score"] == 35
     assert out["reason_codes"] == ["ISSUER_NOT_FOUND"]
 
@@ -112,6 +112,7 @@ def test_invoice_verify_blocks_safe_when_authoritative_registry_says_issuer_inac
     out = gate_from_invoice_truth(truth, base)
 
     assert out["label"] == "UNVERIFIED"
+    assert out["risk_level"] == "info"
 
 
 def test_decisive_generic_dangerous_still_overrides_invoice_verify():

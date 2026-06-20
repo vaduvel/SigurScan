@@ -70,7 +70,7 @@ async def test_invoice_truth_keeps_clean_unknown_iban_human_clear_not_red(monkey
     assert truth["next_action"]["type"] == "VERIFY_BENEFICIARY_IN_BANK"
     assert truth["hard_conflicts"] == []
     assert evaluated["gate"]["label"] == "UNVERIFIED"
-    assert evaluated["gate"]["risk_level"] == "unknown"
+    assert evaluated["gate"]["risk_level"] == "info"
 
 
 @pytest.mark.asyncio
@@ -94,7 +94,7 @@ async def test_invoice_truth_sanb_match_does_not_make_unconfirmed_invoice_safe(m
     assert truth["safe_to_pay"] is False
     assert truth["primary_reason_code"] == "UNEXPECTED_OBLIGATION"
     assert evaluated["gate"]["label"] == "UNVERIFIED"
-    assert evaluated["gate"]["risk_level"] == "unknown"
+    assert evaluated["gate"]["risk_level"] == "info"
 
 
 @pytest.mark.asyncio

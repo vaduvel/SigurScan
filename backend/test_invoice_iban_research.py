@@ -605,5 +605,5 @@ class TestInvoiceChannelProvenance:
         assert result.beneficiary_name_check is not None
         assert result.beneficiary_name_check["recommended"] is True
         assert verdict["gate"]["label"] == "UNVERIFIED"
-        assert verdict["gate"]["risk_level"] == "unknown"
+        assert verdict["gate"]["risk_level"] == "info"
         assert verdict["gate"]["reason_codes"] == ["UNCONFIRMED_DESTINATION"]

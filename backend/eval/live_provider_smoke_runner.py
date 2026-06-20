@@ -48,6 +48,10 @@ class LiveSmokeCase:
     source_refs: List[Dict[str, Any]] | None = None
     case_kind: str = "live_provider_smoke"
     max_seconds: int = 120
+    input_type: str = "text"
+    url: str | None = None
+    source_channel: str = "live_provider_smoke"
+    visibility: str | None = None
 
 
 def _normalize_label(value: Any) -> str:
@@ -145,6 +149,8 @@ def _load_cases_from_file(path: str) -> List[LiveSmokeCase]:
 
         expected = item.get("expected_labels") or item.get("expected_user_action_range") or ["SAFE", "SUSPECT", "DANGEROUS"]
         max_seconds = int(item.get("max_seconds") or item.get("max_timeout_seconds") or 120)
+        input_type = str(item.get("input_type") or "text").strip().lower() or "text"
+        url = str(item.get("url") or "").strip() or None
         parsed.append(
             LiveSmokeCase(
                 case_id=case_id,
@@ -154,6 +160,10 @@ def _load_cases_from_file(path: str) -> List[LiveSmokeCase]:
                 source_refs=item.get("source_refs") if isinstance(item.get("source_refs"), list) else None,
                 case_kind=str(item.get("case_kind") or "live_public_case_smoke"),
                 max_seconds=max_seconds,
+                input_type=input_type,
+                url=url,
+                source_channel=str(item.get("source_channel") or "live_provider_smoke"),
+                visibility=str(item.get("visibility") or "").strip() or None,
             )
         )
     return parsed
@@ -161,13 +171,15 @@ def _load_cases_from_file(path: str) -> List[LiveSmokeCase]:
 
 def _post_scan(base_url: str, case: LiveSmokeCase, timeout: float) -> Dict[str, Any]:
     payload = {
-        "input_type": "text",
+        "input_type": case.input_type,
         "text": case.text,
-        "source_channel": "live_provider_smoke",
-        "visibility": os.getenv("SIGURSCAN_LIVE_SMOKE_URLSCAN_VISIBILITY", "unlisted"),
+        "source_channel": case.source_channel,
+        "visibility": case.visibility or os.getenv("SIGURSCAN_LIVE_SMOKE_URLSCAN_VISIBILITY", "unlisted"),
         "country": os.getenv("SIGURSCAN_LIVE_SMOKE_URLSCAN_COUNTRY", "ro"),
         "customagent": os.getenv("SIGURSCAN_LIVE_SMOKE_USER_AGENT", DEFAULT_MOBILE_USER_AGENT),
     }
+    if case.url:
+        payload["url"] = case.url
     last_exc: requests.RequestException | None = None
     for attempt in range(3):
         try:
@@ -306,6 +318,8 @@ def _run_case(base_url: str, case: LiveSmokeCase, poll_interval: float, timeout:
         "title": case.title,
         "case_kind": case.case_kind,
         "source_refs": case.source_refs or [],
+        "input_type": case.input_type,
+        "source_channel": case.source_channel,
         "scan_id": scan_id,
         "passed": passed,
         "expected_labels": case.expected_labels,
@@ -378,7 +392,16 @@ def main() -> int:
             "dry_run": True,
             "required_env_to_run": f"{RUN_ENV}=1",
             "base_url": args.base_url,
-            "cases": [{"id": case.case_id, "title": case.title, "expected_labels": case.expected_labels} for case in selected],
+            "cases": [
+                {
+                    "id": case.case_id,
+                    "title": case.title,
+                    "input_type": case.input_type,
+                    "source_channel": case.source_channel,
+                    "expected_labels": case.expected_labels,
+                }
+                for case in selected
+            ],
         }, indent=2, ensure_ascii=False))
         return 0
 

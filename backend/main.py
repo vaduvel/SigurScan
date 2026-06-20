@@ -11024,6 +11024,7 @@ async def _run_orchestrated_invoice_fast_lane(job: Dict[str, Any], request: Requ
 
     analysis["risk_level"] = gate_result.get("risk_level")
     analysis["risk_score"] = gate_result.get("risk_score")
+    analysis["user_risk_label"] = label
     analysis["reasons"] = reasons
     analysis["safe_actions"] = safe_actions
 

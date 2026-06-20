@@ -288,13 +288,21 @@ def gate_from_invoice_truth(truth: Dict[str, Any], fallback_gate: Optional[Dict[
         return {
             **fallback_gate,
             "label": "UNVERIFIED",
-            "risk_level": "unknown",
+            "risk_level": "info",
             "risk_score": 35,
             "reason_codes": [truth.get("primary_reason_code") or "invoice_payment_needs_verification"],
             "confidence": 82,
             "is_final": True,
         }
     if verdict == "VERIFY_BEFORE_PAYING" and fallback_label in {"SAFE", "SUSPECT", "UNVERIFIED"}:
+        if fallback_label == "UNVERIFIED":
+            return {
+                **fallback_gate,
+                "label": "UNVERIFIED",
+                "risk_level": "info",
+                "risk_score": int(fallback_gate.get("risk_score") or 35),
+                "is_final": True,
+            }
         return {**fallback_gate, "is_final": True}
     return {
         **fallback_gate,
