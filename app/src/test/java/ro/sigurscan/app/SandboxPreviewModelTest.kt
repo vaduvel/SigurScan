@@ -3,6 +3,7 @@ package ro.sigurscan.app
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import java.io.File
 
 class SandboxPreviewModelTest {
     @Test
@@ -20,9 +21,15 @@ class SandboxPreviewModelTest {
 
     @Test
     fun sandboxPreviewKeepsLocalPrivateScreenshotUriUnchanged() {
+        val cachedFile = File.createTempFile("sigurscan-urlscan", ".png").apply {
+            writeBytes(byteArrayOf(0x01, 0x02, 0x03))
+            deleteOnExit()
+        }
+        val localUrl = cachedFile.toURI().toString()
+
         assertEquals(
-            "file:///data/user/0/ro.sigurscan.app/cache/urlscan-screenshots/scan-id.png",
-            sandboxScreenshotModel("file:///data/user/0/ro.sigurscan.app/cache/urlscan-screenshots/scan-id.png")
+            localUrl,
+            sandboxScreenshotModel(localUrl)
         )
     }
 

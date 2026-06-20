@@ -382,13 +382,15 @@ fun EvidenceSection(screenshotUrl: String?, serverInfo: String?, finalUrl: Strin
     }
 }
 
-internal fun sandboxScreenshotModel(screenshotUrl: String?): String? =
-    screenshotUrl
-        ?.takeIf { it.isNotBlank() }
-        ?.takeIf {
-            it.startsWith("file://", ignoreCase = true) ||
-                !it.contains("/v1/sandbox/urlscan/", ignoreCase = true)
-        }
+internal fun sandboxScreenshotModel(screenshotUrl: String?): String? {
+    val value = screenshotUrl?.trim()?.takeIf { it.isNotBlank() } ?: return null
+    if (value.startsWith("file://", ignoreCase = true)) {
+        val path = runCatching { Uri.parse(value).path }.getOrNull() ?: return null
+        val file = File(path)
+        return value.takeIf { file.isFile && file.length() > 0L }
+    }
+    return value.takeIf { !it.contains("/v1/sandbox/urlscan/", ignoreCase = true) }
+}
 
 internal fun publicServerInfo(serverInfo: String?): String {
     val value = serverInfo?.trim()?.takeIf { it.isNotBlank() } ?: return "Preview securizat al paginii finale"

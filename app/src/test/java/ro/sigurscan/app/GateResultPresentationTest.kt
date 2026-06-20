@@ -3,6 +3,7 @@ package ro.sigurscan.app
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 class GateResultPresentationTest {
 
@@ -209,9 +210,15 @@ class GateResultPresentationTest {
     @Test
     fun screenshotProxyUrlWaitsForLocalCachedFileBeforeImageRendering() {
         val proxyUrl = "https://api.sigurscan.com/v1/sandbox/urlscan/urlscan-123/screenshot"
-        val localUrl = "file:///tmp/urlscan-123.png"
+        val missingLocalUrl = "file:///tmp/urlscan-123.png"
+        val cachedFile = File.createTempFile("sigurscan-urlscan", ".png").apply {
+            writeBytes(byteArrayOf(0x01, 0x02, 0x03))
+            deleteOnExit()
+        }
+        val localUrl = cachedFile.toURI().toString()
 
         assertTrue(sandboxScreenshotModel(proxyUrl) == null)
+        assertTrue(sandboxScreenshotModel(missingLocalUrl) == null)
         assertTrue(sandboxScreenshotModel(localUrl) == localUrl)
     }
 

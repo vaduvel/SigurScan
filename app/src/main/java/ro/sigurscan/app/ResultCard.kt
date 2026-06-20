@@ -461,9 +461,13 @@ internal fun GateEvidenceSummary(assessment: OfflineAssessment, riskUi: RiskDisp
     val gateResult = assessment.gateResult ?: return
     val snapshot = assessment.evidenceSnapshot
     val inProgress = GateResultPresentation.isScanInProgress(gateResult)
+    val hasLocalPreview = assessment.screenshotUrl
+        ?.trim()
+        ?.startsWith("file://", ignoreCase = true) == true &&
+        sandboxScreenshotModel(assessment.screenshotUrl) != null
     val finalWithPreviewPending = !inProgress &&
         snapshot?.completeness == EvidenceCompleteness.PARTIAL_ONLINE &&
-        assessment.screenshotUrl.isNullOrBlank()
+        !hasLocalPreview
     val chips = listOfNotNull(
         if (inProgress) "Scanare în curs" else "Verdict final",
         if (assessment.cacheStatus != null) "Verificat anterior" else null,
@@ -472,7 +476,7 @@ internal fun GateEvidenceSummary(assessment: OfflineAssessment, riskUi: RiskDisp
                 EvidenceCompleteness.FULL -> "Verificări complete"
                 EvidenceCompleteness.PARTIAL_ONLINE -> when {
                     finalWithPreviewPending -> "Preview în curs"
-                    !inProgress && !assessment.screenshotUrl.isNullOrBlank() -> "Preview disponibil"
+                    !inProgress && hasLocalPreview -> "Preview disponibil"
                     else -> "Se verifică linkul"
                 }
                 EvidenceCompleteness.LOCAL_ONLY -> "Mai trebuie informații"
