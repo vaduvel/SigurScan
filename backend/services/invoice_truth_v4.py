@@ -209,15 +209,7 @@ def evaluate_invoice_truth_v4(
             decision_status = "ACTION_REQUIRED"
             safe_to_pay = False
             primary_reason = _primary_missing_reason(unconfirmed_items, destination_state, obligation_state, issuer_state)
-            display = {
-                "title": "Verifică înainte să plătești",
-                "message": (
-                    "Factura nu pare fraudă după verificările disponibile. "
-                    "Înainte să plătești, verifică în aplicația bancară că numele "
-                    "beneficiarului afișat corespunde furnizorului."
-                ),
-                "tone": "pending",
-            }
+            display = _verify_before_paying_display(primary_reason)
             next_action = _next_action(primary_reason, beneficiary_name_check)
 
     return {
@@ -515,6 +507,10 @@ def _primary_missing_reason(
     codes = {item.get("code") for item in unconfirmed_items}
     if issuer_state == "INACTIVE":
         return "ISSUER_INACTIVE"
+    if "CHANNEL_OR_PAYMENT_CHANGED" in codes:
+        return "CHANGED_IBAN_OR_CHANNEL"
+    if "HIGH_RISK_PAYMENT_PATTERN_REQUIRES_VERIFICATION" in codes:
+        return "HIGH_RISK_PAYMENT_PATTERN_REQUIRES_VERIFICATION"
     if "INSUFFICIENT_DATA" in codes:
         return "INSUFFICIENT_DATA"
     if destination_state in {"UNCONFIRMED_VALID", "UNKNOWN"}:
@@ -524,6 +520,55 @@ def _primary_missing_reason(
     if "CHANNEL_OR_PAYMENT_CHANGED" in codes:
         return "CHANGED_IBAN_OR_CHANNEL"
     return "VERIFY_BEFORE_PAYING"
+
+
+def _verify_before_paying_display(primary_reason: str) -> Dict[str, str]:
+    if primary_reason == "CHANGED_IBAN_OR_CHANNEL":
+        return {
+            "title": "Verifică plata",
+            "message": (
+                "Am găsit semnale de cont sau canal schimbat. Nu autoriza plata "
+                "până nu confirmi direct cu furnizorul pe un număr sau o adresă "
+                "pe care o cunoști deja."
+            ),
+            "tone": "warning",
+        }
+    if primary_reason == "HIGH_RISK_PAYMENT_PATTERN_REQUIRES_VERIFICATION":
+        return {
+            "title": "Verifică plata",
+            "message": (
+                "Factura are un tipar de plată cu risc crescut. Verifică obligația, "
+                "contractul sau comanda pe canalul oficial înainte să autorizezi plata."
+            ),
+            "tone": "warning",
+        }
+    if primary_reason == "INSUFFICIENT_DATA":
+        return {
+            "title": "Verifică documentul",
+            "message": (
+                "Nu putem citi suficiente date din factură pentru o verificare completă. "
+                "Încarcă documentul complet sau verifică factura în portalul furnizorului."
+            ),
+            "tone": "pending",
+        }
+    if primary_reason == "ISSUER_INACTIVE":
+        return {
+            "title": "Verifică emitentul",
+            "message": (
+                "Firma nu poate fi confirmată ca activă din verificările disponibile. "
+                "Confirmă factura direct cu furnizorul înainte de plată."
+            ),
+            "tone": "warning",
+        }
+    return {
+        "title": "Verifică înainte să plătești",
+        "message": (
+            "Factura nu pare fraudă după verificările disponibile. "
+            "Înainte să plătești, verifică în aplicația bancară că numele "
+            "beneficiarului afișat corespunde furnizorului."
+        ),
+        "tone": "pending",
+    }
 
 
 def _next_action(primary_reason: str, beneficiary_name_check: Optional[dict]) -> Dict[str, Any]:
@@ -540,7 +585,7 @@ def _next_action(primary_reason: str, beneficiary_name_check: Optional[dict]) ->
             "title": "Verifică factura în portalul furnizorului",
             "requires_authorization": False,
         }
-    if primary_reason in {"ISSUER_INACTIVE", "CHANGED_IBAN_OR_CHANNEL"}:
+    if primary_reason in {"ISSUER_INACTIVE", "CHANGED_IBAN_OR_CHANNEL", "HIGH_RISK_PAYMENT_PATTERN_REQUIRES_VERIFICATION"}:
         return {
             "type": "CALL_SUPPLIER_KNOWN_NUMBER",
             "title": "Sună furnizorul pe numărul cunoscut",

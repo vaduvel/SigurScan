@@ -140,6 +140,51 @@ async def test_invoice_truth_inactive_company_is_verify_not_danger_without_hard_
 
 
 @pytest.mark.asyncio
+async def test_invoice_truth_channel_changed_copy_is_not_calm_not_fraud():
+    text = """
+Factura furnizor real cu CUI valid.
+Va rugam ignorati contul vechi din contract si platiti astazi in noul IBAN
+RO49AAAA1B31007593840000.
+Mesaj trimis de pe reply-to contabilitate-furnizor@gmail.com, plata urgenta si confidentiala.
+"""
+
+    result = await scan_invoice(text)
+    evaluated = evaluate_invoice_verdict(result, result.raw_text, source_channel="email")
+    truth = evaluated["invoice_truth"]
+
+    assert "ACCOUNT_CHANGE_LANGUAGE" in result.fraud_flags
+    assert "PAYMENT_PRESSURE" in result.fraud_flags
+    assert truth["verdict"] == "VERIFY_BEFORE_PAYING"
+    assert truth["primary_reason_code"] == "CHANGED_IBAN_OR_CHANNEL"
+    assert "nu pare fraudă" not in truth["display"]["message"].lower()
+    assert "canal" in truth["display"]["message"].lower() or "cont" in truth["display"]["message"].lower()
+    assert truth["next_action"]["type"] == "CALL_SUPPLIER_KNOWN_NUMBER"
+    assert evaluated["gate"]["label"] != "DANGEROUS"
+
+
+@pytest.mark.asyncio
+async def test_invoice_truth_high_risk_payment_pattern_copy_is_not_calm_not_fraud():
+    text = """
+Furnizor: Vendor Example SRL
+CUI: RO12345678
+IBAN: RO49AAAA1B31007593840000
+Total: 1037 RON
+Consultant nou promite acces la grant si cere avans mic de analiza; firma exista in ANAF, dar fara istoric.
+"""
+
+    result = await scan_invoice(text)
+    evaluated = evaluate_invoice_verdict(result, result.raw_text, source_channel="email")
+    truth = evaluated["invoice_truth"]
+
+    assert "GRANT_CONSULTING_FEE_BEFORE_CONTRACT" in result.fraud_flags
+    assert truth["verdict"] == "VERIFY_BEFORE_PAYING"
+    assert truth["primary_reason_code"] == "HIGH_RISK_PAYMENT_PATTERN_REQUIRES_VERIFICATION"
+    assert "nu pare fraudă" not in truth["display"]["message"].lower()
+    assert "risc" in truth["display"]["message"].lower()
+    assert evaluated["gate"]["label"] != "DANGEROUS"
+
+
+@pytest.mark.asyncio
 async def test_invoice_truth_weak_inactive_fallback_does_not_beat_official_payment_destination(monkeypatch):
     text = """
 Factura G 2001
