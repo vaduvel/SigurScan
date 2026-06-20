@@ -18,6 +18,17 @@ class ScannerViewModelTest {
             .filter { it.isFile && it.extension == "kt" }
             .joinToString("\n") { it.readText() }
 
+    /**
+     * Concatenated source of ScannerViewModel.kt and the domain extension files split out of it
+     * (ScannerViewModelDocumentScan.kt, …). The core ScannerViewModel.kt sorts first, so guards
+     * that use indexOf to bound a core method body still operate on a contiguous region.
+     */
+    private fun viewModelSource(): String =
+        File("src/main/java/ro/sigurscan/app")
+            .listFiles { f -> f.isFile && f.name.startsWith("ScannerViewModel") && f.extension == "kt" }!!
+            .sortedBy { it.name }
+            .joinToString("\n") { it.readText() }
+
     private fun extractHtmlLinks(content: String): List<String> {
         return HtmlLinkExtractor.extractHtmlLinks(content)
     }
@@ -170,7 +181,7 @@ class ScannerViewModelTest {
 
     @Test
     fun backendEvidenceIsPassedToEvidenceNormalizerForOrchestratedResults() {
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val viewModelSource = viewModelSource()
         val mapperStart = viewModelSource.indexOf("private fun buildAssessmentFromBackendScanResponse")
         val mapperEnd = viewModelSource.indexOf("private fun buildPendingAssessmentFromOrchestratedResponse", mapperStart)
         assertTrue("buildAssessmentFromBackendScanResponse must exist.", mapperStart >= 0 && mapperEnd > mapperStart)
@@ -260,7 +271,7 @@ class ScannerViewModelTest {
 
     @Test
     fun finalPreviewRefreshKeepsPendingInsteadOfPublishingLocalUnavailableTimeout() {
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val viewModelSource = viewModelSource()
         val helperStart = viewModelSource.indexOf("private fun launchFinalOrchestratedPreviewRefresh")
         val helperEnd = viewModelSource.indexOf("private fun buildDegradedAssessmentFromBackendScanResponse", helperStart)
         assertTrue("Preview refresh helper must exist.", helperStart >= 0 && helperEnd > helperStart)
@@ -295,9 +306,9 @@ class ScannerViewModelTest {
 
     @Test
     fun urlOnlyOrchestratedRequestPreservesActiveEvidenceChannelForQrScans() {
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val viewModelSource = viewModelSource()
         val requestStart = viewModelSource.indexOf("private fun orchestratedRequest")
-        val requestEnd = viewModelSource.indexOf("private fun linksFromExtraction", requestStart)
+        val requestEnd = viewModelSource.indexOf("internal fun linksFromExtraction", requestStart)
         assertTrue("orchestratedRequest must exist.", requestStart >= 0 && requestEnd > requestStart)
 
         val requestFlow = viewModelSource.substring(requestStart, requestEnd)
@@ -351,7 +362,7 @@ class ScannerViewModelTest {
 
     @Test
     fun resultCacheHitShortCircuitsBackendUnlessUserForcesRefresh() {
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val viewModelSource = viewModelSource()
         val scanStart = viewModelSource.indexOf("fun onScanClick(forceRefresh: Boolean = false)")
         val scanEnd = viewModelSource.indexOf("private fun isTrustedOfficialUrl", scanStart)
         assertTrue("onScanClick must exist.", scanStart >= 0 && scanEnd > scanStart)
@@ -372,7 +383,7 @@ class ScannerViewModelTest {
 
     @Test
     fun resultCacheOnlyStoresFinalGateResultsAndStripsCacheStatus() {
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val viewModelSource = viewModelSource()
         val saveStart = viewModelSource.indexOf("private fun saveFinalAssessmentToResultCache")
         val saveEnd = viewModelSource.indexOf("private fun trimResultCache", saveStart)
         assertTrue("saveFinalAssessmentToResultCache must exist.", saveStart >= 0 && saveEnd > saveStart)
@@ -393,7 +404,7 @@ class ScannerViewModelTest {
 
     @Test
     fun finalPendingPreviewIsNotCachedAsCompleteResult() {
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val viewModelSource = viewModelSource()
         val publishStart = viewModelSource.indexOf("private suspend fun publishOrchestratedResponse")
         val publishEnd = viewModelSource.indexOf("private fun shouldCacheFinalAssessment", publishStart)
         assertTrue("publishOrchestratedResponse must exist.", publishStart >= 0 && publishEnd > publishStart)
@@ -413,7 +424,7 @@ class ScannerViewModelTest {
 
     @Test
     fun finalOrchestratedVerdictStopsLoadingBeforePreviewRefresh() {
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val viewModelSource = viewModelSource()
         val publishStart = viewModelSource.indexOf("private suspend fun publishOrchestratedResponse")
         val publishEnd = viewModelSource.indexOf("private fun shouldCacheFinalAssessment", publishStart)
         assertTrue("publishOrchestratedResponse must exist.", publishStart >= 0 && publishEnd > publishStart)
@@ -435,7 +446,7 @@ class ScannerViewModelTest {
 
     @Test
     fun orchestratedVerdictPublishDoesNotSynchronouslyDownloadScreenshot() {
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val viewModelSource = viewModelSource()
         val publishStart = viewModelSource.indexOf("private suspend fun publishOrchestratedResponse")
         val publishEnd = viewModelSource.indexOf("private fun shouldCacheFinalAssessment", publishStart)
         assertTrue("publishOrchestratedResponse must exist.", publishStart >= 0 && publishEnd > publishStart)
@@ -453,8 +464,8 @@ class ScannerViewModelTest {
 
     @Test
     fun orchestratedPollingBudgetPublishesExplicitTimeoutState() {
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
-        val runStart = viewModelSource.indexOf("private suspend fun runBackendOrchestratedScan")
+        val viewModelSource = viewModelSource()
+        val runStart = viewModelSource.indexOf("internal suspend fun runBackendOrchestratedScan")
         val runEnd = viewModelSource.indexOf("fun onScanClick", runStart)
         assertTrue("runBackendOrchestratedScan must exist.", runStart >= 0 && runEnd > runStart)
 
@@ -477,8 +488,8 @@ class ScannerViewModelTest {
 
     @Test
     fun finalVerdictPreviewRefreshIsSeparateFromScanPollingLoop() {
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
-        val runStart = viewModelSource.indexOf("private suspend fun runBackendOrchestratedScan")
+        val viewModelSource = viewModelSource()
+        val runStart = viewModelSource.indexOf("internal suspend fun runBackendOrchestratedScan")
         val runEnd = viewModelSource.indexOf("fun onScanClick", runStart)
         assertTrue("runBackendOrchestratedScan must exist.", runStart >= 0 && runEnd > runStart)
 
@@ -525,7 +536,7 @@ class ScannerViewModelTest {
 
     @Test
     fun resultCacheExpiryRemovesStaleRecordsInsteadOfServingOldVerdicts() {
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val viewModelSource = viewModelSource()
         assertTrue(
             "Result cache storage key must be versioned so backend verdict contract changes can invalidate stale local verdicts.",
             viewModelSource.contains("scan_result_cache_v3")
@@ -586,7 +597,7 @@ class ScannerViewModelTest {
 
     @Test
     fun uploadedMediaAndMailUseOrchestratedPipelineAfterExtraction() {
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val viewModelSource = viewModelSource()
         val apiSource = File("src/main/java/ro/sigurscan/app/SigurScanApi.kt").readText()
         val forbiddenDirectFinalScans = Regex("""api\.scan(?:Image|Pdf|Email)\(""")
         val forbiddenLegacyEndpoints = listOf(
@@ -615,7 +626,7 @@ class ScannerViewModelTest {
     fun sharedIntentMixedTextAndFilesKeepsBothEvidencePaths() {
         val activitySource = uiPackageSource()
         val plannerSource = File("src/main/java/ro/sigurscan/app/SharedIntentIntakePlanner.kt").readText()
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val viewModelSource = viewModelSource()
 
         assertTrue(
             "stageSharedTextPayload must be able to keep attached streams when an email/share intent contains both HTML/text and files.",
@@ -658,7 +669,7 @@ class ScannerViewModelTest {
 
     @Test
     fun qrImageFailurePublishesIncompleteEvidenceInsteadOfSilentStop() {
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val viewModelSource = viewModelSource()
         val qrStart = viewModelSource.indexOf("fun onQrPicked(uri: Uri, context: Context)")
         val qrEnd = viewModelSource.indexOf("fun onImagePicked(uri: Uri, context: Context)", qrStart)
         assertTrue("onQrPicked must exist.", qrStart >= 0 && qrEnd > qrStart)
@@ -680,7 +691,7 @@ class ScannerViewModelTest {
 
     @Test
     fun qrImageSuccessRoutesThroughOrchestratedScanWithQrEvidence() {
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val viewModelSource = viewModelSource()
         val qrStart = viewModelSource.indexOf("fun onQrPicked(uri: Uri, context: Context)")
         val qrEnd = viewModelSource.indexOf("fun onImagePicked(uri: Uri, context: Context)", qrStart)
         assertTrue("onQrPicked must exist.", qrStart >= 0 && qrEnd > qrStart)
@@ -703,7 +714,7 @@ class ScannerViewModelTest {
 
     @Test
     fun imageOcrRunsOnDeviceBeforeCloudFallback() {
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val viewModelSource = viewModelSource()
         val imageStart = viewModelSource.indexOf("fun onImagePicked(uri: Uri, context: Context)")
         val imageEnd = viewModelSource.indexOf("private suspend fun runLocalImageOcrScanIfPossible", imageStart)
         assertTrue("onImagePicked must exist before the local OCR helper.", imageStart >= 0 && imageEnd > imageStart)
@@ -723,7 +734,7 @@ class ScannerViewModelTest {
     fun invoiceCanBeCapturedWithCameraAndRoutedToInvoiceEndpoint() {
         val activitySource = uiPackageSource()
         val manifestSource = File("src/main/AndroidManifest.xml").readText()
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val viewModelSource = viewModelSource()
         val apiSource = File("src/main/java/ro/sigurscan/app/SigurScanApi.kt").readText()
 
         assertTrue(
@@ -787,9 +798,9 @@ class ScannerViewModelTest {
 
     @Test
     fun pdfAndUnsupportedFileFailuresStayExplicitAndNonVerdict() {
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val viewModelSource = viewModelSource()
         val fileStart = viewModelSource.indexOf("fun onFilePicked(uri: Uri, context: Context)")
-        val fileEnd = viewModelSource.indexOf("private fun getFileName", fileStart)
+        val fileEnd = viewModelSource.indexOf("internal fun getFileName", fileStart)
         assertTrue("onFilePicked must exist.", fileStart >= 0 && fileEnd > fileStart)
 
         val fileFlow = viewModelSource.substring(fileStart, fileEnd)
@@ -817,9 +828,9 @@ class ScannerViewModelTest {
 
     @Test
     fun emailAndHtmlImportsReleaseLoadingBeforeTriggeringScan() {
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val viewModelSource = viewModelSource()
         val fileStart = viewModelSource.indexOf("fun onFilePicked(uri: Uri, context: Context)")
-        val fileEnd = viewModelSource.indexOf("private fun getFileName", fileStart)
+        val fileEnd = viewModelSource.indexOf("internal fun getFileName", fileStart)
         assertTrue("onFilePicked must exist.", fileStart >= 0 && fileEnd > fileStart)
 
         val fileFlow = viewModelSource.substring(fileStart, fileEnd)
@@ -841,9 +852,9 @@ class ScannerViewModelTest {
         val manifestSource = File("src/main/AndroidManifest.xml").readText()
         val activitySource = uiPackageSource()
         val classifierSource = File("src/main/java/ro/sigurscan/app/FileImportClassifier.kt").readText()
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val viewModelSource = viewModelSource()
         val fileStart = viewModelSource.indexOf("fun onFilePicked(uri: Uri, context: Context)")
-        val fileEnd = viewModelSource.indexOf("private fun getFileName", fileStart)
+        val fileEnd = viewModelSource.indexOf("internal fun getFileName", fileStart)
         assertTrue("onFilePicked must exist.", fileStart >= 0 && fileEnd > fileStart)
         val fileFlow = viewModelSource.substring(fileStart, fileEnd)
 
@@ -867,7 +878,7 @@ class ScannerViewModelTest {
 
     @Test
     fun neutralPendingAssessmentBuilderCannotEmitRiskVerdict() {
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        val viewModelSource = viewModelSource()
         assertFalse(
             "ScannerViewModel must not keep an offline verdict evaluator; pending UI state is not a verdict.",
             viewModelSource.contains("evaluateOfflineText")

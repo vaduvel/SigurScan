@@ -70,11 +70,11 @@ import kotlin.coroutines.suspendCoroutine
 import retrofit2.HttpException
 
 class ScannerViewModel(application: Application) : AndroidViewModel(application) {
-    private data class PdfFallbackExtraction(
+    internal data class PdfFallbackExtraction(
         val extractedText: String,
         val extractedLinks: Set<String> = emptySet()
     )
-    private data class PendingInvoiceScanSource(
+    internal data class PendingInvoiceScanSource(
         val uri: Uri,
         val officialXmlUri: Uri? = null
     )
@@ -117,7 +117,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     var assessment by mutableStateOf<OfflineAssessment?>(null)
     var invoiceResult by mutableStateOf<InvoiceScanResponse?>(null)
     var invoiceSanbStatus by mutableStateOf<String?>(null)
-    private var lastInvoiceScanSource: PendingInvoiceScanSource? = null
+    internal var lastInvoiceScanSource: PendingInvoiceScanSource? = null
     var pendingOfferConfirmation by mutableStateOf<PendingOfferConfirmation?>(null)
     var pendingSharedInput by mutableStateOf<String?>(null)
     var pendingSharedSourceLabel by mutableStateOf("Conținut partajat")
@@ -215,7 +215,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     internal val prefs: SharedPreferences by lazy { createSecurePrefs(application) }
     private val clientInstanceId: String by lazy { loadOrCreateClientInstanceId() }
     internal val gson = Gson()
-    private val recognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
+    internal val recognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
     private val barcodeScanner by lazy { BarcodeScanning.getClient() }
     private val URLSCAN_API_KEY = BuildConfig.URLSCAN_API_KEY
     internal val GOOGLE_WEB_RISK_API_KEY = BuildConfig.GOOGLE_WEB_RISK_API_KEY
@@ -230,11 +230,11 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         .build()
     internal val webRiskCache = Collections.synchronizedMap(mutableMapOf<String, CachedThreatIntelResult>())
     private val evidenceGate = EvidenceGate()
-    private var stagedEvidenceHtml: String? = null
-    private var stagedEvidenceLinks: List<String> = emptyList()
-    private var stagedEvidenceText: String? = null
-    private var stagedEvidenceInputKind: String? = null
-    private var stagedEvidenceChannel: String? = null
+    internal var stagedEvidenceHtml: String? = null
+    internal var stagedEvidenceLinks: List<String> = emptyList()
+    internal var stagedEvidenceText: String? = null
+    internal var stagedEvidenceInputKind: String? = null
+    internal var stagedEvidenceChannel: String? = null
     private val resultCache = Collections.synchronizedMap(LinkedHashMap<String, CachedAssessmentRecord>())
     internal val radarHotCacheStore by lazy { RadarHotCacheStore.fromContext(application) }
     internal val radarScreeningAuditStore by lazy { RadarScreeningAuditStore.fromContext(application) }
@@ -309,7 +309,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             connectTimeoutSeconds = 5
         )
     }
-    private val uploadApi: SigurScanApi by lazy {
+    internal val uploadApi: SigurScanApi by lazy {
         buildApiClient(
             callTimeoutSeconds = 75,
             readTimeoutSeconds = 75,
@@ -495,7 +495,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
 
     private val URL_REGEX = Pattern.compile("(?:https?://|www\\.)[\\w\\-.~:/?#\\[\\]@!$&'()*+,;=%]+", Pattern.CASE_INSENSITIVE)
 
-    private fun applyEvidenceGate(
+    internal fun applyEvidenceGate(
         current: OfflineAssessment,
         rawInput: String,
         inputKind: String = activeEvidenceInputKind(rawInput) ?: inferEvidenceInputKind(rawInput),
@@ -658,7 +658,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         return "scan=${snapshot.inputKind}; channel=${snapshot.channel}; target=${target.take(96)}; inputHash=$hash"
     }
 
-    private fun unavailableProviderStates(): Map<ProviderId, ProviderState> = mapOf(
+    internal fun unavailableProviderStates(): Map<ProviderId, ProviderState> = mapOf(
         ProviderId.WEB_RISK to ProviderState(ProviderId.WEB_RISK, ProviderStatus.ERROR, note = "Backend/provider unavailable"),
         ProviderId.URLSCAN to ProviderState(ProviderId.URLSCAN, ProviderStatus.ERROR, note = "Backend/provider unavailable"),
         ProviderId.PHISHING_DATABASE to ProviderState(ProviderId.PHISHING_DATABASE, ProviderStatus.ERROR, note = "Phishing.Database unavailable"),
@@ -746,7 +746,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         return guarded
     }
 
-    private fun publishAssessmentResult(existingScanId: String?, updated: OfflineAssessment) {
+    internal fun publishAssessmentResult(existingScanId: String?, updated: OfflineAssessment) {
         val isFinal = updated.gateResult?.finality == GateFinality.FINAL
         if (existingScanId != null && currentAssessmentForScan(existingScanId) != null) {
             if (isFinal) {
@@ -872,7 +872,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    private fun linksFromExtraction(response: ExtractionResponse, extractedText: String): List<String> {
+    internal fun linksFromExtraction(response: ExtractionResponse, extractedText: String): List<String> {
         return (
             (response.extractedUrls ?: emptyList()) +
                 extractUrls(extractedText) +
@@ -1204,7 +1204,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         loadingMsg = ""
     }
 
-    private suspend fun runBackendOrchestratedScan(
+    internal suspend fun runBackendOrchestratedScan(
         rawInput: String,
         htmlPayload: String?,
         urls: List<String>,
@@ -2106,563 +2106,6 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         publishAssessmentResult(null, result)
     }
 
-    fun scanInvoiceFromDocument(
-        uri: Uri,
-        context: Context,
-        officialXmlUri: Uri? = null,
-        sanbAttestation: String? = null
-    ) {
-        loading = true
-        loadingMsg = when {
-            sanbAttestation != null -> "Actualizăm verdictul după verificarea beneficiarului..."
-            officialXmlUri != null -> "Comparăm factura cu XML-ul e-Factura..."
-            else -> "Scanăm factura prin OCR..."
-        }
-        invoiceSanbStatus = null
-        if (sanbAttestation == null) {
-            invoiceResult = null
-        }
-        lastInvoiceScanSource = PendingInvoiceScanSource(uri = uri, officialXmlUri = officialXmlUri)
-
-        viewModelScope.launch {
-            var file: File? = null
-            var officialXmlFile: File? = null
-            try {
-                val fileName = getFileName(uri, context)
-                val mimeType = context.contentResolver.getType(uri).orEmpty().lowercase(Locale.ROOT)
-                val isPdf = mimeType.contains("pdf") || fileName.lowercase(Locale.ROOT).endsWith(".pdf")
-                val isImage = mimeType.startsWith("image/") || fileName.lowercase(Locale.ROOT).matches(
-                    Regex(""".*\.(jpg|jpeg|png|webp)$""")
-                )
-                if (!isPdf && !isImage) {
-                    invoiceResult = InvoiceScanResponse(
-                        error = "Alege o factură în format imagine sau PDF."
-                    )
-                    return@launch
-                }
-
-                loadingMsg = if (isPdf) "Scanăm factura PDF..." else "Optimizăm poza facturii..."
-                file = if (isPdf) uriToFile(uri, context, MAX_UPLOAD_BYTES) else prepareInvoiceImageUpload(uri, context)
-                val mediaType = if (isPdf) "application/pdf" else "image/jpeg"
-                val partName = if (isPdf) "pdf_file" else "image_file"
-                val requestFile = file.asRequestBody(mediaType.toMediaTypeOrNull())
-                val body = MultipartBody.Part.createFormData(partName, fileName, requestFile)
-                val source = "android_native".toRequestBody("text/plain".toMediaTypeOrNull())
-                val sanbPart = sanbAttestation?.let {
-                    it.toRequestBody("text/plain".toMediaTypeOrNull())
-                }
-                val officialPart = officialXmlUri?.let { xmlUri ->
-                    val xmlFileName = getFileName(xmlUri, context)
-                    val xmlMimeType = context.contentResolver.getType(xmlUri).orEmpty().lowercase(Locale.ROOT)
-                    val isXml = xmlMimeType.contains("xml") || xmlFileName.lowercase(Locale.ROOT).endsWith(".xml")
-                    if (!isXml) {
-                        invoiceResult = InvoiceScanResponse(
-                            error = "Alege XML-ul oficial e-Factura în format .xml."
-                        )
-                        return@launch
-                    }
-                    val xmlFile = uriToFile(xmlUri, context, MAX_UPLOAD_BYTES)
-                    officialXmlFile = xmlFile
-                    val xmlRequest = xmlFile.asRequestBody(
-                        (xmlMimeType.ifBlank { "application/xml" }).toMediaTypeOrNull()
-                    )
-                    MultipartBody.Part.createFormData("official_xml_file", xmlFileName, xmlRequest)
-                }
-
-                invoiceResult = uploadApi.scanInvoice(body, source, officialPart, sanbPart)
-                invoiceSanbStatus = when (sanbAttestation) {
-                    "match", "close_match" -> "Ai confirmat în bancă faptul că beneficiarul se potrivește."
-                    "no_match" -> "Ai confirmat în bancă faptul că beneficiarul nu se potrivește."
-                    "not_shown" -> "Banca nu a afișat numele beneficiarului; verifică furnizorul pe canal oficial."
-                    else -> null
-                }
-            } catch (e: Exception) {
-                invoiceResult = InvoiceScanResponse(
-                    error = "Eroare la scanarea facturii: ${e.localizedMessage ?: "conexiune eșuată"}"
-                )
-            } finally {
-                file?.delete()
-                officialXmlFile?.delete()
-                loading = false
-                loadingMsg = ""
-            }
-        }
-    }
-
-    fun submitInvoiceBeneficiaryAttestation(attestation: String, context: Context) {
-        val normalized = when (attestation.trim().lowercase(Locale.ROOT)) {
-            "match", "close_match", "no_match", "not_shown" -> attestation.trim().lowercase(Locale.ROOT)
-            else -> return
-        }
-        val source = lastInvoiceScanSource
-        if (source == null) {
-            invoiceSanbStatus = "Nu mai avem documentul în sesiune. Reîncarcă factura și repetă verificarea."
-            return
-        }
-        scanInvoiceFromDocument(
-            uri = source.uri,
-            context = context,
-            officialXmlUri = source.officialXmlUri,
-            sanbAttestation = normalized
-        )
-    }
-
-    fun scanOfferFromDocument(uri: Uri, context: Context) {
-        loading = true
-        loadingMsg = "Pregătim verificarea ofertei..."
-        invoiceResult = null
-        assessment = null
-
-        viewModelScope.launch {
-            var file: File? = null
-            try {
-                val fileName = getFileName(uri, context)
-                val mimeType = context.contentResolver.getType(uri).orEmpty().lowercase(Locale.ROOT)
-                val lowerName = fileName.lowercase(Locale.ROOT)
-                val isPdf = mimeType.contains("pdf") || lowerName.endsWith(".pdf")
-                val isImage = mimeType.startsWith("image/") || lowerName.matches(
-                    Regex(""".*\.(jpg|jpeg|png|webp)$""")
-                )
-                val importKind = FileImportClassifier.classify(fileName, mimeType)
-
-                if (isImage) {
-                    loadingMsg = "Citim oferta din imagine..."
-                    val extractedText = runCatching {
-                        extractTextFromImage(InputImage.fromFilePath(context, uri))
-                    }.getOrNull().orEmpty().trim()
-
-                    if (extractedText.isNotBlank()) {
-                        stageOfferConfirmationFromExtractedText(
-                            extractedText = extractedText,
-                            links = emptyList(),
-                            fileName = fileName,
-                            inputKind = "offer_image",
-                            channel = "offer_image_ocr"
-                        )
-                        return@launch
-                    }
-
-                    if (!isUploadSizeAllowed(uri, context)) {
-                        publishOfferExtractionIncomplete(
-                            fileName = fileName,
-                            reason = "Imaginea este prea mare, iar OCR-ul local nu a extras text verificabil."
-                        )
-                        return@launch
-                    }
-
-                    loadingMsg = "OCR local neclar. Încercăm extragerea cloud..."
-                    file = uriToFile(uri, context, MAX_UPLOAD_BYTES)
-                    val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
-                    val body = MultipartBody.Part.createFormData("image_file", file.name, requestFile)
-                    val source = "android_offer_image_upload".toRequestBody("text/plain".toMediaTypeOrNull())
-                    val response = uploadApi.extractImage(body, source)
-                    stageOfferConfirmationFromExtraction(
-                        response = response,
-                        fileName = fileName,
-                        inputKind = "offer_image",
-                        channel = "offer_image_ocr"
-                    )
-                    return@launch
-                }
-
-                if (isPdf) {
-                    if (!isUploadSizeAllowed(uri, context)) {
-                        publishOfferExtractionIncomplete(
-                            fileName = fileName,
-                            reason = "PDF-ul depășește limita de scanare cloud."
-                        )
-                        return@launch
-                    }
-
-                    loadingMsg = "Citim oferta din PDF..."
-                    file = uriToFile(uri, context, MAX_UPLOAD_BYTES)
-                    val requestFile = file.asRequestBody("application/pdf".toMediaTypeOrNull())
-                    val body = MultipartBody.Part.createFormData("pdf_file", file.name, requestFile)
-                    val source = "android_offer_pdf_upload".toRequestBody("text/plain".toMediaTypeOrNull())
-                    val response = runCatching { uploadApi.extractPdf(body, source) }.getOrElse {
-                        loadingMsg = "Extragem local textul din PDF..."
-                        val fallback = runCatching { extractTextFromPdfFallback(uri, context) }.getOrNull()
-                            ?: PdfFallbackExtraction("", emptySet())
-                        if (fallback.extractedText.isBlank() && fallback.extractedLinks.isEmpty()) throw it
-                        ExtractionResponse(
-                            redactedText = fallback.extractedText,
-                            extractedUrls = fallback.extractedLinks.toList()
-                        )
-                    }
-                    stageOfferConfirmationFromExtraction(
-                        response = response,
-                        fileName = fileName,
-                        inputKind = "offer_pdf",
-                        channel = "offer_pdf_ocr"
-                    )
-                    return@launch
-                }
-
-                if (importKind == FileImportKind.TEXT || importKind == FileImportKind.HTML || importKind == FileImportKind.EMAIL) {
-                    loadingMsg = "Citim textul ofertei..."
-                    val rawContent = readTextFromUri(uri, context)
-                    val parsedEmail = if (importKind == FileImportKind.EMAIL) EmailMessageParser.parse(rawContent) else null
-                    val htmlContent = when (importKind) {
-                        FileImportKind.EMAIL -> parsedEmail?.htmlText?.takeIf { it.isNotBlank() }
-                        FileImportKind.HTML -> rawContent
-                        else -> null
-                    }
-                    val visibleText = when (importKind) {
-                        FileImportKind.EMAIL -> parsedEmail?.bodyForAnalysis?.ifBlank { rawContent } ?: rawContent
-                        else -> rawContent
-                    }
-                    val links = (
-                        extractUrls(rawContent) +
-                            extractHtmlLinks(rawContent) +
-                            htmlContent.orEmpty().let { html -> if (html.isBlank()) emptyList() else extractHtmlLinks(html) }
-                        ).distinct()
-                    stageOfferConfirmationFromExtractedText(
-                        extractedText = sanitizeSharedText(visibleText),
-                        links = links,
-                        fileName = fileName,
-                        inputKind = "offer_file",
-                        channel = "offer_file_import",
-                        htmlPayload = htmlContent
-                    )
-                    return@launch
-                }
-
-                publishOfferExtractionIncomplete(
-                    fileName = fileName,
-                    reason = "Alege o ofertă în format imagine, PDF, HTML, EML sau TXT."
-                )
-            } catch (e: Exception) {
-                publishOfferExtractionIncomplete(
-                    fileName = getFileName(uri, context),
-                    reason = "Nu am putut citi oferta: ${e.localizedMessage ?: "conexiune eșuată"}"
-                )
-            } finally {
-                file?.delete()
-                loading = false
-                loadingMsg = ""
-            }
-        }
-    }
-
-    private suspend fun runOfferScanFromExtractedText(
-        extractedText: String,
-        links: List<String>,
-        fileName: String,
-        inputKind: String,
-        channel: String,
-        htmlPayload: String? = null
-    ) {
-        val normalizedLinks = (
-            links +
-                extractUrls(extractedText) +
-                extractHtmlLinks(extractedText) +
-                htmlPayload.orEmpty().let { html -> if (html.isBlank()) emptyList() else extractHtmlLinks(html) }
-            )
-            .mapNotNull { normalizeCandidateUrl(it) ?: it.takeIf { candidate -> candidate.isNotBlank() } }
-            .distinct()
-        val assembledInput = MailShareInputAssembler.buildMailScanInput(
-            extractedText.ifBlank { "Conținut ofertă extras din $fileName." },
-            normalizedLinks,
-            fileName
-        )
-        text = assembledInput
-        stagedEvidenceHtml = htmlPayload
-        stagedEvidenceLinks = normalizedLinks
-        stagedEvidenceText = assembledInput
-        stagedEvidenceInputKind = inputKind
-        stagedEvidenceChannel = channel
-        runBackendOrchestratedScan(assembledInput, htmlPayload, normalizedLinks, forcedInputType = "offer")
-    }
-
-    private fun stageOfferConfirmationFromExtraction(
-        response: ExtractionResponse,
-        fileName: String,
-        inputKind: String,
-        channel: String
-    ) {
-        val extractedText = response.redactedText.orEmpty().trim()
-        val htmlPayload = response.htmlContent?.takeIf { it.isNotBlank() }
-        val links = linksFromExtraction(response, extractedText)
-        if (extractedText.isBlank() && links.isEmpty()) {
-            publishOfferExtractionIncomplete(
-                fileName = fileName,
-                reason = response.warning ?: "Nu am putut extrage text sau linkuri verificabile din ofertă."
-            )
-            return
-        }
-        stageOfferConfirmationFromExtractedText(
-            extractedText = extractedText.ifBlank { "Conținut extras din $fileName." },
-            links = links,
-            fileName = fileName,
-            inputKind = inputKind,
-            channel = channel,
-            htmlPayload = htmlPayload
-        )
-    }
-
-    private fun stageOfferConfirmationFromExtractedText(
-        extractedText: String,
-        links: List<String>,
-        fileName: String,
-        inputKind: String,
-        channel: String,
-        htmlPayload: String? = null
-    ) {
-        val normalizedLinks = normalizeOfferLinks(extractedText, links, htmlPayload)
-        val fields = inferOfferConfirmationFields(extractedText)
-        pendingOfferConfirmation = PendingOfferConfirmation(
-            extractedText = extractedText,
-            links = normalizedLinks,
-            fileName = fileName,
-            inputKind = inputKind,
-            channel = channel,
-            htmlPayload = htmlPayload,
-            fields = fields
-        )
-        text = buildConfirmedOfferInput(extractedText, normalizedLinks, fields, fileName)
-        stagedEvidenceHtml = htmlPayload
-        stagedEvidenceLinks = normalizedLinks
-        stagedEvidenceText = text
-        stagedEvidenceInputKind = inputKind
-        stagedEvidenceChannel = channel
-        assessment = null
-        invoiceResult = null
-        loading = false
-        loadingMsg = ""
-    }
-
-    fun cancelOfferConfirmation() {
-        pendingOfferConfirmation = null
-        loading = false
-        loadingMsg = ""
-    }
-
-    fun confirmOfferAndScan(fields: OfferConfirmationFields) {
-        val draft = pendingOfferConfirmation ?: return
-        pendingOfferConfirmation = null
-        invoiceResult = null
-        assessment = null
-        loading = true
-        loadingMsg = "Verificăm oferta confirmată..."
-
-        viewModelScope.launch {
-            try {
-                val normalizedLinks = normalizeOfferLinks(draft.extractedText, draft.links, draft.htmlPayload)
-                val confirmedInput = buildConfirmedOfferInput(draft.extractedText, normalizedLinks, fields, draft.fileName)
-                text = confirmedInput
-                stagedEvidenceHtml = draft.htmlPayload
-                stagedEvidenceLinks = normalizedLinks
-                stagedEvidenceText = confirmedInput
-                stagedEvidenceInputKind = draft.inputKind
-                stagedEvidenceChannel = draft.channel
-                runBackendOrchestratedScan(confirmedInput, draft.htmlPayload, normalizedLinks, forcedInputType = "offer")
-            } catch (e: Exception) {
-                publishOfferExtractionIncomplete(
-                    fileName = draft.fileName,
-                    reason = "Nu am putut trimite oferta la verificare: ${e.localizedMessage ?: "conexiune eșuată"}"
-                )
-            } finally {
-                loading = false
-                loadingMsg = ""
-            }
-        }
-    }
-
-    private fun normalizeOfferLinks(
-        extractedText: String,
-        links: List<String>,
-        htmlPayload: String?
-    ): List<String> {
-        return (
-            links +
-                extractUrls(extractedText) +
-                extractHtmlLinks(extractedText) +
-                htmlPayload.orEmpty().let { html -> if (html.isBlank()) emptyList() else extractHtmlLinks(html) }
-            )
-            .mapNotNull { normalizeCandidateUrl(it) ?: it.takeIf { candidate -> candidate.isNotBlank() } }
-            .distinct()
-    }
-
-    private fun inferOfferConfirmationFields(rawText: String): OfferConfirmationFields {
-        val text = Html.fromHtml(rawText, Html.FROM_HTML_MODE_LEGACY).toString()
-        val lines = text.lines().map { it.trim() }.filter { it.isNotBlank() }
-        val issuerName = firstRegexGroup(
-            text,
-            Regex("""(?im)^\s*(?:emitent|furnizor|v[âa]nz[ăa]tor|companie|societate)\s*[:\-]\s*(.+)$""")
-        ) ?: lines.firstOrNull { line ->
-            !line.contains("iban", ignoreCase = true) &&
-                !line.contains("cui", ignoreCase = true) &&
-                !line.contains("total", ignoreCase = true) &&
-                !line.contains("factur", ignoreCase = true) &&
-                line.length in 3..80
-        }.orEmpty()
-
-        val cui = firstRegexGroup(
-            text,
-            Regex("""(?i)\b(?:CUI|CIF|Cod\s+fiscal|RO)\s*[:#\-]?\s*(?:RO)?\s*(\d{2,10})\b""")
-        ).orEmpty()
-        val iban = firstRegexGroup(
-            text.replace(" ", ""),
-            Regex("""(?i)\b(RO\d{2}[A-Z]{4}[A-Z0-9]{16})\b""")
-        ).orEmpty().uppercase(Locale.US)
-        val beneficiary = firstRegexGroup(
-            text,
-            Regex("""(?im)^\s*(?:beneficiar|titular|pl[ăa]te[șs]te\s+c[ăa]tre|plata\s+c[ăa]tre)\s*[:\-]\s*(.+)$""")
-        ).orEmpty()
-        val amountMatch = Regex(
-            """(?i)\b(?:total|valoare|sum[ăa]|pre[țt]|avans)\b[^\d]{0,40}(\d{1,3}(?:[.\s]\d{3})*(?:[,.]\d{2})?|\d+(?:[,.]\d{2})?)\s*(RON|LEI|EUR|EURO|USD)?"""
-        ).find(text)
-        val amount = amountMatch?.groupValues?.getOrNull(1).orEmpty()
-        val currency = amountMatch?.groupValues?.getOrNull(2)
-            ?.takeIf { it.isNotBlank() }
-            ?.uppercase(Locale.US)
-            ?.let { if (it == "LEI") "RON" else it }
-            ?: when {
-                Regex("""(?i)\bEUR|EURO\b""").containsMatchIn(text) -> "EUR"
-                Regex("""(?i)\bUSD\b""").containsMatchIn(text) -> "USD"
-                else -> "RON"
-            }
-        val documentNumber = firstRegexGroup(
-            text,
-            Regex("""(?i)\b(?:nr\.?|num[ăa]r|ofert[ăa]|factur[ăa]|contract)\s*[:#\-]?\s*([A-Z0-9][A-Z0-9./\-]{2,})""")
-        ).orEmpty()
-        val documentDate = firstRegexGroup(
-            text,
-            Regex("""\b(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\b""")
-        ).orEmpty()
-
-        return OfferConfirmationFields(
-            issuerName = issuerName.take(120),
-            issuerCui = cui,
-            iban = iban,
-            paymentBeneficiary = beneficiary.take(120),
-            totalAmount = amount,
-            currency = currency,
-            documentNumber = documentNumber,
-            documentDate = documentDate
-        )
-    }
-
-    private fun firstRegexGroup(text: String, regex: Regex): String? {
-        return regex.find(text)?.groupValues?.getOrNull(1)?.trim()?.takeIf { it.isNotBlank() }
-    }
-
-    private fun buildConfirmedOfferInput(
-        extractedText: String,
-        links: List<String>,
-        fields: OfferConfirmationFields,
-        fileName: String
-    ): String {
-        val confirmed = listOfNotNull(
-            fields.issuerName.takeIf { it.isNotBlank() }?.let { "Emitent confirmat: $it" },
-            fields.issuerCui.takeIf { it.isNotBlank() }?.let { "CUI confirmat: $it" },
-            fields.iban.takeIf { it.isNotBlank() }?.let { "IBAN confirmat: $it" },
-            fields.paymentBeneficiary.takeIf { it.isNotBlank() }?.let { "Beneficiar plată confirmat: $it" },
-            fields.totalAmount.takeIf { it.isNotBlank() }?.let { "Total confirmat: $it ${fields.currency.ifBlank { "RON" }}" },
-            fields.documentNumber.takeIf { it.isNotBlank() }?.let { "Număr document confirmat: $it" },
-            fields.documentDate.takeIf { it.isNotBlank() }?.let { "Dată document confirmată: $it" }
-        )
-        val analysisText = buildString {
-            appendLine("Tip scanare: ofertă / plată.")
-            appendLine("Fișier sursă: $fileName.")
-            if (confirmed.isNotEmpty()) {
-                appendLine("Câmpuri confirmate de utilizator:")
-                confirmed.forEach { appendLine("- $it") }
-            } else {
-                appendLine("Utilizatorul nu a confirmat câmpuri structurate; analizează doar textul extras.")
-            }
-            appendLine()
-            appendLine("Text extras din document/mesaj:")
-            appendLine(extractedText)
-        }
-        return MailShareInputAssembler.buildMailScanInput(analysisText, links, fileName)
-    }
-
-    private fun publishOfferExtractionIncomplete(fileName: String, reason: String) {
-        val result = applyEvidenceGate(
-            current = OfflineAssessment(
-                family = "Ofertă neverificată",
-                riskScore = 0,
-                riskLevel = "unknown",
-                reasons = listOf(reason),
-                safeActions = listOf("Reîncearcă cu o poză mai clară, un PDF cu text sau copiază oferta în câmpul de scanare."),
-                keyDangers = listOf("Nu avem suficiente dovezi tehnice pentru verdict."),
-                originalText = "Nu s-a extras conținut verificabil din $fileName."
-            ),
-            rawInput = "Ofertă fără conținut verificabil: $fileName",
-            inputKind = "offer_upload",
-            channel = "offer_file_import",
-            providerStates = unavailableProviderStates(),
-            completeness = EvidenceCompleteness.LOCAL_ONLY
-        )
-        publishAssessmentResult(null, result)
-    }
-
-    private suspend fun extractTextFromBitmap(bitmap: Bitmap): String = extractTextFromImage(InputImage.fromBitmap(bitmap, 0))
-
-    private suspend fun extractTextFromImage(image: InputImage): String = suspendCoroutine { continuation ->
-        recognizer.process(image)
-            .addOnSuccessListener { result ->
-                continuation.resume(result.text)
-            }
-            .addOnFailureListener { continuation.resumeWithException(it) }
-    }
-
-    private suspend fun extractTextFromPdfFallback(uri: Uri, context: Context): PdfFallbackExtraction = withContext(Dispatchers.IO) {
-        val annotationLinks = runCatching {
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                PdfLinkExtractor.extractPdfAnnotationLinks(input.readBytes())
-            } ?: emptySet()
-        }.getOrNull() ?: emptySet()
-        val descriptor: ParcelFileDescriptor = context.contentResolver.openFileDescriptor(uri, "r")
-            ?: return@withContext PdfFallbackExtraction(
-                extractedText = "",
-                extractedLinks = annotationLinks
-            )
-
-        descriptor.use { pfd ->
-            val renderer = PdfRenderer(pfd)
-            val extractedText = StringBuilder()
-
-            try {
-                val maxPages = renderer.pageCount.coerceAtMost(6)
-                for (pageIndex in 0 until maxPages) {
-                    val page = renderer.openPage(pageIndex)
-                    try {
-                        val scale = 2.2f
-                        val width = (page.width * scale).roundToInt().coerceAtLeast(1)
-                        val height = (page.height * scale).roundToInt().coerceAtLeast(1)
-                        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                        page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-
-                        val pageText = runCatching { extractTextFromBitmap(bitmap) }.getOrNull().orEmpty()
-                        if (pageText.isNotBlank()) {
-                            if (extractedText.isNotEmpty()) extractedText.append('\n')
-                            extractedText.append(pageText)
-                        }
-                        bitmap.recycle()
-                    } finally {
-                        page.close()
-                    }
-                }
-            } finally {
-                renderer.close()
-            }
-
-            val textFromOcr = extractedText.toString().trim()
-            val extractedLinks = linkedSetOf<String>()
-            extractedLinks += annotationLinks
-                .mapNotNull { normalizeCandidateUrl(it) ?: if (it.startsWith("www.", ignoreCase = true)) normalizeUrl(it) else null }
-            extractedLinks += extractUrls(textFromOcr).mapNotNull { normalizeCandidateUrl(it) }
-            extractedLinks += extractHtmlLinks(textFromOcr).mapNotNull { normalizeCandidateUrl(it) }
-
-            return@withContext PdfFallbackExtraction(
-                extractedText = textFromOcr,
-                extractedLinks = extractedLinks
-            )
-        }
-    }
-
     fun onSharedTextPayload(payload: String, mimeType: String? = null) {
         if (payload.isBlank()) return
 
@@ -2965,7 +2408,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         loadingMsg = ""
     }
 
-    private fun getFileName(uri: Uri, context: Context): String {
+    internal fun getFileName(uri: Uri, context: Context): String {
         var name = "document"
         val cursor = runCatching {
             context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
@@ -3008,7 +2451,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    private fun sanitizeSharedText(content: String): String {
+    internal fun sanitizeSharedText(content: String): String {
         return MailShareInputAssembler.sanitizeSharedText(content)
     }
 
