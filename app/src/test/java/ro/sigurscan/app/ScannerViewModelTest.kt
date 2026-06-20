@@ -889,9 +889,11 @@ class ScannerViewModelTest {
 
     @Test
     fun radarManualPhoneReportUsesHashOnlyCommunityPayload() {
-        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
-        val start = viewModelSource.indexOf("fun reportRadarPhoneNumber(")
-        val end = viewModelSource.indexOf("fun refreshRadarScreeningAudit()", start)
+        // Radar logic was extracted from the ScannerViewModel God object into ScannerViewModelRadar.kt
+        // as extension functions; the hash-only community payload behaviour is unchanged.
+        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModelRadar.kt").readText()
+        val start = viewModelSource.indexOf("fun ScannerViewModel.reportRadarPhoneNumber(")
+        val end = viewModelSource.indexOf("fun ScannerViewModel.refreshRadarScreeningAudit()", start)
 
         assertTrue("Radar manual phone report flow must exist.", start >= 0 && end > start)
 
