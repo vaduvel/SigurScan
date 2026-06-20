@@ -74,6 +74,30 @@ async def test_invoice_truth_keeps_clean_unknown_iban_human_clear_not_red(monkey
 
 
 @pytest.mark.asyncio
+async def test_invoice_truth_sanb_match_does_not_make_unconfirmed_invoice_safe(monkeypatch):
+    async def fake_check_cui(cui: str):
+        assert cui == "45758405"
+        return _cui_result(name="MARKETING GROWTH HUB S.R.L.")
+
+    monkeypatch.setattr("services.invoice_orchestrator.check_cui", fake_check_cui)
+
+    result = await scan_invoice(MGH_TEXT)
+    evaluated = evaluate_invoice_verdict(
+        result,
+        result.raw_text,
+        source_channel="android_native",
+        sanb_attestation="match",
+    )
+    truth = evaluated["invoice_truth"]
+
+    assert truth["verdict"] == "VERIFY_BEFORE_PAYING"
+    assert truth["safe_to_pay"] is False
+    assert truth["primary_reason_code"] == "UNEXPECTED_OBLIGATION"
+    assert evaluated["gate"]["label"] == "UNVERIFIED"
+    assert evaluated["gate"]["risk_level"] == "unknown"
+
+
+@pytest.mark.asyncio
 async def test_invoice_truth_can_mark_date_confirmate_when_obligation_and_destination_are_confirmed(monkeypatch):
     async def fake_check_cui(cui: str):
         assert cui == "1096128"

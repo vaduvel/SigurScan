@@ -327,6 +327,8 @@ def _verify_truth_blocks_safe(truth: Dict[str, Any]) -> bool:
     destination_confirmed = destination_state in destination_confirmed_states
     if issuer_state == "INACTIVE" and issuer_source == "lista_firme" and destination_confirmed:
         return False
+    if truth.get("safe_to_pay") is False and destination_state == "BANK_MATCH":
+        return True
     if issuer_state and issuer_state != "CONFIRMED":
         return True
     if destination_state in {"INVALID_STRUCTURE", "MISMATCH", "REPORTED_NEGATIVE", "UNCONFIRMED_VALID", "UNKNOWN"}:
