@@ -263,6 +263,36 @@ def test_mistral_semantic_review_preserves_intent_analysis_contract():
     assert normalized["intent_analysis"]["descriptive_context"] is True
 
 
+def test_mistral_protective_education_can_override_local_keyword_high():
+    fallback = {
+        "risk_class": "high",
+        "claim_matches_known_scam_family": True,
+        "matched_family": "IMP-02",
+        "reason_codes": ["semantic:high", "family:imp-02"],
+        "source": "scam_atlas_structured",
+    }
+    raw = {
+        "risk_class": "benign",
+        "claim_matches_known_scam_family": False,
+        "claim_matches_legit_template": True,
+        "matched_template": "safety_education",
+        "reason_codes": ["semantic:benign", "template:educational_warning"],
+        "intent_analysis": {
+            "positive_action_request": False,
+            "is_descriptive_or_status": True,
+            "negation_scope_resolved": True,
+            "confidence": 0.9,
+        },
+    }
+
+    normalized = _normalize_mistral_semantic_review(raw, fallback)
+
+    assert normalized["risk_class"] == "benign"
+    assert normalized["claim_matches_known_scam_family"] is False
+    assert normalized["claim_matches_legit_template"] is True
+    assert "semantic:atlas_high_preserved" not in normalized["reason_codes"]
+
+
 def test_mistral_semantic_review_accepts_nested_contract_shape():
     raw = {
         "semantic_review": {

@@ -4981,7 +4981,6 @@ def _normalize_mistral_semantic_review(raw: Dict[str, Any], fallback: Dict[str, 
     if risk_class not in {"high", "medium", "benign", "unknown"}:
         risk_class = "unknown"
     fallback_risk_class = str(fallback.get("risk_class") or "unknown").strip().lower()
-    preserve_atlas_high = fallback_risk_class == "high" and _semantic_risk_rank(risk_class) < _semantic_risk_rank("high")
     reason_codes = [
         str(item).strip()
         for item in raw.get("reason_codes") or []
@@ -4989,6 +4988,21 @@ def _normalize_mistral_semantic_review(raw: Dict[str, Any], fallback: Dict[str, 
     ]
     if not reason_codes:
         reason_codes = [f"semantic:{risk_class}"]
+    matched_template_raw = str(raw.get("matched_template") or "").strip().lower()
+    model_says_protective_education = (
+        risk_class == "benign"
+        and not bool(raw.get("claim_matches_known_scam_family"))
+        and (
+            bool(raw.get("claim_matches_legit_template"))
+            or matched_template_raw in {"safety_education", "educational_warning", "protective_warning"}
+            or any("educat" in code.lower() or "safety" in code.lower() for code in reason_codes)
+        )
+    )
+    preserve_atlas_high = (
+        fallback_risk_class == "high"
+        and _semantic_risk_rank(risk_class) < _semantic_risk_rank("high")
+        and not model_says_protective_education
+    )
     if preserve_atlas_high:
         risk_class = "high"
         reason_codes = _dedupe_preserve_order(reason_codes + ["semantic:atlas_high_preserved"])
