@@ -3746,20 +3746,57 @@ def _augment_summary_with_infra_flags(summary: Dict[str, Any], infra_flags: Dict
     # (host_unreachable) and the weighted risk score.
 
 
+def _resolved_urls_have_suspicious_public_tld(resolved_urls: List[Dict[str, Any]]) -> bool:
+    suspicious_suffixes = (
+        ".top",
+        ".xyz",
+        ".click",
+        ".work",
+        ".quest",
+        ".icu",
+        ".shop",
+        ".live",
+        ".site",
+        ".info",
+    )
+    for entry in resolved_urls:
+        if not isinstance(entry, dict):
+            continue
+        for key in ("final_registered_domain", "registered_domain", "final_hostname", "hostname"):
+            host = str(entry.get(key) or "").strip().lower()
+            if host.endswith(suspicious_suffixes):
+                return True
+    return False
+
+
+def _source_is_suspicious(summary: Dict[str, Any], name: str) -> bool:
+    raw = summary.get(name)
+    if not isinstance(raw, dict) or not _source_consulted(summary, name):
+        return False
+    status = str(raw.get("status") or "").strip().lower()
+    verdict_status = _source_status(summary, name)
+    return status == "suspicious" or verdict_status == "suspicious"
+
+
 def _provider_verdict_for_decision_bundle(
     summary: Dict[str, Any],
     *,
     has_urls: bool,
+    resolved_urls: Optional[List[Dict[str, Any]]] = None,
+    official_destination: bool = False,
     pillars: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     if _has_bad_provider_verdict(summary):
         return {"verdict": "malicious", "hits": ["provider_malicious"], "completeness": True}
 
-    suspicious_hits = [
-        name
-        for name in ("scam_blocklist_nrd", "phishdestroy_destroylist")
-        if _source_consulted(summary, name) and _source_status(summary, name) == "suspicious"
-    ]
+    suspicious_hits = []
+    for name in ("scam_blocklist_nrd", "phishdestroy_destroylist"):
+        if _source_is_suspicious(summary, name):
+            suspicious_hits.append(name)
+    if has_urls and not official_destination and _resolved_urls_have_suspicious_public_tld(resolved_urls or []):
+        for name in ("infra_dns", "infra_url_behaviour", "infra_url_transport", "sigurscan_lexical"):
+            if _source_is_suspicious(summary, name):
+                suspicious_hits.append(name)
     if suspicious_hits:
         return {
             "verdict": "suspicious",
@@ -5661,7 +5698,13 @@ def _build_decision_evidence_bundle(
     claimed_brand = str(analysis.get("claimed_brand") or "Nespecificat")
     has_urls = bool(resolved_urls)
     first_url = _first_final_url(resolved_urls) if has_urls else None
-    provider_section = _provider_verdict_for_decision_bundle(summary, has_urls=has_urls, pillars=pillars)
+    provider_section = _provider_verdict_for_decision_bundle(
+        summary,
+        has_urls=has_urls,
+        resolved_urls=resolved_urls,
+        official_destination=official_destination,
+        pillars=pillars,
+    )
     identity_section = _identity_status_for_decision_bundle(
         analysis,
         resolved_urls,
@@ -5983,6 +6026,13 @@ def _apply_provider_gate_verdict(
             "urlscan",
             "urlscan.io",
             "urlhaus",
+            "infra_dns",
+            "infra_domain_age",
+            "infra_rdap",
+            "infra_ssl",
+            "infra_url_behaviour",
+            "infra_url_transport",
+            "sigurscan_lexical",
             "scam_blocklist_nrd",
             "phishdestroy_destroylist",
         )
@@ -9294,7 +9344,7 @@ def _apply_final_url_unresolved_shortener_fail_safe(job: Dict[str, Any], analysi
         return
     evidence = analysis.setdefault("evidence", {})
     gate = evidence.get("verdict_gate") if isinstance(evidence.get("verdict_gate"), dict) else {}
-    if str(gate.get("label") or "").upper() != "UNVERIFIED":
+    if str(gate.get("label") or "").upper() not in {"UNVERIFIED", "SUSPECT"}:
         return
 
     reason_code = "final_url_unresolved_dns_suspicious_shortener"

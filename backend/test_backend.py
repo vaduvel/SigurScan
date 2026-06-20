@@ -1804,6 +1804,42 @@ def test_provider_gate_marks_native_deeplink_without_web_preview_as_suspect():
     ]
 
 
+def test_provider_gate_keeps_benign_native_deeplink_as_suspect_not_unverified():
+    raw_text = (
+        "Buna! Estimatul de livrare a comenzii este azi. "
+        "Acceseaza muciro://1484962952940779 daca folosesti aplicatia."
+    )
+    analysis = {
+        "claimed_brand": "Nespecificat",
+        "risk_level": "low",
+        "risk_score": 10,
+        "detected_family": "Notificare",
+        "evidence": {
+            "source_channel": "android_native",
+            "semantic_review": {
+                "status": "done",
+                "risk_class": "benign",
+                "claim_matches_known_scam_family": False,
+                "claim_matches_legit_template": True,
+                "matched_template": "official_notice",
+                "intent_analysis": {
+                    "status": "done",
+                    "protective_warning": True,
+                    "descriptive_context": True,
+                    "positive_action_request": False,
+                },
+                "completeness": True,
+            },
+        },
+    }
+
+    result = _apply_provider_gate_verdict(analysis, [], raw_text=raw_text)
+
+    gate = result["evidence"]["verdict_gate"]
+    assert gate["label"] == "SUSPECT"
+    assert gate["reason_codes"] == ["non_http_deeplink_unverified"]
+
+
 def test_rdap_domain_age_uses_valid_url_without_literal_braces(monkeypatch):
     from services import redirect_resolver
 
@@ -2409,6 +2445,52 @@ def test_provider_gate_phishdestroy_suspicious_is_user_facing_suspect():
     assert result["evidence"]["verdict_gate"]["reason_codes"] == ["provider_suspicious"]
     assert result["evidence"]["decision_bundle"]["providers"]["verdict"] == "suspicious"
     assert "phishdestroy_destroylist" in result["evidence"]["provider_gate"]["consulted_sources"]
+
+
+def test_provider_gate_infra_dns_suspicious_is_user_facing_suspect():
+    analysis = {
+        "claimed_brand": "Nespecificat",
+        "risk_level": "low",
+        "risk_score": 5,
+        "detected_family": "Necunoscut",
+        "evidence": {
+            "external_intel_summary": {
+                "google_web_risk": {"status": "clean", "verdict": "clean", "consulted": True},
+                "phishing_database": {"status": "clean", "verdict": "clean", "consulted": True},
+                "urlhaus": {"status": "clean", "verdict": "clean", "consulted": True},
+                "infra_dns": {
+                    "status": "suspicious",
+                    "verdict": "nxdomain",
+                    "severity": "medium",
+                    "consulted": True,
+                },
+            }
+        },
+    }
+    resolved_urls = [
+        {
+            "url": "https://plata-amenzi.xyz/",
+            "final_url": "https://plata-amenzi.xyz/",
+            "hostname": "plata-amenzi.xyz",
+            "final_hostname": "plata-amenzi.xyz",
+            "registered_domain": "plata-amenzi.xyz",
+            "final_registered_domain": "plata-amenzi.xyz",
+        }
+    ]
+    pillars = {"urlscan": {"status": "skipped", "required": False}}
+
+    result = _apply_provider_gate_verdict(
+        analysis,
+        resolved_urls,
+        raw_text="Notificare: obligatie de plata restanta 150 lei. Plata imediata: plata-amenzi.xyz",
+        pillars=pillars,
+    )
+
+    assert result["risk_level"] == "medium"
+    assert result["risk_score"] == 55
+    assert result["evidence"]["verdict_gate"]["label"] == "SUSPECT"
+    assert result["evidence"]["verdict_gate"]["reason_codes"] == ["provider_suspicious"]
+    assert result["evidence"]["decision_bundle"]["providers"]["verdict"] == "suspicious"
 
 
 def test_scam_atlas_text_only_social_fraud_escalates_to_high_risk():
