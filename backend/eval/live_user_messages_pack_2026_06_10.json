@@ -1,9 +1,9 @@
 [
   {
     "case_id": "live_msg_mpy",
-    "title": "SafeBuyback SMS (short link)",
+    "title": "Telegram task scam with guaranteed daily income",
     "text": "Buna ziua! Suntem o companie de energie mobila partajata. Faceți cu usurință bani prin reciclare și închiriere. Puteți lucra cu un singur telefon mobil și există o garanție de venit stabilă de 35-500 USD pe zi. Dacă sunteți interesat, vă rugăm să contactați telegrama:@Frank24495. Codul pentru confirmarea telefonului este: 4346. Introdu acest cod în aplicație în ecranul Confirmă telefon sau dă click aici https://mpy.io/f/2?a=4346 pentru confirmare.",
-    "expected_labels": ["SUSPECT", "SIGUR"],
+    "expected_labels": ["DANGEROUS"],
     "max_seconds": 180
   },
   {
