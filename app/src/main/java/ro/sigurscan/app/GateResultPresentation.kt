@@ -13,6 +13,16 @@ object GateResultPresentation {
             result.action == GateAction.INSUFFICIENT_EVIDENCE &&
             result.unknownReason in setOf("PROVIDERS_UNAVAILABLE", "BACKEND_UNAVAILABLE", "NETWORK_UNAVAILABLE")
 
+    fun isLocalExtractionUnavailable(result: GateResult): Boolean =
+        result.finality == GateFinality.FINAL &&
+            result.action == GateAction.UNVERIFIED &&
+            result.unknownReason in setOf(
+                "LOCAL_QR_EXTRACTION_INCOMPLETE",
+                "LOCAL_IMAGE_OCR_INCOMPLETE",
+                "LOCAL_FILE_UNSUPPORTED",
+                "LOCAL_OFFER_EXTRACTION_INCOMPLETE"
+            )
+
     fun userHeadline(result: GateResult): String =
         when {
             isScanInProgress(result) -> "Se verifică..."
@@ -73,6 +83,7 @@ object GateResultPresentation {
 
     fun supportText(result: GateResult): String = when {
         isScanInProgress(result) -> "Se verifică mesajul, destinația și sursele de risc."
+        isLocalExtractionUnavailable(result) -> "Nu am putut citi suficient conținut verificabil pentru un verdict."
         isFinalUnverified(result) -> "Nu am găsit semnale clare de risc, dar nu avem confirmare oficială pentru această destinație."
         isVerificationUnavailable(result) -> "Nu am putut finaliza verificarea online. Reîncearcă după ce conexiunea este stabilă."
         result.action == GateAction.DO_NOT_CONTINUE -> "Scanarea a gasit semnale clare de risc."
@@ -85,6 +96,7 @@ object GateResultPresentation {
 
     fun primaryAction(result: GateResult): String = when {
         isScanInProgress(result) -> "Așteaptă verdictul final."
+        isLocalExtractionUnavailable(result) -> "Reîncearcă scanarea sau alege alt format."
         isFinalUnverified(result) -> "Verifică destinația în contextul oficial înainte de date sau plăți."
         isVerificationUnavailable(result) -> "Reîncearcă scanarea înainte să continui."
         result.action == GateAction.DO_NOT_CONTINUE -> "Nu apasa linkul si nu continua fluxul."
@@ -117,6 +129,10 @@ object GateResultPresentation {
             "BACKEND_ORCHESTRATED_VERDICT" in codes && snapshot.hasUrlEvidence() -> "Am verificat linkul final, captura securizata si reputatia destinatiei."
             "BACKEND_ORCHESTRATED_VERDICT" in codes -> "Am analizat mesajul si semnalele de risc disponibile."
             "BACKEND_UNVERIFIED" in codes -> "Verificarea s-a încheiat fără semnale clare de risc, dar destinația nu are proveniență oficială confirmată."
+            "LOCAL_QR_EXTRACTION_INCOMPLETE" in codes -> "Nu am putut citi conținut verificabil din codul QR."
+            "LOCAL_IMAGE_OCR_INCOMPLETE" in codes -> "Nu am putut extrage text verificabil din imagine."
+            "LOCAL_FILE_UNSUPPORTED" in codes -> "Fișierul nu este într-un format pe care îl putem analiza complet acum."
+            "LOCAL_OFFER_EXTRACTION_INCOMPLETE" in codes -> "Nu am putut extrage conținut verificabil din ofertă."
             "WEAK_OR_EXPLANATORY_EVIDENCE_ONLY" in codes -> "Am gasit doar semnale slabe, precum marketing, CTA, tracking sau explicatii."
             "BRAND_OR_AUTHORITY_CLAIM_NEEDS_VERIFICATION" in codes -> "Mesajul mentioneaza un brand sau o autoritate si trebuie verificat pe canalul oficial."
             isVerificationUnavailable(result) -> "Nu am putut contacta serviciul de verificare. Reîncearcă scanarea când conexiunea este stabilă."
@@ -146,6 +162,11 @@ object GateResultPresentation {
         isScanInProgress(result) -> listOf(
             "Așteaptă verdictul final.",
             "Nu introduce date până nu se termină scanarea."
+        )
+        isLocalExtractionUnavailable(result) -> listOf(
+            "Reîncearcă cu o poză mai clară sau un PDF cu text selectabil.",
+            "Pentru QR, apropie camera și ține codul drept în cadru.",
+            "Dacă ai textul mesajului, copiază-l direct în câmpul de scanare."
         )
         isFinalUnverified(result) -> listOf(
             "Verifică dacă QR-ul sau linkul vine din locația ori aplicația oficială.",
