@@ -3410,6 +3410,15 @@ def _looks_like_descriptive_or_status_context(raw_text: str) -> bool:
         return False
     if _has_invoice_payment_beneficiary_mismatch(normalized):
         return False
+    negated_red_flag_explainer = bool(
+        re.search(r"\bnu\s+(?:[îi]nseamn[ăa]|inseamna)\s+c[ăa]\b", normalized, re.IGNORECASE)
+        and re.search(
+            r"\b(?:ghid|articol|newsletter|material\s+educa[țt]ional|red\s+flag)\b"
+            r"(?=[\s\S]{0,180}\b(?:scam|fraud|phishing|iban|cont|plat[ăa]|factur[ăa])\b)",
+            normalized,
+            re.IGNORECASE,
+        )
+    )
     if re.search(
         r"\bscan(?:eaz[ăa]|a[țt]i|ati)\b(?=[\s\S]{0,80}\bqr\b)(?=[\s\S]{0,120}\bplat[ăa]\b)",
         normalized,
@@ -3429,7 +3438,7 @@ def _looks_like_descriptive_or_status_context(raw_text: str) -> bool:
         r"cere\s+plata\s+azi|plata\s+azi)\b",
         normalized,
         re.IGNORECASE,
-    ) and not re.search(
+    ) and not negated_red_flag_explainer and not re.search(
         r"\bf[ăa]r[ăa]\s+(?:schimbare|modificare)\s+(?:de\s+)?(?:iban|cont(?:\s+bancar)?)\b",
         normalized,
         re.IGNORECASE,

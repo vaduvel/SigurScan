@@ -149,6 +149,15 @@ def test_non_action_status_and_descriptive_controls_are_not_dangerous():
         assert _label(text, channel="sms") != "DANGEROUS"
 
 
+def test_red_flag_explainer_with_negation_is_not_dangerous():
+    text = (
+        "Acest ghid explică red flag-ul «IBAN nou»; "
+        "nu înseamnă că factura ta cere IBAN nou."
+    )
+
+    assert _label(text, channel="android_native") != "DANGEROUS"
+
+
 def test_bec_account_change_worded_as_vendor_context_stays_dangerous():
     text = (
         "Furnizor cunoscut trimite cont bancar nou cu Reply-To diferit "
