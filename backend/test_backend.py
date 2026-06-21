@@ -44,6 +44,7 @@ from email import policy
 from email.message import EmailMessage
 import main as app_main
 from routers import analytics as analytics_routes
+from routers import pages as pages_routes
 from main import (
     _build_ai_explanation,
     _collect_signal_ids,
@@ -10462,7 +10463,7 @@ def test_health_reports_provider_config_without_secrets(monkeypatch):
         patched.setattr(app_main, "URLSCAN_API_KEY", "super-secret-urlscan")
         patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
         patched.setattr(app_main, "ENABLE_CLOUD_AI_EXPLANATION", True)
-        payload = app_main.read_health()
+        payload = pages_routes.read_health()
 
     serialized = json.dumps(payload)
     assert payload["config"]["providers"]["urlscan"]["configured"] is True
@@ -10500,7 +10501,7 @@ def test_health_does_not_report_google_api_key_as_web_risk_configured(monkeypatc
         patched.delenv("GOOGLE_WEB_RISK_API_KEY", raising=False)
         patched.setenv("GOOGLE_API_KEY", "generic-google-key")
         patched.setattr(app_main, "PRIVACY_SAFE_MODE", False)
-        payload = app_main.read_health()
+        payload = pages_routes.read_health()
 
     assert payload["config"]["providers"]["google_web_risk"]["configured"] is False
 
