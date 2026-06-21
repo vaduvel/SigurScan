@@ -84,6 +84,7 @@ from services.telemetry import (
     summarize_feedback_records,
 )
 from services import play_integrity, play_integrity_nonce, rate_limiter, supabase_store
+from routers import circle
 from services.google_vision_ocr import (
     has_vision_key,
     extract_text_with_vision,
@@ -109,6 +110,7 @@ app = FastAPI(
     redoc_url="/redoc" if EXPOSE_API_DOCS else None,
     openapi_url="/openapi.json" if EXPOSE_API_DOCS else None,
 )
+app.include_router(circle.router)
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 MAX_PDF_BYTES = 12 * 1024 * 1024
@@ -13041,11 +13043,6 @@ async def one_tap_report(payload: OneTapReportRequest):
 # ─── PR-6 — Cercul (out-of-band verification) + Guardian second opinion ──────
 # §6: protocol semnat, NU trece prin verdict_gate. Privacy: ping metadata-only,
 # second-opinion default metadata_only, revocare doar de protejat.
-from services.circle_verification import (
-    CircleLink,
-    VerificationPing,
-    circle_store as _circle_store,
-)
 
 
 
@@ -13058,111 +13055,6 @@ from services.circle_verification import (
 
 
 
-@app.post("/v1/circle/pair")
-async def circle_pair(payload: CirclePairRequest):
-    """PR-6 — pairing semnat protejat↔verificator, consimțământ explicit, revocabil."""
-    try:
-        link = _circle_store.pair(
-            protected_id=payload.protected_id,
-            verifier_id=payload.verifier_id,
-            consent=payload.consent,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    supabase_store.save_circle_link(link.to_dict())  # best-effort, no-op fără Supabase
-    return link.to_dict()
-
-
-@app.post("/v1/circle/ping")
-async def circle_ping(payload: CirclePingRequest):
-    """PR-6 — ping de verificare out-of-band (metadata-only). Timeout → PRECAUTIE."""
-    try:
-        ping = _circle_store.create_ping(payload.link_id, claim=payload.claim)
-    except KeyError:
-        persisted = supabase_store.load_circle_link(payload.link_id)
-        if not persisted:
-            raise HTTPException(status_code=404, detail="circle link not found")
-        _circle_store.remember_link(CircleLink(**persisted))
-        try:
-            ping = _circle_store.create_ping(payload.link_id, claim=payload.claim)
-        except KeyError:
-            raise HTTPException(status_code=404, detail="circle link not found")
-        except ValueError as exc:
-            raise HTTPException(status_code=409, detail=str(exc))
-    except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
-    ping_payload = ping.to_dict()
-    supabase_store.save_verification_ping(ping_payload)  # best-effort
-    delivery = ping_payload.get("delivery")
-    if isinstance(delivery, dict):
-        supabase_store.save_circle_delivery_event({
-            **delivery,
-            "ping_id": ping.ping_id,
-            "link_id": ping.link_id,
-        })
-    return ping_payload
-
-
-@app.post("/v1/circle/respond")
-async def circle_respond(payload: CircleRespondRequest):
-    """PR-6 — răspunsul verificatorului (its_me/not_me/timeout). NEVERIFICAT pe timeout."""
-    try:
-        if payload.response == "timeout":
-            result = _circle_store.resolve_timeout(payload.ping_id)
-        else:
-            result = _circle_store.respond(payload.ping_id, payload.response)
-    except KeyError:
-        persisted = supabase_store.load_verification_ping(payload.ping_id)
-        if not persisted:
-            raise HTTPException(status_code=404, detail="verification ping not found")
-        _circle_store.remember_ping(VerificationPing(**persisted))
-        if payload.response == "timeout":
-            result = _circle_store.resolve_timeout(payload.ping_id)
-        else:
-            result = _circle_store.respond(payload.ping_id, payload.response)
-    saved_ping = _circle_store.get_ping(payload.ping_id)
-    if saved_ping is not None:
-        supabase_store.update_verification_ping(  # best-effort
-            saved_ping.ping_id, saved_ping.verifier_response or "", saved_ping.status)
-    return result
-
-
-@app.post("/v1/circle/revoke")
-async def circle_revoke(payload: CircleRevokeRequest):
-    """PR-6 — doar protejatul poate revoca relația din Cerc."""
-    try:
-        _circle_store.revoke(payload.link_id, by_user=payload.by_user)
-    except KeyError:
-        persisted = supabase_store.load_circle_link(payload.link_id)
-        if not persisted:
-            raise HTTPException(status_code=404, detail="circle link not found")
-        _circle_store.remember_link(CircleLink(**persisted))
-        try:
-            _circle_store.revoke(payload.link_id, by_user=payload.by_user)
-        except KeyError:
-            raise HTTPException(status_code=404, detail="circle link not found")
-        except PermissionError as exc:
-            raise HTTPException(status_code=403, detail=str(exc))
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc))
-    supabase_store.mark_circle_link_revoked(payload.link_id)  # best-effort
-    link = _circle_store.get_link(payload.link_id)
-    return link.to_dict()
-
-
-@app.post("/v1/guardian/second-opinion")
-async def guardian_second_opinion(payload: GuardianSecondOpinionRequest):
-    """PR-6 — a doua opinie pentru protejat. Default metadata-only; full doar cu consimțământ."""
-    so = _circle_store.second_opinion(
-        case_id=payload.case_id,
-        protected_id=payload.protected_id,
-        guardian_id=payload.guardian_id,
-        redacted_summary=payload.redacted_summary,
-        share_level=payload.share_level,
-        consent=payload.consent,
-    )
-    supabase_store.save_guardian_second_opinion(so.to_dict())  # best-effort
-    return so.to_dict()
 
 
 # ─── PR-7 (Faza 2) — Inboxul Protejat: BTR sync pentru match on-device ──────

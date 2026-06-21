@@ -302,7 +302,8 @@ class TestSupabasePersistenceWiring:
 
     def test_ping_rehydrates_circle_link_from_supabase(self, monkeypatch):
         import main as app_main
-        monkeypatch.setattr(app_main, "_circle_store", CircleStore())
+        import routers.circle as _circle_router
+        monkeypatch.setattr(_circle_router, "_circle_store", CircleStore())
         monkeypatch.setattr(app_main.supabase_store, "load_circle_link", lambda link_id: {
             "link_id": link_id,
             "protected_user_id": "u_g",
@@ -345,7 +346,8 @@ class TestSupabasePersistenceWiring:
 
     def test_respond_rehydrates_ping_from_supabase(self, monkeypatch):
         import main as app_main
-        monkeypatch.setattr(app_main, "_circle_store", CircleStore())
+        import routers.circle as _circle_router
+        monkeypatch.setattr(_circle_router, "_circle_store", CircleStore())
         monkeypatch.setattr(app_main.supabase_store, "load_verification_ping", lambda ping_id: {
             "ping_id": ping_id,
             "link_id": "cl_persisted",
@@ -373,7 +375,8 @@ class TestSupabasePersistenceWiring:
 
     def test_revoke_rehydrates_circle_link_from_supabase(self, monkeypatch):
         import main as app_main
-        monkeypatch.setattr(app_main, "_circle_store", CircleStore())
+        import routers.circle as _circle_router
+        monkeypatch.setattr(_circle_router, "_circle_store", CircleStore())
         monkeypatch.setattr(app_main.supabase_store, "load_circle_link", lambda link_id: {
             "link_id": link_id,
             "protected_user_id": "u_g",
