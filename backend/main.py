@@ -8613,89 +8613,14 @@ def _sync_resolved_urls_with_urlscan_final(job: Dict[str, Any]) -> None:
         extra_fields["resolved_urls"] = resolved_urls
 
 
-def _persist_orchestrated_job(job: Dict[str, Any]) -> Dict[str, Any]:
-    if not isinstance(job, dict) or not job.get("scan_id"):
-        return job
-    scan_id = str(job["scan_id"])
-    saved = supabase_store.save_scan_job(job)
-    if saved is False:
-        _increment_orchestrated_metric(job, "conflict_merge_count")
-        reloaded = supabase_store.load_scan_job(scan_id)
-        if isinstance(reloaded, dict):
-            merged = _merge_orchestrated_conflict_job(reloaded, job)
-            if merged != reloaded:
-                retry_saved = False
-                for _ in range(2):
-                    _increment_orchestrated_metric(merged, "conflict_merge_retry_count")
-                    retry_saved = supabase_store.save_scan_job(merged)
-                    if retry_saved is not False:
-                        break
-                    latest = supabase_store.load_scan_job(scan_id)
-                    if isinstance(latest, dict):
-                        merged = _merge_orchestrated_conflict_job(latest, merged)
-                if retry_saved is False:
-                    _increment_orchestrated_metric(merged, "conflict_merge_retry_failures")
-                _emit_orchestrated_telemetry(
-                    "orchestrated_conflict_merge",
-                    merged,
-                    retry_saved=retry_saved is not False,
-                )
-            _ORCHESTRATED_SCAN_JOBS[scan_id] = merged
-            return merged
-        _increment_orchestrated_metric(job, "persist_fallback_memory_count")
-        _ORCHESTRATED_SCAN_JOBS[scan_id] = job
-        _emit_orchestrated_telemetry("orchestrated_persist_memory_fallback", job)
-        return job
-    _ORCHESTRATED_SCAN_JOBS[scan_id] = job
-    return job
 
 
-def _load_orchestrated_job(scan_id: str) -> Optional[Dict[str, Any]]:
-    job = supabase_store.load_scan_job(scan_id)
-    if isinstance(job, dict):
-        _ORCHESTRATED_SCAN_JOBS[scan_id] = job
-        return job
-    job = _ORCHESTRATED_SCAN_JOBS.get(scan_id)
-    if isinstance(job, dict):
-        return job
-    return None
 
 
-def _orchestrated_lock_owner(scan_id: str) -> str:
-    return f"cloudrun:{os.getenv('K_REVISION', 'local')}:{os.getpid()}:{scan_id}:{time.time_ns()}"
 
 
-def _claim_distributed_orchestrated_refresh(job: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    revision = job.get("_storage_revision")
-    scan_id = str(job.get("scan_id") or "")
-    if not scan_id or not isinstance(revision, int):
-        return None
-    claimed = supabase_store.claim_scan_job(
-        scan_id,
-        expected_revision=revision,
-        owner=_orchestrated_lock_owner(scan_id),
-        active_step=str(job.get("pipeline_stage") or "queued"),
-        lock_seconds=ORCHESTRATED_REFRESH_LOCK_TTL_SECONDS,
-    )
-    if not isinstance(claimed, dict):
-        return None
-    claimed_job = supabase_store.scan_job_from_record(claimed)
-    if isinstance(claimed_job, dict):
-        _ORCHESTRATED_SCAN_JOBS[scan_id] = claimed_job
-        return claimed_job
-    return job
 
 
-def _prune_orchestrated_jobs() -> None:
-    now = int(time.time())
-    expired = [
-        scan_id
-        for scan_id, job in _ORCHESTRATED_SCAN_JOBS.items()
-        if now - int(job.get("created_at", now)) > ORCHESTRATED_JOB_TTL_SECONDS
-    ]
-    for scan_id in expired:
-        _ORCHESTRATED_SCAN_JOBS.pop(scan_id, None)
-        _ORCHESTRATED_SCAN_LOCKS.pop(scan_id, None)
 
 
 def _pillar(status: str, *, required: bool = True, details: str = "", ref: Optional[str] = None) -> Dict[str, Any]:
@@ -12517,6 +12442,11 @@ from services.orchestrated_scan import (  # noqa: E402
     _timed_orchestrated_component,
     _set_orchestrated_stage,
     _emit_orchestrated_telemetry,
+    _persist_orchestrated_job,
+    _load_orchestrated_job,
+    _orchestrated_lock_owner,
+    _claim_distributed_orchestrated_refresh,
+    _prune_orchestrated_jobs,
 )
 
 # ── API routers ─────────────────────────────────────────────────────────────
