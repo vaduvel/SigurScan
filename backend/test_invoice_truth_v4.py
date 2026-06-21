@@ -145,7 +145,7 @@ async def test_invoice_truth_channel_changed_copy_is_not_calm_not_fraud():
 Factura furnizor real cu CUI valid.
 Va rugam ignorati contul vechi din contract si platiti astazi in noul IBAN
 RO49AAAA1B31007593840000.
-Mesaj trimis de pe reply-to contabilitate-furnizor@gmail.com, plata urgenta si confidentiala.
+Plata este urgenta si confidentiala.
 """
 
     result = await scan_invoice(text)
@@ -160,6 +160,28 @@ Mesaj trimis de pe reply-to contabilitate-furnizor@gmail.com, plata urgenta si c
     assert "canal" in truth["display"]["message"].lower() or "cont" in truth["display"]["message"].lower()
     assert truth["next_action"]["type"] == "CALL_SUPPLIER_KNOWN_NUMBER"
     assert evaluated["gate"]["label"] != "DANGEROUS"
+
+
+@pytest.mark.asyncio
+async def test_invoice_truth_free_reply_to_account_change_is_bec_hard_conflict():
+    text = """
+Factura furnizor real cu CUI valid.
+Va rugam ignorati contul vechi din contract si platiti astazi in noul IBAN
+RO49AAAA1B31007593840000.
+Mesaj trimis de pe reply-to contabilitate-furnizor@gmail.com, plata urgenta si confidentiala.
+"""
+
+    result = await scan_invoice(text)
+    evaluated = evaluate_invoice_verdict(result, result.raw_text, source_channel="email")
+    truth = evaluated["invoice_truth"]
+
+    assert "FREE_EMAIL_REPLY_TO_FOR_COMPANY_INVOICE" in result.fraud_flags
+    assert "BEC_REPLY_TO_ACCOUNT_CHANGE" in result.fraud_flags
+    assert truth["verdict"] == "NU_PLATI"
+    assert truth["decision_status"] == "DO_NOT_PAY"
+    assert truth["primary_reason_code"] == "BEC_ACCOUNT_CHANGE_COMBO"
+    assert truth["next_action"]["type"] == "CONTACT_SUPPLIER_OFFICIAL_CHANNEL"
+    assert evaluated["gate"]["label"] == "DANGEROUS"
 
 
 @pytest.mark.asyncio

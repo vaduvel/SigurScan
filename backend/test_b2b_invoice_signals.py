@@ -34,6 +34,20 @@ def test_b2b_signal_detector_finds_reply_to_mismatch_and_bec_combo():
     assert result.metadata["reply_to_domain"] == "gmail.com"
 
 
+def test_b2b_signal_detector_finds_contextual_free_reply_to_bec_combo():
+    result = evaluate_b2b_invoice_signals(
+        "Factura furnizor real cu CUI valid. "
+        "Va rugam ignorati contul vechi din contract si platiti astazi in noul IBAN "
+        "RO49AAAA1B31007593840000. "
+        "Mesaj trimis de pe reply-to contabilitate-furnizor@gmail.com, "
+        "plata urgenta si confidentiala."
+    )
+
+    assert "FREE_EMAIL_REPLY_TO_FOR_COMPANY_INVOICE" in result.flags
+    assert "BEC_REPLY_TO_ACCOUNT_CHANGE" in result.flags
+    assert result.metadata["reply_to_domain"] == "gmail.com"
+
+
 def test_b2b_signal_detector_does_not_backtrack_on_long_non_bec_tax_text():
     text = (
         "From: ANAF RO <noreply@anaf-ro.test> Subject: ANAF rambursare taxe. "

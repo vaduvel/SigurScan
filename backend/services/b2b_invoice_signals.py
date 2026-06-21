@@ -42,6 +42,11 @@ EMAIL_HEADER_RE = re.compile(
     r"(?im)^\s*(?P<label>from|reply-to|return-path|expeditor|raspunde(?:ti)?\s*la|r[ăa]spunde(?:[țt]i)?\s*la)\s*[:\-]\s*(?P<value>.+)$"
 )
 EMAIL_RE = re.compile(r"[\w.+%-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,})")
+CONTEXTUAL_REPLY_TO_RE = re.compile(
+    r"\b(?:reply-to|reply\s+to|raspunde(?:ti)?\s+la|r[ăa]spunde(?:[țt]i)?\s+la)\b"
+    r"\s*(?:[:=\-]|\s+)\s*(?P<email>[\w.+%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})",
+    re.IGNORECASE,
+)
 URL_RE = re.compile(r"https?://[^\s<>()\"']+", re.IGNORECASE)
 ANCHOR_RE = re.compile(
     r"""<a\b[^>]*\bhref=["'](?P<href>https?://[^"']+)["'][^>]*>(?P<label>.*?)</a>""",
@@ -58,7 +63,7 @@ AUTHORITY_ROLE_RE = re.compile(
     re.IGNORECASE,
 )
 CONFIDENTIALITY_PRESSURE_RE = re.compile(
-    r"\b(?:confiden[țt]ial|secret|nu\s+suna|nu\s+m[ăa]\s+contacta|nu\s+discuta|discret)\b",
+    r"\b(?:confiden[țt]ial[ăa]?|secret|nu\s+suna|nu\s+m[ăa]\s+contacta|nu\s+discuta|discret)\b",
     re.IGNORECASE,
 )
 PAYMENT_TRANSFER_TERMS_RE = re.compile(
@@ -254,10 +259,10 @@ OFFICIAL_IP_OFFICE_DOMAIN_RE = re.compile(
     re.IGNORECASE,
 )
 URGENT_PAYMENT_OVERRIDE_RE = re.compile(
-    r"\b(?:urgent|azi|imediat|confiden[țt]ial|nu\s+suna|sunt\s+(?:in|în)\s+(?:sedinta|ședință))\b"
+    r"\b(?:urgent[ăa]?|azi|imediat|confiden[țt]ial[ăa]?|nu\s+suna|sunt\s+(?:in|în)\s+(?:sedinta|ședință))\b"
     r".{0,180}\b(?:plat[ăa]|transfer|ordin|iban|virament)\b|"
     r"\b(?:plat[ăa]|transfer|ordin|iban|virament)\b"
-    r".{0,180}\b(?:urgent|azi|imediat|confiden[țt]ial|nu\s+suna|sunt\s+(?:in|în)\s+(?:sedinta|ședință))\b",
+    r".{0,180}\b(?:urgent[ăa]?|azi|imediat|confiden[țt]ial[ăa]?|nu\s+suna|sunt\s+(?:in|în)\s+(?:sedinta|ședință))\b",
     re.IGNORECASE | re.DOTALL,
 )
 OFFICIAL_OSIM_DOMAIN_RE = re.compile(r"\b(?:https?://)?(?:portal\.)?osim\.ro\b", re.IGNORECASE)
@@ -283,6 +288,13 @@ def _domain_from_email(raw: str) -> Optional[str]:
     return match.group(1).lower() if match else None
 
 
+def _contextual_reply_to_domain(text: str) -> Optional[str]:
+    match = CONTEXTUAL_REPLY_TO_RE.search(text or "")
+    if not match:
+        return None
+    return _domain_from_email(match.group("email"))
+
+
 def _header_domains(text: str) -> dict[str, str]:
     domains: dict[str, str] = {}
     for match in EMAIL_HEADER_RE.finditer(text or ""):
@@ -297,6 +309,11 @@ def _header_domains(text: str) -> dict[str, str]:
             domains["from_domain"] = domain
         elif label == "return-path":
             domains["return_path_domain"] = domain
+    if "reply_to_domain" not in domains:
+        contextual_reply_to = _contextual_reply_to_domain(text)
+        if contextual_reply_to:
+            domains["reply_to_domain"] = contextual_reply_to
+            domains["reply_to_source"] = "context"
     return domains
 
 
@@ -341,6 +358,15 @@ def evaluate_b2b_invoice_signals(text: str, *, claimed_vendor: Optional[str] = N
 
     from_domain = domains.get("from_domain")
     reply_to_domain = domains.get("reply_to_domain")
+    has_account_change = bool(
+        ACCOUNT_CHANGE_RE.search(raw)
+        or BEC_NEW_IBAN_OR_ACCOUNT_RE.search(raw)
+        or BEC_EXCLUSIVE_OR_OLD_DETAILS_RE.search(raw)
+    )
+    has_payment_pressure = bool(
+        URGENT_PAYMENT_OVERRIDE_RE.search(raw)
+        or (CONFIDENTIALITY_PRESSURE_RE.search(raw) and PAYMENT_TRANSFER_TERMS_RE.search(raw))
+    )
     if from_domain and reply_to_domain and from_domain != reply_to_domain:
         _add(
             result,
@@ -354,6 +380,12 @@ def evaluate_b2b_invoice_signals(text: str, *, claimed_vendor: Optional[str] = N
             result,
             "FREE_EMAIL_FOR_COMPANY_INVOICE",
             "Factura pretinde firmă, dar expeditorul este un domeniu gratuit de e-mail.",
+        )
+    if looks_company and reply_to_domain in FREE_EMAIL_DOMAINS:
+        _add(
+            result,
+            "FREE_EMAIL_REPLY_TO_FOR_COMPANY_INVOICE",
+            "Factura pretinde firmă, dar Reply-To este un domeniu gratuit de e-mail.",
         )
 
     if (
@@ -474,11 +506,17 @@ def evaluate_b2b_invoice_signals(text: str, *, claimed_vendor: Optional[str] = N
             "Linkul afișat și destinația reală din e-mail nu coincid.",
         )
 
-    if ACCOUNT_CHANGE_RE.search(raw) and reply_to_domain and from_domain and reply_to_domain != from_domain:
+    if has_account_change and reply_to_domain and from_domain and reply_to_domain != from_domain:
         _add(
             result,
             "BEC_REPLY_TO_ACCOUNT_CHANGE",
             "Schimbare de cont bancar plus Reply-To diferit: tipar puternic de fraudă BEC.",
+        )
+    elif has_account_change and has_payment_pressure and looks_company and reply_to_domain in FREE_EMAIL_DOMAINS:
+        _add(
+            result,
+            "BEC_REPLY_TO_ACCOUNT_CHANGE",
+            "Schimbare de cont bancar plus Reply-To gratuit și presiune de plată: tipar puternic de fraudă BEC.",
         )
 
     if (
