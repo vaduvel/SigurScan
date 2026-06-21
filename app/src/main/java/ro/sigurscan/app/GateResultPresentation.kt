@@ -84,7 +84,7 @@ object GateResultPresentation {
     fun supportText(result: GateResult): String = when {
         isScanInProgress(result) -> "Se verifică mesajul, destinația și sursele de risc."
         isLocalExtractionUnavailable(result) -> "Nu am putut citi suficient conținut verificabil pentru un verdict."
-        isFinalUnverified(result) -> "Nu am găsit semnale clare de risc, dar nu avem confirmare oficială pentru această destinație."
+        isFinalUnverified(result) -> "Nu am găsit semnale clare de risc, dar nu avem confirmare oficială suficientă pentru un verdict sigur."
         isVerificationUnavailable(result) -> "Nu am putut finaliza verificarea online. Reîncearcă după ce conexiunea este stabilă."
         result.action == GateAction.DO_NOT_CONTINUE -> "Scanarea a gasit semnale clare de risc."
         result.action == GateAction.NO_ENTER_DATA -> "Pagina sau mesajul cere date sensibile pe un canal care nu este suficient validat."
@@ -97,7 +97,7 @@ object GateResultPresentation {
     fun primaryAction(result: GateResult): String = when {
         isScanInProgress(result) -> "Așteaptă verdictul final."
         isLocalExtractionUnavailable(result) -> "Reîncearcă scanarea sau alege alt format."
-        isFinalUnverified(result) -> "Verifică destinația în contextul oficial înainte de date sau plăți."
+        isFinalUnverified(result) -> "Verifică sursa în contextul oficial înainte de date sau plăți."
         isVerificationUnavailable(result) -> "Reîncearcă scanarea înainte să continui."
         result.action == GateAction.DO_NOT_CONTINUE -> "Nu apasa linkul si nu continua fluxul."
         result.action == GateAction.NO_ENTER_DATA -> "Nu introduce card, parola, CNP, IBAN sau cod OTP."
@@ -126,9 +126,10 @@ object GateResultPresentation {
             "SENSITIVE_FORM_UNOFFICIAL" in codes -> "Am gasit formular sensibil pe un domeniu nevalidat."
             "OFFICIAL_DESTINATION_AND_CLAIM_CONFIRMED" in codes -> "Linkul ajunge pe domeniu oficial, iar oferta sau contextul mentionat a fost confirmat."
             "OFFICIAL_DESTINATION_NO_SENSITIVE_COLLECTION" in codes -> "Linkul ajunge pe domeniu oficial/delegat si nu cere date sensibile."
-            "BACKEND_ORCHESTRATED_VERDICT" in codes && snapshot.hasUrlEvidence() -> "Am verificat linkul final, captura securizata si reputatia destinatiei."
+            "BACKEND_ORCHESTRATED_VERDICT" in codes && hasUrlEvidence(snapshot) -> "Am verificat linkul final, captura securizata si reputatia destinatiei."
             "BACKEND_ORCHESTRATED_VERDICT" in codes -> "Am analizat mesajul si semnalele de risc disponibile."
-            "BACKEND_UNVERIFIED" in codes -> "Verificarea s-a încheiat fără semnale clare de risc, dar destinația nu are proveniență oficială confirmată."
+            "BACKEND_UNVERIFIED" in codes && hasUrlEvidence(snapshot) -> "Verificarea s-a încheiat fără semnale clare de risc, dar destinația nu are proveniență oficială confirmată."
+            "BACKEND_UNVERIFIED" in codes -> "Verificarea s-a încheiat fără semnale clare de risc în mesaj, dar nu avem suficiente dovezi oficiale pentru verdict verde."
             "LOCAL_QR_EXTRACTION_INCOMPLETE" in codes -> "Nu am putut citi conținut verificabil din codul QR."
             "LOCAL_IMAGE_OCR_INCOMPLETE" in codes -> "Nu am putut extrage text verificabil din imagine."
             "LOCAL_FILE_UNSUPPORTED" in codes -> "Fișierul nu este într-un format pe care îl putem analiza complet acum."
@@ -150,12 +151,12 @@ object GateResultPresentation {
         }
     }
 
-    private fun EvidenceSnapshot?.hasUrlEvidence(): Boolean =
-        this != null && (
-            !primaryUrl.isNullOrBlank() ||
-                !finalUrl.isNullOrBlank() ||
-                !formActionUrl.isNullOrBlank() ||
-                redirectChain.any { it.isNotBlank() }
+    fun hasUrlEvidence(snapshot: EvidenceSnapshot?): Boolean =
+        snapshot != null && (
+            !snapshot.primaryUrl.isNullOrBlank() ||
+                !snapshot.finalUrl.isNullOrBlank() ||
+                !snapshot.formActionUrl.isNullOrBlank() ||
+                snapshot.redirectChain.any { it.isNotBlank() }
             )
 
     fun recommendedActions(result: GateResult): List<String> = when {
@@ -169,7 +170,7 @@ object GateResultPresentation {
             "Dacă ai textul mesajului, copiază-l direct în câmpul de scanare."
         )
         isFinalUnverified(result) -> listOf(
-            "Verifică dacă QR-ul sau linkul vine din locația ori aplicația oficială.",
+            "Verifică sursa în aplicația, site-ul sau canalul oficial.",
             "Nu introduce card, parolă sau cod OTP dacă pagina cere date sensibile.",
             "Pentru plăți, caută manual comerciantul sau cere confirmare pe canal oficial."
         )
