@@ -43,6 +43,7 @@ from eval.evaluate import run_threshold_sweep
 from email import policy
 from email.message import EmailMessage
 import main as app_main
+from routers import analytics as analytics_routes
 from main import (
     _build_ai_explanation,
     _collect_signal_ids,
@@ -7243,7 +7244,7 @@ def test_orchestration_dashboard_renders_minimal_html(monkeypatch):
                 "alerts": [],
             },
         )
-        response = app_main.orchestration_dashboard(limit=100)
+        response = analytics_routes.orchestration_dashboard(limit=100)
 
     body = response.body.decode("utf-8")
     assert "SigurScan Orchestration Dashboard" in body
@@ -7357,7 +7358,7 @@ def test_shadow_adjudication_dashboard_renders_minimal_html(monkeypatch):
                 },
             },
         )
-        response = app_main.shadow_adjudication_dashboard(limit=100)
+        response = analytics_routes.shadow_adjudication_dashboard(limit=100)
 
     body = response.body.decode("utf-8")
     assert "SigurScan Shadow Adjudication" in body
@@ -10431,7 +10432,7 @@ def test_evaluation_readiness_payload(monkeypatch):
         },
     )
 
-    result = app_main.evaluation_readiness(
+    result = analytics_routes.evaluation_readiness(
         source_channel="text",
         bucket_size_days=1,
         trend_top_signals=5,
