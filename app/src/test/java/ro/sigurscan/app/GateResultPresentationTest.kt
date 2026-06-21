@@ -173,6 +173,43 @@ class GateResultPresentationTest {
     }
 
     @Test
+    fun finalUnverifiedTextOnlyCopyDoesNotTalkAboutDestinationOrPreview() {
+        val result = gateResult(
+            GateAction.UNVERIFIED,
+            reasonCodes = listOf("BACKEND_UNVERIFIED"),
+            unknownReason = "BACKEND_UNVERIFIED",
+            finality = GateFinality.FINAL
+        )
+        val textOnlySnapshot = EvidenceSnapshot(
+            scanId = "text-only-unverified",
+            inputKind = "share_text",
+            channel = "visible_text",
+            completeness = EvidenceCompleteness.PARTIAL_ONLINE
+        )
+        val urlSnapshot = textOnlySnapshot.copy(
+            primaryUrl = "https://example.com"
+        )
+
+        val commonCopy = listOf(
+            GateResultPresentation.supportText(result),
+            GateResultPresentation.primaryAction(result)
+        )
+            .plus(GateResultPresentation.recommendedActions(result))
+            .joinToString(" ")
+            .lowercase()
+        val textOnlyReason = GateResultPresentation.reasonText(result, textOnlySnapshot).lowercase()
+        val urlReason = GateResultPresentation.reasonText(result, urlSnapshot).lowercase()
+
+        assertFalse(commonCopy.contains("destina"))
+        assertFalse(commonCopy.contains("qr"))
+        assertFalse(commonCopy.contains("link"))
+        assertFalse(textOnlyReason.contains("destina"))
+        assertFalse(textOnlyReason.contains("preview"))
+        assertTrue(textOnlyReason.contains("mesaj"))
+        assertTrue(urlReason.contains("destina"))
+    }
+
+    @Test
     fun pendingScanCopyHidesProviderAndPillarJargonFromUsers() {
         val result = gateResult(
             GateAction.INSUFFICIENT_EVIDENCE,
