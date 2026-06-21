@@ -157,10 +157,10 @@ def test_orchestrated_job_removes_sensitive_url_query_values_before_persisting(m
     )
 
     with monkeypatch.context() as patched:
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         job = asyncio.run(
-            app_main._create_orchestrated_job(
+            app_main.orchestrated_engine._create_orchestrated_job(
                 app_main.OrchestratedScanRequest(
                     input_type="text",
                     text=f"Verifică oferta aici: {raw_url}",
@@ -188,10 +188,10 @@ def test_orchestrated_job_uses_origin_only_and_blocks_preview_when_path_contains
     raw_url = "https://example.com/reset/popescu.ion@gmail.com?ref=public"
 
     with monkeypatch.context() as patched:
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         job = asyncio.run(
-            app_main._create_orchestrated_job(
+            app_main.orchestrated_engine._create_orchestrated_job(
                 app_main.OrchestratedScanRequest(
                     input_type="text",
                     text=f"Continuă aici: {raw_url}",
@@ -212,10 +212,10 @@ def test_orchestrated_job_uses_origin_only_for_opaque_token_in_path(monkeypatch)
     raw_url = f"https://example.com/reset/{token}?ref=public"
 
     with monkeypatch.context() as patched:
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         job = asyncio.run(
-            app_main._create_orchestrated_job(
+            app_main.orchestrated_engine._create_orchestrated_job(
                 app_main.OrchestratedScanRequest(
                     input_type="text",
                     text=f"Continuă aici: {raw_url}",
@@ -236,10 +236,10 @@ def test_orchestrated_job_removes_url_credentials_and_blocks_preview(monkeypatch
     raw_url = "https://user:password@example.com/account?ref=public"
 
     with monkeypatch.context() as patched:
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         job = asyncio.run(
-            app_main._create_orchestrated_job(
+            app_main.orchestrated_engine._create_orchestrated_job(
                 app_main.OrchestratedScanRequest(
                     input_type="text",
                     text=f"Continuă aici: {raw_url}",
@@ -268,10 +268,10 @@ def test_orchestrated_job_removes_url_credentials_and_blocks_preview(monkeypatch
 )
 def test_orchestrated_job_keeps_public_slug_and_catalog_id_paths(public_url, monkeypatch):
     with monkeypatch.context() as patched:
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         job = asyncio.run(
-            app_main._create_orchestrated_job(
+            app_main.orchestrated_engine._create_orchestrated_job(
                 app_main.OrchestratedScanRequest(
                     input_type="text",
                     text=f"Vezi detalii aici: {public_url}",
@@ -307,10 +307,10 @@ def test_orchestrated_urlscan_does_not_submit_origin_only_privacy_target(monkeyp
         raise AssertionError("Privacy-blocked targets must never be submitted to urlscan.")
 
     with monkeypatch.context() as patched:
-        patched.setattr(app_main, "_submit_orchestrated_urlscan", fail_submit)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._submit_orchestrated_urlscan_preview_once(job, None))
+        patched.setattr(app_main.orchestrated_engine, "_submit_orchestrated_urlscan", fail_submit)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main.orchestrated_engine._submit_orchestrated_urlscan_preview_once(job, None))
 
     assert refreshed["urlscan"]["status"] == "skipped"
     assert refreshed["preview"]["status"] == "unavailable"
@@ -339,10 +339,10 @@ def test_orchestrated_urlscan_submit_error_marks_preview_unavailable(monkeypatch
         }
 
     with monkeypatch.context() as patched:
-        patched.setattr(app_main, "_submit_orchestrated_urlscan", fake_submit)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._submit_orchestrated_urlscan_preview_once(job, None))
+        patched.setattr(app_main.orchestrated_engine, "_submit_orchestrated_urlscan", fake_submit)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main.orchestrated_engine._submit_orchestrated_urlscan_preview_once(job, None))
 
     assert refreshed["urlscan"]["status"] == "error"
     assert refreshed["preview"]["status"] == "unavailable"
@@ -388,7 +388,7 @@ def test_orchestrated_job_keeps_reputation_lookup_path_for_opaque_url():
         source_channel="android_native",
     )
 
-    job = asyncio.run(app_main._create_orchestrated_job(payload))
+    job = asyncio.run(app_main.orchestrated_engine._create_orchestrated_job(payload))
     expected_hashes = url_reputation.reputation_url_hash_variants(raw_url)
 
     assert job["urls"] == [safe_url]
@@ -406,7 +406,7 @@ def test_orchestrated_job_keeps_reputation_lookup_hashes_for_pii_url():
         source_channel="android_native",
     )
 
-    job = asyncio.run(app_main._create_orchestrated_job(payload))
+    job = asyncio.run(app_main.orchestrated_engine._create_orchestrated_job(payload))
     serialized = json.dumps(job, ensure_ascii=False)
     expected_hashes = url_reputation.reputation_url_hash_variants(raw_url)
 
@@ -2967,7 +2967,7 @@ def test_provider_gate_text_only_social_engineering_patterns_are_dangerous(text,
 def test_disabled_runtime_url_providers_do_not_block_orchestrated_pillars(monkeypatch):
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "PRIVACY_SAFE_MODE", True)
-        pillars = app_main._build_orchestrated_pillars(
+        pillars = app_main.orchestrated_engine._build_orchestrated_pillars(
             {
                 "urls": ["https://fan-curier-plata.test/card"],
                 "primary_final_url": "https://fan-curier-plata.test/card",
@@ -3023,7 +3023,7 @@ def test_invoice_unverified_with_terminal_url_context_is_final():
         },
     }
 
-    assert app_main._orchestrated_result_is_final(job, analysis) is True
+    assert app_main.orchestrated_engine._orchestrated_result_is_final(job, analysis) is True
 
 
 def test_provider_gate_sensitive_url_path_on_unofficial_domain_is_high_risk():
@@ -3814,7 +3814,7 @@ def test_url_input_type_with_message_extracts_embedded_urls_instead_of_whole_tex
         "Vezi ofertele pe https://www.yoxo.ro/ si pe https://reconditionate.yoxo.ro/"
     )
 
-    context = app_main._build_orchestrated_text_context(
+    context = app_main.orchestrated_engine._build_orchestrated_text_context(
         app_main.OrchestratedScanRequest(input_type="url", text=message, source_channel="android_native")
     )
 
@@ -3902,11 +3902,11 @@ def test_orchestrated_first_poll_runs_fast_lane_without_publishing_final_verdict
         patched.setattr(app_main, "_gather_external_intel_safe", fake_external_intel)
         patched.setattr(app_main, "_analyze_with_reputation", fake_analyze)
         patched.setattr(app_main, "_claim_verifier_required", lambda analysis: False)
-        patched.setattr(app_main, "_submit_orchestrated_urlscan", fail_submit)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_submit_orchestrated_urlscan", fail_submit)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+        refreshed = asyncio.run(app_main.orchestrated_engine._refresh_orchestrated_job(job, None))
 
     assert refreshed["pipeline_stage"] == "semantic_ready"
     assert "result" not in refreshed
@@ -3938,9 +3938,9 @@ def test_orchestrated_status_stays_complete_when_final_verdict_exists_and_previe
         "orchestration_metrics": {"poll_count": 1, "stage_sequence": [], "stage_durations_ms": {}},
     }
 
-    pending_preview = app_main._orchestrated_status_payload(job)
+    pending_preview = app_main.orchestrated_engine._orchestrated_status_payload(job)
     job["urlscan"] = {"status": "error", "details": "scan prevented"}
-    terminal = app_main._orchestrated_status_payload(job)
+    terminal = app_main.orchestrated_engine._orchestrated_status_payload(job)
 
     assert pending_preview["status"] == "complete"
     assert "preview" in pending_preview["status_message"].lower()
@@ -3976,13 +3976,13 @@ def test_orchestrated_ready_preview_without_visual_stays_pending_for_worker():
         "orchestration_metrics": {"poll_count": 2, "stage_sequence": [], "stage_durations_ms": {}},
     }
 
-    payload = app_main._orchestrated_read_status_payload(job, changed=True)
+    payload = app_main.orchestrated_engine._orchestrated_read_status_payload(job, changed=True)
 
     assert payload["status"] == "complete"
     assert payload["preview"]["status"] == "pending"
     assert payload["preview"]["reason"] == "urlscan_screenshot_pending"
     assert payload["preview_state"] == "pending"
-    assert app_main._orchestrated_worker_can_stop(payload) is False
+    assert app_main.orchestrated_engine._orchestrated_worker_can_stop(payload) is False
 
 
 def test_gather_external_intel_safe_degrades_provider_exceptions(monkeypatch):
@@ -4032,13 +4032,13 @@ def test_orchestrated_refresh_finalizes_on_unhandled_stage_exception(monkeypatch
         raise RuntimeError("stage exploded")
 
     with monkeypatch.context() as patched:
-        patched.setattr(app_main, "_run_orchestrated_fast_lane", fail_fast_lane)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_run_orchestrated_fast_lane", fail_fast_lane)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+        refreshed = asyncio.run(app_main.orchestrated_engine._refresh_orchestrated_job(job, None))
 
-    payload = app_main._orchestrated_status_payload(refreshed)
+    payload = app_main.orchestrated_engine._orchestrated_status_payload(refreshed)
     assert refreshed["pipeline_stage"] == "done"
     assert payload["status"] == "complete"
     assert payload["result"]["is_final"] is True
@@ -4095,7 +4095,7 @@ def test_orchestrated_status_marks_preview_unavailable_when_final_url_unresolved
         "orchestration_metrics": {"poll_count": 3, "stage_sequence": [], "stage_durations_ms": {}},
     }
 
-    payload = app_main._orchestrated_status_payload(job)
+    payload = app_main.orchestrated_engine._orchestrated_status_payload(job)
 
     assert payload["status"] == "complete"
     assert payload["preview"]["status"] == "unavailable"
@@ -4149,9 +4149,9 @@ def test_orchestrated_resolved_stage_collects_fast_reputation_without_urlhaus(mo
 
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "_gather_external_intel_safe", fake_external_intel)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main.orchestrated_engine._refresh_orchestrated_job(job, None))
 
     assert refreshed["pipeline_stage"] == "urlhaus_ready"
     assert calls == [
@@ -4203,9 +4203,9 @@ def test_orchestrated_resolved_stage_preserves_primary_url_privacy(monkeypatch):
                 resolved_urls
             ),
         )
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main.orchestrated_engine._refresh_orchestrated_job(job, None))
 
     assert refreshed["primary_final_url"] == "https://example.com/"
     assert refreshed["primary_url_privacy"]["action"] == "origin_only"
@@ -4269,9 +4269,9 @@ def test_orchestrated_urlhaus_stage_collects_urlhaus_once(monkeypatch):
 
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "_gather_external_intel_safe", fake_external_intel)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main.orchestrated_engine._refresh_orchestrated_job(job, None))
 
     assert refreshed["pipeline_stage"] == "reputation_ready"
     assert calls == [
@@ -4353,15 +4353,15 @@ def test_orchestrated_reputation_stage_runs_mistral_as_semantic_pillar(monkeypat
         patched.setattr(app_main, "_analyze_with_reputation", fake_analyze)
         patched.setattr(app_main, "_claim_verifier_required", lambda analysis: False)
         patched.setattr(app_main, "_call_mistral_semantic_review", fake_mistral)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_finalize_orchestrated_job_if_ready", fake_finalize)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_finalize_orchestrated_job_if_ready", fake_finalize)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
 
-        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+        refreshed = asyncio.run(app_main.orchestrated_engine._refresh_orchestrated_job(job, None))
         assert refreshed["pipeline_stage"] == "semantic_ready"
         assert "semantic_review" not in refreshed["analysis"].get("evidence", {})
 
-        refreshed = asyncio.run(app_main._refresh_orchestrated_job(refreshed, None))
+        refreshed = asyncio.run(app_main.orchestrated_engine._refresh_orchestrated_job(refreshed, None))
 
     review = refreshed["analysis"]["evidence"]["semantic_review"]
     assert refreshed["pipeline_stage"] == "analysis_ready"
@@ -4433,10 +4433,10 @@ def test_orchestrated_semantic_and_required_claim_run_in_parallel_in_one_poll(mo
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "_enrich_semantic_review_async", fake_semantic)
         patched.setattr(app_main, "_enrich_offer_claim_verification_async", fake_claim)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_finalize_orchestrated_job_if_ready", fake_finalize)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_finalize_orchestrated_job_if_ready", fake_finalize)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main.orchestrated_engine._refresh_orchestrated_job(job, None))
 
     assert started == {"semantic", "claim"}
     assert refreshed["pipeline_stage"] == "analysis_ready"
@@ -4573,12 +4573,12 @@ def test_orchestrated_text_only_required_timeout_returns_no_final_when_unverifie
     }
 
     with monkeypatch.context() as patched:
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
 
         timed_out = app_main._mark_required_pillars_timeout(job)
-        refreshed = asyncio.run(app_main._finalize_orchestrated_job_if_ready(timed_out, None))
+        refreshed = asyncio.run(app_main.orchestrated_engine._finalize_orchestrated_job_if_ready(timed_out, None))
 
     # Gate returns UNVERIFIED, orchestrator pops result to keep polling
     assert "result" not in refreshed
@@ -4623,8 +4623,8 @@ def test_orchestrated_text_only_unverified_without_url_finalizes_when_pillars_do
     }
 
     with monkeypatch.context() as patched:
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
 
         async def fake_explanation(*args, **kwargs):
@@ -4632,7 +4632,7 @@ def test_orchestrated_text_only_unverified_without_url_finalizes_when_pillars_do
 
         patched.setattr(app_main, "_build_ai_explanation_async", fake_explanation)
 
-        refreshed = asyncio.run(app_main._finalize_orchestrated_job_if_ready(job, None))
+        refreshed = asyncio.run(app_main.orchestrated_engine._finalize_orchestrated_job_if_ready(job, None))
 
     assert refreshed["result"]["is_final"] is True
     assert refreshed["result"]["user_risk_label"] == "UNVERIFIED"
@@ -4711,10 +4711,10 @@ def test_orchestrated_shortener_to_suspended_unresolved_final_url_publishes_fina
     }
 
     with monkeypatch.context() as patched:
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._finalize_orchestrated_job_if_ready(job, None))
+        refreshed = asyncio.run(app_main.orchestrated_engine._finalize_orchestrated_job_if_ready(job, None))
 
     assert refreshed["result"]["user_risk_label"] == "SUSPECT"
     assert refreshed["result"]["risk_level"] == "medium"
@@ -4722,7 +4722,7 @@ def test_orchestrated_shortener_to_suspended_unresolved_final_url_publishes_fina
     assert "final_url_unresolved_dns_suspicious_shortener" in (
         refreshed["result"]["evidence"]["verdict_gate"].get("reason_codes") or []
     )
-    payload = app_main._orchestrated_status_payload(refreshed)
+    payload = app_main.orchestrated_engine._orchestrated_status_payload(refreshed)
     assert payload["status"] == "complete"
     assert payload["preview"]["reason"] == "final_url_unresolved"
 
@@ -4799,15 +4799,15 @@ def test_orchestrated_plain_unresolved_final_url_remains_final_unverified(monkey
     }
 
     with monkeypatch.context() as patched:
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._finalize_orchestrated_job_if_ready(job, None))
+        refreshed = asyncio.run(app_main.orchestrated_engine._finalize_orchestrated_job_if_ready(job, None))
 
     assert refreshed["result"]["user_risk_label"] == "UNVERIFIED"
     assert refreshed["result"]["risk_level"] == "info"
     assert refreshed["result"]["is_final"] is True
-    payload = app_main._orchestrated_status_payload(refreshed)
+    payload = app_main.orchestrated_engine._orchestrated_status_payload(refreshed)
     assert payload["status"] == "complete"
     assert payload["preview"]["reason"] == "final_url_unresolved"
 
@@ -4890,16 +4890,16 @@ def test_orchestrated_known_official_clean_established_url_publishes_final_safe(
     }
 
     with monkeypatch.context() as patched:
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._finalize_orchestrated_job_if_ready(job, None))
+        refreshed = asyncio.run(app_main.orchestrated_engine._finalize_orchestrated_job_if_ready(job, None))
 
     assert refreshed["analysis"]["evidence"]["verdict_gate"]["reason_codes"] == ["positive_provenance_clean"]
     assert refreshed["analysis"]["evidence"]["decision_bundle"]["identity"]["status"] == "official"
     assert refreshed["result"]["user_risk_label"] == "SAFE"
     assert refreshed["result"]["is_final"] is True
-    assert app_main._orchestrated_status_payload(refreshed)["status"] == "complete"
+    assert app_main.orchestrated_engine._orchestrated_status_payload(refreshed)["status"] == "complete"
 
 
 def test_provider_gate_smyk_official_global_redirect_ignores_lexical_false_positive():
@@ -5079,9 +5079,9 @@ def test_orchestrated_invoice_finalize_preserves_specialized_invoice_verdict(mon
 
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "_apply_provider_gate_verdict", fail_generic_gate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._finalize_orchestrated_job_if_ready(job, None))
+        refreshed = asyncio.run(app_main.orchestrated_engine._finalize_orchestrated_job_if_ready(job, None))
 
     assert refreshed["analysis"]["evidence"]["verdict_gate"]["label"] == "SAFE"
     assert refreshed["result"]["user_risk_label"] == "SAFE"
@@ -5109,11 +5109,11 @@ def test_orchestrated_invoice_uses_unredacted_text_for_payment_destination(monke
     with monkeypatch.context() as patched:
         from services import invoice_orchestrator as io
 
-        app_main._ORCHESTRATED_SCAN_JOBS.clear()
+        app_main.orchestrated_engine._ORCHESTRATED_SCAN_JOBS.clear()
         io._verdict_cache.clear()
         io._cui_cache.clear()
         patched.setattr(io, "check_cui", fake_check_cui)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
 
         start = client.post(
@@ -5164,11 +5164,11 @@ def test_orchestrated_invoice_safe_label_does_not_show_verify_copy(monkeypatch):
     with monkeypatch.context() as patched:
         from services import invoice_orchestrator as io
 
-        app_main._ORCHESTRATED_SCAN_JOBS.clear()
+        app_main.orchestrated_engine._ORCHESTRATED_SCAN_JOBS.clear()
         io._verdict_cache.clear()
         io._cui_cache.clear()
         patched.setattr(io, "check_cui", fake_check_cui)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
 
         start = client.post(
@@ -5414,7 +5414,7 @@ def test_orchestrated_scan_keeps_clean_verdict_when_urlscan_screenshot_times_out
             json={"input_type": "text", "text": message, "source_channel": "android_native"},
         ).json()
         _poll_orchestrated(client, start["scan_id"], count=7)
-        app_main._ORCHESTRATED_SCAN_JOBS[start["scan_id"]]["created_at"] -= 5
+        app_main.orchestrated_engine._ORCHESTRATED_SCAN_JOBS[start["scan_id"]]["created_at"] -= 5
         response, payload = _poll_orchestrated(client, start["scan_id"], count=1)
 
     assert response.status_code == 200
@@ -5511,10 +5511,10 @@ def test_orchestrated_urlscan_result_poll_does_not_probe_screenshot_same_request
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "get_urlscan_result", fake_get_urlscan_result)
         patched.setattr(app_main, "_urlscan_screenshot_is_ready", fail_screenshot_probe)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+        refreshed = asyncio.run(app_main.orchestrated_engine._refresh_orchestrated_job(job, None))
 
     assert refreshed["urlscan"]["status"] == "finished"
     assert refreshed["urlscan"]["screenshot_ready"] is False
@@ -5611,10 +5611,10 @@ def test_orchestrated_urlscan_result_preserves_ready_fast_preview_until_screensh
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "get_urlscan_result", fake_get_urlscan_result)
         patched.setattr(app_main, "_urlscan_screenshot_is_ready", fail_screenshot_probe)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+        refreshed = asyncio.run(app_main.orchestrated_engine._refresh_orchestrated_job(job, None))
 
     assert refreshed["urlscan"]["status"] == "finished"
     assert refreshed["urlscan"]["screenshot_ready"] is False
@@ -5690,11 +5690,11 @@ def test_orchestrated_urlscan_preview_cache_hit_skips_submit(monkeypatch):
 
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "_load_urlscan_preview_cache", lambda final_url: dict(cached))
-        patched.setattr(app_main, "_submit_orchestrated_urlscan", fail_submit)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_submit_orchestrated_urlscan", fail_submit)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+        refreshed = asyncio.run(app_main.orchestrated_engine._refresh_orchestrated_job(job, None))
 
     assert refreshed["pipeline_stage"] == "urlscan_submitted"
     assert refreshed["urlscan"]["status"] == "finished"
@@ -5748,10 +5748,10 @@ def test_orchestrated_report_only_urlscan_cache_uses_ready_fast_preview(monkeypa
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "_load_urlscan_preview_cache", lambda value: dict(report_only))
         patched.setattr(app_main, "_load_fast_preview_cache", lambda value: dict(fast_preview))
-        patched.setattr(app_main, "_submit_orchestrated_urlscan", fail_submit)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._submit_orchestrated_urlscan_preview_once(job, None))
+        patched.setattr(app_main.orchestrated_engine, "_submit_orchestrated_urlscan", fail_submit)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main.orchestrated_engine._submit_orchestrated_urlscan_preview_once(job, None))
 
     assert refreshed["pipeline_stage"] == "urlscan_submitted"
     assert refreshed["urlscan"]["report_url"] == "https://urlscan.io/result/cached-report-only/"
@@ -6091,10 +6091,10 @@ def test_orchestrated_ready_urlscan_cache_prefers_ready_fast_preview(monkeypatch
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "_load_urlscan_preview_cache", lambda value: dict(urlscan_cached))
         patched.setattr(app_main, "_load_fast_preview_cache", lambda value: dict(fast_preview))
-        patched.setattr(app_main, "_submit_orchestrated_urlscan", fail_submit)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._submit_orchestrated_urlscan_preview_once(job, None))
+        patched.setattr(app_main.orchestrated_engine, "_submit_orchestrated_urlscan", fail_submit)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main.orchestrated_engine._submit_orchestrated_urlscan_preview_once(job, None))
 
     assert refreshed["pipeline_stage"] == "urlscan_submitted"
     assert refreshed["urlscan"]["report_url"] == "https://urlscan.io/result/cached-ready-urlscan/"
@@ -6171,9 +6171,9 @@ def test_orchestrated_fast_lane_attaches_cached_preview_before_submit_stage(monk
         patched.setattr(app_main, "_analyze_with_reputation", lambda *args, **kwargs: dict(analysis))
         patched.setattr(app_main, "_enrich_local_semantic_review", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_load_urlscan_preview_cache", lambda final_url: dict(cached))
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._run_orchestrated_fast_lane(job, None))
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main.orchestrated_engine._run_orchestrated_fast_lane(job, None))
 
     assert refreshed["pipeline_stage"] == "semantic_ready"
     assert refreshed["preview"]["cache_hit"] is True
@@ -6439,10 +6439,10 @@ def test_orchestrated_urlscan_preview_cache_saves_when_screenshot_ready(monkeypa
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "_urlscan_screenshot_is_ready", lambda uuid: asyncio.sleep(0, result=True))
         patched.setattr(app_main, "_save_urlscan_preview_cache", lambda candidate: saved.append(dict(candidate)))
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
-        patched.setattr(app_main, "_finalize_orchestrated_job_if_ready", fake_finalize)
-        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_finalize_orchestrated_job_if_ready", fake_finalize)
+        refreshed = asyncio.run(app_main.orchestrated_engine._refresh_orchestrated_job(job, None))
 
     assert refreshed["urlscan"]["screenshot_ready"] is True
     assert refreshed["preview"]["cache_saved"] is True
@@ -6454,7 +6454,7 @@ def test_orchestrated_urlscan_preview_cache_saves_when_screenshot_ready(monkeypa
 
 def test_orchestrated_load_prefers_persistent_store_over_stale_process_cache(monkeypatch):
     scan_id = "orch_store_first"
-    app_main._ORCHESTRATED_SCAN_JOBS[scan_id] = {
+    app_main.orchestrated_engine._ORCHESTRATED_SCAN_JOBS[scan_id] = {
         "scan_id": scan_id,
         "pipeline_stage": "queued",
         "created_at": 1,
@@ -6469,10 +6469,10 @@ def test_orchestrated_load_prefers_persistent_store_over_stale_process_cache(mon
 
     with monkeypatch.context() as patched:
         patched.setattr(app_main.supabase_store, "load_scan_job", lambda sid: persistent_job if sid == scan_id else None)
-        loaded = app_main._load_orchestrated_job(scan_id)
+        loaded = app_main.orchestrated_engine._load_orchestrated_job(scan_id)
 
     assert loaded["pipeline_stage"] == "resolved"
-    assert app_main._ORCHESTRATED_SCAN_JOBS[scan_id]["pipeline_stage"] == "resolved"
+    assert app_main.orchestrated_engine._ORCHESTRATED_SCAN_JOBS[scan_id]["pipeline_stage"] == "resolved"
 
 
 def test_persist_orchestrated_job_merges_urlscan_uuid_after_optimistic_conflict(monkeypatch):
@@ -6510,7 +6510,7 @@ def test_persist_orchestrated_job_merges_urlscan_uuid_after_optimistic_conflict(
     with monkeypatch.context() as patched:
         patched.setattr(app_main.supabase_store, "save_scan_job", fake_save)
         patched.setattr(app_main.supabase_store, "load_scan_job", lambda sid: dict(reloaded_job))
-        merged = app_main._persist_orchestrated_job(current_job)
+        merged = app_main.orchestrated_engine._persist_orchestrated_job(current_job)
 
     assert merged["pipeline_stage"] == "urlscan_submitted"
     assert merged["urlscan"]["uuid"] == "urlscan-keep-me"
@@ -6572,8 +6572,8 @@ def test_persist_orchestrated_job_conflict_merge_keeps_urlscan_timeout_over_pend
     with monkeypatch.context() as patched:
         patched.setattr(app_main.supabase_store, "save_scan_job", fake_save)
         patched.setattr(app_main.supabase_store, "load_scan_job", lambda sid: dict(reloaded_job))
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
-        merged = app_main._persist_orchestrated_job(current_job)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        merged = app_main.orchestrated_engine._persist_orchestrated_job(current_job)
 
     assert merged["urlscan"]["status"] == "timeout"
     assert merged["preview"]["status"] == "unavailable"
@@ -6596,12 +6596,12 @@ def test_persist_orchestrated_job_save_failure_keeps_memory_fallback(monkeypatch
     with monkeypatch.context() as patched:
         patched.setattr(app_main.supabase_store, "save_scan_job", lambda job: False)
         patched.setattr(app_main.supabase_store, "load_scan_job", lambda sid: None)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
-        app_main._ORCHESTRATED_SCAN_JOBS.pop(scan_id, None)
-        persisted = app_main._persist_orchestrated_job(current_job)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        app_main.orchestrated_engine._ORCHESTRATED_SCAN_JOBS.pop(scan_id, None)
+        persisted = app_main.orchestrated_engine._persist_orchestrated_job(current_job)
 
     assert persisted is current_job
-    assert app_main._ORCHESTRATED_SCAN_JOBS[scan_id] is current_job
+    assert app_main.orchestrated_engine._ORCHESTRATED_SCAN_JOBS[scan_id] is current_job
     assert current_job["orchestration_metrics"]["persist_fallback_memory_count"] == 1
 
 
@@ -6634,8 +6634,8 @@ def test_persist_orchestrated_job_retries_merged_conflict_save_twice(monkeypatch
     with monkeypatch.context() as patched:
         patched.setattr(app_main.supabase_store, "save_scan_job", fake_save)
         patched.setattr(app_main.supabase_store, "load_scan_job", lambda sid: dict(reloaded_job))
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
-        merged = app_main._persist_orchestrated_job(current_job)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        merged = app_main.orchestrated_engine._persist_orchestrated_job(current_job)
 
     assert len(saved_jobs) == 3
     assert merged["urlscan"]["uuid"] == "urlscan-keep-me"
@@ -6703,8 +6703,8 @@ def test_orchestrated_final_verdict_reuses_ai_explanation_cache(monkeypatch):
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "_build_ai_explanation_async", fake_ai_explanation)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
-        asyncio.run(app_main._finalize_orchestrated_job_if_ready(job, None))
-        asyncio.run(app_main._finalize_orchestrated_job_if_ready(job, None))
+        asyncio.run(app_main.orchestrated_engine._finalize_orchestrated_job_if_ready(job, None))
+        asyncio.run(app_main.orchestrated_engine._finalize_orchestrated_job_if_ready(job, None))
 
     assert calls["count"] == 1
     assert job["result"]["is_final"] is True
@@ -6795,8 +6795,8 @@ def test_orchestrated_urlscan_final_url_can_downgrade_stale_structural_danger(mo
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "_build_ai_explanation_async", fake_ai_explanation)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
-        asyncio.run(app_main._finalize_orchestrated_job_if_ready(job, None))
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        asyncio.run(app_main.orchestrated_engine._finalize_orchestrated_job_if_ready(job, None))
 
     assert job["result"]["is_final"] is True
     assert job["result"]["user_risk_label"] == "SAFE"
@@ -6833,9 +6833,9 @@ def test_orchestrated_urlscan_reservation_reclaims_after_ttl(monkeypatch):
 
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "ORCHESTRATED_URLSCAN_SUBMIT_RESERVATION_TIMEOUT_SECONDS", 30)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        refreshed = asyncio.run(app_main.orchestrated_engine._refresh_orchestrated_job(job, None))
 
     assert refreshed["pipeline_stage"] == "analysis_ready"
     assert refreshed["urlscan"]["status"] == "queued"
@@ -6867,7 +6867,7 @@ def test_urlscan_finished_without_screenshot_is_reputation_ok_not_error():
         },
     }
 
-    pillars = app_main._build_orchestrated_pillars(job)
+    pillars = app_main.orchestrated_engine._build_orchestrated_pillars(job)
 
     assert pillars["urlscan"]["status"] == "ok"
     assert "captura" in pillars["urlscan"]["details"]
@@ -6949,12 +6949,12 @@ def test_orchestrated_urlscan_timeout_can_rehydrate_finished_report(monkeypatch)
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "get_urlscan_result", fake_get_urlscan_result)
         patched.setattr(app_main, "_urlscan_screenshot_is_ready", fake_screenshot_ready)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_build_ai_explanation_async", fake_ai_explanation)
-        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
-        refreshed = asyncio.run(app_main._refresh_orchestrated_job(refreshed, None))
+        refreshed = asyncio.run(app_main.orchestrated_engine._refresh_orchestrated_job(job, None))
+        refreshed = asyncio.run(app_main.orchestrated_engine._refresh_orchestrated_job(refreshed, None))
 
     assert refreshed["urlscan"]["status"] == "finished"
     assert refreshed["preview"]["screenshot_url"] == "https://backend/screenshot"
@@ -7045,11 +7045,11 @@ def test_orchestrated_urlscan_timeout_without_screenshot_stays_unavailable(monke
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "get_urlscan_result", fake_get_urlscan_result)
         patched.setattr(app_main, "_urlscan_screenshot_is_ready", fake_screenshot_not_ready)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_build_ai_explanation_async", fake_ai_explanation)
-        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+        refreshed = asyncio.run(app_main.orchestrated_engine._refresh_orchestrated_job(job, None))
 
     assert refreshed["urlscan"]["status"] == "timeout"
     assert refreshed["preview"]["status"] == "unavailable"
@@ -7063,7 +7063,7 @@ def test_orchestrated_urlscan_timeout_without_screenshot_stays_unavailable(monke
     assert "http" not in refreshed["preview"]["details"].lower()
     assert not refreshed["preview"].get("screenshot_url")
     assert not refreshed["preview"].get("image_url")
-    payload = app_main._orchestrated_status_payload(refreshed)
+    payload = app_main.orchestrated_engine._orchestrated_status_payload(refreshed)
     assert payload["pillars"]["urlscan"]["status"] == "ok"
     assert "captura" in payload["pillars"]["urlscan"]["details"].lower()
 
@@ -7165,11 +7165,11 @@ def test_orchestrated_urlscan_timeout_late_malicious_report_upgrades_without_scr
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "get_urlscan_result", fake_get_urlscan_result)
         patched.setattr(app_main, "_urlscan_screenshot_is_ready", fake_screenshot_not_ready)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_build_ai_explanation_async", fake_ai_explanation)
-        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+        refreshed = asyncio.run(app_main.orchestrated_engine._refresh_orchestrated_job(job, None))
 
     assert refreshed["urlscan"]["status"] == "finished"
     assert refreshed["urlscan"]["screenshot_ready"] is False
@@ -7428,10 +7428,10 @@ def test_orchestrated_urlscan_submit_requires_owned_reservation(monkeypatch):
         raise AssertionError("urlscan submit must not run without owning the reservation")
 
     with monkeypatch.context() as patched:
-        patched.setattr(app_main, "_persist_orchestrated_job", fake_persist)
-        patched.setattr(app_main, "_submit_orchestrated_urlscan", fail_submit)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", fake_persist)
+        patched.setattr(app_main.orchestrated_engine, "_submit_orchestrated_urlscan", fail_submit)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+        refreshed = asyncio.run(app_main.orchestrated_engine._refresh_orchestrated_job(job, None))
 
     assert refreshed["urlscan"]["submit_owner"] == "other-instance"
     assert refreshed["urlscan"]["status"] == "submitting"
@@ -7491,11 +7491,11 @@ def test_orchestrated_urlscan_submit_success_sets_submitted_stage(monkeypatch):
         }
 
     with monkeypatch.context() as patched:
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_submit_orchestrated_urlscan", fake_submit)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_submit_orchestrated_urlscan", fake_submit)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+        refreshed = asyncio.run(app_main.orchestrated_engine._refresh_orchestrated_job(job, None))
 
     assert refreshed["pipeline_stage"] == "urlscan_submitted"
     assert refreshed["urlscan"]["status"] == "pending"
@@ -7546,11 +7546,11 @@ def test_orchestrated_urlscan_submit_preserves_ready_fast_preview_until_urlscan_
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "_load_urlscan_preview_cache", lambda final_url: None)
         patched.setattr(app_main, "_load_fast_preview_cache", lambda final_url: None)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_submit_orchestrated_urlscan", fake_submit)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_submit_orchestrated_urlscan", fake_submit)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
-        refreshed = asyncio.run(app_main._refresh_orchestrated_job(job, None))
+        refreshed = asyncio.run(app_main.orchestrated_engine._refresh_orchestrated_job(job, None))
 
     assert refreshed["urlscan"]["status"] == "pending"
     assert refreshed["preview"]["status"] == "ready"
@@ -11646,7 +11646,7 @@ def test_orchestrated_poll_does_not_refresh_when_distributed_lock_is_held(monkey
     with monkeypatch.context() as patched:
         patched.setattr(app_main.supabase_store, "load_scan_job", lambda sid: dict(stored_job))
         patched.setattr(app_main.supabase_store, "claim_scan_job", lambda *args, **kwargs: None)
-        patched.setattr(app_main, "_refresh_orchestrated_job", fail_refresh)
+        patched.setattr(app_main.orchestrated_engine, "_refresh_orchestrated_job", fail_refresh)
         response = asyncio.run(app_main.get_orchestrated_scan(scan_id, None))
 
     assert response["scan_id"] == scan_id
@@ -11684,9 +11684,9 @@ def test_orchestrated_status_endpoint_is_read_only(monkeypatch):
 
     with monkeypatch.context() as patched:
         patched.setattr(app_main.supabase_store, "load_scan_job", lambda sid: dict(stored_job))
-        patched.setattr(app_main, "_refresh_orchestrated_job", fail_refresh)
-        patched.setattr(app_main, "_claim_distributed_orchestrated_refresh", fail_claim)
-        patched.setattr(app_main, "_persist_orchestrated_job", fail_persist)
+        patched.setattr(app_main.orchestrated_engine, "_refresh_orchestrated_job", fail_refresh)
+        patched.setattr(app_main.orchestrated_engine, "_claim_distributed_orchestrated_refresh", fail_claim)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", fail_persist)
         client = TestClient(app_main.app)
         response = client.get(f"/v1/scan/orchestrated/{scan_id}/status")
 
@@ -11724,7 +11724,7 @@ def test_orchestrated_status_endpoint_reports_unchanged_revision_without_refresh
 
     with monkeypatch.context() as patched:
         patched.setattr(app_main.supabase_store, "load_scan_job", lambda sid: dict(stored_job))
-        patched.setattr(app_main, "_refresh_orchestrated_job", fail_refresh)
+        patched.setattr(app_main.orchestrated_engine, "_refresh_orchestrated_job", fail_refresh)
         client = TestClient(app_main.app)
         response = client.get(f"/v1/scan/orchestrated/{scan_id}/status?after_revision=12&wait=0")
 
@@ -11786,8 +11786,8 @@ def test_internal_orchestrated_advance_runs_one_worker_step_and_persists(monkeyp
     with monkeypatch.context() as patched:
         patched.setattr(app_main, "INTERNAL_WORKER_TOKEN", "unit-worker-token")
         patched.setattr(app_main.supabase_store, "load_scan_job", lambda sid: dict(stored_job))
-        patched.setattr(app_main, "_refresh_orchestrated_job", fake_refresh)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda job: persisted.append(dict(job)) or job)
+        patched.setattr(app_main.orchestrated_engine, "_refresh_orchestrated_job", fake_refresh)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda job: persisted.append(dict(job)) or job)
         client = TestClient(app_main.app)
         response = client.post(
             f"/internal/orchestrated/{scan_id}/advance",
@@ -11842,7 +11842,7 @@ def test_cloud_tasks_enqueue_builds_internal_worker_task_without_leaking_raw_inp
         patched.setattr(app_main.requests, "get", fake_get)
         patched.setattr(app_main.requests, "post", fake_post)
 
-        enqueued = app_main._enqueue_orchestrated_worker_task(
+        enqueued = app_main.orchestrated_engine._enqueue_orchestrated_worker_task(
             "orch_cloud_task",
             FakeRequest(),
             delay_seconds=2,
@@ -11888,9 +11888,9 @@ def test_orchestrated_start_enqueues_worker_task_when_cloud_tasks_enabled(monkey
         patched.setattr(app_main, "CLOUD_TASKS_LOCATION", "europe-west1")
         patched.setattr(app_main, "CLOUD_TASKS_QUEUE", "sigurscan-orchestrated")
         patched.setattr(app_main, "INTERNAL_WORKER_TOKEN", "unit-worker-token")
-        patched.setattr(app_main, "_create_orchestrated_job", fake_create)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda job: job)
-        patched.setattr(app_main, "_enqueue_orchestrated_worker_task", fake_enqueue)
+        patched.setattr(app_main.orchestrated_engine, "_create_orchestrated_job", fake_create)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda job: job)
+        patched.setattr(app_main.orchestrated_engine, "_enqueue_orchestrated_worker_task", fake_enqueue)
 
         response = asyncio.run(
             app_main.start_orchestrated_scan(
@@ -11933,9 +11933,9 @@ def test_internal_orchestrated_worker_requeues_when_scan_still_running(monkeypat
         patched.setattr(app_main, "ORCHESTRATED_CLOUD_TASKS_ENABLED", True)
         patched.setattr(app_main, "ORCHESTRATED_CLOUD_TASKS_CONTINUE_DELAY_SECONDS", 2)
         patched.setattr(app_main.supabase_store, "load_scan_job", lambda sid: dict(stored_job))
-        patched.setattr(app_main, "_refresh_orchestrated_job", fake_refresh)
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda job: job)
-        patched.setattr(app_main, "_enqueue_orchestrated_worker_task", fake_enqueue)
+        patched.setattr(app_main.orchestrated_engine, "_refresh_orchestrated_job", fake_refresh)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda job: job)
+        patched.setattr(app_main.orchestrated_engine, "_enqueue_orchestrated_worker_task", fake_enqueue)
         client = TestClient(app_main.app)
         response = client.post(
             f"/internal/orchestrated/{scan_id}/advance",

@@ -7774,8 +7774,6 @@ URLSCAN_PREVIEW_CACHE_TTL_SECONDS = int(os.getenv("URLSCAN_PREVIEW_CACHE_TTL_SEC
 URLSCAN_PREVIEW_CACHE_MAX_ENTRIES = int(os.getenv("URLSCAN_PREVIEW_CACHE_MAX_ENTRIES", "512"))
 FAST_PREVIEW_CACHE_MAX_ENTRIES = int(os.getenv("FAST_PREVIEW_CACHE_MAX_ENTRIES", "512"))
 FAST_PREVIEW_SIGNED_URL_TTL_SECONDS = int(os.getenv("FAST_PREVIEW_SIGNED_URL_TTL_SECONDS", "900"))
-_ORCHESTRATED_SCAN_JOBS: Dict[str, Dict[str, Any]] = {}
-_ORCHESTRATED_SCAN_LOCKS: Dict[str, asyncio.Lock] = {}
 ORCHESTRATED_REFRESH_LOCK_TTL_SECONDS = int(os.getenv("ORCHESTRATED_REFRESH_LOCK_TTL_SECONDS", "90"))
 _URLSCAN_PREVIEW_CACHE: Dict[str, Dict[str, Any]] = {}
 _FAST_PREVIEW_CACHE: Dict[str, Dict[str, Any]] = {}
@@ -8167,7 +8165,7 @@ def _apply_fast_preview_cache_hit(job: Dict[str, Any], cached: Dict[str, Any]) -
     preview["cache_hit"] = True
     preview["fast_cache_hit"] = True
     preview["reason"] = None
-    _increment_orchestrated_metric(job, "fast_preview_cache_hit_count")
+    orchestrated_engine._increment_orchestrated_metric(job, "fast_preview_cache_hit_count")
     return job
 
 
@@ -8783,8 +8781,8 @@ def _mark_required_pillars_timeout(job: Dict[str, Any]) -> Dict[str, Any]:
         existing_semantic["reason_codes"] = reason_codes
     job["analysis"] = analysis
     job["required_pillars_timed_out"] = True
-    _set_orchestrated_stage(job, "done")
-    _emit_orchestrated_telemetry("orchestrated_required_timeout", job)
+    orchestrated_engine._set_orchestrated_stage(job, "done")
+    orchestrated_engine._emit_orchestrated_telemetry("orchestrated_required_timeout", job)
     return job
 
 
@@ -9115,7 +9113,7 @@ def _apply_urlscan_preview_cache_hit(job: Dict[str, Any], cached: Dict[str, Any]
         summary["urlscan"] = _urlscan_provider_payload(cached_summary)
         summary["urlscan"]["cache_hit"] = True
     _sync_resolved_urls_with_urlscan_final(job)
-    _increment_orchestrated_metric(job, "urlscan_preview_cache_hit_count")
+    orchestrated_engine._increment_orchestrated_metric(job, "urlscan_preview_cache_hit_count")
     return job
 
 
@@ -9392,14 +9390,14 @@ async def _run_offer_web_claim_enrichment(job: Dict[str, Any]) -> Dict[str, Any]
             job["result"] = None
             job["result_fingerprint"] = None
             job["analysis"] = analysis
-            _emit_orchestrated_telemetry(
+            orchestrated_engine._emit_orchestrated_telemetry(
                 "orchestrated_offer_web_claim", job, claim_status=claim.get("status"), escalated=True
             )
-            return _persist_orchestrated_job(job)
+            return orchestrated_engine._persist_orchestrated_job(job)
 
     job["analysis"] = analysis
-    _emit_orchestrated_telemetry("orchestrated_offer_web_claim", job, claim_status=claim.get("status"))
-    return _persist_orchestrated_job(job)
+    orchestrated_engine._emit_orchestrated_telemetry("orchestrated_offer_web_claim", job, claim_status=claim.get("status"))
+    return orchestrated_engine._persist_orchestrated_job(job)
 
 
 
@@ -9411,41 +9409,41 @@ async def _run_offer_web_claim_enrichment(job: Dict[str, Any]) -> Dict[str, Any]
 @app.post("/internal/orchestrated/{scan_id}/advance")
 async def advance_orchestrated_scan_worker(scan_id: str, request: Request, max_steps: int = 1):
     _require_internal_worker_auth(request)
-    _prune_orchestrated_jobs()
+    orchestrated_engine._prune_orchestrated_jobs()
     step_budget = max(1, min(int(max_steps or 1), 3))
     steps = 0
     worker_state = "idle"
     job: Optional[Dict[str, Any]] = None
-    lock = _ORCHESTRATED_SCAN_LOCKS.setdefault(scan_id, asyncio.Lock())
+    lock = orchestrated_engine._ORCHESTRATED_SCAN_LOCKS.setdefault(scan_id, asyncio.Lock())
     async with lock:
-        job = _load_orchestrated_job(scan_id)
+        job = orchestrated_engine._load_orchestrated_job(scan_id)
         if not isinstance(job, dict):
             raise HTTPException(status_code=404, detail="Scanarea nu a fost gasita sau a expirat.")
         for _ in range(step_budget):
             if isinstance(job.get("_storage_revision"), int):
-                claimed_job = _claim_distributed_orchestrated_refresh(job)
+                claimed_job = orchestrated_engine._claim_distributed_orchestrated_refresh(job)
                 if claimed_job is None:
-                    latest = _load_orchestrated_job(scan_id)
+                    latest = orchestrated_engine._load_orchestrated_job(scan_id)
                     if isinstance(latest, dict):
                         job = latest
                     worker_state = "locked"
                     break
                 job = claimed_job
-            job = await _refresh_orchestrated_job(job, request)
-            status_payload = _orchestrated_status_payload(job)
-            job = _persist_orchestrated_job(job)
+            job = await orchestrated_engine._refresh_orchestrated_job(job, request)
+            status_payload = orchestrated_engine._orchestrated_status_payload(job)
+            job = orchestrated_engine._persist_orchestrated_job(job)
             steps += 1
             worker_state = "advanced"
-            read_payload = _orchestrated_read_status_payload(job, changed=True)
-            if _orchestrated_worker_can_stop(read_payload):
+            read_payload = orchestrated_engine._orchestrated_read_status_payload(job, changed=True)
+            if orchestrated_engine._orchestrated_worker_can_stop(read_payload):
                 break
 
     if not isinstance(job, dict):
         raise HTTPException(status_code=404, detail="Scanarea nu a fost gasita sau a expirat.")
-    payload = _orchestrated_read_status_payload(job, changed=True)
+    payload = orchestrated_engine._orchestrated_read_status_payload(job, changed=True)
     requeued = False
-    if worker_state == "advanced" and not _orchestrated_worker_can_stop(payload):
-        requeued = _enqueue_orchestrated_worker_task(
+    if worker_state == "advanced" and not orchestrated_engine._orchestrated_worker_can_stop(payload):
+        requeued = orchestrated_engine._enqueue_orchestrated_worker_task(
             scan_id,
             request,
             delay_seconds=ORCHESTRATED_CLOUD_TASKS_CONTINUE_DELAY_SECONDS,
@@ -9466,11 +9464,11 @@ async def start_orchestrated_scan(payload: OrchestratedScanRequest, request: Req
     Starts the product-grade scan pipeline:
     intake -> persistent queued scan_id. Provider work is advanced idempotently by GET polling.
     """
-    _prune_orchestrated_jobs()
-    job = await _create_orchestrated_job(payload)
-    response = _orchestrated_status_payload(job)
-    job = _persist_orchestrated_job(job)
-    _enqueue_orchestrated_worker_task(job["scan_id"], request, delay_seconds=0, max_steps=1)
+    orchestrated_engine._prune_orchestrated_jobs()
+    job = await orchestrated_engine._create_orchestrated_job(payload)
+    response = orchestrated_engine._orchestrated_status_payload(job)
+    job = orchestrated_engine._persist_orchestrated_job(job)
+    orchestrated_engine._enqueue_orchestrated_worker_task(job["scan_id"], request, delay_seconds=0, max_steps=1)
     return response
 
 
@@ -9480,36 +9478,36 @@ async def get_orchestrated_scan_status(
     after_revision: Optional[int] = None,
     wait: float = 0.0,
 ):
-    _prune_orchestrated_jobs()
-    job, changed = await _wait_for_orchestrated_status_read(
+    orchestrated_engine._prune_orchestrated_jobs()
+    job, changed = await orchestrated_engine._wait_for_orchestrated_status_read(
         scan_id,
         after_revision=after_revision,
         wait_seconds=wait,
     )
     if not isinstance(job, dict):
         raise HTTPException(status_code=404, detail="Scanarea nu a fost gasita sau a expirat.")
-    return _orchestrated_read_status_payload(job, changed=changed)
+    return orchestrated_engine._orchestrated_read_status_payload(job, changed=changed)
 
 
 @app.get("/v1/scan/orchestrated/{scan_id}")
 async def get_orchestrated_scan(scan_id: str, request: Request):
-    _prune_orchestrated_jobs()
-    lock = _ORCHESTRATED_SCAN_LOCKS.setdefault(scan_id, asyncio.Lock())
+    orchestrated_engine._prune_orchestrated_jobs()
+    lock = orchestrated_engine._ORCHESTRATED_SCAN_LOCKS.setdefault(scan_id, asyncio.Lock())
     async with lock:
-        job = _load_orchestrated_job(scan_id)
+        job = orchestrated_engine._load_orchestrated_job(scan_id)
         if not job:
             raise HTTPException(status_code=404, detail="Scanarea nu a fost gasita sau a expirat.")
         if isinstance(job.get("_storage_revision"), int):
-            claimed_job = _claim_distributed_orchestrated_refresh(job)
+            claimed_job = orchestrated_engine._claim_distributed_orchestrated_refresh(job)
             if claimed_job is None:
-                latest = _load_orchestrated_job(scan_id)
+                latest = orchestrated_engine._load_orchestrated_job(scan_id)
                 if isinstance(latest, dict):
                     job = latest
-                return _orchestrated_status_payload(job)
+                return orchestrated_engine._orchestrated_status_payload(job)
             job = claimed_job
-        job = await _refresh_orchestrated_job(job, request)
-        response = _orchestrated_status_payload(job)
-        job = _persist_orchestrated_job(job)
+        job = await orchestrated_engine._refresh_orchestrated_job(job, request)
+        response = orchestrated_engine._orchestrated_status_payload(job)
+        job = orchestrated_engine._persist_orchestrated_job(job)
         return response
 
 
@@ -9884,7 +9882,7 @@ async def scan_text(request: TextScanRequest):
     """
     raw_text = _normalise_obfuscated_text((request.text or "").strip())
     _validate_text_input("Textul trimis", raw_text, MAX_TEXT_CHARS)
-    return await _start_orchestrated_compat(
+    return await orchestrated_engine._start_orchestrated_compat(
         OrchestratedScanRequest(
             input_type="text",
             text=raw_text,
@@ -9900,7 +9898,7 @@ async def scan_url(request: URLScanRequest):
     url = _canonicalize_url(_normalise_obfuscated_text(request.url or ""))
     if not url:
         raise HTTPException(status_code=400, detail="URL invalid sau format neacceptat.")
-    return await _start_orchestrated_compat(
+    return await orchestrated_engine._start_orchestrated_compat(
         OrchestratedScanRequest(
             input_type="url",
             url=url,
@@ -9922,7 +9920,7 @@ async def scan_email(
         html_content=html_content,
         source_channel=source_channel,
     )
-    return await _start_orchestrated_from_extraction(
+    return await orchestrated_engine._start_orchestrated_from_extraction(
         extraction,
         fallback_label="email",
         default_input_type="email",
@@ -9941,7 +9939,7 @@ async def scan_image(
         image_file=image_file,
         source_channel=source_channel,
     )
-    return await _start_orchestrated_from_extraction(
+    return await orchestrated_engine._start_orchestrated_from_extraction(
         extraction,
         fallback_label="imagine",
         default_input_type="image_ocr",
@@ -9961,7 +9959,7 @@ async def scan_pdf(
         pdf_file=pdf_file,
         source_channel=source_channel,
     )
-    return await _start_orchestrated_from_extraction(
+    return await orchestrated_engine._start_orchestrated_from_extraction(
         extraction,
         fallback_label="PDF",
         default_input_type="pdf_ocr",
@@ -10153,51 +10151,7 @@ async def scan_invoice_endpoint(
 
 # Orchestrated-scan engine functions live in services/orchestrated_scan.py;
 # re-exported so existing references and test monkeypatching (main.<fn>) keep working.
-from services.orchestrated_scan import (  # noqa: E402
-    _orchestrated_metrics,
-    _increment_orchestrated_metric,
-    _record_orchestrated_component_duration,
-    _timed_orchestrated_component,
-    _set_orchestrated_stage,
-    _emit_orchestrated_telemetry,
-    _persist_orchestrated_job,
-    _load_orchestrated_job,
-    _orchestrated_lock_owner,
-    _claim_distributed_orchestrated_refresh,
-    _prune_orchestrated_jobs,
-    _orchestrated_stage_rank,
-    _merge_orchestrated_conflict_job,
-    _orchestrated_result_fingerprint,
-    _build_orchestrated_pillars,
-    _orchestrated_required_pillars_timed_out,
-    _normalize_orchestrated_preview_status,
-    _orchestrated_status_payload,
-    _orchestrated_revision,
-    _orchestrated_verdict_state,
-    _orchestrated_preview_state,
-    _orchestrated_read_status_payload,
-    _orchestrated_status_changed,
-    _orchestrated_worker_can_stop,
-    _wait_for_orchestrated_status_read,
-    _orchestrated_can_finalize_result,
-    _orchestrated_result_is_final,
-    _orchestrated_cloud_tasks_configured,
-    _orchestrated_worker_task_url,
-    _enqueue_orchestrated_worker_task,
-    _build_orchestrated_text_context,
-    _start_orchestrated_compat,
-    _finalize_orchestrated_job_if_ready,
-    _submit_orchestrated_urlscan,
-    _submit_orchestrated_urlscan_preview_once,
-    _create_orchestrated_job,
-    _run_orchestrated_fast_lane,
-    _run_orchestrated_invoice_fast_lane,
-    _run_orchestrated_offer_fast_lane,
-    _mark_orchestrated_job_exception,
-    _refresh_orchestrated_job,
-    _refresh_orchestrated_job_impl,
-    _start_orchestrated_from_extraction,
-)
+from services.orchestrated_scan import orchestrated_engine
 
 # ── API routers ─────────────────────────────────────────────────────────────
 # Registered last so router handlers that reference the fully-initialized main

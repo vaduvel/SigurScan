@@ -69,7 +69,7 @@ def _run_offer(monkeypatch, *, gemini=True, claim_payload=None, polls_after_resu
                         break
                 assert first_risk is not None, "primul verdict trebuie publicat fără web check"
                 _, payload = _poll_orchestrated(client, scan_id, count=polls_after_result)
-    job = app_main._load_orchestrated_job(scan_id)
+    job = app_main.orchestrated_engine._load_orchestrated_job(scan_id)
     return first_risk, payload, job
 
 

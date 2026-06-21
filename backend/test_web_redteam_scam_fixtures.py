@@ -61,7 +61,7 @@ async def _fresh_test_domain_signals(domain: str) -> dict:
 
 @pytest.mark.parametrize("case", _load_fixture_pack()["fixtures"], ids=lambda case: case["id"])
 def test_web_redteam_replicas_are_detected_by_orchestrated_pipeline(monkeypatch, case):
-    app_main._ORCHESTRATED_SCAN_JOBS.clear()
+    app_main.orchestrated_engine._ORCHESTRATED_SCAN_JOBS.clear()
     client = TestClient(app_main.app)
 
     with monkeypatch.context() as patched:
@@ -76,7 +76,7 @@ def test_web_redteam_replicas_are_detected_by_orchestrated_pipeline(monkeypatch,
         patched.setattr(app_main, "check_domain_ssl_parallel", _fresh_test_domain_signals)
         patched.setattr(app_main.requests, "post", _fake_urlscan_post_rejects_domain)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
 
         start = client.post(
             "/v1/scan/orchestrated",

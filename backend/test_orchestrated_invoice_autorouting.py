@@ -12,7 +12,7 @@ def test_text_input_with_structured_invoice_routes_to_invoice_lane():
         "O zi buna!"
     )
 
-    context = app_main._build_orchestrated_text_context(
+    context = app_main.orchestrated_engine._build_orchestrated_text_context(
         app_main.OrchestratedScanRequest(
             input_type="text",
             text=text,
@@ -31,7 +31,7 @@ def test_text_input_with_invoice_link_only_stays_text_or_url_context():
         "Descarca factura aici https://orange.ro/r/KK5IMyT"
     )
 
-    context = app_main._build_orchestrated_text_context(
+    context = app_main.orchestrated_engine._build_orchestrated_text_context(
         app_main.OrchestratedScanRequest(
             input_type="text",
             text=text,

@@ -347,7 +347,7 @@ NOVEL_HOLDOUT_REGRESSIONS = [
 
 @pytest.mark.parametrize("case_id,input_type,source_channel,text,expected", NOVEL_HOLDOUT_REGRESSIONS)
 def test_novel_holdout_high_risk_patterns_are_not_missed(monkeypatch, case_id, input_type, source_channel, text, expected):
-    app_main._ORCHESTRATED_SCAN_JOBS.clear()
+    app_main.orchestrated_engine._ORCHESTRATED_SCAN_JOBS.clear()
     client = TestClient(app_main.app)
 
     with monkeypatch.context() as patched:
@@ -362,7 +362,7 @@ def test_novel_holdout_high_risk_patterns_are_not_missed(monkeypatch, case_id, i
         patched.setattr(app_main, "check_domain_ssl_parallel", _fresh_test_domain_signals)
         patched.setattr(app_main.requests, "post", _fake_urlscan_post_rejects_domain)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
 
         start = client.post(
             "/v1/scan/orchestrated",
@@ -401,7 +401,7 @@ def test_official_safety_education_without_action_stays_non_dangerous():
 
 
 def test_plain_public_payment_url_is_not_structural_qr_overlay(monkeypatch):
-    app_main._ORCHESTRATED_SCAN_JOBS.clear()
+    app_main.orchestrated_engine._ORCHESTRATED_SCAN_JOBS.clear()
     client = TestClient(app_main.app)
 
     with monkeypatch.context() as patched:
@@ -416,7 +416,7 @@ def test_plain_public_payment_url_is_not_structural_qr_overlay(monkeypatch):
         patched.setattr(app_main, "check_domain_ssl_parallel", _fresh_test_domain_signals)
         patched.setattr(app_main.requests, "post", _fake_urlscan_post_rejects_domain)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
 
         start = client.post(
             "/v1/scan/orchestrated",
@@ -435,7 +435,7 @@ def test_plain_public_payment_url_is_not_structural_qr_overlay(monkeypatch):
 
 
 def test_plain_official_portal_qr_payload_is_not_structural_poster_overlay(monkeypatch):
-    app_main._ORCHESTRATED_SCAN_JOBS.clear()
+    app_main.orchestrated_engine._ORCHESTRATED_SCAN_JOBS.clear()
     client = TestClient(app_main.app)
 
     with monkeypatch.context() as patched:
@@ -450,7 +450,7 @@ def test_plain_official_portal_qr_payload_is_not_structural_poster_overlay(monke
         patched.setattr(app_main, "check_domain_ssl_parallel", _fresh_test_domain_signals)
         patched.setattr(app_main.requests, "post", _fake_urlscan_post_rejects_domain)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
 
         start = client.post(
             "/v1/scan/orchestrated",
@@ -469,7 +469,7 @@ def test_plain_official_portal_qr_payload_is_not_structural_poster_overlay(monke
 
 
 def test_invoice_with_insufficient_evidence_finishes_as_final_unverified(monkeypatch):
-    app_main._ORCHESTRATED_SCAN_JOBS.clear()
+    app_main.orchestrated_engine._ORCHESTRATED_SCAN_JOBS.clear()
     client = TestClient(app_main.app)
 
     with monkeypatch.context() as patched:
@@ -484,7 +484,7 @@ def test_invoice_with_insufficient_evidence_finishes_as_final_unverified(monkeyp
         patched.setattr(app_main, "check_domain_ssl_parallel", _fresh_test_domain_signals)
         patched.setattr(app_main.requests, "post", _fake_urlscan_post_rejects_domain)
         patched.setattr(app_main, "_emit_scan_event", lambda *args, **kwargs: None)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
 
         start = client.post(
             "/v1/scan/orchestrated",

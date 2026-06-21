@@ -206,10 +206,10 @@ def test_orchestrated_job_keeps_sanitized_cross_scan_context_after_iban_redactio
     text = "DPD Romania: taxa Non-UE se achita in contul RO92RZBR0000060002951611."
 
     with monkeypatch.context() as patched:
-        patched.setattr(app_main, "_persist_orchestrated_job", lambda candidate: candidate)
-        patched.setattr(app_main, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
         job = app_main.asyncio.run(
-            app_main._create_orchestrated_job(
+            app_main.orchestrated_engine._create_orchestrated_job(
                 app_main.OrchestratedScanRequest(
                     input_type="offer",
                     text=text,

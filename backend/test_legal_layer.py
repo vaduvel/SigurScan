@@ -148,7 +148,7 @@ class TestVerdictNeverChanges:
             scan_id = post.json()["scan_id"]
             _, payload = _poll_orchestrated(client, scan_id, count=1)
         # Stage-ul a rulat fast-lane-ul; analysis are secțiunea legal.
-        job = app_main._load_orchestrated_job(scan_id)
+        job = app_main.orchestrated_engine._load_orchestrated_job(scan_id)
         analysis = job["analysis"]
         assert analysis["legal"]["label"] == "Ce spune legea"
         assert analysis["legal"]["disclaimer"]
