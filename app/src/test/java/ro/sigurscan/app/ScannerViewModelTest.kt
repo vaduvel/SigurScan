@@ -787,6 +787,74 @@ class ScannerViewModelTest {
     }
 
     @Test
+    fun uploadMetadataMatchesThePreparedBytesAndNewScansDoNotShowOldVerdicts() {
+        val image = File("src/main/java/ro/sigurscan/app/ScannerViewModelImageQr.kt").readText()
+        val document = File("src/main/java/ro/sigurscan/app/ScannerViewModelDocumentScan.kt").readText()
+        val media = File("src/main/java/ro/sigurscan/app/ScannerViewModelMedia.kt").readText()
+        val shared = File("src/main/java/ro/sigurscan/app/ScannerViewModelSharedIntake.kt").readText()
+        val orchestration = File("src/main/java/ro/sigurscan/app/ScannerViewModelOrchestratedScan.kt").readText()
+
+        assertTrue(image.contains("resolveImageUploadMeta(file, fileName)"))
+        assertTrue(document.contains("resolveImageUploadMeta(file, fileName)"))
+        assertTrue(media.contains("fun resolveImageUploadMeta(uploadFile: File, originalName: String)"))
+        assertTrue(shared.contains("uri.lastPathSegment"))
+
+        val invoiceStart = document.indexOf("fun ScannerViewModel.scanInvoiceFromDocument")
+        val offerStart = document.indexOf("fun ScannerViewModel.scanOfferFromDocument", invoiceStart)
+        assertTrue(invoiceStart >= 0 && offerStart > invoiceStart)
+        assertTrue(
+            "Invoice image uploads must describe the normalized file, not the original URI.",
+            document.substring(invoiceStart, offerStart).contains("resolveImageUploadMeta(file, fileName)")
+        )
+
+        val scanStart = orchestration.indexOf("fun ScannerViewModel.onScanClick")
+        val loadingStart = orchestration.indexOf("loading = true", scanStart)
+        val launchStart = orchestration.indexOf("viewModelScope.launch", scanStart)
+        val oldAssessmentCleared = orchestration.indexOf("assessment = null", scanStart)
+        assertTrue(
+            "A new scan must clear a previous verdict before its asynchronous work begins.",
+            oldAssessmentCleared in (loadingStart + 1) until launchStart
+        )
+    }
+
+    @Test
+    fun textAndPdfImportsReleaseLoadingBeforeDelegatingToTheSharedScanPipeline() {
+        val shared = File("src/main/java/ro/sigurscan/app/ScannerViewModelSharedIntake.kt").readText()
+        val textStart = shared.indexOf("if (importKind == FileImportKind.TEXT)")
+        val emailStart = shared.indexOf("if (importKind == FileImportKind.EMAIL)", textStart)
+        val htmlStart = shared.indexOf("if (importKind == FileImportKind.HTML)", emailStart)
+        val pdfStart = shared.indexOf("loadingMsg = \"Analizăm documentul PDF...\"")
+        val audioStart = shared.indexOf("internal fun ScannerViewModel.publishAudioShareRequiresTranscript")
+
+        assertTrue(textStart >= 0 && emailStart > textStart && htmlStart > emailStart)
+        assertTrue(pdfStart >= 0 && audioStart > pdfStart)
+
+        val textFlow = shared.substring(textStart, emailStart)
+        val textScan = textFlow.indexOf("onScanClick()")
+        val textLoadingReset = textFlow.lastIndexOf("loading = false", textScan)
+        assertTrue(
+            "TXT import must release its extraction loading state before invoking onScanClick.",
+            textLoadingReset >= 0 && textLoadingReset < textScan
+        )
+
+        val pdfFlow = shared.substring(pdfStart, audioStart)
+        val pdfScan = pdfFlow.indexOf("onScanClick()")
+        val pdfLoadingReset = pdfFlow.lastIndexOf("loading = false", pdfScan)
+        assertTrue(
+            "PDF fallback must release its extraction loading state before invoking onScanClick.",
+            pdfLoadingReset >= 0 && pdfLoadingReset < pdfScan
+        )
+
+        val emailFlow = shared.substring(emailStart, htmlStart)
+        val emailScan = emailFlow.indexOf("onScanClick()")
+        val emailLoadingReset = emailFlow.lastIndexOf("loading = false", emailScan)
+        assertTrue(
+            "EML fallback must release its extraction loading state before invoking onScanClick.",
+            emailLoadingReset >= 0 && emailLoadingReset < emailScan
+        )
+    }
+
+    @Test
     fun promotedScanFlowsUseExtractionThenTheCorrectBackendPipeline() {
         val shared = File("src/main/java/ro/sigurscan/app/ScannerViewModelSharedIntake.kt").readText()
         val imageQr = File("src/main/java/ro/sigurscan/app/ScannerViewModelImageQr.kt").readText()

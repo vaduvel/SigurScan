@@ -239,6 +239,7 @@ fun ScannerViewModel.onSharedTextPayload(payload: String, mimeType: String? = nu
 }
 
 fun ScannerViewModel.onFilePicked(uri: Uri, context: Context) {
+    assessment = null
     val fileName = getFileName(uri, context)
     val mimeType = runCatching {
         context.contentResolver.getType(uri)?.lowercase(Locale.getDefault()) ?: ""
@@ -251,7 +252,7 @@ fun ScannerViewModel.onFilePicked(uri: Uri, context: Context) {
         } else {
             "Tipul fișierului nu este suportat pentru scanare. Acceptăm momentan PDF, EML, HTML și TXT."
         }
-        assessment = applyEvidenceGate(
+        assessment = localUnverifiedAssessment(
             current = OfflineAssessment(
                 family = "Tip fișier nesuportat",
                 riskScore = 0,
@@ -264,11 +265,9 @@ fun ScannerViewModel.onFilePicked(uri: Uri, context: Context) {
                 keyDangers = listOf("Nu avem suficiente dovezi tehnice pentru verdict."),
                 originalText = "Fișierul nu a fost scanat: $fileName."
             ),
-            rawInput = "Tip fișier nesuportat: $fileName",
+            reasonCode = "LOCAL_FILE_UNSUPPORTED",
             inputKind = "import_unsupported_file",
-            channel = "file_import",
-            providerStates = unavailableProviderStates(),
-            completeness = EvidenceCompleteness.LOCAL_ONLY
+            channel = "file_import"
         )
         loading = false
         return
@@ -293,6 +292,8 @@ fun ScannerViewModel.onFilePicked(uri: Uri, context: Context) {
                 stagedEvidenceText = text
                 stagedEvidenceInputKind = "import_text_file"
                 stagedEvidenceChannel = "text_file"
+                loading = false
+                loadingMsg = ""
                 onScanClick()
             } catch (e: Exception) {
                 text = "Eroare la citirea textului: $fileName"
@@ -301,6 +302,8 @@ fun ScannerViewModel.onFilePicked(uri: Uri, context: Context) {
                 stagedEvidenceText = text
                 stagedEvidenceInputKind = "import_text_file"
                 stagedEvidenceChannel = "text_file"
+                loading = false
+                loadingMsg = ""
                 onScanClick()
             }
         }
@@ -351,6 +354,8 @@ fun ScannerViewModel.onFilePicked(uri: Uri, context: Context) {
                     stagedEvidenceText = finalText
                     stagedEvidenceInputKind = "import_email"
                     stagedEvidenceChannel = "email_file"
+                    loading = false
+                    loadingMsg = ""
                     onScanClick()
                 }.onFailure {
                     text = "Eroare la citirea conținutului: $fileName"
@@ -359,6 +364,8 @@ fun ScannerViewModel.onFilePicked(uri: Uri, context: Context) {
                     stagedEvidenceText = text
                     stagedEvidenceInputKind = "import_email"
                     stagedEvidenceChannel = "email_file"
+                    loading = false
+                    loadingMsg = ""
                     onScanClick()
                 }
             } finally {
@@ -500,9 +507,11 @@ fun ScannerViewModel.onFilePicked(uri: Uri, context: Context) {
                 stagedEvidenceText = text
                 stagedEvidenceInputKind = "import_pdf"
                 stagedEvidenceChannel = "pdf_ocr"
+                loading = false
+                loadingMsg = ""
                 onScanClick()
             } else {
-                assessment = applyEvidenceGate(
+                assessment = localUnverifiedAssessment(
                     current = OfflineAssessment(
                         family = "Scanare incompletă",
                         riskScore = 0,
@@ -512,11 +521,9 @@ fun ScannerViewModel.onFilePicked(uri: Uri, context: Context) {
                         keyDangers = listOf("Nu avem suficiente dovezi tehnice pentru verdict."),
                         originalText = "Eroare la analiza locală a documentului PDF."
                     ),
-                    rawInput = "PDF fără text OCR verificabil: $fileName",
+                    reasonCode = "LOCAL_PDF_EXTRACTION_INCOMPLETE",
                     inputKind = "import_pdf",
-                    channel = "pdf_ocr",
-                    providerStates = unavailableProviderStates(),
-                    completeness = EvidenceCompleteness.LOCAL_ONLY
+                    channel = "pdf_ocr"
                 )
             }
         } finally {
@@ -534,7 +541,7 @@ internal fun ScannerViewModel.publishAudioShareRequiresTranscript(fileName: Stri
     stagedEvidenceInputKind = "import_audio_file"
     stagedEvidenceChannel = "audio_share"
     text = ""
-    assessment = applyEvidenceGate(
+    assessment = localUnverifiedAssessment(
         current = OfflineAssessment(
             family = "Audio primit",
             riskScore = 0,
@@ -547,26 +554,28 @@ internal fun ScannerViewModel.publishAudioShareRequiresTranscript(fileName: Stri
             keyDangers = listOf("Fișierul audio nu a fost transcris, deci nu avem dovezi suficiente pentru verdict."),
             originalText = "Audio primit, transcriere necesară: $fileName."
         ),
-        rawInput = "Audio primit, transcriere necesară: $fileName",
+        reasonCode = "LOCAL_AUDIO_TRANSCRIPTION_REQUIRED",
         inputKind = "import_audio_file",
-        channel = "audio_share",
-        providerStates = unavailableProviderStates(),
-        completeness = EvidenceCompleteness.LOCAL_ONLY
+        channel = "audio_share"
     )
     loading = false
     loadingMsg = ""
 }
 
 internal fun ScannerViewModel.getFileName(uri: Uri, context: Context): String {
-    var name = "document"
+    var name = ""
     val cursor = runCatching {
         context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
     }.getOrNull()
     cursor?.use {
         if (it.moveToFirst()) {
             val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (nameIndex != -1) name = it.getString(nameIndex)
+            if (nameIndex != -1) name = it.getString(nameIndex).orEmpty()
         }
     }
-    return name
+    if (name.isNotBlank()) return name
+    return Uri.decode(uri.lastPathSegment.orEmpty())
+        .substringAfterLast('/')
+        .substringBefore('?')
+        .ifBlank { "document" }
 }

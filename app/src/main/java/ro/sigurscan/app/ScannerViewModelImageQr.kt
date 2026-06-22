@@ -91,6 +91,7 @@ fun ScannerViewModel.onLiveQrDecoded(payload: String) {
 }
 
 fun ScannerViewModel.onQrPicked(uri: Uri, context: Context) {
+    assessment = null
     loading = true
     loadingMsg = "Scanăm codul QR..."
     val completed = AtomicBoolean(false)
@@ -129,7 +130,7 @@ fun ScannerViewModel.onQrPicked(uri: Uri, context: Context) {
 }
 
 internal fun ScannerViewModel.publishQrExtractionIncomplete(reason: String) {
-    val result = applyEvidenceGate(
+    val result = localUnverifiedAssessment(
         current = OfflineAssessment(
             family = "Scanare QR incompletă",
             riskScore = 0,
@@ -139,17 +140,16 @@ internal fun ScannerViewModel.publishQrExtractionIncomplete(reason: String) {
             keyDangers = listOf("Nu avem suficiente dovezi tehnice pentru verdict."),
             originalText = "Nu s-a extras conținut verificabil din codul QR."
         ),
-        rawInput = "QR fără conținut verificabil",
+        reasonCode = "LOCAL_QR_EXTRACTION_INCOMPLETE",
         inputKind = "qr",
-        channel = "qr_scan",
-        providerStates = unavailableProviderStates(),
-        completeness = EvidenceCompleteness.LOCAL_ONLY
+        channel = "qr_scan"
     )
     publishAssessmentResult(null, result)
     loading = false
 }
 
 fun ScannerViewModel.onImagePicked(uri: Uri, context: Context) {
+    assessment = null
     loading = true
     loadingMsg = "Pregătim imaginea pentru verificare..."
 
@@ -163,7 +163,7 @@ fun ScannerViewModel.onImagePicked(uri: Uri, context: Context) {
                 context,
                 maxBytes = ScannerViewModel.MAX_IMAGE_UPLOAD_BYTES
             )
-            val (uploadMime, uploadName) = resolveImageUploadMeta(uri, context)
+            val (uploadMime, uploadName) = resolveImageUploadMeta(file, fileName)
             val requestFile = file.asRequestBody(uploadMime.toMediaTypeOrNull())
             val body = MultipartBody.Part.createFormData("image_file", uploadName, requestFile)
             val source = "android_image_upload".toRequestBody("text/plain".toMediaTypeOrNull())
@@ -223,7 +223,7 @@ internal suspend fun ScannerViewModel.runLocalImageOcrScanIfPossible(uri: Uri, c
 }
 
 internal fun ScannerViewModel.publishImageExtractionIncomplete(fileName: String, reason: String) {
-    val result = applyEvidenceGate(
+    val result = localUnverifiedAssessment(
         current = OfflineAssessment(
             family = "Scanare incompletă",
             riskScore = 0,
@@ -233,11 +233,9 @@ internal fun ScannerViewModel.publishImageExtractionIncomplete(fileName: String,
             keyDangers = listOf("Nu avem suficiente dovezi tehnice pentru verdict."),
             originalText = "Nu s-a extras conținut verificabil din $fileName."
         ),
-        rawInput = "Imagine fără text OCR verificabil: $fileName",
+        reasonCode = "LOCAL_IMAGE_OCR_INCOMPLETE",
         inputKind = "upload_image",
-        channel = "image_ocr",
-        providerStates = unavailableProviderStates(),
-        completeness = EvidenceCompleteness.LOCAL_ONLY
+        channel = "image_ocr"
     )
     publishAssessmentResult(null, result)
 }

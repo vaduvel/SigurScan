@@ -20,7 +20,9 @@ object GateResultPresentation {
                 "LOCAL_QR_EXTRACTION_INCOMPLETE",
                 "LOCAL_IMAGE_OCR_INCOMPLETE",
                 "LOCAL_FILE_UNSUPPORTED",
-                "LOCAL_OFFER_EXTRACTION_INCOMPLETE"
+                "LOCAL_OFFER_EXTRACTION_INCOMPLETE",
+                "LOCAL_PDF_EXTRACTION_INCOMPLETE",
+                "LOCAL_AUDIO_TRANSCRIPTION_REQUIRED"
             )
 
     fun userHeadline(result: GateResult): String =
@@ -83,6 +85,7 @@ object GateResultPresentation {
 
     fun supportText(result: GateResult): String = when {
         isScanInProgress(result) -> "Se verifică mesajul, destinația și sursele de risc."
+        result.unknownReason == "LOCAL_AUDIO_TRANSCRIPTION_REQUIRED" -> "Audio primit. Pentru analiză este necesar transcriptul ales și trimis de tine."
         isLocalExtractionUnavailable(result) -> "Nu am putut citi suficient conținut verificabil pentru un verdict."
         isFinalUnverified(result) -> "Nu am găsit semnale clare de risc, dar nu avem confirmare oficială suficientă pentru un verdict sigur."
         isVerificationUnavailable(result) -> "Nu am putut finaliza verificarea online. Reîncearcă după ce conexiunea este stabilă."
@@ -96,6 +99,7 @@ object GateResultPresentation {
 
     fun primaryAction(result: GateResult): String = when {
         isScanInProgress(result) -> "Așteaptă verdictul final."
+        result.unknownReason == "LOCAL_AUDIO_TRANSCRIPTION_REQUIRED" -> "Lipește transcriptul conversației înainte să continui."
         isLocalExtractionUnavailable(result) -> "Reîncearcă scanarea sau alege alt format."
         isFinalUnverified(result) -> "Verifică sursa în contextul oficial înainte de date sau plăți."
         isVerificationUnavailable(result) -> "Reîncearcă scanarea înainte să continui."
@@ -134,6 +138,8 @@ object GateResultPresentation {
             "LOCAL_IMAGE_OCR_INCOMPLETE" in codes -> "Nu am putut extrage text verificabil din imagine."
             "LOCAL_FILE_UNSUPPORTED" in codes -> "Fișierul nu este într-un format pe care îl putem analiza complet acum."
             "LOCAL_OFFER_EXTRACTION_INCOMPLETE" in codes -> "Nu am putut extrage conținut verificabil din ofertă."
+            "LOCAL_PDF_EXTRACTION_INCOMPLETE" in codes -> "Nu am putut extrage text verificabil din PDF."
+            "LOCAL_AUDIO_TRANSCRIPTION_REQUIRED" in codes -> "Audio primit; este necesar transcriptul pentru analiză."
             "WEAK_OR_EXPLANATORY_EVIDENCE_ONLY" in codes -> "Am gasit doar semnale slabe, precum marketing, CTA, tracking sau explicatii."
             "BRAND_OR_AUTHORITY_CLAIM_NEEDS_VERIFICATION" in codes -> "Mesajul mentioneaza un brand sau o autoritate si trebuie verificat pe canalul oficial."
             isVerificationUnavailable(result) -> "Nu am putut contacta serviciul de verificare. Reîncearcă scanarea când conexiunea este stabilă."
