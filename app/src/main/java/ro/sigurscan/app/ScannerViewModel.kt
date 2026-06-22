@@ -614,3 +614,11 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         super.onCleared()
     }
 }
+
+internal fun ScannerViewModel.clearVisibleResultForNewScan() {
+    assessment = null
+    invoiceResult = null
+    invoiceSanbStatus = null
+    lastInvoiceScanSource = null
+    pendingOfferConfirmation = null
+}

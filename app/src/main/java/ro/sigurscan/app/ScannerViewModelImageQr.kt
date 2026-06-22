@@ -91,7 +91,7 @@ fun ScannerViewModel.onLiveQrDecoded(payload: String) {
 }
 
 fun ScannerViewModel.onQrPicked(uri: Uri, context: Context) {
-    assessment = null
+    clearVisibleResultForNewScan()
     loading = true
     loadingMsg = "Scanăm codul QR..."
     val completed = AtomicBoolean(false)
@@ -149,7 +149,7 @@ internal fun ScannerViewModel.publishQrExtractionIncomplete(reason: String) {
 }
 
 fun ScannerViewModel.onImagePicked(uri: Uri, context: Context) {
-    assessment = null
+    clearVisibleResultForNewScan()
     loading = true
     loadingMsg = "Pregătim imaginea pentru verificare..."
 

@@ -239,7 +239,7 @@ fun ScannerViewModel.onSharedTextPayload(payload: String, mimeType: String? = nu
 }
 
 fun ScannerViewModel.onFilePicked(uri: Uri, context: Context) {
-    assessment = null
+    clearVisibleResultForNewScan()
     val fileName = getFileName(uri, context)
     val mimeType = runCatching {
         context.contentResolver.getType(uri)?.lowercase(Locale.getDefault()) ?: ""

@@ -810,11 +810,18 @@ class ScannerViewModelTest {
         val scanStart = orchestration.indexOf("fun ScannerViewModel.onScanClick")
         val loadingStart = orchestration.indexOf("loading = true", scanStart)
         val launchStart = orchestration.indexOf("viewModelScope.launch", scanStart)
-        val oldAssessmentCleared = orchestration.indexOf("assessment = null", scanStart)
+        val oldAssessmentCleared = orchestration.indexOf("clearVisibleResultForNewScan()", scanStart)
         assertTrue(
             "A new scan must clear a previous verdict before its asynchronous work begins.",
             oldAssessmentCleared in (loadingStart + 1) until launchStart
         )
+
+        assertTrue(image.contains("clearVisibleResultForNewScan()"))
+        assertTrue(shared.contains("clearVisibleResultForNewScan()"))
+        assertTrue(orchestration.contains("clearVisibleResultForNewScan()"))
+        val viewModel = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        assertTrue(viewModel.contains("internal fun ScannerViewModel.clearVisibleResultForNewScan()"))
+        assertTrue(viewModel.contains("invoiceResult = null"))
     }
 
     @Test
