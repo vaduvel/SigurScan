@@ -72,6 +72,21 @@ import retrofit2.HttpException
 // QR-code and image (camera/gallery) intake scanning, extracted from the ScannerViewModel
 // God object as behaviour-preserving extension functions.
 
+fun ScannerViewModel.onLiveQrDecoded(payload: String) {
+    val qrText = payload.trim()
+    if (qrText.isBlank()) {
+        publishQrExtractionIncomplete("Nu am găsit un cod QR lizibil în imagine.")
+        return
+    }
+    text = qrText
+    stagedEvidenceHtml = null
+    stagedEvidenceLinks = extractUrls(qrText)
+    stagedEvidenceText = qrText
+    stagedEvidenceInputKind = "qr"
+    stagedEvidenceChannel = "qr_scan"
+    onScanClick()
+}
+
 fun ScannerViewModel.onQrPicked(uri: Uri, context: Context) {
     loading = true
     loadingMsg = "Scanăm codul QR..."
@@ -82,13 +97,7 @@ fun ScannerViewModel.onQrPicked(uri: Uri, context: Context) {
             .addOnSuccessListener { barcodes ->
                 val qrText = barcodes.firstOrNull()?.rawValue?.trim()
                 if (!qrText.isNullOrBlank()) {
-                    text = qrText
-                    stagedEvidenceHtml = null
-                    stagedEvidenceLinks = extractUrls(qrText)
-                    stagedEvidenceText = qrText
-                    stagedEvidenceInputKind = "qr"
-                    stagedEvidenceChannel = "qr_scan"
-                    onScanClick()
+                    onLiveQrDecoded(qrText)
                 } else {
                     publishQrExtractionIncomplete("Nu am găsit un cod QR lizibil în imagine.")
                 }

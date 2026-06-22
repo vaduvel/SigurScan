@@ -757,14 +757,22 @@ class ScannerViewModelTest {
         assertTrue("QR success branch must exist.", successStart >= 0 && failureStart > successStart)
 
         val successFlow = qrFlow.substring(successStart, failureStart)
-        assertTrue("QR text must become the scan input.", successFlow.contains("text = qrText"))
-        assertTrue("QR scan must extract any embedded URL before orchestrating.", successFlow.contains("stagedEvidenceLinks = extractUrls(qrText)"))
-        assertTrue("QR scan must keep the raw decoded payload as evidence.", successFlow.contains("stagedEvidenceText = qrText"))
-        assertTrue("QR scan must preserve the input kind for the backend evidence bundle.", successFlow.contains("""stagedEvidenceInputKind = "qr""""))
-        assertTrue("QR scan must preserve the QR channel for the backend evidence bundle.", successFlow.contains("""stagedEvidenceChannel = "qr_scan""""))
-        assertTrue("QR success must use the same orchestrated scan path as typed/shared text.", successFlow.contains("onScanClick()"))
+        assertTrue("QR import must use the shared QR provenance staging path.", successFlow.contains("onLiveQrDecoded(qrText)"))
         assertFalse("QR success must not publish a local guessed verdict.", successFlow.contains("publishQrExtractionIncomplete"))
         assertFalse("QR success must not call backend extraction endpoints directly.", successFlow.contains("api.extract"))
+    }
+
+    @Test
+    fun liveQrCameraPayloadPreservesQrProvenanceBeforeOrchestration() {
+        val activitySource = File("src/main/java/ro/sigurscan/app/MainActivity.kt").readText()
+        val qrSource = File("src/main/java/ro/sigurscan/app/ScannerViewModelImageQr.kt").readText()
+
+        assertTrue(activitySource.contains("viewModel.onLiveQrDecoded(value)"))
+        assertTrue(qrSource.contains("fun ScannerViewModel.onLiveQrDecoded(payload: String)"))
+        assertTrue(qrSource.contains("stagedEvidenceInputKind = \"qr\""))
+        assertTrue(qrSource.contains("stagedEvidenceChannel = \"qr_scan\""))
+        assertTrue(qrSource.contains("stagedEvidenceText = qrText"))
+        assertTrue(qrSource.contains("onScanClick()"))
     }
 
     @Test
