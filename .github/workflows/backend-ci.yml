@@ -29,7 +29,8 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          # Match the production image: backend/Dockerfile pins python:3.12.13.
+          python-version: "3.12"
 
       - name: Guard tracked local secrets
         run: python tools/guard_no_tracked_secrets.py
@@ -44,3 +45,15 @@ jobs:
       - name: Run backend tests
         working-directory: backend
         run: python -m pytest -q
+
+      - name: Offline evaluation (eval gate)
+        working-directory: backend
+        # Hermetic run: no redirect resolution, no external reputation calls.
+        # Floors are intentionally NOT armed yet -- this prints the baseline
+        # precision/recall/F1 so the gate can be set from real numbers. Once the
+        # baseline is known, arm it by appending e.g. `--fail-under-f1 0.NN`.
+        run: |
+          python eval/evaluate.py \
+            --dataset data/evaluation_dataset_v1.jsonl \
+            --disable-redirects \
+            --disable-reputation
