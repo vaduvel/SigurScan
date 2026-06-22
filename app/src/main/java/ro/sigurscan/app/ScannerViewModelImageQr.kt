@@ -59,6 +59,7 @@ import java.net.URLDecoder
 import java.security.MessageDigest
 import java.nio.charset.StandardCharsets
 import java.util.*
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 import javax.net.ssl.SSLException
@@ -71,6 +72,8 @@ import retrofit2.HttpException
 
 // QR-code and image (camera/gallery) intake scanning, extracted from the ScannerViewModel
 // God object as behaviour-preserving extension functions.
+
+private const val QR_IMAGE_DECODE_TIMEOUT_MILLIS = 15_000L
 
 fun ScannerViewModel.onLiveQrDecoded(payload: String) {
     val qrText = payload.trim()
@@ -90,23 +93,38 @@ fun ScannerViewModel.onLiveQrDecoded(payload: String) {
 fun ScannerViewModel.onQrPicked(uri: Uri, context: Context) {
     loading = true
     loadingMsg = "Scanăm codul QR..."
+    val completed = AtomicBoolean(false)
+
+    viewModelScope.launch {
+        kotlinx.coroutines.delay(QR_IMAGE_DECODE_TIMEOUT_MILLIS)
+        if (completed.compareAndSet(false, true)) {
+            publishQrExtractionIncomplete("Citirea codului QR a durat prea mult. Reîncearcă cu o poză mai clară.")
+        }
+    }
 
     try {
         val image = InputImage.fromFilePath(context, uri)
         barcodeScanner.process(image)
             .addOnSuccessListener { barcodes ->
-                val qrText = barcodes.firstOrNull()?.rawValue?.trim()
-                if (!qrText.isNullOrBlank()) {
-                    onLiveQrDecoded(qrText)
-                } else {
-                    publishQrExtractionIncomplete("Nu am găsit un cod QR lizibil în imagine.")
+                if (completed.compareAndSet(false, true)) {
+                    val qrText = barcodes.firstOrNull()?.rawValue?.trim()
+                    if (!qrText.isNullOrBlank()) {
+                        loading = false
+                        onLiveQrDecoded(qrText)
+                    } else {
+                        publishQrExtractionIncomplete("Nu am găsit un cod QR lizibil în imagine.")
+                    }
                 }
             }
             .addOnFailureListener {
-                publishQrExtractionIncomplete("Nu am putut citi codul QR din imagine. Reîncearcă cu o poză mai clară.")
+                if (completed.compareAndSet(false, true)) {
+                    publishQrExtractionIncomplete("Nu am putut citi codul QR din imagine. Reîncearcă cu o poză mai clară.")
+                }
             }
     } catch (e: Exception) {
-        publishQrExtractionIncomplete("Nu am putut deschide imaginea pentru citirea codului QR.")
+        if (completed.compareAndSet(false, true)) {
+            publishQrExtractionIncomplete("Nu am putut deschide imaginea pentru citirea codului QR.")
+        }
     }
 }
 

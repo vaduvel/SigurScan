@@ -776,6 +776,17 @@ class ScannerViewModelTest {
     }
 
     @Test
+    fun qrImageImportLeavesLoadingStateBeforeForwardingDecodedPayload() {
+        val qrSource = File("src/main/java/ro/sigurscan/app/ScannerViewModelImageQr.kt").readText()
+        val imagePickerStart = qrSource.indexOf("fun ScannerViewModel.onQrPicked")
+        val decodedPayload = qrSource.indexOf("onLiveQrDecoded(qrText)", imagePickerStart)
+        val loadingReset = qrSource.indexOf("loading = false", imagePickerStart)
+
+        assertTrue("QR import needs a terminal timeout so the loading UI cannot hang forever.", qrSource.contains("QR_IMAGE_DECODE_TIMEOUT_MILLIS"))
+        assertTrue("QR import must complete loading before forwarding a decoded payload to onScanClick.", loadingReset in (imagePickerStart + 1) until decodedPayload)
+    }
+
+    @Test
     fun promotedScanFlowsUseExtractionThenTheCorrectBackendPipeline() {
         val shared = File("src/main/java/ro/sigurscan/app/ScannerViewModelSharedIntake.kt").readText()
         val imageQr = File("src/main/java/ro/sigurscan/app/ScannerViewModelImageQr.kt").readText()
