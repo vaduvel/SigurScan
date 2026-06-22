@@ -44,7 +44,7 @@ fun liveQrCameraPayloadPreservesQrProvenanceBeforeOrchestration() {
     assertTrue(qrSource.contains("fun ScannerViewModel.onLiveQrDecoded(payload: String)"))
     assertTrue(qrSource.contains("stagedEvidenceInputKind = \"qr\""))
     assertTrue(qrSource.contains("stagedEvidenceChannel = \"qr_scan\""))
-    assertTrue(qrSource.contains("stagedEvidenceText = payload"))
+    assertTrue(qrSource.contains("stagedEvidenceText = qrText"))
     assertTrue(qrSource.contains("onScanClick()"))
 }
 ```
@@ -131,7 +131,8 @@ fun promotedScanFlowsUseExtractionThenTheCorrectBackendPipeline() {
 
     assertTrue(imageQr.contains("uploadApi.extractImage"))
     assertTrue(shared.contains("uploadApi.extractPdf"))
-    assertTrue(shared.contains("uploadApi.extractEmail"))
+    assertTrue(shared.contains("MailShareInputAssembler.buildMailScanInput"))
+    assertTrue(shared.contains("stagedEvidenceHtml = htmlContentSource"))
     assertTrue(document.contains("uploadApi.scanInvoice"))
     assertTrue(document.contains("runBackendOrchestratedScan(confirmedInput"))
     assertTrue(orchestration.contains("launchFinalOrchestratedPreviewRefresh"))
@@ -258,33 +259,46 @@ git add backend/test_promotable_scan_contract.py backend/test_backend.py
 git commit -m "test(backend): cover promoted scan intake contracts"
 ```
 
-### Task 4: Audit Invoice and Offer Boundaries Without Weakening Fraud Detection
+### Task 4: Verify Invoice and Offer Boundaries Without Weakening Fraud Detection
 
 **Files:**
-- Modify: `backend/test_invoice_truth_v4.py`
-- Modify: `backend/test_invoice_endpoint.py`
-- Modify: `backend/test_offer_orchestration.py`
+- Modify only if a regression is proven: `backend/services/invoice_orchestrator.py`
+- Modify only if a regression is proven: `backend/services/invoice_truth_v4.py`
+- Modify only if a regression is proven: `app/src/main/java/ro/sigurscan/app/ScannerViewModelDocumentScan.kt`
 - Modify: `app/src/test/java/ro/sigurscan/app/ScannerViewModelTest.kt`
 
-- [ ] **Step 1: Add the invoice product-language regression**
+- [ ] **Step 1: Run the existing invoice product-language regressions**
 
-Add a test that verifies a coherent invoice with a valid-format but unconfirmed IBAN is not rendered as a fraud accusation. It must preserve the existing guided bank/SANB verification state and must not become SAFE solely from IBAN structure:
+Run the tests that already encode the approved invoice rule: coherent issuer plus unconfirmed beneficiary becomes guided verification, while an explicit BEC account change remains dangerous.
 
-```python
-assert result.user_risk_label in {"UNVERIFIED", "SUSPECT"}
-assert result.verdict_gate.label != "DANGEROUS"
-assert "beneficiar" in " ".join(result.reasons).lower()
+```bash
+python3 -m pytest \
+  backend/test_invoice_truth_v4.py::test_invoice_truth_keeps_clean_unknown_iban_human_clear_not_red \
+  backend/test_invoice_truth_v4.py::test_invoice_truth_sanb_match_does_not_make_unconfirmed_invoice_safe \
+  backend/test_invoice_truth_v4.py::test_invoice_truth_free_reply_to_account_change_is_bec_hard_conflict \
+  backend/test_invoice_truth_v4.py::test_invoice_truth_qr_printed_iban_conflict_is_nu_plati \
+  -q
 ```
 
-- [ ] **Step 2: Add the decisive invoice-conflict regression**
+- [ ] **Step 2: Add the offer confirmation routing regression**
 
-Use the existing BEC reply-to/account-change fixture and assert it remains `DANGEROUS` after the guided-verification copy path is exercised.
+Add this source-contract test to `ScannerViewModelTest.kt`:
 
-- [ ] **Step 3: Add the offer confirmation routing regression**
+```kotlin
+@Test
+fun offerConfirmationRoutesToOfferOrchestrationInsteadOfInvoiceUpload() {
+    val source = File("src/main/java/ro/sigurscan/app/ScannerViewModelDocumentScan.kt").readText()
+    val start = source.indexOf("fun ScannerViewModel.confirmOfferAndScan")
+    val end = source.indexOf("internal fun ScannerViewModel.normalizeOfferLinks", start)
+    val flow = source.substring(start, end)
 
-Assert an offer document first creates `pendingOfferConfirmation`, and `confirmOfferAndScan` calls `runBackendOrchestratedScan` with `forcedInputType = "offer"`; it must not call invoice upload or a legacy final endpoint.
+    assertTrue(flow.contains("runBackendOrchestratedScan(confirmedInput"))
+    assertTrue(flow.contains("forcedInputType = \"offer\""))
+    assertFalse(flow.contains("uploadApi.scanInvoice"))
+}
+```
 
-- [ ] **Step 4: Run focused invoice and offer suites**
+- [ ] **Step 3: Run focused invoice and offer suites**
 
 Run:
 
@@ -295,13 +309,12 @@ python3 -m pytest backend/test_invoice_truth_v4.py backend/test_invoice_endpoint
 
 Expected: PASS. If a test fails, change only the invoice reducer, offer route, or presentation layer that owns the contradiction; never add a per-company or per-IBAN exception.
 
-- [ ] **Step 5: Commit the boundary regressions and any minimal repair**
+- [ ] **Step 4: Commit the new Android offer guard and any minimal repair**
 
 ```bash
-git add backend/test_invoice_truth_v4.py backend/test_invoice_endpoint.py \
-  backend/test_offer_orchestration.py backend/test_invoice_soft_semantic_override.py \
-  app/src/test/java/ro/sigurscan/app/ScannerViewModelTest.kt backend/services \
-  app/src/main/java/ro/sigurscan/app
+git add app/src/test/java/ro/sigurscan/app/ScannerViewModelTest.kt \
+  backend/services/invoice_orchestrator.py backend/services/invoice_truth_v4.py \
+  app/src/main/java/ro/sigurscan/app/ScannerViewModelDocumentScan.kt
 git commit -m "test: lock invoice and offer release boundaries"
 ```
 
