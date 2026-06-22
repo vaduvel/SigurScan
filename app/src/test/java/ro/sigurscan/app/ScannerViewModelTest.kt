@@ -776,6 +776,25 @@ class ScannerViewModelTest {
     }
 
     @Test
+    fun promotedScanFlowsUseExtractionThenTheCorrectBackendPipeline() {
+        val shared = File("src/main/java/ro/sigurscan/app/ScannerViewModelSharedIntake.kt").readText()
+        val imageQr = File("src/main/java/ro/sigurscan/app/ScannerViewModelImageQr.kt").readText()
+        val document = File("src/main/java/ro/sigurscan/app/ScannerViewModelDocumentScan.kt").readText()
+        val orchestration = File("src/main/java/ro/sigurscan/app/ScannerViewModelOrchestratedScan.kt").readText()
+
+        assertTrue(imageQr.contains("uploadApi.extractImage"))
+        assertTrue(shared.contains("uploadApi.extractPdf"))
+        assertTrue(shared.contains("MailShareInputAssembler.buildMailScanInput"))
+        assertTrue(shared.contains("stagedEvidenceHtml = htmlContentSource"))
+        assertTrue(document.contains("uploadApi.scanInvoice"))
+        assertTrue(document.contains("runBackendOrchestratedScan(confirmedInput"))
+        assertTrue(orchestration.contains("launchFinalOrchestratedPreviewRefresh"))
+        assertFalse(orchestration.contains("api.scanImage("))
+        assertFalse(orchestration.contains("api.scanPdf("))
+        assertFalse(orchestration.contains("api.scanEmail("))
+    }
+
+    @Test
     fun imageUploadUsesCloudQrExtractorBeforeLocalOcrFallback() {
         val viewModelSource = viewModelSource()
         val imageStart = viewModelSource.indexOf("fun ScannerViewModel.onImagePicked(uri: Uri, context: Context)")
