@@ -12063,3 +12063,46 @@ if __name__ == "__main__":
     test_scam_atlas_engine()
     test_advanced_scam_detection_modules()
     print("=== All tests completed successfully! ===")
+
+
+def test_orchestrated_email_auth_threads_into_verdict(monkeypatch):
+    """Header pillar reaches the engine: a failing SPF/DKIM alignment auth context
+    raises the score and lands in evidence vs the same body with no header context.
+    Guards the email-scan wiring (header -> text -> links)."""
+    msg = EmailMessage()
+    msg["From"] = "Phishing <attacker@evil.example>"
+    msg["Return-Path"] = "bounces@relay.bad.net"
+    msg["DKIM-Signature"] = "v=1; d=mail.bad.org; s=selector123;"
+    msg["Authentication-Results"] = "spf=pass dkim=pass dmarc=pass"
+    msg["Received-SPF"] = "pass"
+    monkeypatch.setattr("main.get_spf_dns_record", lambda domain: "v=spf1 -all")
+    monkeypatch.setattr("main.get_dmarc_policy", lambda domain: {"p": "reject", "aspf": "s", "adkim": "s"})
+    monkeypatch.setattr("main.check_dkim_dns_record", lambda selector, domain: "v=DKIM1; p=TESTKEY")
+    failing_auth = _extract_email_auth_context(msg)
+
+    body = "Contul tau a fost suspendat. Confirma datele imediat."
+    without_auth = app_main.engine.analyze(body, urls=[])
+    with_auth = app_main.engine.analyze(body, urls=[], email_context=failing_auth)
+
+    assert with_auth.get("evidence", {}).get("email_auth") == failing_auth
+    assert with_auth["risk_score"] > without_auth["risk_score"]
+
+
+def test_orchestrated_request_persists_email_auth_on_job(monkeypatch):
+    """The orchestrated request carries email_auth onto the job so the fast lane
+    can feed it to the engine."""
+    auth = {"auth_strength": "fail", "auth_action_plan": {"action": "reject", "risk_score_delta": 30, "reasons": []}}
+    with monkeypatch.context() as patched:
+        patched.setattr(app_main.orchestrated_engine, "_persist_orchestrated_job", lambda candidate: candidate)
+        patched.setattr(app_main.orchestrated_engine, "_emit_orchestrated_telemetry", lambda *args, **kwargs: None)
+        job = asyncio.run(
+            app_main.orchestrated_engine._create_orchestrated_job(
+                app_main.OrchestratedScanRequest(
+                    input_type="email",
+                    text="Confirma datele contului",
+                    html_content="<p>Confirma datele aici <a href='https://evil.example/login'>link</a></p>",
+                    email_auth=auth,
+                )
+            )
+        )
+    assert job.get("email_auth") == auth

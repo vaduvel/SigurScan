@@ -42,6 +42,10 @@ class OrchestratedScanRequest(BaseModel):
     visibility: Optional[str] = URLSCAN_VISIBILITY_DEFAULT
     country: Optional[str] = URLSCAN_COUNTRY_DEFAULT or None
     customagent: Optional[str] = URLSCAN_CUSTOM_AGENT_DEFAULT or None
+    # Sender-authentication evidence (SPF/DKIM/DMARC + alignment) produced by
+    # /v1/extract/email from the raw RFC822 headers. Threaded into the verdict so
+    # email scans verify headers first, then body text, then links.
+    email_auth: Optional[Dict[str, Any]] = None
 
 
 class FeedbackRequest(BaseModel):

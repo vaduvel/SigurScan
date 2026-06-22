@@ -1286,6 +1286,10 @@ class OrchestratedScanEngine:
             # privacy-safe URL-substituted text only until the invoice fast lane
             # parses IBAN/CUI, then remove it before final persistence.
             job["invoice_analysis_text"] = privacy_safe_text
+        if isinstance(payload.email_auth, dict) and payload.email_auth:
+            # Header pillar: carried through to the fast lane so the engine factors
+            # SPF/DKIM/DMARC + alignment into the score (see scam_atlas email signals).
+            job["email_auth"] = payload.email_auth
         job = self._persist_orchestrated_job(job)
         self._emit_orchestrated_telemetry("orchestrated_created", job)
         return job
@@ -1393,6 +1397,7 @@ class OrchestratedScanEngine:
                 lambda: main._analyze_with_reputation(
                     redacted_text,
                     resolved_urls,
+                    email_context=job.get("email_auth") if isinstance(job.get("email_auth"), dict) else None,
                     fast_reputation=True,
                     threat_intel_override=threat_intel,
                     allow_deep_fallback=False,
@@ -2247,6 +2252,7 @@ class OrchestratedScanEngine:
             analysis = main._analyze_with_reputation(
                 redacted_text,
                 resolved_urls,
+                email_context=job.get("email_auth") if isinstance(job.get("email_auth"), dict) else None,
                 fast_reputation=True,
                 threat_intel_override=threat_intel,
                 allow_deep_fallback=False,
