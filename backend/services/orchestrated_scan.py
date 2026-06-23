@@ -20,7 +20,7 @@ import tldextract
 from pypdf import PdfReader
 
 from api_models import OrchestratedScanRequest, UrlscanSandboxRequest
-from services.provider_gate import _apply_provider_gate_verdict
+from services.provider_gate import _apply_decision_contract_result, _apply_provider_gate_verdict, _claim_verifier_required
 from services.verdict_gate import verdict as reduce_verdict
 from config import URLSCAN_VISIBILITY_DEFAULT, URLSCAN_COUNTRY_DEFAULT, URLSCAN_CUSTOM_AGENT_DEFAULT
 
@@ -368,7 +368,7 @@ class OrchestratedScanEngine:
 
         claim = evidence.get("offer_claim_verification") if isinstance(evidence.get("offer_claim_verification"), dict) else {}
         claim_status = str(claim.get("status") or "").strip().lower()
-        claim_required = bool(job.get("claim_verifier_required", runtime._claim_verifier_required(analysis)))
+        claim_required = bool(job.get("claim_verifier_required", _claim_verifier_required(analysis)))
         semantic_review = evidence.get("semantic_review") if isinstance(evidence.get("semantic_review"), dict) else {}
         semantic_status = str(semantic_review.get("status") or "").strip().lower()
         claimed_brand = str(analysis.get("claimed_brand") or "Nespecificat")
@@ -1428,7 +1428,7 @@ class OrchestratedScanEngine:
             claim_required = self._timed_orchestrated_component(
                 job,
                 "fast_lane.claim_required_check",
-                lambda: runtime._claim_verifier_required(analysis),
+                lambda: _claim_verifier_required(analysis),
             )
             runtime._attach_offer_claim_verification(
                 analysis,
@@ -2086,7 +2086,7 @@ class OrchestratedScanEngine:
                 },
             },
         }
-        runtime._apply_decision_contract_result(analysis, bundle, gate_result, {})
+        _apply_decision_contract_result(analysis, bundle, gate_result, {})
         analysis["reasons"] = ["Scanarea nu a putut verifica complet mesajul; verifică pe canalul oficial înainte de acțiune."]
         analysis["safe_actions"] = ["Nu introduce date sensibile până nu confirmi în aplicația sau site-ul oficial."]
         analysis.setdefault("evidence", {})["orchestration_error"] = {
@@ -2274,7 +2274,7 @@ class OrchestratedScanEngine:
                 allow_deep_fallback=False,
             )
             analysis.setdefault("evidence", {})["source_channel"] = job.get("source_channel")
-            claim_required = runtime._claim_verifier_required(analysis)
+            claim_required = _claim_verifier_required(analysis)
 
             primary_entry = runtime._select_primary_resolved_url(resolved_urls, analysis)
 
@@ -2290,7 +2290,7 @@ class OrchestratedScanEngine:
             redacted_text = str(job.get("redacted_text") or "")
             resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
             analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
-            claim_required = bool(job.get("claim_verifier_required", runtime._claim_verifier_required(analysis)))
+            claim_required = bool(job.get("claim_verifier_required", _claim_verifier_required(analysis)))
             evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
             summary = evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {}
             if claim_required and not runtime._has_bad_provider_verdict(summary):
@@ -2324,7 +2324,7 @@ class OrchestratedScanEngine:
             redacted_text = str(job.get("redacted_text") or "")
             resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
             analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
-            claim_required = bool(job.get("claim_verifier_required", runtime._claim_verifier_required(analysis)))
+            claim_required = bool(job.get("claim_verifier_required", _claim_verifier_required(analysis)))
             evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
             summary = evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {}
             if claim_required and not runtime._has_bad_provider_verdict(summary):
