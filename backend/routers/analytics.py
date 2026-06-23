@@ -7,8 +7,10 @@ cycle. Extracted from main.py.
 """
 
 import json
+import importlib
 import time
 from datetime import datetime, timedelta, timezone
+from collections import Counter
 from typing import Optional, List, Dict, Any
 
 from fastapi import APIRouter, HTTPException

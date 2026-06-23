@@ -1,6 +1,7 @@
 import os
 import re
 import time
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
@@ -14,6 +15,8 @@ SUPABASE_SERVICE_ROLE_KEY = (
     or ""
 ).strip()
 SUPABASE_TIMEOUT_SECONDS = float(os.getenv("SUPABASE_TIMEOUT_SECONDS") or "4.0")
+SUPABASE_SUPPRESS_LOGS = os.getenv("SUPABASE_SUPPRESS_LOGS", "").lower() in {"1", "true", "yes"}
+_LOGGER = logging.getLogger(__name__)
 
 _SCAN_JOB_STORAGE_KEYS = {
     "_storage_updated_at",
@@ -55,7 +58,9 @@ def _rpc_url(function_name: str) -> str:
 def _ts_to_iso(value: Any) -> Optional[str]:
     try:
         ts = int(value)
-    except Exception:
+    except Exception as exc:
+        if not SUPABASE_SUPPRESS_LOGS:
+            _LOGGER.debug("Failed to convert timestamp to ISO: %r", value, exc_info=exc)
         return None
     if ts <= 0:
         return None
@@ -68,7 +73,9 @@ def _iso_to_ts(value: Any) -> Optional[int]:
     try:
         normalized = value.replace("Z", "+00:00")
         return int(datetime.fromisoformat(normalized).timestamp())
-    except Exception:
+    except Exception as exc:
+        if not SUPABASE_SUPPRESS_LOGS:
+            _LOGGER.debug("Failed to parse ISO timestamp: %r", value, exc_info=exc)
         return None
 
 
@@ -89,7 +96,9 @@ def _post_json(table: str, payload: Dict[str, Any], prefer: str = "return=minima
             json=payload,
             timeout=SUPABASE_TIMEOUT_SECONDS,
         ).raise_for_status()
-    except Exception:
+    except Exception as exc:
+        if not SUPABASE_SUPPRESS_LOGS:
+            _LOGGER.warning("Supabase post_json failed for table=%s", table, exc_info=exc)
         return
 
 
@@ -104,7 +113,9 @@ def _rpc_json(function_name: str, payload: Dict[str, Any]) -> bool:
             timeout=SUPABASE_TIMEOUT_SECONDS,
         ).raise_for_status()
         return True
-    except Exception:
+    except Exception as exc:
+        if not SUPABASE_SUPPRESS_LOGS:
+            _LOGGER.warning("Supabase rpc_json failed for function=%s", function_name, exc_info=exc)
         return False
 
 
@@ -128,7 +139,14 @@ def _patch_json(
         if not response.content:
             return []
         data = response.json()
-    except Exception:
+    except Exception as exc:
+        if not SUPABASE_SUPPRESS_LOGS:
+            _LOGGER.warning(
+                "Supabase patch_json failed for table=%s params=%s",
+                table,
+                params,
+                exc_info=exc,
+            )
         return []
     return data if isinstance(data, list) else []
 
@@ -145,7 +163,14 @@ def _get_json(table: str, params: Dict[str, Any]) -> List[Dict[str, Any]]:
         )
         response.raise_for_status()
         data = response.json()
-    except Exception:
+    except Exception as exc:
+        if not SUPABASE_SUPPRESS_LOGS:
+            _LOGGER.warning(
+                "Supabase get_json failed for table=%s params=%s",
+                table,
+                params,
+                exc_info=exc,
+            )
         return []
     return data if isinstance(data, list) else []
 
@@ -423,7 +448,9 @@ def try_consume_provider_budget(provider: str, month_key: str, monthly_limit: in
             return data
         if isinstance(data, list) and data and isinstance(data[0], bool):
             return data[0]
-    except Exception:
+    except Exception as exc:
+        if not SUPABASE_SUPPRESS_LOGS:
+            _LOGGER.warning("Supabase try_consume_provider_budget failed", exc_info=exc)
         return None
     return None
 
@@ -464,7 +491,9 @@ def delete_campaign_fingerprint(fingerprint_id: str) -> None:
             params={"fingerprint_id": f"eq.{fingerprint_id}"},
             timeout=SUPABASE_TIMEOUT_SECONDS,
         ).raise_for_status()
-    except Exception:
+    except Exception as exc:
+        if not SUPABASE_SUPPRESS_LOGS:
+            _LOGGER.warning("Supabase delete_campaign_fingerprint failed", exc_info=exc)
         return
 
 
@@ -524,7 +553,9 @@ def save_reputation_cache(cache: Dict[str, Any]) -> None:
             json=rows,
             timeout=SUPABASE_TIMEOUT_SECONDS,
         ).raise_for_status()
-    except Exception:
+    except Exception as exc:
+        if not SUPABASE_SUPPRESS_LOGS:
+            _LOGGER.warning("Supabase save_reputation_cache failed", exc_info=exc)
         return
 
 
@@ -618,7 +649,9 @@ def create_preview_signed_url(
         if signed_url.startswith("/"):
             return f"{SUPABASE_URL}/storage/v1{signed_url}"
         return f"{SUPABASE_URL}/storage/v1/{signed_url.lstrip('/')}"
-    except Exception:
+    except Exception as exc:
+        if not SUPABASE_SUPPRESS_LOGS:
+            _LOGGER.warning("Supabase create_preview_signed_url failed", exc_info=exc)
         return None
 
 
@@ -722,7 +755,9 @@ def save_scan_job(job: Dict[str, Any]) -> bool:
         if isinstance(data, list) and data:
             _attach_scan_job_storage_metadata(job, data[0])
         return True
-    except Exception:
+    except Exception as exc:
+        if not SUPABASE_SUPPRESS_LOGS:
+            _LOGGER.warning("Supabase save_scan_job failed for scan_id=%s", scan_id, exc_info=exc)
         return False
 
 

@@ -65,8 +65,28 @@ def _is_scan_target_blocked(url: str) -> str | None:
         ):
             return "Private/reserved IP blocked"
     except ValueError:
-        # Not a direct IP address. Keep scanning on hostname.
-        pass
+        # Not a direct IP address. Resolve hostname and block if any resolved IP is private.
+        try:
+            for info in socket.getaddrinfo(hostname, None):
+                address = info[4][0] if len(info) >= 5 else None
+                if not address:
+                    continue
+                try:
+                    ip = ipaddress.ip_address(address)
+                except ValueError:
+                    continue
+                if (
+                    ip.is_private
+                    or ip.is_loopback
+                    or ip.is_link_local
+                    or ip.is_multicast
+                    or ip.is_reserved
+                    or ip.is_unspecified
+                ):
+                    return "Private/reserved IP blocked"
+        except Exception:
+            # Keep behavior permissive on transient DNS errors, but block explicit private resolutions.
+            return None
 
     return None
 
