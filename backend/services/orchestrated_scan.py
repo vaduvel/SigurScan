@@ -21,9 +21,17 @@ from pypdf import PdfReader
 
 from api_models import OrchestratedScanRequest, UrlscanSandboxRequest
 from services.provider_gate import _apply_decision_contract_result, _apply_provider_gate_verdict, _claim_verifier_required, _skipped_offer_claim_payload
-from services.reputation_enrich import _has_bad_provider_verdict
+from services.reputation_enrich import _attach_reputation_lookup_hashes, _attach_reputation_lookup_urls, _has_bad_provider_verdict
+from services.external_url_privacy import prepare_external_url, prepare_external_urls, prepare_reputation_lookup_url
+from services.scan_helpers import _invoice_payment_destination_for_client, _validate_text_input
+from services.url_reputation import reputation_url_hash_variants
 from services.verdict_gate import verdict as reduce_verdict
-from config import URLSCAN_VISIBILITY_DEFAULT, URLSCAN_COUNTRY_DEFAULT, URLSCAN_CUSTOM_AGENT_DEFAULT
+from core.click_intelligence import _collect_click_targets_from_html, _collect_form_context_from_html
+from core.identity import _new_scan_id
+from core.scan_context import _attach_initial_url_privacy, _safe_scan_url_list, _infer_brand_hints_from_click_targets
+from core.text_utils import _normalise_obfuscated_text
+from core.url_intelligence import _canonicalize_url, extract_urls
+from config import URLSCAN_VISIBILITY_DEFAULT, URLSCAN_COUNTRY_DEFAULT, URLSCAN_CUSTOM_AGENT_DEFAULT, MAX_TEXT_CHARS
 
 
 def _resolve_runtime_module():
@@ -750,8 +758,8 @@ class OrchestratedScanEngine:
         source_channel = payload.source_channel or "android_native"
 
         if input_type == "url":
-            raw_input = runtime._normalise_obfuscated_text(payload.url or payload.text or "").strip()
-            embedded_urls = runtime.extract_urls(raw_input)
+            raw_input = _normalise_obfuscated_text(payload.url or payload.text or "").strip()
+            embedded_urls = extract_urls(raw_input)
             if embedded_urls:
                 first_url = embedded_urls[0]
                 raw_text = raw_input if payload.text else f"Link: {first_url}"
@@ -763,7 +771,7 @@ class OrchestratedScanEngine:
                     "extra_fields": {"input_url": payload.url or payload.text, "canonical_url": first_url},
                 }
 
-            url = runtime._canonicalize_url(raw_input)
+            url = _canonicalize_url(raw_input)
             if not url:
                 raise HTTPException(status_code=400, detail="URL invalid sau format neacceptat.")
             return {
@@ -777,19 +785,19 @@ class OrchestratedScanEngine:
         if input_type in {"email", "email_html", "html"}:
             raw_email_or_html = payload.html_content or payload.text or ""
             mime_parts = runtime._extract_email_mime_parts(payload.text or "") if input_type == "email" and not payload.html_content else {}
-            plain_text_context = runtime._normalise_obfuscated_text(mime_parts.get("plain") or "")
-            email_subject = runtime._normalise_obfuscated_text(mime_parts.get("subject") or "")
-            html_to_parse = runtime._normalise_obfuscated_text(
+            plain_text_context = _normalise_obfuscated_text(mime_parts.get("plain") or "")
+            email_subject = _normalise_obfuscated_text(mime_parts.get("subject") or "")
+            html_to_parse = _normalise_obfuscated_text(
                 payload.html_content
                 or mime_parts.get("html")
                 or plain_text_context
                 or payload.text
                 or ""
             )
-            runtime._validate_text_input("Conținutul HTML trimis", raw_email_or_html, runtime.MAX_TEXT_CHARS * 8)
+            _validate_text_input("Conținutul HTML trimis", raw_email_or_html, MAX_TEXT_CHARS * 8)
             soup = BeautifulSoup(html_to_parse, "html.parser")
-            click_targets = runtime._collect_click_targets_from_html(soup)
-            form_context = runtime._collect_form_context_from_html(soup)
+            click_targets = _collect_click_targets_from_html(soup)
+            form_context = _collect_form_context_from_html(soup)
             discovered_urls: List[str] = []
             buttons: List[Dict[str, Any]] = []
             cta_words = ["verific", "confirm", "plăte", "plate", "cont", "login", "conect", "intrare", "detalii", "colet", "awb", "reactivare", "urgent"]
@@ -809,13 +817,13 @@ class OrchestratedScanEngine:
                     }
                 )
             visible_text = soup.get_text(separator=" ", strip=True)
-            for url in runtime.extract_urls(plain_text_context):
+            for url in extract_urls(plain_text_context):
                 if url not in discovered_urls:
                     discovered_urls.append(url)
-            for url in runtime.extract_urls(visible_text):
+            for url in extract_urls(visible_text):
                 if url not in discovered_urls:
                     discovered_urls.append(url)
-            inferred_brand_hints = runtime._infer_brand_hints_from_click_targets(
+            inferred_brand_hints = _infer_brand_hints_from_click_targets(
                 click_targets,
                 runtime.BRAND_REGISTRY,
             )
@@ -867,33 +875,33 @@ class OrchestratedScanEngine:
             }
 
         if input_type == "invoice":
-            raw_text = runtime._normalise_obfuscated_text((payload.text or payload.url or "").strip())
-            runtime._validate_text_input("Textul facturii", raw_text, runtime.MAX_TEXT_CHARS)
+            raw_text = _normalise_obfuscated_text((payload.text or payload.url or "").strip())
+            _validate_text_input("Textul facturii", raw_text, MAX_TEXT_CHARS)
             return {
                 "input_type": "invoice",
                 "source_channel": source_channel,
                 "raw_text": raw_text,
-                "urls": runtime.extract_urls(raw_text),
+                "urls": extract_urls(raw_text),
                 "extra_fields": {"invoice_scan": True},
             }
 
         if input_type == "offer":
-            raw_text = runtime._normalise_obfuscated_text((payload.text or payload.url or "").strip())
-            runtime._validate_text_input("Textul ofertei", raw_text, runtime.MAX_TEXT_CHARS)
+            raw_text = _normalise_obfuscated_text((payload.text or payload.url or "").strip())
+            _validate_text_input("Textul ofertei", raw_text, MAX_TEXT_CHARS)
             return {
                 "input_type": "offer",
                 "source_channel": source_channel,
                 "raw_text": raw_text,
-                "urls": runtime.extract_urls(raw_text),
+                "urls": extract_urls(raw_text),
                 "extra_fields": {"offer_scan": True},
             }
 
-        raw_text = runtime._normalise_obfuscated_text((payload.text or payload.url or "").strip())
-        runtime._validate_text_input("Textul trimis", raw_text, runtime.MAX_TEXT_CHARS)
+        raw_text = _normalise_obfuscated_text((payload.text or payload.url or "").strip())
+        _validate_text_input("Textul trimis", raw_text, MAX_TEXT_CHARS)
         auto_invoice = runtime._invoice_auto_route_context(
             source_channel=source_channel,
             raw_text=raw_text,
-            urls=runtime.extract_urls(raw_text),
+            urls=extract_urls(raw_text),
             original_input_type=input_type,
         )
         if auto_invoice:
@@ -902,7 +910,7 @@ class OrchestratedScanEngine:
             "input_type": "text",
             "source_channel": source_channel,
             "raw_text": raw_text,
-            "urls": runtime.extract_urls(raw_text),
+            "urls": extract_urls(raw_text),
             "extra_fields": {},
         }
 
@@ -1175,17 +1183,17 @@ class OrchestratedScanEngine:
     async def _create_orchestrated_job(self, payload: OrchestratedScanRequest) -> Dict[str, Any]:
         context = self._build_orchestrated_text_context(payload)
         raw_urls = [str(url) for url in (context.get("urls") or []) if str(url).strip()]
-        urls, url_privacy = runtime.prepare_external_urls(raw_urls)
+        urls, url_privacy = prepare_external_urls(raw_urls)
         reputation_lookup_urls: List[str] = []
         reputation_lookup_url_hashes_by_url: Dict[str, List[str]] = {}
         for raw_url in raw_urls:
-            reputation_entry = runtime.prepare_reputation_lookup_url(raw_url)
+            reputation_entry = prepare_reputation_lookup_url(raw_url)
             reputation_url = reputation_entry.get("external_url")
             if isinstance(reputation_url, str) and reputation_url.strip() and reputation_url not in reputation_lookup_urls:
                 reputation_lookup_urls.append(reputation_url.strip())
             if isinstance(reputation_url, str) and reputation_url.strip():
                 bucket = reputation_lookup_url_hashes_by_url.setdefault(reputation_url.strip(), [])
-                for value in runtime.reputation_url_hash_variants(raw_url):
+                for value in reputation_url_hash_variants(raw_url):
                     if value not in bucket:
                         bucket.append(value)
         privacy_by_hash = {entry["input_url_hash"]: entry for entry in url_privacy}
@@ -1220,18 +1228,18 @@ class OrchestratedScanEngine:
         except Exception:
             cross_scan_knowledge = {}
         redacted_text = runtime.redact_pii(privacy_safe_text)
-        scan_id = runtime._new_scan_id("orch")
+        scan_id = _new_scan_id("orch")
         extra_fields = dict(context.get("extra_fields") or {})
         for key in ("input_url", "canonical_url"):
             if isinstance(extra_fields.get(key), str):
-                extra_fields[key] = runtime.prepare_external_url(extra_fields[key]).get("external_url")
+                extra_fields[key] = prepare_external_url(extra_fields[key]).get("external_url")
         if isinstance(extra_fields.get("buttons"), list):
             sanitized_buttons = []
             for button in extra_fields["buttons"]:
                 sanitized_button = dict(button) if isinstance(button, dict) else {}
                 button_url = sanitized_button.get("original_url")
                 if isinstance(button_url, str):
-                    entry = runtime.prepare_external_url(button_url)
+                    entry = prepare_external_url(button_url)
                     sanitized_button["original_url"] = entry.get("external_url")
                     sanitized_button["url_privacy_action"] = entry.get("action")
                 sanitized_buttons.append(sanitized_button)
@@ -1318,21 +1326,21 @@ class OrchestratedScanEngine:
         resolved_urls = self._timed_orchestrated_component(
             job,
             "fast_lane.resolve_urls",
-            lambda: runtime._safe_scan_url_list([str(url) for url in urls if str(url).strip()]),
+            lambda: _safe_scan_url_list([str(url) for url in urls if str(url).strip()]),
         )
-        resolved_urls = runtime._attach_initial_url_privacy(
+        resolved_urls = _attach_initial_url_privacy(
             resolved_urls,
             job.get("extra_fields", {}).get("url_privacy")
             if isinstance(job.get("extra_fields"), dict)
             else None,
         )
-        resolved_urls = runtime._attach_reputation_lookup_urls(
+        resolved_urls = _attach_reputation_lookup_urls(
             resolved_urls,
             job.get("extra_fields", {}).get("reputation_lookup_urls")
             if isinstance(job.get("extra_fields"), dict)
             else None,
         )
-        resolved_urls = runtime._attach_reputation_lookup_hashes(
+        resolved_urls = _attach_reputation_lookup_hashes(
             resolved_urls,
             job.get("extra_fields", {}).get("reputation_lookup_url_hashes_by_url")
             if isinstance(job.get("extra_fields"), dict)
@@ -1505,21 +1513,21 @@ class OrchestratedScanEngine:
             resolved_urls = self._timed_orchestrated_component(
                 job,
                 "invoice_fast_lane.resolve_urls",
-                lambda: runtime._safe_scan_url_list([str(url) for url in urls if str(url).strip()]),
+                lambda: _safe_scan_url_list([str(url) for url in urls if str(url).strip()]),
             )
-            resolved_urls = runtime._attach_initial_url_privacy(
+            resolved_urls = _attach_initial_url_privacy(
                 resolved_urls,
                 job.get("extra_fields", {}).get("url_privacy")
                 if isinstance(job.get("extra_fields"), dict)
                 else None,
             )
-            resolved_urls = runtime._attach_reputation_lookup_urls(
+            resolved_urls = _attach_reputation_lookup_urls(
                 resolved_urls,
                 job.get("extra_fields", {}).get("reputation_lookup_urls")
                 if isinstance(job.get("extra_fields"), dict)
                 else None,
             )
-            resolved_urls = runtime._attach_reputation_lookup_hashes(
+            resolved_urls = _attach_reputation_lookup_hashes(
                 resolved_urls,
                 job.get("extra_fields", {}).get("reputation_lookup_url_hashes_by_url")
                 if isinstance(job.get("extra_fields"), dict)
@@ -1727,7 +1735,7 @@ class OrchestratedScanEngine:
                     "hard_conflicts": list(invoice_truth.get("hard_conflicts") or [])
                     + [{"code": "PROVIDER_MALICIOUS", "label": "Provider de securitate a raportat risc"}],
                 }
-        invoice_client_payment_destination = runtime._invoice_payment_destination_for_client(
+        invoice_client_payment_destination = _invoice_payment_destination_for_client(
             result,
             {"bundle": bundle, "gate": gate_result},
         )
