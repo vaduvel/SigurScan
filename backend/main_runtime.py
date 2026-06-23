@@ -171,6 +171,7 @@ from config import (
     _SCREENSHOT_PROXY_PATH_RE,
     _INTEGRITY_GUARDED_PREFIXES,
     _ORCHESTRATED_STAGE_RANK,
+    _SOCIAL_ENGINEERING_PRESSURE_PATTERNS,
     _VERDICT_SEVERITY_RANK,
     _FINAL_URL_UNRESOLVED_ERROR_MARKERS,
     _FINAL_URL_UNRESOLVED_SUSPICIOUS_DNS_VERDICTS,
@@ -564,7 +565,7 @@ def _safe_scan_url_list(urls: List[str]) -> List[Dict[str, Any]]:
     return _core_safe_scan_url_list(
         urls,
         privacy_safe_mode=_runtime_bool_setting("PRIVACY_SAFE_MODE"),
-        resolve_redirects_safely_fn=resolve_redirects_safely,
+        resolve_redirects_safely_fn=_runtime_setting("resolve_redirects_safely", resolve_redirects_safely),
     )
 
 
@@ -3275,7 +3276,10 @@ async def _enrich_semantic_review_async(
         "external_intel_summary": evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {},
     }
     try:
-        raw_review = await run_in_threadpool(_call_mistral_semantic_review, payload)
+        raw_review = await _runtime_setting("run_in_threadpool", run_in_threadpool)(
+            _runtime_setting("_call_mistral_semantic_review", _call_mistral_semantic_review),
+            payload,
+        )
         raw_semantic_review = _unwrap_mistral_semantic_payload(raw_review)
         normalized_review = _normalize_mistral_semantic_review(raw_review, fallback)
         evidence["semantic_review"] = _calibrate_semantic_review_with_tier1(
@@ -3695,8 +3699,8 @@ def _build_feedback_quality_payload(
     sweep_step: int = 5,
     sweep_metric: str = "f1",
 ) -> Dict[str, Any]:
-    feedback_rows = load_feedback_records()
-    scan_rows = load_scan_records()
+    feedback_rows = _runtime_setting("load_feedback_records", load_feedback_records)()
+    scan_rows = _runtime_setting("load_scan_records", load_scan_records)()
     dataset_rows = build_feedback_evaluation_rows(
         feedback_rows,
         scan_rows,
@@ -3756,8 +3760,8 @@ def _build_readiness_payload(
     trend_min_signal_support: int = 1,
 ) -> Dict[str, Any]:
     bucket_size_days = max(1, bucket_size_days)
-    feedback_rows = load_feedback_records()
-    scan_rows = load_scan_records()
+    feedback_rows = _runtime_setting("load_feedback_records", load_feedback_records)()
+    scan_rows = _runtime_setting("load_scan_records", load_scan_records)()
     dataset_rows = build_feedback_evaluation_rows(
         feedback_rows,
         scan_rows,
@@ -3903,7 +3907,7 @@ def _build_orchestration_telemetry_payload(
 ) -> Dict[str, Any]:
     records = [
         row
-        for row in load_scan_records(limit)
+        for row in _runtime_setting("load_scan_records", load_scan_records)(limit)
         if isinstance(row, dict) and str(row.get("event_type") or "").startswith("orchestrated_")
     ]
     by_event: Counter[str] = Counter()
@@ -4099,10 +4103,12 @@ def _build_shadow_adjudication_payload(
 ) -> Dict[str, Any]:
     records = [
         row
-        for row in load_scan_records(limit)
+        for row in _runtime_setting("load_scan_records", load_scan_records)(limit)
         if isinstance(row, dict) and str(row.get("event_type") or "") == "adjudication_shadow"
     ]
-    feedback_by_scan = _latest_feedback_by_scan_id(load_feedback_records())
+    feedback_by_scan = _latest_feedback_by_scan_id(
+        _runtime_setting("load_feedback_records", load_feedback_records)()
+    )
 
     by_gate_label: Counter[str] = Counter()
     by_shadow_label: Counter[str] = Counter()
@@ -4533,7 +4539,7 @@ def _emit_scan_event(
             "email_auth_action": analysis.get("evidence", {}).get("email_auth", {}).get("auth_action_plan"),
         },
     }
-    log_scan_event(event)
+    _runtime_setting("log_scan_event", log_scan_event)(event)
     if scan_payload.get("is_final") is not False:
         evidence_bundle = build_evidence_bundle(
             input_type=input_channel,
@@ -4542,7 +4548,7 @@ def _emit_scan_event(
             resolved_urls=safe_resolved_urls,
             scan_payload=scan_payload,
         )
-        maybe_run_shadow_adjudication(
+        _runtime_setting("maybe_run_shadow_adjudication", maybe_run_shadow_adjudication)(
             scan_id=scan_id,
             input_type=input_channel,
             source_channel=source_channel,
@@ -4651,9 +4657,9 @@ async def extract_text_for_scan(
 
     if _runtime_bool_setting("PRIVACY_SAFE_MODE"):
         ocr_warning = "Mod sigur activ: OCR cloud dezactivat."
-    elif has_vision_key():
+    elif _runtime_setting("has_vision_key", has_vision_key)():
         try:
-            ocr_text = await run_in_threadpool(extract_fn, file_bytes)
+            ocr_text = await _runtime_setting("run_in_threadpool", run_in_threadpool)(extract_fn, file_bytes)
             if not ocr_text.strip():
                 ocr_warning = "OCR cloud nu a extras text din fișier."
         except Exception as exc:
@@ -4683,8 +4689,15 @@ def _build_ai_explanation(
     provider_safe_text = sanitize_external_text(text)
     provider_safe_resolved_urls = sanitize_resolved_url_entries(resolved_urls)
     if _runtime_bool_setting("PRIVACY_SAFE_MODE"):
-        return generate_fallback_explanation(provider_safe_text, analysis)
-    return generate_ai_explanation(provider_safe_text, analysis, provider_safe_resolved_urls)
+        return _runtime_setting("generate_fallback_explanation", generate_fallback_explanation)(
+            provider_safe_text,
+            analysis,
+        )
+    return _runtime_setting("generate_ai_explanation", generate_ai_explanation)(
+        provider_safe_text,
+        analysis,
+        provider_safe_resolved_urls,
+    )
 
 
 async def _build_ai_explanation_async(
@@ -4699,11 +4712,19 @@ async def _build_ai_explanation_async(
         or not _runtime_bool_setting("ENABLE_CLOUD_AI_EXPLANATION")
         or _runtime_float_setting("AI_EXPLANATION_TIMEOUT_SECONDS", AI_EXPLANATION_TIMEOUT_SECONDS) <= 0
     ):
-        return generate_fallback_explanation(provider_safe_text, analysis)
+        return _runtime_setting("generate_fallback_explanation", generate_fallback_explanation)(
+            provider_safe_text,
+            analysis,
+        )
 
     try:
         return await asyncio.wait_for(
-            run_in_threadpool(generate_ai_explanation, provider_safe_text, analysis, provider_safe_resolved_urls),
+            _runtime_setting("run_in_threadpool", run_in_threadpool)(
+                _runtime_setting("generate_ai_explanation", generate_ai_explanation),
+                provider_safe_text,
+                analysis,
+                provider_safe_resolved_urls,
+            ),
             timeout=_runtime_float_setting("AI_EXPLANATION_TIMEOUT_SECONDS", AI_EXPLANATION_TIMEOUT_SECONDS),
         )
     except asyncio.TimeoutError:
@@ -4790,8 +4811,8 @@ async def _enrich_offer_claim_verification_async(
         provider_safe_text = sanitize_external_text(text)
         provider_safe_resolved_urls = sanitize_resolved_url_entries(resolved_urls)
         offer_claim = await asyncio.wait_for(
-            run_in_threadpool(
-                verify_offer_claim,
+            _runtime_setting("run_in_threadpool", run_in_threadpool)(
+                _runtime_setting("verify_offer_claim", verify_offer_claim),
                 provider_safe_text,
                 analysis,
                 provider_safe_resolved_urls,
@@ -5701,7 +5722,7 @@ async def _run_offer_web_claim_enrichment(job: Dict[str, Any]) -> Dict[str, Any]
 
     try:
         claim = await asyncio.wait_for(
-            run_in_threadpool(
+            _runtime_setting("run_in_threadpool", run_in_threadpool)(
                 verify_offer_web_claim,
                 str(job.get("redacted_text") or ""),
                 analysis,

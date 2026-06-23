@@ -330,7 +330,7 @@ def _gather_external_intel_safe(
     persist_partial: bool = False,
 ) -> Dict[str, Dict[str, Any]]:
     try:
-        return _gather_external_intel(
+        return runtime._gather_external_intel(
             resolved_urls,
             include_phishing_database=include_phishing_database,
             include_phishtank=include_phishtank,
@@ -344,7 +344,7 @@ def _gather_external_intel_safe(
         # Compatibility for tests that monkeypatch the helper with the older
         # single-argument signature.
         try:
-            return _gather_external_intel(resolved_urls)  # type: ignore[call-arg]
+            return runtime._gather_external_intel(resolved_urls)  # type: ignore[call-arg]
         except Exception as exc:
             return _external_intel_provider_error(
                 resolved_urls,

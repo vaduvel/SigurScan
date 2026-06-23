@@ -270,7 +270,7 @@ def _extract_urls_from_js_code(raw_js: str, base_url: str | None = None) -> List
         expr = expr.strip().strip(" ;")
         if not expr:
             continue
-        resolved = _resolve_js_concat_expression(expr, var_values)
+        resolved = _resolve_js_concat_expression(expr, variable_values)
         for resolved_expr in resolved:
             candidate = _normalize_click_target_url(resolved_expr, base_url=base_url)
             if candidate:
