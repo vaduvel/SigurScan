@@ -1641,26 +1641,6 @@ def _provider_verdict_for_decision_bundle(
     return {"verdict": "pending", "hits": [], "completeness": False}
 
 
-GENERIC_LOOKALIKE_TOKENS = {
-    "account",
-    "accounts",
-    "app",
-    "client",
-    "cont",
-    "eportal",
-    "login",
-    "online",
-    "pay",
-    "payment",
-    "plata",
-    "plati",
-    "portal",
-    "secure",
-    "service",
-    "servicii",
-    "verify",
-}
-
 
 def _brand_token_lookalike_in_resolved_urls(resolved_urls: List[Dict[str, Any]]) -> Optional[str]:
     """Detectează domenii care conțin un token de brand cunoscut dar NU sunt oficiale.
@@ -2689,56 +2669,6 @@ def _semantic_review_for_decision_bundle(
     }
 
 
-MISTRAL_SEMANTIC_SYSTEM_PROMPT = """
-Ești pilonul semantic SigurScan pentru mesaje în limba română.
-Nu ai voie să dai verdict final și nu ai voie să folosești etichete SIGUR/SUSPECT/PERICULOS.
-Primești text redactat, domenii finale și context atlas/corpus. Întorci doar semantic_review structurat.
-Reguli:
-- Marchează high doar când claim-ul seamănă clar cu o familie scam sau cere acțiuni sensibile/social-engineering.
-- Marchează benign doar când claim-ul seamănă cu un șablon legitim/marketing normal și nu cere date sensibile.
-- Marketing language, CTA, reduceri, catalog, newsletter sau link sub buton nu sunt suficiente pentru high.
-- Tratează ca high cererile de cod/OTP parțial sau complet, cod unic din aplicația bancară, captură/screenshot de cod QR eSIM, PIN/CVV/card, parole, seed phrase sau date de identitate.
-- Tratează ca high pretextele de siguranță care cer login/autentificare într-un simulator, link extern, formular data: sau deeplink de aplicație.
-- Tratează ca high transferurile către cont/beneficiar de siguranță, cont nou, IBAN migrat, transfer test, depozit rambursabil de colet sau taxă/token de eliberare pachet.
-- Tratează ca high URL-urile cu userinfo spoofing de forma brand.ro@alt-domeniu și deeplink-urile/native/data URL care cer acțiuni sensibile.
-- Textul educațional legitim de tip "nu comunica OTP/parola, sună canalul oficial" este benign doar dacă nu cere apoi login, transfer, cod, instalare sau contact prin canal neoficial.
-- Separă intenția de textul descriptiv: un articol, ghid, status de tranzacție, control de audit sau factură care doar menționează OTP/card/IBAN/scam NU este cerere de acțiune.
-- Marchează positive_action_request=true doar când utilizatorului i se cere să facă ceva: să introducă/dateze/trimită coduri, card, parolă, să plătească/transfere, să instaleze, să sune/continue apelul sau să apese un link pentru verificare.
-- Rezolvă negațiile: "nu comunica OTP", "nu accesa linkuri", "IBAN-ul nu s-a schimbat", "fără plată/link/card" sunt protective/descriptive dacă nu există o cerere opusă după ele.
-- Nu inventa branduri, domenii, provider hits sau fapte lipsă.
-Răspunde strict JSON:
-{
-  "risk_class": "high|medium|benign|unknown",
-  "claim_matches_known_scam_family": false,
-  "matched_family": null,
-  "claim_matches_legit_template": false,
-  "matched_template": null,
-  "reason_codes": ["semantic:..."],
-  "social_engineering": {
-    "intent": "credential_theft|payment_redirection|remote_access|investment_fraud|impersonation|recovery_scam|benign|unknown",
-    "ask_present": false,
-    "ask_type": ["transfer|otp|card|remote_install|gift_card|seed_phrase|callback|none"],
-    "levers": ["authority|fear|urgency|scarcity|liking|reciprocity|social_proof|loss_aversion|sunk_cost|compassion|greed|secrecy"],
-    "persona_targeting": "elderly|parent|jobseeker|investor|employee|bereaved|generic",
-    "channel_coherence": "coherent|mismatch|unknown",
-    "urgency_score": 0.0,
-    "confidence": 0.0
-  },
-  "intent_analysis": {
-    "positive_action_request": false,
-    "is_protective_warning": false,
-    "is_descriptive_or_status": false,
-    "negation_scope_resolved": true,
-    "invoice_or_payment_document": false,
-    "payment_instruction_present": false,
-    "payment_instruction_is_requested": false,
-    "payment_instruction_is_descriptive": false,
-    "describes_fraud_without_request": false,
-    "confidence": 0.0
-  }
-}
-""".strip()
-
 
 def _semantic_review_from_analysis(analysis: Dict[str, Any]) -> Dict[str, Any]:
     evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
@@ -2824,76 +2754,6 @@ def _normalize_mistral_semantic_review(raw: Dict[str, Any], fallback: Dict[str, 
     return review
 
 
-_SOCIAL_ENGINEERING_PRESSURE_PATTERNS = (
-    # authority / law-enforcement impersonation
-    r"\b(parchet|procuror|comisar|poli[țt]i[ae]|politi[ae]|dosar\s+penal|mandat\s+de\s+aducere|"
-    r"anchet[ăa]|ancheta|diicot|dna)\b",
-    # secrecy / isolation
-    r"\bnu\s+spune(?:ti|ți)?\s+nim[ăa]nui\b",
-    r"\bnu\s+(?:discuta(?:ti|ți)?|spune(?:ti|ți)?)\b.{0,40}\b(nim[ăa]nui|familie|colegi|superiori)\b",
-    r"\b(confiden[țt]ial|clasificat[ăa]?|[îi]ntre\s+noi)\b",
-    # out-of-band callback / stay on the line
-    r"\b(suna(?:ti|ți)?[-\s]?ne|suna(?:ti|ți)?\s+(?:urgent|acum|la)|reveni(?:ti|ți)\s+telefonic)\b",
-    r"\br[ăa]m(?:a|â)ne(?:ti|ți)?\s+pe\s+(?:linie|fir)\b",
-    # safe-account / move funds to a "protective" account
-    r"\bcont(?:ul)?\s+(?:de\s+)?(?:siguran[țt][ăa]|protec[țt]ie|seif|temporar)\b",
-    r"\b(transfera(?:ti|ți)?|muta(?:ti|ți)?|mut[ăa])\b.{0,60}\bcont(?:ul)?\s+(?:nou|sigur)\b",
-    r"\bbeneficiar(?:ul)?\s+(?:de\s+)?(?:siguran[țt][ăa]|temporar)\b",
-    r"\b(?:cod(?:ul)?\s+unic|cod(?:ul)?.{0,50}aplica[țt]ia\s+bancar[ăa]|cod(?:ul)?\s+qr.{0,40}esim)\b",
-    # threat + coercion
-    r"\b(arest|aresta(?:t|re)|re[țt]inere|re[țt]inut|dezactivat|clon[ăa])\b",
-)
-
-
-def _has_social_engineering_pressure(text: str) -> bool:
-    """Heuristic: does the text apply social-engineering pressure (authority,
-    secrecy, out-of-band callback, safe-account, threat) even without an explicit
-    hard-sensitive keyword?
-
-    Conservative for recall, but intentionally excludes ordinary marketing and
-    legitimate transactional wording, so the tier1 benign override is blocked only
-    on genuine manipulation — never on a real BT/Sameday/marketing message.
-    """
-    normalized = _normalise_obfuscated_text(text or "").lower()
-    if not normalized:
-        return False
-    return any(re.search(pattern, normalized) for pattern in _SOCIAL_ENGINEERING_PRESSURE_PATTERNS)
-
-
-SOCIAL_ENGINEERING_INTENTS = {
-    "credential_theft",
-    "payment_redirection",
-    "remote_access",
-    "investment_fraud",
-    "impersonation",
-    "recovery_scam",
-    "benign",
-    "unknown",
-}
-SOCIAL_ENGINEERING_ASK_TYPES = {
-    "transfer",
-    "otp",
-    "card",
-    "remote_install",
-    "gift_card",
-    "seed_phrase",
-    "callback",
-    "none",
-}
-SOCIAL_ENGINEERING_LEVERS = {
-    "authority",
-    "fear",
-    "urgency",
-    "scarcity",
-    "liking",
-    "reciprocity",
-    "social_proof",
-    "loss_aversion",
-    "sunk_cost",
-    "compassion",
-    "greed",
-    "secrecy",
-}
 
 
 def _se_pattern(text: str, pattern: str) -> bool:
@@ -2974,6 +2834,21 @@ def _normalize_model_intent_analysis(raw: Any, fallback: Optional[Dict[str, Any]
         "source": "mistral_intent_analysis" if confidence else str(fallback.get("source") or "mistral_intent_analysis"),
         "fallback_source": fallback.get("source"),
     }
+
+
+def _has_social_engineering_pressure(text: str) -> bool:
+    """Heuristic: does the text apply social-engineering pressure (authority,
+    secrecy, out-of-band callback, safe-account, threat) even without an explicit
+    hard-sensitive keyword?
+
+    Conservative for recall, but intentionally excludes ordinary marketing and
+    legitimate transactional wording, so the tier1 benign override is blocked only
+    on genuine manipulation — never on a real BT/Sameday/marketing message.
+    """
+    normalized = _normalise_obfuscated_text(text or "").lower()
+    if not normalized:
+        return False
+    return any(re.search(pattern, normalized) for pattern in _SOCIAL_ENGINEERING_PRESSURE_PATTERNS)
 
 
 def _social_engineering_signal_for_decision_bundle(
@@ -5374,21 +5249,6 @@ def _first_final_url(resolved_urls: List[Dict[str, Any]]) -> Optional[str]:
     return None
 
 
-_FINAL_URL_UNRESOLVED_ERROR_MARKERS = (
-    "nameresolutionerror",
-    "failed to resolve",
-    "temporary failure in name resolution",
-    "nodename nor servname",
-    "nxdomain",
-)
-
-
-_FINAL_URL_UNRESOLVED_SUSPICIOUS_DNS_VERDICTS = {
-    "nxdomain",
-    "registrar_suspended",
-    "suspended_nameserver",
-    "domain_suspended",
-}
 
 
 def _final_url_unresolved_entry(job: Dict[str, Any]) -> Optional[Dict[str, Any]]:

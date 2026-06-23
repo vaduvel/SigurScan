@@ -104,6 +104,128 @@ _SCREENSHOT_PROXY_PATH_RE = re.compile(r"^/v1/sandbox/urlscan/[^/]+/screenshot$"
 _INTEGRITY_GUARDED_PREFIXES = ("/v1/scan/", "/v1/extract/", "/v1/sandbox/urlscan")
 PLAY_INTEGRITY_NONCE_PATH = "/v1/security/play-integrity/nonce"
 CLIENT_INSTANCE_HEADER = "X-SigurScan-Client-Instance"
+GENERIC_LOOKALIKE_TOKENS = {
+    "account",
+    "accounts",
+    "app",
+    "client",
+    "cont",
+    "eportal",
+    "login",
+    "online",
+    "pay",
+    "payment",
+    "plata",
+    "plati",
+    "portal",
+    "secure",
+    "service",
+    "servicii",
+    "verify",
+}
+MISTRAL_SEMANTIC_SYSTEM_PROMPT = """
+Ești pilonul semantic SigurScan pentru mesaje în limba română.
+Nu ai voie să dai verdict final și nu ai voie să folosești etichete SIGUR/SUSPECT/PERICULOS.
+Primești text redactat, domenii finale și context atlas/corpus. Întorci doar semantic_review structurat.
+Reguli:
+- Marchează high doar când claim-ul seamănă clar cu o familie scam sau cere acțiuni sensibile/social-engineering.
+- Marchează benign doar când claim-ul seamănă cu un șablon legitim/marketing normal și nu cere date sensibile.
+- Marketing language, CTA, reduceri, catalog, newsletter sau link sub buton nu sunt suficiente pentru high.
+- Tratează ca high cererile de cod/OTP parțial sau complet, cod unic din aplicația bancară, captură/screenshot de cod QR eSIM, PIN/CVV/card, parole, seed phrase sau date de identitate.
+- Tratează ca high pretextele de siguranță care cer login/autentificare într-un simulator, link extern, formular data: sau deeplink de aplicație.
+- Tratează ca high transferurile către cont/beneficiar de siguranță, cont nou, IBAN migrat, transfer test, depozit rambursabil de colet sau taxă/token de eliberare pachet.
+- Tratează ca high URL-urile cu userinfo spoofing de forma brand.ro@alt-domeniu și deeplink-urile/native/data URL care cer acțiuni sensibile.
+- Textul educațional legitim de tip "nu comunica OTP/parola, sună canalul oficial" este benign doar dacă nu cere apoi login, transfer, cod, instalare sau contact prin canal neoficial.
+- Separă intenția de textul descriptiv: un articol, ghid, status de tranzacție, control de audit sau factură care doar menționează OTP/card/IBAN/scam NU este cerere de acțiune.
+- Marchează positive_action_request=true doar când utilizatorului i se cere să facă ceva: să introducă/dateze/trimită coduri, card, parolă, să plătească/transfere, să instaleze, să sune/continue apelul sau să apese un link pentru verificare.
+- Rezolvă negațiile: "nu comunica OTP", "nu accesa linkuri", "IBAN-ul nu s-a schimbat", "fără plată/link/card" sunt protective/descriptive dacă nu există o cerere opusă după ele.
+- Nu inventa branduri, domenii, provider hits sau fapte lipsă.
+Răspunde strict JSON:
+{
+  "risk_class": "high|medium|benign|unknown",
+  "claim_matches_known_scam_family": false,
+  "matched_family": null,
+  "matched_template": null,
+  "reason_codes": ["semantic:..."],
+  "social_engineering": {
+    "intent": "credential_theft|payment_redirection|remote_access|investment_fraud|impersonation|recovery_scam|benign|unknown",
+    "ask_present": false,
+    "ask_type": ["transfer|otp|card|remote_install|gift_card|seed_phrase|callback|none"],
+    "levers": ["authority|fear|urgency|scarcity|liking|reciprocity|social_proof|loss_aversion|sunk_cost|compassion|greed|secrecy"],
+    "persona_targeting": "elderly|parent|jobseeker|investor|employee|bereaved|generic",
+    "channel_coherence": "coherent|mismatch|unknown",
+    "urgency_score": 0.0,
+    "confidence": 0.0
+  },
+  "intent_analysis": {
+    "positive_action_request": false,
+    "is_protective_warning": false,
+    "is_descriptive_or_status": false,
+    "negation_scope_resolved": true,
+    "invoice_or_payment_document": false,
+    "payment_instruction_present": false,
+    "payment_instruction_is_requested": false,
+    "payment_instruction_is_descriptive": false,
+    "describes_fraud_without_request": false,
+    "confidence": 0.0
+  }
+}
+""".strip()
+
+_SOCIAL_ENGINEERING_PRESSURE_PATTERNS = (
+    # authority / law-enforcement impersonation
+    r"\b(parchet|procuror|comisar|poli[țt]i[ae]|politi[ae]|dosar\s+penal|mandat\s+de\s+aducere|"
+    r"anchet[ăa]|ancheta|diicot|dna)\b",
+    # secrecy / isolation
+    r"\bnu\s+spune(?:ti|ți)?\s+nim[ăa]nui\b",
+    r"\bnu\s+(?:discuta(?:ti|ți)?|spune(?:ti|ți)?)\b.{0,40}\b(nim[ăa]nui|familie|colegi|superiori)\b",
+    r"\b(confiden[țt]ial|clasificat[ăa]?|[îi]ntre\s+noi)\b",
+    # out-of-band callback / stay on the line
+    r"\b(suna(?:ti|ți)?[-\s]?ne|suna(?:ti|ți)?\s+(?:urgent|acum|la)|reveni(?:ti|ți)\s+telefonic)\b",
+    r"\br[ăa]m(?:a|â)ne(?:ti|ți)?\s+pe\s+(?:linie|fir)\b",
+    # safe-account / move funds to a "protective" account
+    r"\bcont(?:ul)?\s+(?:de\s+)?(?:siguran[țt][ăa]|protec[țt]ie|seif|temporar)\b",
+    r"\b(transfera(?:ti|ți)?|muta(?:ti|ți)?|mut[ăa])\b.{0,60}\bcont(?:ul)?\s+(?:nou|sigur)\b",
+    r"\bbeneficiar(?:ul)?\s+(?:de\s+)?(?:siguran[țt][ăa]|temporar)\b",
+    r"\b(?:cod(?:ul)?\s+unic|cod(?:ul)?.{0,50}aplica[țt]ia\s+bancar[ăa]|cod(?:ul)?\s+qr.{0,40}esim)\b",
+    # threat + coercion
+    r"\b(arest|aresta(?:t|re)|re[țt]inere|re[țt]inut|dezactivat|clon[ăa])\b",
+)
+
+SOCIAL_ENGINEERING_INTENTS = {
+    "credential_theft",
+    "payment_redirection",
+    "remote_access",
+    "investment_fraud",
+    "impersonation",
+    "recovery_scam",
+    "benign",
+    "unknown",
+}
+SOCIAL_ENGINEERING_ASK_TYPES = {
+    "transfer",
+    "otp",
+    "card",
+    "remote_install",
+    "gift_card",
+    "seed_phrase",
+    "callback",
+    "none",
+}
+SOCIAL_ENGINEERING_LEVERS = {
+    "authority",
+    "fear",
+    "urgency",
+    "scarcity",
+    "liking",
+    "reciprocity",
+    "social_proof",
+    "loss_aversion",
+    "sunk_cost",
+    "compassion",
+    "greed",
+    "secrecy",
+}
 
 ENABLE_RATE_LIMIT = os.getenv("ENABLE_RATE_LIMIT", "true").strip().lower() in {"1", "true", "yes", "on"}
 # Pilon DNS reputation (gratis, fără cheie). Free-first: OPT-IN, implicit OFF.
@@ -251,3 +373,16 @@ _ORCHESTRATED_STAGE_RANK = {
 }
 
 _VERDICT_SEVERITY_RANK = {"SAFE": 0, "UNVERIFIED": 1, "SUSPECT": 2, "DANGEROUS": 3}
+_FINAL_URL_UNRESOLVED_ERROR_MARKERS = (
+    "nameresolutionerror",
+    "failed to resolve",
+    "temporary failure in name resolution",
+    "nodename nor servname",
+    "nxdomain",
+)
+_FINAL_URL_UNRESOLVED_SUSPICIOUS_DNS_VERDICTS = {
+    "nxdomain",
+    "registrar_suspended",
+    "suspended_nameserver",
+    "domain_suspended",
+}
