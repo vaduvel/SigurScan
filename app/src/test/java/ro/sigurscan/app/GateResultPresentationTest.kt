@@ -33,6 +33,8 @@ class GateResultPresentationTest {
             .lowercase()
 
         assertTrue(result.userLabel == "Sigur")
+        assertTrue(GateResultPresentation.supportText(result).contains("Linkul verificat"))
+        assertTrue(GateResultPresentation.primaryAction(result) == "Poti continua.")
         assertFalse(copy.contains("100%"))
         assertFalse(copy.contains("garantat"))
         assertFalse(copy.contains("safe"))
@@ -282,6 +284,29 @@ class GateResultPresentationTest {
         assertFalse(copy.contains("suspect"))
         assertFalse(copy.contains("periculos"))
         assertFalse(copy.contains("preview"))
+    }
+
+    @Test
+    fun safeInvoiceUsesInvoiceVerificationActionsInsteadOfGenericLinkCopy() {
+        val gateResult = gateResult(GateAction.CONTINUE_WITH_CAUTION)
+        val assessment = OfflineAssessment(
+            family = "Factura",
+            riskScore = 20,
+            riskLevel = "low",
+            reasons = emptyList(),
+            safeActions = emptyList(),
+            keyDangers = emptyList(),
+            gateResult = gateResult
+        )
+
+        val decision = mapUserActionDecision(assessment, mapGateDisplayState(gateResult))
+        val actions = buildNextActions(assessment, decision).joinToString(" ").lowercase()
+
+        assertTrue(decision.supportText.lowercase().contains("factur"))
+        assertTrue(decision.nextBestAction.lowercase().contains("factur"))
+        assertFalse(decision.supportText.lowercase().contains("link"))
+        assertFalse(decision.nextBestAction.lowercase().contains("poți continua"))
+        assertFalse(actions.contains("poți continua"))
     }
 
     private fun gateResult(

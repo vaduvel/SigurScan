@@ -100,10 +100,11 @@ internal data class UserActionDecision(
 
 internal fun mapUserActionDecision(assessment: OfflineAssessment, riskUi: RiskDisplayState): UserActionDecision {
     assessment.gateResult?.let { gateResult ->
+        val invoiceContext = GateResultPresentation.isInvoiceFamily(assessment.family)
         return UserActionDecision(
             headline = GateResultPresentation.userHeadline(gateResult),
-            supportText = GateResultPresentation.supportText(gateResult),
-            nextBestAction = GateResultPresentation.primaryAction(gateResult)
+            supportText = GateResultPresentation.supportText(gateResult, invoiceContext),
+            nextBestAction = GateResultPresentation.primaryAction(gateResult, invoiceContext)
         )
     }
 
@@ -158,7 +159,9 @@ internal fun buildTopReasons(assessment: OfflineAssessment, decision: UserAction
 
 internal fun buildNextActions(assessment: OfflineAssessment, decision: UserActionDecision): List<String> {
     val gateActions = assessment.gateResult?.let {
-        listOf(GateResultPresentation.primaryAction(it)) + GateResultPresentation.recommendedActions(it)
+        val invoiceContext = GateResultPresentation.isInvoiceFamily(assessment.family)
+        listOf(GateResultPresentation.primaryAction(it, invoiceContext)) +
+            GateResultPresentation.recommendedActions(it, invoiceContext)
     } ?: listOf(decision.nextBestAction)
     return (gateActions + assessment.safeActions)
         .map { it.trim() }

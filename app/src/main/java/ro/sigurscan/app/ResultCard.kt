@@ -459,6 +459,7 @@ fun ResultCard(
 @Composable
 internal fun GateEvidenceSummary(assessment: OfflineAssessment, riskUi: RiskDisplayState) {
     val gateResult = assessment.gateResult ?: return
+    val invoiceContext = GateResultPresentation.isInvoiceFamily(assessment.family)
     val snapshot = assessment.evidenceSnapshot
     val inProgress = GateResultPresentation.isScanInProgress(gateResult)
     val hasLocalPreview = assessment.screenshotUrl
@@ -495,7 +496,7 @@ internal fun GateEvidenceSummary(assessment: OfflineAssessment, riskUi: RiskDisp
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
-                text = GateResultPresentation.primaryAction(gateResult),
+                text = GateResultPresentation.primaryAction(gateResult, invoiceContext),
                 color = SigurColors.TextPrimary,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,

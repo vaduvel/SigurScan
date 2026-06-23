@@ -1,6 +1,9 @@
 package ro.sigurscan.app
 
 object GateResultPresentation {
+    fun isInvoiceFamily(family: String?): Boolean =
+        family?.trim()?.lowercase() in setOf("factura", "factură", "invoice")
+
     fun isScanInProgress(result: GateResult): Boolean =
         result.asyncExpected || result.finality == GateFinality.PROVISIONAL
 
@@ -81,7 +84,7 @@ object GateResultPresentation {
             legacyRiskLevel(result.action)
         }
 
-    fun supportText(result: GateResult): String = when {
+    fun supportText(result: GateResult, invoiceContext: Boolean = false): String = when {
         isScanInProgress(result) -> "Se verifică mesajul, destinația și sursele de risc."
         isLocalExtractionUnavailable(result) -> "Nu am putut citi suficient conținut verificabil pentru un verdict."
         isFinalUnverified(result) -> "Nu am găsit semnale clare de risc, dar nu avem confirmare oficială suficientă pentru un verdict sigur."
@@ -90,11 +93,13 @@ object GateResultPresentation {
         result.action == GateAction.NO_ENTER_DATA -> "Pagina sau mesajul cere date sensibile pe un canal care nu este suficient validat."
         result.action == GateAction.NO_REPLY -> "Mesajul cere raspuns, coduri, bani sau continuarea conversatiei intr-un scenariu riscant."
         result.action == GateAction.VERIFY_OFFICIAL -> "Exista semnale care cer verificare manuala pe canalul oficial."
+        result.action == GateAction.CONTINUE_WITH_CAUTION && invoiceContext ->
+            "Firma și contul de plată sunt confirmate în verificările disponibile. Verifică suma și numărul facturii în portalul furnizorului înainte de plată."
         result.action == GateAction.CONTINUE_WITH_CAUTION -> "Linkul verificat ajunge pe o destinatie oficiala sau delegata si nu am gasit cereri sensibile."
         else -> "Scanarea nu este completa inca."
     }
 
-    fun primaryAction(result: GateResult): String = when {
+    fun primaryAction(result: GateResult, invoiceContext: Boolean = false): String = when {
         isScanInProgress(result) -> "Așteaptă verdictul final."
         isLocalExtractionUnavailable(result) -> "Reîncearcă scanarea sau alege alt format."
         isFinalUnverified(result) -> "Verifică sursa în contextul oficial înainte de date sau plăți."
@@ -103,6 +108,8 @@ object GateResultPresentation {
         result.action == GateAction.NO_ENTER_DATA -> "Nu introduce card, parola, CNP, IBAN sau cod OTP."
         result.action == GateAction.NO_REPLY -> "Nu raspunde si nu trimite coduri sau bani."
         result.action == GateAction.VERIFY_OFFICIAL -> "Deschide manual aplicatia sau site-ul oficial."
+        result.action == GateAction.CONTINUE_WITH_CAUTION && invoiceContext ->
+            "Verifică suma și numărul facturii în portalul furnizorului înainte de plată."
         result.action == GateAction.CONTINUE_WITH_CAUTION -> "Poti continua."
         else -> "Asteapta scanarea sau reincearca."
     }
@@ -159,7 +166,7 @@ object GateResultPresentation {
                 snapshot.redirectChain.any { it.isNotBlank() }
             )
 
-    fun recommendedActions(result: GateResult): List<String> = when {
+    fun recommendedActions(result: GateResult, invoiceContext: Boolean = false): List<String> = when {
         isScanInProgress(result) -> listOf(
             "Așteaptă verdictul final.",
             "Nu introduce date până nu se termină scanarea."
@@ -198,6 +205,11 @@ object GateResultPresentation {
             "Verifica pe canalul oficial.",
             "Nu folosi numerele sau linkurile din mesaj.",
             "Continua doar dupa confirmare independenta."
+        )
+        result.action == GateAction.CONTINUE_WITH_CAUTION && invoiceContext -> listOf(
+            "Verifică suma și numărul facturii în portalul furnizorului.",
+            "Înainte de plată, confirmă beneficiarul în aplicația băncii.",
+            "Păstrează factura și confirmarea plății."
         )
         result.action == GateAction.CONTINUE_WITH_CAUTION -> listOf(
             "Poti continua.",
