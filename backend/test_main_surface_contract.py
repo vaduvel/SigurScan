@@ -1,8 +1,19 @@
 import pathlib
+import ast
 import re
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent
-PATTERN = re.compile(r"\bmain\.([A-Za-z_][A-Za-z0-9_]*)")
+
+
+class _MainAttributeVisitor(ast.NodeVisitor):
+    def __init__(self):
+        self.names = set()
+
+    def visit_Attribute(self, node: ast.Attribute):
+        if isinstance(node.value, ast.Name) and node.value.id == "main":
+            if isinstance(node.ctx, (ast.Load, ast.Del, ast.Store)) and isinstance(node.attr, str):
+                self.names.add(node.attr)
+        self.generic_visit(node)
 
 
 def _referenced_main_symbols():
@@ -12,7 +23,13 @@ def _referenced_main_symbols():
             continue
         text = py.read_text(encoding="utf-8")
         if re.search(r"^\s*import\s+main\b", text, re.M):
-            names |= set(PATTERN.findall(text))
+            try:
+                tree = ast.parse(text)
+            except SyntaxError:
+                continue
+            visitor = _MainAttributeVisitor()
+            visitor.visit(tree)
+            names |= visitor.names
     return names
 
 

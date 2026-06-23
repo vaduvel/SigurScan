@@ -7604,7 +7604,6 @@ async def _run_offer_web_claim_enrichment(job: Dict[str, Any]) -> Dict[str, Any]
 
 
 
-@app.post("/internal/orchestrated/{scan_id}/advance")
 async def advance_orchestrated_scan_worker(scan_id: str, request: Request, max_steps: int = 1):
     _require_internal_worker_auth(request)
     orchestrated_engine._prune_orchestrated_jobs()
@@ -7656,7 +7655,6 @@ async def advance_orchestrated_scan_worker(scan_id: str, request: Request, max_s
     return payload
 
 
-@app.post("/v1/scan/orchestrated")
 async def start_orchestrated_scan(payload: OrchestratedScanRequest, request: Request):
     """
     Starts the product-grade scan pipeline:
@@ -7670,7 +7668,6 @@ async def start_orchestrated_scan(payload: OrchestratedScanRequest, request: Req
     return response
 
 
-@app.get("/v1/scan/orchestrated/{scan_id}/status")
 async def get_orchestrated_scan_status(
     scan_id: str,
     after_revision: Optional[int] = None,
@@ -7687,7 +7684,6 @@ async def get_orchestrated_scan_status(
     return orchestrated_engine._orchestrated_read_status_payload(job, changed=changed)
 
 
-@app.get("/v1/scan/orchestrated/{scan_id}")
 async def get_orchestrated_scan(scan_id: str, request: Request):
     orchestrated_engine._prune_orchestrated_jobs()
     lock = orchestrated_engine._ORCHESTRATED_SCAN_LOCKS.setdefault(scan_id, asyncio.Lock())
@@ -7709,7 +7705,6 @@ async def get_orchestrated_scan(scan_id: str, request: Request):
         return response
 
 
-@app.post("/v1/sandbox/urlscan")
 async def submit_urlscan_sandbox(payload: UrlscanSandboxRequest, request: Request):
     _require_urlscan_key()
     url = _validate_sandbox_url(payload.url)
@@ -7767,7 +7762,6 @@ async def submit_urlscan_sandbox(payload: UrlscanSandboxRequest, request: Reques
     }
 
 
-@app.get("/v1/sandbox/urlscan/{uuid}", name="get_urlscan_result")
 async def get_urlscan_result(uuid: str, request: Request):
     _require_urlscan_key()
     safe_uuid = re.sub(r"[^A-Za-z0-9._-]", "", uuid or "")
@@ -7802,7 +7796,6 @@ async def get_urlscan_result(uuid: str, request: Request):
     return _summarize_urlscan_payload(payload, safe_uuid, request)
 
 
-@app.get("/v1/sandbox/urlscan/{uuid}/screenshot", name="urlscan_screenshot")
 async def urlscan_screenshot(uuid: str):
     _require_urlscan_key()
     safe_uuid = re.sub(r"[^A-Za-z0-9._-]", "", uuid or "")
@@ -7829,7 +7822,6 @@ async def urlscan_screenshot(uuid: str):
     )
 
 
-@app.post("/v1/extract/image")
 async def extract_image_for_orchestration(
     image_file: UploadFile = File(...),
     source_channel: Optional[str] = Form("image_upload"),
@@ -7881,7 +7873,6 @@ async def extract_image_for_orchestration(
     }
 
 
-@app.post("/v1/extract/pdf")
 async def extract_pdf_for_orchestration(
     pdf_file: UploadFile = File(...),
     source_channel: Optional[str] = Form("pdf_upload"),
@@ -7941,7 +7932,6 @@ async def extract_pdf_for_orchestration(
     }
 
 
-@app.post("/v1/extract/email")
 async def extract_email_for_orchestration(
     email_file: Optional[UploadFile] = File(None),
     html_content: Optional[str] = Form(None),
@@ -8076,7 +8066,6 @@ def _assemble_extracted_text_for_orchestration(extraction: Dict[str, Any], fallb
 
 
 
-@app.post("/v1/scan/text")
 async def scan_text(request: TextScanRequest):
     """
     Compatibility wrapper. Starts the product-grade orchestrated scan and returns scan_id/status.
@@ -8091,7 +8080,6 @@ async def scan_text(request: TextScanRequest):
         )
     )
 
-@app.post("/v1/scan/url")
 async def scan_url(request: URLScanRequest):
     """
     Compatibility wrapper. Starts the product-grade orchestrated URL scan and returns scan_id/status.
@@ -8107,7 +8095,6 @@ async def scan_url(request: URLScanRequest):
         )
     )
 
-@app.post("/v1/scan/email")
 async def scan_email(
     email_file: Optional[UploadFile] = File(None),
     html_content: Optional[str] = Form(None),
@@ -8128,7 +8115,6 @@ async def scan_email(
         source_channel=source_channel,
     )
 
-@app.post("/v1/scan/image")
 async def scan_image(
     image_file: UploadFile = File(...),
     source_channel: Optional[str] = Form("image_upload"),
@@ -8148,7 +8134,6 @@ async def scan_image(
     )
 
 
-@app.post("/v1/scan/pdf")
 async def scan_pdf(
     pdf_file: UploadFile = File(...),
     source_channel: Optional[str] = Form("pdf_upload"),
@@ -8168,7 +8153,6 @@ async def scan_pdf(
     )
 
 
-@app.post("/v1/scan/invoice")
 async def scan_invoice_endpoint(
     image_file: Optional[UploadFile] = File(None),
     pdf_file: Optional[UploadFile] = File(None),
@@ -8357,9 +8341,10 @@ from services.orchestrated_scan import orchestrated_engine
 # ── API routers ─────────────────────────────────────────────────────────────
 # Registered last so router handlers that reference the fully-initialized main
 # module (import main; main.X) resolve correctly and avoid import-time cycles.
-from routers import circle, community, intel, analytics, pages  # noqa: E402
+from routers import circle, community, intel, analytics, pages, scan  # noqa: E402
 app.include_router(pages.router)
 app.include_router(circle.router)
 app.include_router(community.router)
 app.include_router(intel.router)
 app.include_router(analytics.router)
+app.include_router(scan.router)
