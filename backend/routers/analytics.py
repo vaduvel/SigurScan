@@ -2,11 +2,12 @@
 
 Read-mostly analytics over scan/feedback telemetry. Handlers reference shared
 helpers/config/telemetry through the runtime module (runtime bridge; module_X) so that
-test monkeypatching of main.<symbol> keeps working and there is no import-time
-cycle. Extracted from main.py.
+test monkeypatching of runtime.<symbol> keeps working and there is no import-time
+cycle. Extracted from runtime.py.
 """
 
 import json
+import main_runtime as runtime
 import importlib
 import time
 from datetime import datetime, timedelta, timezone
@@ -15,8 +16,6 @@ from typing import Optional, List, Dict, Any
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
-
-main = importlib.import_module("main_runtime")
 from api_models import FeedbackRequest
 
 router = APIRouter()
@@ -31,7 +30,7 @@ async def submit_feedback(payload: FeedbackRequest):
             detail="feedback trebuie sa fie: correct, false_positive, false_negative sau uncertain.",
         )
 
-    scan_record = main.find_scan_record_by_id(payload.scan_id)
+    scan_record = runtime.find_scan_record_by_id(payload.scan_id)
     predicted_is_scam = payload.predicted_is_scam
     predicted_risk_score = payload.predicted_risk_score
     risk_level = payload.risk_level
@@ -58,7 +57,7 @@ async def submit_feedback(payload: FeedbackRequest):
         elif normalized == "correct" and isinstance(predicted_is_scam, bool):
             actual_is_scam = predicted_is_scam
 
-    main.log_feedback_event(
+    runtime.log_feedback_event(
         {
             "scan_id": payload.scan_id,
             "feedback": normalized,
@@ -86,8 +85,8 @@ def feedback_summary(
     include_examples: bool = False,
     max_examples_per_type: int = 20,
 ):
-    rows = main.load_feedback_records()
-    summary = main.summarize_feedback_records(
+    rows = runtime.load_feedback_records()
+    summary = runtime.summarize_feedback_records(
         rows,
         source_channel=source_channel,
         since_ts=since_ts,
@@ -100,7 +99,7 @@ def feedback_summary(
 
 @router.get("/v1/reputation/cache/stats")
 def reputation_cache_stats() -> Dict[str, Any]:
-    return {"cache": main.get_reputation_cache_stats()}
+    return {"cache": runtime.get_reputation_cache_stats()}
 
 
 @router.get("/v1/orchestration/telemetry")
@@ -114,7 +113,7 @@ def orchestration_telemetry(
         raise HTTPException(status_code=400, detail="limit maxim este 10000.")
     if urlscan_timeout_rate_alert < 0 or urlscan_timeout_rate_alert > 1:
         raise HTTPException(status_code=400, detail="urlscan_timeout_rate_alert trebuie sa fie intre 0 si 1.")
-    return {"orchestration": main._build_orchestration_telemetry_payload(
+    return {"orchestration": runtime._build_orchestration_telemetry_payload(
         limit=limit,
         urlscan_timeout_rate_alert=urlscan_timeout_rate_alert,
     )}
@@ -140,7 +139,7 @@ def orchestration_dashboard(
         raise HTTPException(status_code=400, detail="limit trebuie sa fie strict pozitiv.")
     if limit > 10000:
         raise HTTPException(status_code=400, detail="limit maxim este 10000.")
-    payload = main._build_orchestration_telemetry_payload(
+    payload = runtime._build_orchestration_telemetry_payload(
         limit=limit,
         urlscan_timeout_rate_alert=urlscan_timeout_rate_alert,
     )
@@ -295,7 +294,7 @@ def shadow_adjudication_telemetry(
     if latency_p95_alert_ms <= 0:
         raise HTTPException(status_code=400, detail="latency_p95_alert_ms trebuie sa fie strict pozitiv.")
     return {
-        "shadow_adjudication": main._build_shadow_adjudication_payload(
+        "shadow_adjudication": runtime._build_shadow_adjudication_payload(
             limit=limit,
             fallback_rate_alert=fallback_rate_alert,
             disagreement_rate_alert=disagreement_rate_alert,
@@ -315,7 +314,7 @@ def shadow_adjudication_dashboard(
         raise HTTPException(status_code=400, detail="limit trebuie sa fie strict pozitiv.")
     if limit > 10000:
         raise HTTPException(status_code=400, detail="limit maxim este 10000.")
-    payload = main._build_shadow_adjudication_payload(
+    payload = runtime._build_shadow_adjudication_payload(
         limit=limit,
         fallback_rate_alert=fallback_rate_alert,
         disagreement_rate_alert=disagreement_rate_alert,
@@ -470,7 +469,7 @@ def feedback_evaluation_quality(
     sweep_step: int = 5,
     sweep_metric: str = "f1",
 ):
-    return main._build_feedback_quality_payload(
+    return runtime._build_feedback_quality_payload(
         source_channel=source_channel,
         since_ts=since_ts,
         until_ts=until_ts,
@@ -488,7 +487,7 @@ def feedback_evaluation_quality(
 @router.get("/v1/evaluation/run")
 def run_evaluation_endpoint(
     dataset_path: Optional[str] = None,
-    risk_threshold: int = main.RISK_THRESHOLD,
+    risk_threshold: int = runtime.RISK_THRESHOLD,
     max_rows: Optional[int] = None,
     disable_redirects: bool = False,
     disable_reputation: bool = False,
@@ -505,7 +504,7 @@ def run_evaluation_endpoint(
     if sweep_end < sweep_start:
         raise HTTPException(status_code=400, detail="sweep_end trebuie sa fie mai mare sau egal cu sweep_start.")
 
-    path = main._resolve_eval_dataset_path(dataset_path)
+    path = runtime._resolve_eval_dataset_path(dataset_path)
     evaluate_module = importlib.import_module("eval.evaluate")
     run_evaluation = getattr(evaluate_module, "run_evaluation")
     run_threshold_sweep = getattr(evaluate_module, "run_threshold_sweep")
@@ -567,16 +566,16 @@ def feedback_samples(
     max_examples_per_type: int = 50,
     error_category: Optional[str] = None,
 ):
-    feedback_rows = main.load_feedback_records()
-    scan_rows = main.load_scan_records()
-    dataset_rows = main.build_feedback_evaluation_rows(
+    feedback_rows = runtime.load_feedback_records()
+    scan_rows = runtime.load_scan_records()
+    dataset_rows = runtime.build_feedback_evaluation_rows(
         feedback_rows,
         scan_rows,
         source_channel=source_channel,
         since_ts=since_ts,
         until_ts=until_ts,
         include_uncertain=include_uncertain,
-        fallback_threshold=main.RISK_THRESHOLD,
+        fallback_threshold=runtime.RISK_THRESHOLD,
     )
 
     normalized_error_category = (error_category or "").strip().lower() or None
@@ -617,7 +616,7 @@ def feedback_samples(
         if len(bucket) >= max_examples_per_type:
             continue
 
-        bucket.append(main._feedback_sample_payload(row))
+        bucket.append(runtime._feedback_sample_payload(row))
 
     samples: Dict[str, Any] = {}
     if normalized_error_category is not None:
@@ -652,7 +651,7 @@ def feedback_quality(
     sweep_step: int = 5,
     sweep_metric: str = "f1",
     ):
-    return main._build_feedback_quality_payload(
+    return runtime._build_feedback_quality_payload(
         source_channel=source_channel,
         since_ts=since_ts,
         until_ts=until_ts,
@@ -687,19 +686,19 @@ def feedback_trend(
     if min_signal_support < 0:
         raise HTTPException(status_code=400, detail="min_signal_support trebuie sa fie >= 0.")
 
-    feedback_rows = main.load_feedback_records()
-    scan_rows = main.load_scan_records()
-    dataset_rows = main.build_feedback_evaluation_rows(
+    feedback_rows = runtime.load_feedback_records()
+    scan_rows = runtime.load_scan_records()
+    dataset_rows = runtime.build_feedback_evaluation_rows(
         feedback_rows,
         scan_rows,
         source_channel=source_channel,
         since_ts=since_ts,
         until_ts=until_ts,
         include_uncertain=include_uncertain,
-        fallback_threshold=main.RISK_THRESHOLD,
+        fallback_threshold=runtime.RISK_THRESHOLD,
     )
 
-    trend = main.summarize_feedback_trend(
+    trend = runtime.summarize_feedback_trend(
         dataset_rows,
         source_channel=source_channel,
         since_ts=None,
@@ -747,7 +746,7 @@ def evaluation_readiness(
     if trend_min_signal_support < 0:
         raise HTTPException(status_code=400, detail="trend_min_signal_support trebuie sa fie >= 0.")
 
-    return main._build_readiness_payload(
+    return runtime._build_readiness_payload(
         source_channel=source_channel,
         since_ts=since_ts,
         until_ts=until_ts,

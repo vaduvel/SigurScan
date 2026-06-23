@@ -1,4 +1,4 @@
-"""Orchestrated-scan engine, extracted from main.py incrementally.
+"""Orchestrated-scan engine, extracted from runtime.py incrementally.
 
 Runtime values are accessed via the shared runtime bridge module, keeping current
 test monkeypatch behavior intact while decoupling imports.
@@ -26,13 +26,12 @@ from api_models import OrchestratedScanRequest, UrlscanSandboxRequest
 from services.verdict_gate import verdict as reduce_verdict
 from config import URLSCAN_VISIBILITY_DEFAULT, URLSCAN_COUNTRY_DEFAULT, URLSCAN_CUSTOM_AGENT_DEFAULT
 
-import importlib
-main = importlib.import_module("main_runtime")
+import main_runtime as runtime
 
 
 class OrchestratedScanEngine:
     """Orchestrated-scan engine: owns the in-memory job store/locks and the full
-    scan pipeline. Helpers/config that remain in main.py are referenced via main.X."""
+    scan pipeline. Helpers/config that remain in runtime.py are referenced via runtime.X."""
 
     def __init__(self) -> None:
         self._ORCHESTRATED_SCAN_JOBS: Dict[str, Dict[str, Any]] = {}
@@ -122,7 +121,7 @@ class OrchestratedScanEngine:
         try:
             metrics = self._orchestrated_metrics(job)
             urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
-            main.log_scan_event(
+            runtime.log_scan_event(
                 {
                     "scan_id": scan_id,
                     "event_type": event_type,
@@ -158,20 +157,20 @@ class OrchestratedScanEngine:
         if not isinstance(job, dict) or not job.get("scan_id"):
             return job
         scan_id = str(job["scan_id"])
-        saved = main.supabase_store.save_scan_job(job)
+        saved = runtime.supabase_store.save_scan_job(job)
         if saved is False:
             self._increment_orchestrated_metric(job, "conflict_merge_count")
-            reloaded = main.supabase_store.load_scan_job(scan_id)
+            reloaded = runtime.supabase_store.load_scan_job(scan_id)
             if isinstance(reloaded, dict):
                 merged = self._merge_orchestrated_conflict_job(reloaded, job)
                 if merged != reloaded:
                     retry_saved = False
                     for _ in range(2):
                         self._increment_orchestrated_metric(merged, "conflict_merge_retry_count")
-                        retry_saved = main.supabase_store.save_scan_job(merged)
+                        retry_saved = runtime.supabase_store.save_scan_job(merged)
                         if retry_saved is not False:
                             break
-                        latest = main.supabase_store.load_scan_job(scan_id)
+                        latest = runtime.supabase_store.load_scan_job(scan_id)
                         if isinstance(latest, dict):
                             merged = self._merge_orchestrated_conflict_job(latest, merged)
                     if retry_saved is False:
@@ -192,7 +191,7 @@ class OrchestratedScanEngine:
 
 
     def _load_orchestrated_job(self, scan_id: str) -> Optional[Dict[str, Any]]:
-        job = main.supabase_store.load_scan_job(scan_id)
+        job = runtime.supabase_store.load_scan_job(scan_id)
         if isinstance(job, dict):
             self._ORCHESTRATED_SCAN_JOBS[scan_id] = job
             return job
@@ -211,16 +210,16 @@ class OrchestratedScanEngine:
         scan_id = str(job.get("scan_id") or "")
         if not scan_id or not isinstance(revision, int):
             return None
-        claimed = main.supabase_store.claim_scan_job(
+        claimed = runtime.supabase_store.claim_scan_job(
             scan_id,
             expected_revision=revision,
             owner=self._orchestrated_lock_owner(scan_id),
             active_step=str(job.get("pipeline_stage") or "queued"),
-            lock_seconds=main.ORCHESTRATED_REFRESH_LOCK_TTL_SECONDS,
+            lock_seconds=runtime.ORCHESTRATED_REFRESH_LOCK_TTL_SECONDS,
         )
         if not isinstance(claimed, dict):
             return None
-        claimed_job = main.supabase_store.scan_job_from_record(claimed)
+        claimed_job = runtime.supabase_store.scan_job_from_record(claimed)
         if isinstance(claimed_job, dict):
             self._ORCHESTRATED_SCAN_JOBS[scan_id] = claimed_job
             return claimed_job
@@ -232,7 +231,7 @@ class OrchestratedScanEngine:
         expired = [
             scan_id
             for scan_id, job in self._ORCHESTRATED_SCAN_JOBS.items()
-            if now - int(job.get("created_at", now)) > main.ORCHESTRATED_JOB_TTL_SECONDS
+            if now - int(job.get("created_at", now)) > runtime.ORCHESTRATED_JOB_TTL_SECONDS
         ]
         for scan_id in expired:
             self._ORCHESTRATED_SCAN_JOBS.pop(scan_id, None)
@@ -240,7 +239,7 @@ class OrchestratedScanEngine:
 
 
     def _orchestrated_stage_rank(self, stage: Any) -> int:
-        return main._ORCHESTRATED_STAGE_RANK.get(str(stage or "").strip().lower(), -1)
+        return runtime._ORCHESTRATED_STAGE_RANK.get(str(stage or "").strip().lower(), -1)
 
 
     def _merge_orchestrated_conflict_job(self, reloaded: Dict[str, Any], local: Dict[str, Any]) -> Dict[str, Any]:
@@ -269,7 +268,7 @@ class OrchestratedScanEngine:
         ):
             local_value = local.get(key)
             if local_value not in (None, "", [], {}) and merged.get(key) in (None, "", [], {}):
-                merged[key] = main._deep_copy_jsonable(local_value)
+                merged[key] = runtime._deep_copy_jsonable(local_value)
 
         merged_urlscan = merged.get("urlscan") if isinstance(merged.get("urlscan"), dict) else {}
         if local_urlscan and not local_is_unpersisted_urlscan_reservation:
@@ -277,22 +276,22 @@ class OrchestratedScanEngine:
             local_has_uuid = bool(local_urlscan.get("uuid"))
             merged_has_uuid = bool(merged_urlscan.get("uuid"))
             if local_has_uuid and not merged_has_uuid:
-                merged_urlscan = main._deep_copy_jsonable(local_urlscan)
+                merged_urlscan = runtime._deep_copy_jsonable(local_urlscan)
             else:
-                merged_urlscan = main._merge_progress_dict(
+                merged_urlscan = runtime._merge_progress_dict(
                     merged_urlscan,
                     local_urlscan,
-                    ranker=main._urlscan_merge_rank,
+                    ranker=runtime._urlscan_merge_rank,
                 )
             merged["urlscan"] = merged_urlscan
 
         local_preview = local.get("preview") if isinstance(local.get("preview"), dict) else {}
         if local_preview:
             merged_preview = dict(merged.get("preview") if isinstance(merged.get("preview"), dict) else {})
-            merged_preview = main._merge_progress_dict(
+            merged_preview = runtime._merge_progress_dict(
                 merged_preview,
                 local_preview,
-                ranker=main._preview_merge_rank,
+                ranker=runtime._preview_merge_rank,
             )
             merged["preview"] = merged_preview
 
@@ -313,13 +312,13 @@ class OrchestratedScanEngine:
                 elif key == "stage_sequence" and isinstance(value, list):
                     existing_sequence = merged_metrics.get("stage_sequence")
                     if not isinstance(existing_sequence, list) or len(value) > len(existing_sequence):
-                        merged_metrics["stage_sequence"] = main._deep_copy_jsonable(value)
+                        merged_metrics["stage_sequence"] = runtime._deep_copy_jsonable(value)
                 else:
                     try:
                         merged_metrics[key] = max(int(merged_metrics.get(key, 0) or 0), int(value))
                     except Exception:
                         if merged_metrics.get(key) in (None, "", [], {}):
-                            merged_metrics[key] = main._deep_copy_jsonable(value)
+                            merged_metrics[key] = runtime._deep_copy_jsonable(value)
             merged["orchestration_metrics"] = merged_metrics
 
         return merged
@@ -350,17 +349,17 @@ class OrchestratedScanEngine:
         resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
         raw_urls = job.get("urls") if isinstance(job.get("urls"), list) else []
         has_urls = bool(raw_urls or resolved_urls)
-        final_url = job.get("primary_final_url") or main._first_final_url(resolved_urls)
+        final_url = job.get("primary_final_url") or runtime._first_final_url(resolved_urls)
         job_input_type = str(job.get("input_type") or "").strip().lower()
 
         claim = evidence.get("offer_claim_verification") if isinstance(evidence.get("offer_claim_verification"), dict) else {}
         claim_status = str(claim.get("status") or "").strip().lower()
-        claim_required = bool(job.get("claim_verifier_required", main._claim_verifier_required(analysis)))
+        claim_required = bool(job.get("claim_verifier_required", runtime._claim_verifier_required(analysis)))
         semantic_review = evidence.get("semantic_review") if isinstance(evidence.get("semantic_review"), dict) else {}
         semantic_status = str(semantic_review.get("status") or "").strip().lower()
         claimed_brand = str(analysis.get("claimed_brand") or "Nespecificat")
-        official_destination = main._official_destination_confirmed(resolved_urls, claimed_brand)
-        provider_projection = main._provider_verdict_for_decision_bundle(summary, has_urls=has_urls)
+        official_destination = runtime._official_destination_confirmed(resolved_urls, claimed_brand)
+        provider_projection = runtime._provider_verdict_for_decision_bundle(summary, has_urls=has_urls)
         provider_projection_verdict = str(provider_projection.get("verdict") or "unknown").strip().lower()
         semantic_complete = (
             (semantic_status == "done" and semantic_review.get("completeness") is not False)
@@ -381,47 +380,47 @@ class OrchestratedScanEngine:
             details = str(urlscan_state.get("verdict") or "finished")
             if not screenshot_ready:
                 details = f"{details}; captura inca se proceseaza"
-            urlscan_pillar = main._pillar("ok", required=False, details=details, ref=urlscan_state.get("uuid"))
+            urlscan_pillar = runtime._pillar("ok", required=False, details=details, ref=urlscan_state.get("uuid"))
         elif urlscan_status == "skipped" and not has_urls:
-            urlscan_pillar = main._pillar("not_required", required=False, details="nu exista URL pentru preview")
+            urlscan_pillar = runtime._pillar("not_required", required=False, details="nu exista URL pentru preview")
         elif urlscan_status in {"error", "timeout", "rate_limited", "skipped"}:
             urlscan_details = str(urlscan_state.get("details") or urlscan_status)
             if urlscan_status == "timeout" and urlscan_state.get("verdict") and urlscan_state.get("report_url"):
-                urlscan_pillar = main._pillar(
+                urlscan_pillar = runtime._pillar(
                     "ok",
                     required=False,
                     details=f"{urlscan_state.get('verdict')}; captura indisponibila la provider",
                     ref=urlscan_state.get("uuid"),
                 )
-            elif official_destination and main._urlscan_scan_prevented(urlscan_details):
-                urlscan_pillar = main._pillar(
+            elif official_destination and runtime._urlscan_scan_prevented(urlscan_details):
+                urlscan_pillar = runtime._pillar(
                     "ok",
                     required=False,
                     details="urlscan a refuzat sandbox-ul pentru o destinatie oficiala; preview indisponibil.",
                     ref=urlscan_state.get("uuid"),
                 )
             else:
-                urlscan_pillar = main._pillar("error", required=False, details=urlscan_details, ref=urlscan_state.get("uuid"))
+                urlscan_pillar = runtime._pillar("error", required=False, details=urlscan_details, ref=urlscan_state.get("uuid"))
         elif urlscan_state.get("uuid"):
-            urlscan_pillar = main._pillar("pending", required=False, details="urlscan verdict este in procesare.", ref=urlscan_state.get("uuid"))
+            urlscan_pillar = runtime._pillar("pending", required=False, details="urlscan verdict este in procesare.", ref=urlscan_state.get("uuid"))
         else:
-            urlscan_pillar = main._pillar("pending", required=False, details="urlscan verdict nu a pornit.")
+            urlscan_pillar = runtime._pillar("pending", required=False, details="urlscan verdict nu a pornit.")
 
         if not has_urls:
-            final_url_pillar = main._pillar("not_required", required=False, details="mesajul nu contine URL verificabil")
-            web_risk_pillar = main._pillar("not_required", required=False, details="nu exista URL pentru Web Risk")
-            asf_pillar = main._pillar("not_required", required=False, details="nu exista URL pentru ASF")
-            phishing_database_pillar = main._pillar("not_required", required=False, details="nu exista URL pentru Phishing.Database")
-            phishtank_pillar = main._pillar("not_required", required=False, details="nu exista URL pentru PhishTank")
-            openphish_pillar = main._pillar("not_required", required=False, details="nu exista URL pentru OpenPhish")
+            final_url_pillar = runtime._pillar("not_required", required=False, details="mesajul nu contine URL verificabil")
+            web_risk_pillar = runtime._pillar("not_required", required=False, details="nu exista URL pentru Web Risk")
+            asf_pillar = runtime._pillar("not_required", required=False, details="nu exista URL pentru ASF")
+            phishing_database_pillar = runtime._pillar("not_required", required=False, details="nu exista URL pentru Phishing.Database")
+            phishtank_pillar = runtime._pillar("not_required", required=False, details="nu exista URL pentru PhishTank")
+            openphish_pillar = runtime._pillar("not_required", required=False, details="nu exista URL pentru OpenPhish")
         else:
-            final_url_pillar = main._pillar("ok" if final_url else "pending", details=str(final_url or "se rezolva destinatia finala"))
-            web_risk_pillar = main._provider_pillar_from_summary(summary, "google_web_risk")
-            asf_pillar = main._provider_pillar_from_summary(summary, "asf_investor_alerts")
+            final_url_pillar = runtime._pillar("ok" if final_url else "pending", details=str(final_url or "se rezolva destinatia finala"))
+            web_risk_pillar = runtime._provider_pillar_from_summary(summary, "google_web_risk")
+            asf_pillar = runtime._provider_pillar_from_summary(summary, "asf_investor_alerts")
             asf_pillar["required"] = False
-            phishing_database_pillar = main._provider_pillar_from_summary(summary, "phishing_database")
-            phishtank_pillar = main._provider_pillar_from_summary(summary, "phishtank_online_valid")
-            openphish_pillar = main._provider_pillar_from_summary(summary, "openphish")
+            phishing_database_pillar = runtime._provider_pillar_from_summary(summary, "phishing_database")
+            phishtank_pillar = runtime._provider_pillar_from_summary(summary, "phishtank_online_valid")
+            openphish_pillar = runtime._provider_pillar_from_summary(summary, "openphish")
             openphish_pillar["required"] = False
 
         return {
@@ -432,7 +431,7 @@ class OrchestratedScanEngine:
             "phishtank_online_valid": phishtank_pillar,
             "openphish": openphish_pillar,
             "urlscan": urlscan_pillar,
-            "claim_verifier": main._pillar(
+            "claim_verifier": runtime._pillar(
                 (
                     "not_required"
                     if not claim_required
@@ -443,7 +442,7 @@ class OrchestratedScanEngine:
                 required=claim_required,
                 details=claim_status or ("required" if claim_required else "not required"),
             ),
-            "semantic_review": main._pillar(
+            "semantic_review": runtime._pillar(
                 "ok" if semantic_complete else "pending",
                 required=True,
                 details=semantic_details,
@@ -453,7 +452,7 @@ class OrchestratedScanEngine:
 
     def _orchestrated_required_pillars_timed_out(self, job: Dict[str, Any]) -> bool:
         created_at = int(job.get("created_at") or int(time.time()))
-        return int(time.time()) - created_at >= main.ORCHESTRATED_REQUIRED_PILLAR_TIMEOUT_SECONDS
+        return int(time.time()) - created_at >= runtime.ORCHESTRATED_REQUIRED_PILLAR_TIMEOUT_SECONDS
 
 
     def _normalize_orchestrated_preview_status(self, job: Dict[str, Any], preview: Dict[str, Any]) -> Dict[str, Any]:
@@ -486,15 +485,15 @@ class OrchestratedScanEngine:
     def _orchestrated_status_payload(self, job: Dict[str, Any]) -> Dict[str, Any]:
         pillars = self._build_orchestrated_pillars(job)
         raw_preview = job.get("preview") if isinstance(job.get("preview"), dict) else {}
-        preview = self._normalize_orchestrated_preview_status(job, main._preview_for_final_url_unresolved(job, raw_preview))
+        preview = self._normalize_orchestrated_preview_status(job, runtime._preview_for_final_url_unresolved(job, raw_preview))
         result = job.get("result") if isinstance(job.get("result"), dict) else None
         metrics = self._orchestrated_metrics(job)
         result_is_final = result is not None and result.get("is_final", True) is not False
         final_url_unresolved = preview.get("reason") == "final_url_unresolved"
-        enhancement_done = main._urlscan_enhancement_done(job) or final_url_unresolved
+        enhancement_done = runtime._urlscan_enhancement_done(job) or final_url_unresolved
         if result_is_final:
             status = "complete"
-        elif main._has_required_pillar_error(pillars):
+        elif runtime._has_required_pillar_error(pillars):
             status = "incomplete"
         else:
             status = "scanning"
@@ -628,9 +627,9 @@ class OrchestratedScanEngine:
     def _orchestrated_can_finalize_result(self, job: Dict[str, Any], pillars: Dict[str, Dict[str, Any]]) -> bool:
         if str(job.get("pipeline_stage") or "").strip().lower() == "done":
             return True
-        if not main._all_required_pillars_terminal(pillars):
+        if not runtime._all_required_pillars_terminal(pillars):
             return False
-        if main.ORCHESTRATED_EARLY_VERDICT:
+        if runtime.ORCHESTRATED_EARLY_VERDICT:
             # The verdict publishes as soon as the required pillars are terminal.
             # It stays is_final=false until the urlscan report is terminal, and the
             # report can only raise severity when it lands.
@@ -638,13 +637,13 @@ class OrchestratedScanEngine:
         # Legacy pacing: user-facing verdicts wait for the urlscan report when a
         # URL exists, but not for screenshot availability. The screenshot is an
         # async visual enhancement and can fill in after the final label.
-        return main._urlscan_result_ready_for_verdict(job)
+        return runtime._urlscan_result_ready_for_verdict(job)
 
 
     def _orchestrated_result_is_final(self, job: Dict[str, Any], analysis: Dict[str, Any]) -> bool:
         evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
         gate = evidence.get("verdict_gate") if isinstance(evidence.get("verdict_gate"), dict) else {}
-        if main._final_url_unresolved_entry(job):
+        if runtime._final_url_unresolved_entry(job):
             return True
         label = str(gate.get("label") or "").upper()
         if label in {"SAFE", "SUSPECT", "DANGEROUS"}:
@@ -670,18 +669,18 @@ class OrchestratedScanEngine:
 
     def _orchestrated_cloud_tasks_configured(self) -> bool:
         return bool(
-            main.ORCHESTRATED_CLOUD_TASKS_ENABLED
-            and main.CLOUD_TASKS_PROJECT
-            and main.CLOUD_TASKS_LOCATION
-            and main.CLOUD_TASKS_QUEUE
-            and main.INTERNAL_WORKER_TOKEN
+            runtime.ORCHESTRATED_CLOUD_TASKS_ENABLED
+            and runtime.CLOUD_TASKS_PROJECT
+            and runtime.CLOUD_TASKS_LOCATION
+            and runtime.CLOUD_TASKS_QUEUE
+            and runtime.INTERNAL_WORKER_TOKEN
         )
 
 
     def _orchestrated_worker_task_url(self, scan_id: str, *, max_steps: int = 1) -> str:
         safe_scan_id = urllib.parse.quote(str(scan_id), safe="")
         step_budget = max(1, min(int(max_steps or 1), 3))
-        public_base = main.SIGURSCAN_PUBLIC_API_BASE_URL or "https://api.sigurscan.com"
+        public_base = runtime.SIGURSCAN_PUBLIC_API_BASE_URL or "https://api.sigurscan.com"
         return f"{public_base}/internal/orchestrated/{safe_scan_id}/advance?max_steps={step_budget}"
 
 
@@ -695,10 +694,10 @@ class OrchestratedScanEngine:
         if not self._orchestrated_cloud_tasks_configured():
             return False
         try:
-            access_token = main._cloud_tasks_access_token()
+            access_token = runtime._cloud_tasks_access_token()
             queue_url = (
-                f"https://cloudtasks.googleapis.com/v2/projects/{main.CLOUD_TASKS_PROJECT}/"
-                f"locations/{main.CLOUD_TASKS_LOCATION}/queues/{main.CLOUD_TASKS_QUEUE}/tasks"
+                f"https://cloudtasks.googleapis.com/v2/projects/{runtime.CLOUD_TASKS_PROJECT}/"
+                f"locations/{runtime.CLOUD_TASKS_LOCATION}/queues/{runtime.CLOUD_TASKS_QUEUE}/tasks"
             )
             body = json.dumps({"scan_id": str(scan_id)}, ensure_ascii=False).encode("utf-8")
             task: Dict[str, Any] = {
@@ -707,7 +706,7 @@ class OrchestratedScanEngine:
                     "url": self._orchestrated_worker_task_url(scan_id, max_steps=max_steps),
                     "headers": {
                         "Content-Type": "application/json",
-                        "X-Internal-Worker-Token": main.INTERNAL_WORKER_TOKEN,
+                        "X-Internal-Worker-Token": runtime.INTERNAL_WORKER_TOKEN,
                     },
                     "body": base64.b64encode(body).decode("ascii"),
                 }
@@ -715,19 +714,19 @@ class OrchestratedScanEngine:
             if delay_seconds > 0:
                 run_at = datetime.now(timezone.utc) + timedelta(seconds=delay_seconds)
                 task["scheduleTime"] = run_at.isoformat().replace("+00:00", "Z")
-            response = main.requests.post(
+            response = runtime.requests.post(
                 queue_url,
                 headers={
                     "Authorization": f"Bearer {access_token}",
                     "Content-Type": "application/json",
                 },
                 json={"task": task},
-                timeout=main.CLOUD_TASKS_REQUEST_TIMEOUT_SECONDS,
+                timeout=runtime.CLOUD_TASKS_REQUEST_TIMEOUT_SECONDS,
             )
             response.raise_for_status()
             return True
         except Exception as exc:
-            main.logger.warning("orchestrated Cloud Tasks enqueue failed: %s", type(exc).__name__)
+            runtime.logger.warning("orchestrated Cloud Tasks enqueue failed: %s", type(exc).__name__)
             return False
 
 
@@ -736,8 +735,8 @@ class OrchestratedScanEngine:
         source_channel = payload.source_channel or "android_native"
 
         if input_type == "url":
-            raw_input = main._normalise_obfuscated_text(payload.url or payload.text or "").strip()
-            embedded_urls = main.extract_urls(raw_input)
+            raw_input = runtime._normalise_obfuscated_text(payload.url or payload.text or "").strip()
+            embedded_urls = runtime.extract_urls(raw_input)
             if embedded_urls:
                 first_url = embedded_urls[0]
                 raw_text = raw_input if payload.text else f"Link: {first_url}"
@@ -749,7 +748,7 @@ class OrchestratedScanEngine:
                     "extra_fields": {"input_url": payload.url or payload.text, "canonical_url": first_url},
                 }
 
-            url = main._canonicalize_url(raw_input)
+            url = runtime._canonicalize_url(raw_input)
             if not url:
                 raise HTTPException(status_code=400, detail="URL invalid sau format neacceptat.")
             return {
@@ -762,20 +761,20 @@ class OrchestratedScanEngine:
 
         if input_type in {"email", "email_html", "html"}:
             raw_email_or_html = payload.html_content or payload.text or ""
-            mime_parts = main._extract_email_mime_parts(payload.text or "") if input_type == "email" and not payload.html_content else {}
-            plain_text_context = main._normalise_obfuscated_text(mime_parts.get("plain") or "")
-            email_subject = main._normalise_obfuscated_text(mime_parts.get("subject") or "")
-            html_to_parse = main._normalise_obfuscated_text(
+            mime_parts = runtime._extract_email_mime_parts(payload.text or "") if input_type == "email" and not payload.html_content else {}
+            plain_text_context = runtime._normalise_obfuscated_text(mime_parts.get("plain") or "")
+            email_subject = runtime._normalise_obfuscated_text(mime_parts.get("subject") or "")
+            html_to_parse = runtime._normalise_obfuscated_text(
                 payload.html_content
                 or mime_parts.get("html")
                 or plain_text_context
                 or payload.text
                 or ""
             )
-            main._validate_text_input("Conținutul HTML trimis", raw_email_or_html, main.MAX_TEXT_CHARS * 8)
+            runtime._validate_text_input("Conținutul HTML trimis", raw_email_or_html, runtime.MAX_TEXT_CHARS * 8)
             soup = BeautifulSoup(html_to_parse, "html.parser")
-            click_targets = main._collect_click_targets_from_html(soup)
-            form_context = main._collect_form_context_from_html(soup)
+            click_targets = runtime._collect_click_targets_from_html(soup)
+            form_context = runtime._collect_form_context_from_html(soup)
             discovered_urls: List[str] = []
             buttons: List[Dict[str, Any]] = []
             cta_words = ["verific", "confirm", "plăte", "plate", "cont", "login", "conect", "intrare", "detalii", "colet", "awb", "reactivare", "urgent"]
@@ -795,13 +794,13 @@ class OrchestratedScanEngine:
                     }
                 )
             visible_text = soup.get_text(separator=" ", strip=True)
-            for url in main.extract_urls(plain_text_context):
+            for url in runtime.extract_urls(plain_text_context):
                 if url not in discovered_urls:
                     discovered_urls.append(url)
-            for url in main.extract_urls(visible_text):
+            for url in runtime.extract_urls(visible_text):
                 if url not in discovered_urls:
                     discovered_urls.append(url)
-            inferred_brand_hints = main._infer_brand_hints_from_click_targets(click_targets)
+            inferred_brand_hints = runtime._infer_brand_hints_from_click_targets(click_targets)
             click_context = [
                 f"CTA {button.get('source_tag')}/{button.get('source_attr')}: "
                 f"{button.get('button_text')} -> {button.get('original_url')}"
@@ -820,7 +819,7 @@ class OrchestratedScanEngine:
                 ]
                 if str(part or "").strip()
             )
-            auto_invoice = main._invoice_auto_route_context(
+            auto_invoice = runtime._invoice_auto_route_context(
                 source_channel=source_channel,
                 raw_text=raw_text,
                 urls=discovered_urls,
@@ -850,33 +849,33 @@ class OrchestratedScanEngine:
             }
 
         if input_type == "invoice":
-            raw_text = main._normalise_obfuscated_text((payload.text or payload.url or "").strip())
-            main._validate_text_input("Textul facturii", raw_text, main.MAX_TEXT_CHARS)
+            raw_text = runtime._normalise_obfuscated_text((payload.text or payload.url or "").strip())
+            runtime._validate_text_input("Textul facturii", raw_text, runtime.MAX_TEXT_CHARS)
             return {
                 "input_type": "invoice",
                 "source_channel": source_channel,
                 "raw_text": raw_text,
-                "urls": main.extract_urls(raw_text),
+                "urls": runtime.extract_urls(raw_text),
                 "extra_fields": {"invoice_scan": True},
             }
 
         if input_type == "offer":
-            raw_text = main._normalise_obfuscated_text((payload.text or payload.url or "").strip())
-            main._validate_text_input("Textul ofertei", raw_text, main.MAX_TEXT_CHARS)
+            raw_text = runtime._normalise_obfuscated_text((payload.text or payload.url or "").strip())
+            runtime._validate_text_input("Textul ofertei", raw_text, runtime.MAX_TEXT_CHARS)
             return {
                 "input_type": "offer",
                 "source_channel": source_channel,
                 "raw_text": raw_text,
-                "urls": main.extract_urls(raw_text),
+                "urls": runtime.extract_urls(raw_text),
                 "extra_fields": {"offer_scan": True},
             }
 
-        raw_text = main._normalise_obfuscated_text((payload.text or payload.url or "").strip())
-        main._validate_text_input("Textul trimis", raw_text, main.MAX_TEXT_CHARS)
-        auto_invoice = main._invoice_auto_route_context(
+        raw_text = runtime._normalise_obfuscated_text((payload.text or payload.url or "").strip())
+        runtime._validate_text_input("Textul trimis", raw_text, runtime.MAX_TEXT_CHARS)
+        auto_invoice = runtime._invoice_auto_route_context(
             source_channel=source_channel,
             raw_text=raw_text,
-            urls=main.extract_urls(raw_text),
+            urls=runtime.extract_urls(raw_text),
             original_input_type=input_type,
         )
         if auto_invoice:
@@ -885,7 +884,7 @@ class OrchestratedScanEngine:
             "input_type": "text",
             "source_channel": source_channel,
             "raw_text": raw_text,
-            "urls": main.extract_urls(raw_text),
+            "urls": runtime.extract_urls(raw_text),
             "extra_fields": {},
         }
 
@@ -896,11 +895,11 @@ class OrchestratedScanEngine:
 
 
     async def _finalize_orchestrated_job_if_ready(self, job: Dict[str, Any], request: Request) -> Dict[str, Any]:
-        main._sync_resolved_urls_with_urlscan_final(job)
+        runtime._sync_resolved_urls_with_urlscan_final(job)
         pillars = self._build_orchestrated_pillars(job)
         existing_result = job.get("result") if isinstance(job.get("result"), dict) else None
         if existing_result and existing_result.get("is_final", True) is not False:
-            if not main._urlscan_enhancement_done(job) and not main._urlscan_finished_with_risk(job):
+            if not runtime._urlscan_enhancement_done(job) and not runtime._urlscan_finished_with_risk(job):
                 return job
         if not self._orchestrated_can_finalize_result(job, pillars):
             return job
@@ -926,13 +925,13 @@ class OrchestratedScanEngine:
                 evidence_for_gate = analysis.setdefault("evidence", {})
                 if isinstance(evidence_for_gate, dict) and not isinstance(evidence_for_gate.get("cross_scan_knowledge"), dict):
                     evidence_for_gate["cross_scan_knowledge"] = job_cross_scan
-            main._apply_provider_gate_verdict(
+            runtime._apply_provider_gate_verdict(
                 analysis,
                 resolved_urls,
                 raw_text=str(job.get("redacted_text") or ""),
                 pillars=pillars,
             )
-            main._apply_final_url_unresolved_shortener_fail_safe(job, analysis)
+            runtime._apply_final_url_unresolved_shortener_fail_safe(job, analysis)
         evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
         gate = evidence.get("verdict_gate") if isinstance(evidence.get("verdict_gate"), dict) else {}
         if str(gate.get("label") or "").upper() == "UNVERIFIED" and not self._orchestrated_result_is_final(job, analysis):
@@ -944,7 +943,7 @@ class OrchestratedScanEngine:
             self._emit_orchestrated_telemetry("orchestrated_verdict_pending", job)
             return job
         fingerprint = self._orchestrated_result_fingerprint(job, analysis, pillars, resolved_urls)
-        explanation_key = main._ai_explanation_fingerprint(analysis)
+        explanation_key = runtime._ai_explanation_fingerprint(analysis)
         explanation_pending = bool(job.get("ai_explanation_pending"))
         if existing_result and job.get("result_fingerprint") == fingerprint and not explanation_pending:
             return job
@@ -959,15 +958,15 @@ class OrchestratedScanEngine:
         deferred_explanation = False
         if not isinstance(ai_explanation, dict):
             if job.get("skip_cloud_ai_explanation"):
-                ai_explanation = main.generate_fallback_explanation(job.get("redacted_text", ""), analysis)
-            elif main.ORCHESTRATED_DEFER_AI_EXPLANATION and existing_result is None and not explanation_pending:
+                ai_explanation = runtime.generate_fallback_explanation(job.get("redacted_text", ""), analysis)
+            elif runtime.ORCHESTRATED_DEFER_AI_EXPLANATION and existing_result is None and not explanation_pending:
                 # First publishable verdict: never block it on the explainer LLM.
                 # The deterministic fallback ships now; the cloud explanation is
                 # attached by a later poll via ai_explanation_pending.
-                ai_explanation = main.generate_fallback_explanation(job.get("redacted_text", ""), analysis)
+                ai_explanation = runtime.generate_fallback_explanation(job.get("redacted_text", ""), analysis)
                 deferred_explanation = True
             else:
-                ai_explanation = await main._build_ai_explanation_async(job.get("redacted_text", ""), analysis, resolved_urls)
+                ai_explanation = await runtime._build_ai_explanation_async(job.get("redacted_text", ""), analysis, resolved_urls)
             if not deferred_explanation:
                 job["ai_explanation_cache"] = {
                     "fingerprint": fingerprint,
@@ -976,7 +975,7 @@ class OrchestratedScanEngine:
                 }
         job["ai_explanation_pending"] = deferred_explanation
         scan_id = job["scan_id"]
-        response_payload = main._build_scan_response(
+        response_payload = runtime._build_scan_response(
             "scan",
             analysis,
             job.get("redacted_text", ""),
@@ -992,9 +991,9 @@ class OrchestratedScanEngine:
         response_payload["is_final"] = (
             self._orchestrated_result_is_final(job, analysis)
             and (
-                main._urlscan_result_ready_for_verdict(job)
-                or main._official_clean_can_finalize_before_urlscan(job, analysis, pillars)
-                or main._public_navigation_clean_can_finalize_before_urlscan(job, analysis, pillars)
+                runtime._urlscan_result_ready_for_verdict(job)
+                or runtime._official_clean_can_finalize_before_urlscan(job, analysis, pillars)
+                or runtime._public_navigation_clean_can_finalize_before_urlscan(job, analysis, pillars)
             )
             and not deferred_explanation
         )
@@ -1008,7 +1007,7 @@ class OrchestratedScanEngine:
             result_fingerprint=fingerprint,
         )
         if response_payload["is_final"]:
-            main._emit_scan_event(
+            runtime._emit_scan_event(
                 scan_id=scan_id,
                 scan_payload=response_payload,
                 analysis=analysis,
@@ -1025,7 +1024,7 @@ class OrchestratedScanEngine:
         request: Request,
     ) -> Dict[str, Any]:
         try:
-            submission = await main.submit_urlscan_sandbox(
+            submission = await runtime.submit_urlscan_sandbox(
                 UrlscanSandboxRequest(
                     url=url,
                     visibility=payload.visibility,
@@ -1078,12 +1077,12 @@ class OrchestratedScanEngine:
         urlscan_state = job.get("urlscan") if isinstance(job.get("urlscan"), dict) else {}
         urlscan_status = str(urlscan_state.get("status") or "").strip().lower()
         if primary_final_url and urlscan_status in {"queued", "", "skipped"}:
-            cached_fast_preview = main._load_fast_preview_cache(primary_final_url)
-            cached_preview = main._load_urlscan_preview_cache(primary_final_url)
+            cached_fast_preview = runtime._load_fast_preview_cache(primary_final_url)
+            cached_preview = runtime._load_urlscan_preview_cache(primary_final_url)
             if cached_preview:
-                job = main._apply_urlscan_preview_cache_hit(job, cached_preview)
+                job = runtime._apply_urlscan_preview_cache_hit(job, cached_preview)
                 if cached_fast_preview:
-                    job = main._apply_fast_preview_cache_hit(job, cached_fast_preview)
+                    job = runtime._apply_fast_preview_cache_hit(job, cached_fast_preview)
                     self._emit_orchestrated_telemetry("orchestrated_fast_preview_cache_hit", job)
                 self._set_orchestrated_stage(job, "urlscan_submitted")
                 job = self._persist_orchestrated_job(job)
@@ -1091,7 +1090,7 @@ class OrchestratedScanEngine:
                 return job
 
             if cached_fast_preview:
-                job = main._apply_fast_preview_cache_hit(job, cached_fast_preview)
+                job = runtime._apply_fast_preview_cache_hit(job, cached_fast_preview)
                 self._emit_orchestrated_telemetry("orchestrated_fast_preview_cache_hit", job)
 
             submit_owner = f"urlscan_{os.urandom(6).hex()}"
@@ -1158,17 +1157,17 @@ class OrchestratedScanEngine:
     async def _create_orchestrated_job(self, payload: OrchestratedScanRequest) -> Dict[str, Any]:
         context = self._build_orchestrated_text_context(payload)
         raw_urls = [str(url) for url in (context.get("urls") or []) if str(url).strip()]
-        urls, url_privacy = main.prepare_external_urls(raw_urls)
+        urls, url_privacy = runtime.prepare_external_urls(raw_urls)
         reputation_lookup_urls: List[str] = []
         reputation_lookup_url_hashes_by_url: Dict[str, List[str]] = {}
         for raw_url in raw_urls:
-            reputation_entry = main.prepare_reputation_lookup_url(raw_url)
+            reputation_entry = runtime.prepare_reputation_lookup_url(raw_url)
             reputation_url = reputation_entry.get("external_url")
             if isinstance(reputation_url, str) and reputation_url.strip() and reputation_url not in reputation_lookup_urls:
                 reputation_lookup_urls.append(reputation_url.strip())
             if isinstance(reputation_url, str) and reputation_url.strip():
                 bucket = reputation_lookup_url_hashes_by_url.setdefault(reputation_url.strip(), [])
-                for value in main.reputation_url_hash_variants(raw_url):
+                for value in runtime.reputation_url_hash_variants(raw_url):
                     if value not in bucket:
                         bucket.append(value)
         privacy_by_hash = {entry["input_url_hash"]: entry for entry in url_privacy}
@@ -1202,19 +1201,19 @@ class OrchestratedScanEngine:
             )
         except Exception:
             cross_scan_knowledge = {}
-        redacted_text = main.redact_pii(privacy_safe_text)
-        scan_id = main._new_scan_id("orch")
+        redacted_text = runtime.redact_pii(privacy_safe_text)
+        scan_id = runtime._new_scan_id("orch")
         extra_fields = dict(context.get("extra_fields") or {})
         for key in ("input_url", "canonical_url"):
             if isinstance(extra_fields.get(key), str):
-                extra_fields[key] = main.prepare_external_url(extra_fields[key]).get("external_url")
+                extra_fields[key] = runtime.prepare_external_url(extra_fields[key]).get("external_url")
         if isinstance(extra_fields.get("buttons"), list):
             sanitized_buttons = []
             for button in extra_fields["buttons"]:
                 sanitized_button = dict(button) if isinstance(button, dict) else {}
                 button_url = sanitized_button.get("original_url")
                 if isinstance(button_url, str):
-                    entry = main.prepare_external_url(button_url)
+                    entry = runtime.prepare_external_url(button_url)
                     sanitized_button["original_url"] = entry.get("external_url")
                     sanitized_button["url_privacy_action"] = entry.get("action")
                 sanitized_buttons.append(sanitized_button)
@@ -1231,7 +1230,7 @@ class OrchestratedScanEngine:
         job = {
             "scan_id": scan_id,
             "created_at": int(time.time()),
-            "expires_at": int(time.time()) + main.ORCHESTRATED_JOB_TTL_SECONDS,
+            "expires_at": int(time.time()) + runtime.ORCHESTRATED_JOB_TTL_SECONDS,
             "status": "scanning",
             "pipeline_stage": "queued",
             "input_type": context["input_type"],
@@ -1301,21 +1300,21 @@ class OrchestratedScanEngine:
         resolved_urls = self._timed_orchestrated_component(
             job,
             "fast_lane.resolve_urls",
-            lambda: main._safe_scan_url_list([str(url) for url in urls if str(url).strip()]),
+            lambda: runtime._safe_scan_url_list([str(url) for url in urls if str(url).strip()]),
         )
-        resolved_urls = main._attach_initial_url_privacy(
+        resolved_urls = runtime._attach_initial_url_privacy(
             resolved_urls,
             job.get("extra_fields", {}).get("url_privacy")
             if isinstance(job.get("extra_fields"), dict)
             else None,
         )
-        resolved_urls = main._attach_reputation_lookup_urls(
+        resolved_urls = runtime._attach_reputation_lookup_urls(
             resolved_urls,
             job.get("extra_fields", {}).get("reputation_lookup_urls")
             if isinstance(job.get("extra_fields"), dict)
             else None,
         )
-        resolved_urls = main._attach_reputation_lookup_hashes(
+        resolved_urls = runtime._attach_reputation_lookup_hashes(
             resolved_urls,
             job.get("extra_fields", {}).get("reputation_lookup_url_hashes_by_url")
             if isinstance(job.get("extra_fields"), dict)
@@ -1329,15 +1328,15 @@ class OrchestratedScanEngine:
         # WHOIS/RDAP + SSL: free deterministic signals in parallel with reputation intel
         domain_signals: Dict[str, Any] = {}
         primary_final_host = None
-        primary_entry = main._select_primary_resolved_url(resolved_urls, {"claimed_brand": "Nespecificat"})
+        primary_entry = runtime._select_primary_resolved_url(resolved_urls, {"claimed_brand": "Nespecificat"})
         if primary_entry:
             primary_final_host = (primary_entry.get("final_hostname") or
                                   urllib.parse.urlparse(str(primary_entry.get("final_url") or "")).hostname or
                                   None)
         if primary_final_host:
             try:
-                domain_check = await main.check_domain_ssl_parallel(primary_final_host)
-                domain_signals = main.domain_risk_from_signals(
+                domain_check = await runtime.check_domain_ssl_parallel(primary_final_host)
+                domain_signals = runtime.domain_risk_from_signals(
                     domain_check.get("ssl", {}),
                     domain_check.get("rdap", {}),
                     primary_final_host,
@@ -1359,7 +1358,7 @@ class OrchestratedScanEngine:
         threat_intel = self._timed_orchestrated_component(
             job,
             "fast_lane.reputation",
-            lambda: main._gather_external_intel_safe(
+            lambda: runtime._gather_external_intel_safe(
                 resolved_urls,
                 include_phishing_database=True,
                 include_urlhaus=True,
@@ -1369,32 +1368,32 @@ class OrchestratedScanEngine:
         summary = self._timed_orchestrated_component(
             job,
             "fast_lane.reputation_summary",
-            lambda: main._external_intel_summary_from_threat_intel(threat_intel),
+            lambda: runtime._external_intel_summary_from_threat_intel(threat_intel),
         )
         job["threat_intel"] = threat_intel
 
-        if main._has_bad_provider_verdict(summary):
+        if runtime._has_bad_provider_verdict(summary):
             analysis = self._timed_orchestrated_component(
                 job,
                 "fast_lane.provider_context_analysis",
-                lambda: main._provider_reputation_context_analysis(redacted_text, resolved_urls, summary),
+                lambda: runtime._provider_reputation_context_analysis(redacted_text, resolved_urls, summary),
             )
             analysis.setdefault("evidence", {})["source_channel"] = job.get("source_channel")
             self._timed_orchestrated_component(
                 job,
                 "fast_lane.local_semantic_review",
-                lambda: main._enrich_local_semantic_review(redacted_text, analysis),
+                lambda: runtime._enrich_local_semantic_review(redacted_text, analysis),
             )
-            main._attach_offer_claim_verification(
+            runtime._attach_offer_claim_verification(
                 analysis,
-                main._skipped_offer_claim_payload("Claim web check skipped because hard reputation evidence is already decisive."),
+                runtime._skipped_offer_claim_payload("Claim web check skipped because hard reputation evidence is already decisive."),
             )
             claim_required = False
         else:
             analysis = self._timed_orchestrated_component(
                 job,
                 "fast_lane.engine_analysis",
-                lambda: main._analyze_with_reputation(
+                lambda: runtime._analyze_with_reputation(
                     redacted_text,
                     resolved_urls,
                     email_context=job.get("email_auth") if isinstance(job.get("email_auth"), dict) else None,
@@ -1407,16 +1406,16 @@ class OrchestratedScanEngine:
             self._timed_orchestrated_component(
                 job,
                 "fast_lane.local_semantic_review",
-                lambda: main._enrich_local_semantic_review(redacted_text, analysis),
+                lambda: runtime._enrich_local_semantic_review(redacted_text, analysis),
             )
             claim_required = self._timed_orchestrated_component(
                 job,
                 "fast_lane.claim_required_check",
-                lambda: main._claim_verifier_required(analysis),
+                lambda: runtime._claim_verifier_required(analysis),
             )
-            main._attach_offer_claim_verification(
+            runtime._attach_offer_claim_verification(
                 analysis,
-                main._skipped_offer_claim_payload(
+                runtime._skipped_offer_claim_payload(
                     "Claim web check deferred by fast lane; verdict uses provider reputation, identity, atlas and local Tier1."
                 ),
             )
@@ -1444,15 +1443,15 @@ class OrchestratedScanEngine:
         primary_entry = self._timed_orchestrated_component(
             job,
             "fast_lane.primary_url_picker",
-            lambda: main._select_primary_resolved_url(resolved_urls, analysis),
+            lambda: runtime._select_primary_resolved_url(resolved_urls, analysis),
         )
 
         job["analysis"] = analysis
         job["claim_verifier_required"] = claim_required
-        primary_final_url = main._apply_primary_resolved_url(job, primary_entry)
+        primary_final_url = runtime._apply_primary_resolved_url(job, primary_entry)
         if primary_final_url:
-            job = main._apply_best_preview_cache_hit(job, primary_final_url)
-        next_stage = "analysis_ready" if main._has_bad_provider_verdict(summary) else "semantic_ready"
+            job = runtime._apply_best_preview_cache_hit(job, primary_final_url)
+        next_stage = "analysis_ready" if runtime._has_bad_provider_verdict(summary) else "semantic_ready"
         self._set_orchestrated_stage(job, next_stage)
         job = self._timed_orchestrated_component(
             job,
@@ -1466,7 +1465,7 @@ class OrchestratedScanEngine:
             claim_required=claim_required,
             decisive_provider=next_stage == "analysis_ready",
         )
-        if main.ORCHESTRATED_EARLY_VERDICT and next_stage == "semantic_ready":
+        if runtime.ORCHESTRATED_EARLY_VERDICT and next_stage == "semantic_ready":
             # Publish the provisional verdict from the local semantic pillar
             # (status=done) before any cloud-LLM stage runs. The first poll then
             # returns a verdict in fast-lane time even when LLMs are slow; the
@@ -1488,21 +1487,21 @@ class OrchestratedScanEngine:
             resolved_urls = self._timed_orchestrated_component(
                 job,
                 "invoice_fast_lane.resolve_urls",
-                lambda: main._safe_scan_url_list([str(url) for url in urls if str(url).strip()]),
+                lambda: runtime._safe_scan_url_list([str(url) for url in urls if str(url).strip()]),
             )
-            resolved_urls = main._attach_initial_url_privacy(
+            resolved_urls = runtime._attach_initial_url_privacy(
                 resolved_urls,
                 job.get("extra_fields", {}).get("url_privacy")
                 if isinstance(job.get("extra_fields"), dict)
                 else None,
             )
-            resolved_urls = main._attach_reputation_lookup_urls(
+            resolved_urls = runtime._attach_reputation_lookup_urls(
                 resolved_urls,
                 job.get("extra_fields", {}).get("reputation_lookup_urls")
                 if isinstance(job.get("extra_fields"), dict)
                 else None,
             )
-            resolved_urls = main._attach_reputation_lookup_hashes(
+            resolved_urls = runtime._attach_reputation_lookup_hashes(
                 resolved_urls,
                 job.get("extra_fields", {}).get("reputation_lookup_url_hashes_by_url")
                 if isinstance(job.get("extra_fields"), dict)
@@ -1510,14 +1509,14 @@ class OrchestratedScanEngine:
             )
             job["resolved_urls"] = resolved_urls
             job.setdefault("extra_fields", {})["resolved_urls"] = resolved_urls
-            primary_entry = main._select_primary_resolved_url(resolved_urls, {"claimed_brand": "Nespecificat"})
-            primary_final_url = main._apply_primary_resolved_url(job, primary_entry)
+            primary_entry = runtime._select_primary_resolved_url(resolved_urls, {"claimed_brand": "Nespecificat"})
+            primary_final_url = runtime._apply_primary_resolved_url(job, primary_entry)
             if primary_final_url:
-                job = main._apply_best_preview_cache_hit(job, primary_final_url)
+                job = runtime._apply_best_preview_cache_hit(job, primary_final_url)
             threat_intel = self._timed_orchestrated_component(
                 job,
                 "invoice_fast_lane.reputation",
-                lambda: main._gather_external_intel_safe(
+                lambda: runtime._gather_external_intel_safe(
                     resolved_urls,
                     include_phishing_database=True,
                     include_urlhaus=True,
@@ -1527,7 +1526,7 @@ class OrchestratedScanEngine:
             external_intel_summary = self._timed_orchestrated_component(
                 job,
                 "invoice_fast_lane.reputation_summary",
-                lambda: main._external_intel_summary_from_threat_intel(threat_intel),
+                lambda: runtime._external_intel_summary_from_threat_intel(threat_intel),
             )
             job["threat_intel"] = threat_intel
         self._set_orchestrated_stage(job, "invoice_parse")
@@ -1686,7 +1685,7 @@ class OrchestratedScanEngine:
             semantic_section = bundle.get("semantic_review") or semantic_section
         except Exception:
             gate_result = reduce_verdict(bundle)
-        if main._has_bad_provider_verdict(external_intel_summary) and str(gate_result.get("label") or "").upper() != "DANGEROUS":
+        if runtime._has_bad_provider_verdict(external_intel_summary) and str(gate_result.get("label") or "").upper() != "DANGEROUS":
             gate_result = {
                 "label": "DANGEROUS",
                 "risk_level": "high",
@@ -1710,7 +1709,7 @@ class OrchestratedScanEngine:
                     "hard_conflicts": list(invoice_truth.get("hard_conflicts") or [])
                     + [{"code": "PROVIDER_MALICIOUS", "label": "Provider de securitate a raportat risc"}],
                 }
-        invoice_client_payment_destination = main._invoice_payment_destination_for_client(
+        invoice_client_payment_destination = runtime._invoice_payment_destination_for_client(
             result,
             {"bundle": bundle, "gate": gate_result},
         )
@@ -2027,7 +2026,7 @@ class OrchestratedScanEngine:
             or (claimed_brand and claimed_brand != "Nespecificat")
             or bool(fields and fields.platform_name)
         )
-        if web_claim_warranted and main._env_present("GEMINI_API_KEY") and not main.PRIVACY_SAFE_MODE:
+        if web_claim_warranted and runtime._env_present("GEMINI_API_KEY") and not runtime.PRIVACY_SAFE_MODE:
             job["offer_web_claim"] = {"status": "pending"}
         else:
             job["offer_web_claim"] = {"status": "skipped"}
@@ -2070,7 +2069,7 @@ class OrchestratedScanEngine:
                 },
             },
         }
-        main._apply_decision_contract_result(analysis, bundle, gate_result, {})
+        runtime._apply_decision_contract_result(analysis, bundle, gate_result, {})
         analysis["reasons"] = ["Scanarea nu a putut verifica complet mesajul; verifică pe canalul oficial înainte de acțiune."]
         analysis["safe_actions"] = ["Nu introduce date sensibile până nu confirmi în aplicația sau site-ul oficial."]
         analysis.setdefault("evidence", {})["orchestration_error"] = {
@@ -2102,8 +2101,8 @@ class OrchestratedScanEngine:
                 }
             )
         self._set_orchestrated_stage(job, "done")
-        ai_explanation = main.generate_fallback_explanation(redacted_text, analysis)
-        response_payload = main._build_scan_response(
+        ai_explanation = runtime.generate_fallback_explanation(redacted_text, analysis)
+        response_payload = runtime._build_scan_response(
             "scan",
             analysis,
             redacted_text,
@@ -2128,7 +2127,7 @@ class OrchestratedScanEngine:
         self._emit_orchestrated_telemetry("orchestrated_unhandled_exception_finalized", job, error_type=error_type)
         if response_payload.get("is_final"):
             try:
-                main._emit_scan_event(
+                runtime._emit_scan_event(
                     scan_id=str(job.get("scan_id") or ""),
                     scan_payload=response_payload,
                     input_channel=job.get("input_type", "text"),
@@ -2159,10 +2158,10 @@ class OrchestratedScanEngine:
             and isinstance(job.get("offer_web_claim"), dict)
             and job["offer_web_claim"].get("status") == "pending"
         ):
-            job = await main._run_offer_web_claim_enrichment(job)
+            job = await runtime._run_offer_web_claim_enrichment(job)
             return await self._finalize_orchestrated_job_if_ready(job, request)
         if not existing_result and self._orchestrated_required_pillars_timed_out(job):
-            job = main._mark_required_pillars_timeout(job)
+            job = runtime._mark_required_pillars_timeout(job)
             return await self._finalize_orchestrated_job_if_ready(job, request)
 
         if stage == "queued":
@@ -2176,24 +2175,24 @@ class OrchestratedScanEngine:
         if stage == "resolved":
             redacted_text = str(job.get("redacted_text") or "")
             resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
-            threat_intel = main._gather_external_intel_safe(
+            threat_intel = runtime._gather_external_intel_safe(
                 resolved_urls,
                 include_phishing_database=True,
                 include_urlhaus=False,
                 persist_partial=False,
             )
-            summary = main._external_intel_summary_from_threat_intel(threat_intel)
-            primary_entry = main._select_primary_resolved_url(resolved_urls, {"claimed_brand": "Nespecificat"})
+            summary = runtime._external_intel_summary_from_threat_intel(threat_intel)
+            primary_entry = runtime._select_primary_resolved_url(resolved_urls, {"claimed_brand": "Nespecificat"})
             job["threat_intel"] = threat_intel
-            main._apply_primary_resolved_url(job, primary_entry)
+            runtime._apply_primary_resolved_url(job, primary_entry)
 
-            if main._has_bad_provider_verdict(summary):
-                analysis = main._provider_reputation_context_analysis(redacted_text, resolved_urls, summary)
+            if runtime._has_bad_provider_verdict(summary):
+                analysis = runtime._provider_reputation_context_analysis(redacted_text, resolved_urls, summary)
                 analysis.setdefault("evidence", {})["source_channel"] = job.get("source_channel")
-                await main._enrich_semantic_review_async(redacted_text, analysis, resolved_urls)
-                main._attach_offer_claim_verification(
+                await runtime._enrich_semantic_review_async(redacted_text, analysis, resolved_urls)
+                runtime._attach_offer_claim_verification(
                     analysis,
-                    main._skipped_offer_claim_payload("Claim web check skipped because hard reputation evidence is already decisive."),
+                    runtime._skipped_offer_claim_payload("Claim web check skipped because hard reputation evidence is already decisive."),
                 )
                 job["analysis"] = analysis
                 job["claim_verifier_required"] = False
@@ -2224,7 +2223,7 @@ class OrchestratedScanEngine:
         if stage == "urlhaus_ready":
             resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
             existing_intel = job.get("threat_intel") if isinstance(job.get("threat_intel"), dict) else {}
-            urlhaus_intel = main._gather_external_intel_safe(
+            urlhaus_intel = runtime._gather_external_intel_safe(
                 resolved_urls,
                 include_phishing_database=False,
                 include_urlhaus=True,
@@ -2234,8 +2233,8 @@ class OrchestratedScanEngine:
                 include_phishdestroy=False,
                 persist_partial=False,
             )
-            threat_intel = main._merge_threat_intel_sources(existing_intel, urlhaus_intel)
-            summary = main._external_intel_summary_from_threat_intel(threat_intel)
+            threat_intel = runtime._merge_threat_intel_sources(existing_intel, urlhaus_intel)
+            summary = runtime._external_intel_summary_from_threat_intel(threat_intel)
             job["threat_intel"] = threat_intel
             analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
             analysis.setdefault("evidence", {})["external_intel_summary"] = summary
@@ -2249,7 +2248,7 @@ class OrchestratedScanEngine:
             redacted_text = str(job.get("redacted_text") or "")
             resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
             threat_intel = job.get("threat_intel") if isinstance(job.get("threat_intel"), dict) else None
-            analysis = main._analyze_with_reputation(
+            analysis = runtime._analyze_with_reputation(
                 redacted_text,
                 resolved_urls,
                 email_context=job.get("email_auth") if isinstance(job.get("email_auth"), dict) else None,
@@ -2258,13 +2257,13 @@ class OrchestratedScanEngine:
                 allow_deep_fallback=False,
             )
             analysis.setdefault("evidence", {})["source_channel"] = job.get("source_channel")
-            claim_required = main._claim_verifier_required(analysis)
+            claim_required = runtime._claim_verifier_required(analysis)
 
-            primary_entry = main._select_primary_resolved_url(resolved_urls, analysis)
+            primary_entry = runtime._select_primary_resolved_url(resolved_urls, analysis)
 
             job["analysis"] = analysis
             job["claim_verifier_required"] = claim_required
-            main._apply_primary_resolved_url(job, primary_entry)
+            runtime._apply_primary_resolved_url(job, primary_entry)
             self._set_orchestrated_stage(job, "semantic_ready")
             job = self._persist_orchestrated_job(job)
             self._emit_orchestrated_telemetry("orchestrated_stage_semantic_ready", job, claim_required=claim_required)
@@ -2274,21 +2273,21 @@ class OrchestratedScanEngine:
             redacted_text = str(job.get("redacted_text") or "")
             resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
             analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
-            claim_required = bool(job.get("claim_verifier_required", main._claim_verifier_required(analysis)))
+            claim_required = bool(job.get("claim_verifier_required", runtime._claim_verifier_required(analysis)))
             evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
             summary = evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {}
-            if claim_required and not main._has_bad_provider_verdict(summary):
+            if claim_required and not runtime._has_bad_provider_verdict(summary):
                 await asyncio.gather(
-                    main._enrich_semantic_review_async(redacted_text, analysis, resolved_urls),
-                    main._enrich_offer_claim_verification_async(redacted_text, analysis, resolved_urls),
+                    runtime._enrich_semantic_review_async(redacted_text, analysis, resolved_urls),
+                    runtime._enrich_offer_claim_verification_async(redacted_text, analysis, resolved_urls),
                 )
             else:
-                await main._enrich_semantic_review_async(redacted_text, analysis, resolved_urls)
-                main._attach_offer_claim_verification(
+                await runtime._enrich_semantic_review_async(redacted_text, analysis, resolved_urls)
+                runtime._attach_offer_claim_verification(
                     analysis,
-                    main._skipped_offer_claim_payload(
+                    runtime._skipped_offer_claim_payload(
                         "Claim web check skipped because hard reputation evidence is already decisive."
-                        if main._has_bad_provider_verdict(summary)
+                        if runtime._has_bad_provider_verdict(summary)
                         else "Claim web check skipped because no concrete offer/brand claim was detected."
                     ),
                 )
@@ -2300,7 +2299,7 @@ class OrchestratedScanEngine:
                 "orchestrated_stage_analysis_ready",
                 job,
                 claim_required=claim_required,
-                parallel_enrichment=claim_required and not main._has_bad_provider_verdict(summary),
+                parallel_enrichment=claim_required and not runtime._has_bad_provider_verdict(summary),
             )
             return await self._finalize_orchestrated_job_if_ready(job, request)
 
@@ -2308,18 +2307,18 @@ class OrchestratedScanEngine:
             redacted_text = str(job.get("redacted_text") or "")
             resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
             analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
-            claim_required = bool(job.get("claim_verifier_required", main._claim_verifier_required(analysis)))
+            claim_required = bool(job.get("claim_verifier_required", runtime._claim_verifier_required(analysis)))
             evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
             summary = evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {}
-            if claim_required and not main._has_bad_provider_verdict(summary):
-                await main._enrich_offer_claim_verification_async(redacted_text, analysis, resolved_urls)
+            if claim_required and not runtime._has_bad_provider_verdict(summary):
+                await runtime._enrich_offer_claim_verification_async(redacted_text, analysis, resolved_urls)
             else:
                 reason = (
                     "Claim web check skipped because hard reputation evidence is already decisive."
-                    if main._has_bad_provider_verdict(summary)
+                    if runtime._has_bad_provider_verdict(summary)
                     else "Claim web check skipped because no concrete offer/brand claim was detected."
                 )
-                main._attach_offer_claim_verification(analysis, main._skipped_offer_claim_payload(reason))
+                runtime._attach_offer_claim_verification(analysis, runtime._skipped_offer_claim_payload(reason))
             job["analysis"] = analysis
             job["claim_verifier_required"] = claim_required
             self._set_orchestrated_stage(job, "analysis_ready")
@@ -2338,7 +2337,7 @@ class OrchestratedScanEngine:
             if (
                 str(urlscan_state.get("status") or "").strip().lower() == "submitting"
                 and not urlscan_state.get("uuid")
-                and submit_age >= main.ORCHESTRATED_URLSCAN_SUBMIT_RESERVATION_TIMEOUT_SECONDS
+                and submit_age >= runtime.ORCHESTRATED_URLSCAN_SUBMIT_RESERVATION_TIMEOUT_SECONDS
             ):
                 job["urlscan"] = {
                     "status": "queued",
@@ -2362,7 +2361,7 @@ class OrchestratedScanEngine:
                 if urlscan_status == "finished" and not urlscan_state.get("screenshot_ready"):
                     started_at = time.perf_counter()
                     try:
-                        screenshot_ready = await main._urlscan_screenshot_is_ready(str(urlscan_state["uuid"]))
+                        screenshot_ready = await runtime._urlscan_screenshot_is_ready(str(urlscan_state["uuid"]))
                     finally:
                         self._record_orchestrated_component_duration(job, "urlscan.screenshot_probe", started_at)
                     urlscan_state["screenshot_ready"] = screenshot_ready
@@ -2374,11 +2373,11 @@ class OrchestratedScanEngine:
                         preview["screenshot_url"] = urlscan_state.get("screenshot_url") or preview.get("screenshot_url")
                         preview["image_url"] = preview.get("screenshot_url")
                         preview["reason"] = None
-                        cache_entry = main._urlscan_preview_cache_entry_from_job(job)
+                        cache_entry = runtime._urlscan_preview_cache_entry_from_job(job)
                         if cache_entry:
-                            main._save_urlscan_preview_cache(cache_entry)
+                            runtime._save_urlscan_preview_cache(cache_entry)
                             preview["cache_saved"] = True
-                    elif main._urlscan_pending_has_timed_out(job):
+                    elif runtime._urlscan_pending_has_timed_out(job):
                         urlscan_state["status"] = "timeout"
                         self._increment_orchestrated_metric(job, "urlscan_timeout_count")
                         urlscan_state["details"] = (
@@ -2387,7 +2386,7 @@ class OrchestratedScanEngine:
                         )
                         preview = job.setdefault("preview", {})
                         if not preview.get("image_url"):
-                            main._mark_urlscan_screenshot_unavailable(
+                            runtime._mark_urlscan_screenshot_unavailable(
                                 preview,
                                 report_url=urlscan_state.get("report_url"),
                                 final_url=urlscan_state.get("final_url") or job.get("primary_final_url"),
@@ -2397,7 +2396,7 @@ class OrchestratedScanEngine:
                 else:
                     started_at = time.perf_counter()
                     try:
-                        result = await main.get_urlscan_result(str(urlscan_state["uuid"]), request)
+                        result = await runtime.get_urlscan_result(str(urlscan_state["uuid"]), request)
                     finally:
                         self._record_orchestrated_component_duration(job, "urlscan.result_poll", started_at)
             except HTTPException as exc:
@@ -2408,13 +2407,13 @@ class OrchestratedScanEngine:
                 result = None
             if result is not None:
                 if str(result.get("status") or "").lower() != "pending":
-                    result = main._sanitize_urlscan_result_payload(result)
-                    result_screenshot_url = main._normalize_screenshot_proxy_url(result.get("screenshot_url"))
+                    result = runtime._sanitize_urlscan_result_payload(result)
+                    result_screenshot_url = runtime._normalize_screenshot_proxy_url(result.get("screenshot_url"))
                     timeout_screenshot_ready = False
                     if urlscan_status == "timeout" and result_screenshot_url:
                         started_at = time.perf_counter()
                         try:
-                            timeout_screenshot_ready = await main._urlscan_screenshot_is_ready(str(urlscan_state["uuid"]))
+                            timeout_screenshot_ready = await runtime._urlscan_screenshot_is_ready(str(urlscan_state["uuid"]))
                         except Exception:
                             timeout_screenshot_ready = False
                         finally:
@@ -2424,7 +2423,7 @@ class OrchestratedScanEngine:
                         job.get("preview") if isinstance(job.get("preview"), dict) else {}
                     ).get("image_url"):
                         preview = job.setdefault("preview", {})
-                        main._mark_urlscan_screenshot_unavailable(
+                        runtime._mark_urlscan_screenshot_unavailable(
                             preview,
                             report_url=result.get("report_url") or urlscan_state.get("report_url"),
                             final_url=result.get("final_url") or urlscan_state.get("final_url"),
@@ -2442,7 +2441,7 @@ class OrchestratedScanEngine:
                     )
                     urlscan_state.update(result)
                     urlscan_state["screenshot_ready"] = bool(result.get("screenshot_ready"))
-                    result_has_risk = main._urlscan_state_has_risk(result)
+                    result_has_risk = runtime._urlscan_state_has_risk(result)
                     timeout_without_ready_screenshot = (
                         urlscan_status == "timeout"
                         and not urlscan_state["screenshot_ready"]
@@ -2480,7 +2479,7 @@ class OrchestratedScanEngine:
                             preview["image_url"] = result.get("screenshot_url")
                             preview["reason"] = None
                         elif urlscan_status == "timeout" and not urlscan_state["screenshot_ready"]:
-                            main._mark_urlscan_screenshot_unavailable(
+                            runtime._mark_urlscan_screenshot_unavailable(
                                 preview,
                                 report_url=result.get("report_url") or urlscan_state.get("report_url"),
                                 final_url=result.get("final_url") or urlscan_state.get("final_url"),
@@ -2491,12 +2490,12 @@ class OrchestratedScanEngine:
                             preview["screenshot_url"] = None
                             preview["image_url"] = None
                             preview["reason"] = "urlscan_screenshot_pending"
-                        cache_entry = main._urlscan_preview_cache_entry_from_job(job)
+                        cache_entry = runtime._urlscan_preview_cache_entry_from_job(job)
                         if cache_entry:
-                            main._save_urlscan_preview_cache(cache_entry)
+                            runtime._save_urlscan_preview_cache(cache_entry)
                     if result.get("final_url"):
                         job["primary_final_url"] = result.get("final_url")
-                        job["primary_url_privacy"] = main._merge_url_privacy(
+                        job["primary_url_privacy"] = runtime._merge_url_privacy(
                             job.get("primary_url_privacy")
                             if isinstance(job.get("primary_url_privacy"), dict)
                             else None,
@@ -2506,8 +2505,8 @@ class OrchestratedScanEngine:
                         if resolved_urls:
                             resolved_urls[0]["final_url"] = result.get("final_url")
                             resolved_urls[0]["final_hostname"] = urllib.parse.urlparse(str(result.get("final_url"))).hostname
-                            resolved_urls[0]["final_registered_domain"] = main._extract_domain_root(resolved_urls[0].get("final_hostname"))
-                            resolved_urls[0]["url_privacy"] = main._merge_url_privacy(
+                            resolved_urls[0]["final_registered_domain"] = runtime._extract_domain_root(resolved_urls[0].get("final_hostname"))
+                            resolved_urls[0]["url_privacy"] = runtime._merge_url_privacy(
                                 resolved_urls[0].get("url_privacy")
                                 if isinstance(resolved_urls[0].get("url_privacy"), dict)
                                 else None,
@@ -2518,9 +2517,9 @@ class OrchestratedScanEngine:
                     evidence = analysis.setdefault("evidence", {})
                     summary = evidence.setdefault("external_intel_summary", {})
                     if isinstance(summary, dict):
-                        summary["urlscan"] = main._urlscan_provider_payload(result)
-                    main._sync_resolved_urls_with_urlscan_final(job)
-                elif main._urlscan_pending_has_timed_out(job):
+                        summary["urlscan"] = runtime._urlscan_provider_payload(result)
+                    runtime._sync_resolved_urls_with_urlscan_final(job)
+                elif runtime._urlscan_pending_has_timed_out(job):
                     urlscan_state["status"] = "timeout"
                     self._increment_orchestrated_metric(job, "urlscan_timeout_count")
                     urlscan_state["details"] = (
@@ -2533,7 +2532,7 @@ class OrchestratedScanEngine:
                         preview["status"] = "unavailable"
                         preview["source"] = None
                         preview["reason"] = "urlscan_timeout"
-            elif main._urlscan_pending_has_timed_out(job):
+            elif runtime._urlscan_pending_has_timed_out(job):
                 urlscan_state["status"] = "timeout"
                 self._increment_orchestrated_metric(job, "urlscan_timeout_count")
                 urlscan_state["details"] = (
@@ -2560,7 +2559,7 @@ class OrchestratedScanEngine:
         source_channel: Optional[str],
     ) -> Dict[str, Any]:
         html_content = str(extraction.get("html_content") or "").strip() or None
-        text = main._assemble_extracted_text_for_orchestration(extraction, fallback_label)
+        text = runtime._assemble_extracted_text_for_orchestration(extraction, fallback_label)
         input_type = "email_html" if html_content else "text"
         if default_input_type in {"image_ocr", "pdf_ocr"} and not html_content:
             input_type = "text"

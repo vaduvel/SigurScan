@@ -1,4 +1,4 @@
-"""URLscan utility helpers extracted from main.py."""
+"""URLscan utility helpers extracted from runtime.py."""
 
 from __future__ import annotations
 
@@ -14,17 +14,16 @@ from fastapi import HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 
 
-import importlib
-main = importlib.import_module("main_runtime")
+import main_runtime as runtime
 
 
 def _require_urlscan_key() -> None:
-    if main.PRIVACY_SAFE_MODE:
+    if runtime.PRIVACY_SAFE_MODE:
         raise HTTPException(
             status_code=503,
             detail="Sandbox dezactivat in SIGURSCAN_SAFE_MODE.",
         )
-    if not main.URLSCAN_API_KEY:
+    if not runtime.URLSCAN_API_KEY:
         raise HTTPException(
             status_code=503,
             detail="urlscan.io nu este configurat pe backend.",
@@ -32,10 +31,10 @@ def _require_urlscan_key() -> None:
 
 
 def _validate_sandbox_url(raw_url: str) -> str:
-    url = main._canonicalize_url(main._normalise_obfuscated_text(raw_url or ""))
+    url = runtime._canonicalize_url(runtime._normalise_obfuscated_text(raw_url or ""))
     if not url:
         raise HTTPException(status_code=400, detail="URL invalid sau format neacceptat.")
-    privacy = main.prepare_external_url(url)
+    privacy = runtime.prepare_external_url(url)
     safe_url = privacy.get("external_url")
     if not isinstance(safe_url, str) or not safe_url:
         raise HTTPException(status_code=400, detail="URL invalid sau format neacceptat.")
@@ -45,14 +44,14 @@ def _validate_sandbox_url(raw_url: str) -> str:
             detail="URL blocat pentru sandbox din motive de privacy: contine date sensibile in path.",
         )
     url = safe_url
-    blocked_reason = main._is_scan_target_blocked(url)
+    blocked_reason = runtime._is_scan_target_blocked(url)
     if blocked_reason:
         raise HTTPException(status_code=400, detail=f"URL blocat pentru sandbox: {blocked_reason}")
     return url
 
 
 def _safe_urlscan_visibility(raw_visibility: str | None) -> str:
-    visibility = (raw_visibility or main.URLSCAN_VISIBILITY_DEFAULT or "private").strip().lower()
+    visibility = (raw_visibility or runtime.URLSCAN_VISIBILITY_DEFAULT or "private").strip().lower()
     if visibility not in {"private", "unlisted", "public"}:
         return "private"
     # Public submissions can expose user URLs. Keep backend default privacy-first.
@@ -61,7 +60,7 @@ def _safe_urlscan_visibility(raw_visibility: str | None) -> str:
 
 def _urlscan_headers() -> Dict[str, str]:
     return {
-        "api-key": main.URLSCAN_API_KEY,
+        "api-key": runtime.URLSCAN_API_KEY,
         "accept": "application/json",
     }
 
@@ -121,8 +120,8 @@ async def _urlscan_screenshot_is_ready(uuid: str) -> bool:
     def fetch_headline() -> bool:
         response = requests.get(
             _urlscan_direct_screenshot_url(safe_uuid),
-            headers={"api-key": main.URLSCAN_API_KEY},
-            timeout=min(main.URLSCAN_TIMEOUT_SECONDS, 4.0),
+            headers={"api-key": runtime.URLSCAN_API_KEY},
+            timeout=min(runtime.URLSCAN_TIMEOUT_SECONDS, 4.0),
             stream=True,
         )
         try:
@@ -303,20 +302,20 @@ def _normalize_screenshot_proxy_url(raw_url: Any) -> str:
     value = str(raw_url or "").strip()
     if not value:
         return ""
-    public_base = main.SIGURSCAN_PUBLIC_API_BASE_URL or "https://api.sigurscan.com"
+    public_base = runtime.SIGURSCAN_PUBLIC_API_BASE_URL or "https://api.sigurscan.com"
     parsed_public = urllib.parse.urlparse(public_base)
     public_host = (parsed_public.hostname or "").lower()
     parsed = urllib.parse.urlparse(value)
 
     if parsed.scheme and parsed.netloc:
         host = (parsed.hostname or "").lower()
-        if main._SCREENSHOT_PROXY_PATH_RE.match(parsed.path) and (
-            host in main._LEGACY_SCREENSHOT_PROXY_HOSTS or host == public_host
+        if runtime._SCREENSHOT_PROXY_PATH_RE.match(parsed.path) and (
+            host in runtime._LEGACY_SCREENSHOT_PROXY_HOSTS or host == public_host
         ):
             return f"{public_base}{parsed.path}"
         return value
 
-    if value.startswith("/") and main._SCREENSHOT_PROXY_PATH_RE.match(value):
+    if value.startswith("/") and runtime._SCREENSHOT_PROXY_PATH_RE.match(value):
         return f"{public_base}{value}"
 
     return value
@@ -344,7 +343,7 @@ def _supabase_signed_preview_object_path(raw_url: Any, *, bucket: str = "preview
 
 def _public_route_url(request: Request, route_name: str, **path_params: Any) -> str:
     generated = str(request.url_for(route_name, **path_params))
-    public_base = main.SIGURSCAN_PUBLIC_API_BASE_URL or "https://api.sigurscan.com"
+    public_base = runtime.SIGURSCAN_PUBLIC_API_BASE_URL or "https://api.sigurscan.com"
     parsed = urllib.parse.urlparse(generated)
     path = parsed.path or "/"
     query = f"?{parsed.query}" if parsed.query else ""
@@ -359,7 +358,7 @@ def _normalize_urlscan_preview_cache_entry(entry: Any) -> Optional[Dict[str, Any
     screenshot_url = _normalize_screenshot_proxy_url(entry.get("screenshot_url"))
     if not final_url or not report_url:
         return None
-    final_privacy = main.prepare_external_url(final_url)
+    final_privacy = runtime.prepare_external_url(final_url)
     if (
         final_privacy.get("preview_allowed") is False
         or final_privacy.get("action") != "unchanged"
@@ -367,7 +366,7 @@ def _normalize_urlscan_preview_cache_entry(entry: Any) -> Optional[Dict[str, Any
         return None
     safe_final_url = str(final_privacy.get("external_url") or "").strip()
     submitted_url = str(entry.get("submitted_url") or entry.get("canonical_url") or final_url).strip()
-    submitted_privacy = main.prepare_external_url(submitted_url)
+    submitted_privacy = runtime.prepare_external_url(submitted_url)
     if (
         submitted_privacy.get("preview_allowed") is False
         or submitted_privacy.get("action") != "unchanged"
@@ -382,7 +381,7 @@ def _normalize_urlscan_preview_cache_entry(entry: Any) -> Optional[Dict[str, Any
     normalized["submitted_url"] = safe_submitted_url
     if normalized.get("canonical_url"):
         normalized["canonical_url"] = safe_submitted_url
-    normalized["url_privacy"] = main._merge_url_privacy(
+    normalized["url_privacy"] = runtime._merge_url_privacy(
         final_privacy,
         submitted_privacy,
     )
@@ -405,21 +404,21 @@ def _load_urlscan_preview_cache(final_url: Any) -> Optional[Dict[str, Any]]:
     cache_key = _urlscan_preview_cache_key(final_url)
     if not cache_key:
         return None
-    cached = _normalize_urlscan_preview_cache_entry(main._URLSCAN_PREVIEW_CACHE.get(cache_key))
+    cached = _normalize_urlscan_preview_cache_entry(runtime._URLSCAN_PREVIEW_CACHE.get(cache_key))
     if cached:
         _remember_preview_cache_entry(
-            main._URLSCAN_PREVIEW_CACHE,
+            runtime._URLSCAN_PREVIEW_CACHE,
             cache_key,
             cached,
-            main.URLSCAN_PREVIEW_CACHE_MAX_ENTRIES,
+            runtime.URLSCAN_PREVIEW_CACHE_MAX_ENTRIES,
         )
         return cached
-    persisted = _normalize_urlscan_preview_cache_entry(main.supabase_store.load_urlscan_preview_cache(cache_key))
+    persisted = _normalize_urlscan_preview_cache_entry(runtime.supabase_store.load_urlscan_preview_cache(cache_key))
     if persisted:
         _remember_preview_cache_entry(
-            main._URLSCAN_PREVIEW_CACHE,
+            runtime._URLSCAN_PREVIEW_CACHE,
             cache_key,
             persisted,
-            main.URLSCAN_PREVIEW_CACHE_MAX_ENTRIES,
+            runtime.URLSCAN_PREVIEW_CACHE_MAX_ENTRIES,
         )
     return persisted

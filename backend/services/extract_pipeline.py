@@ -1,4 +1,4 @@
-"""Extraction endpoint handlers extracted from main.py."""
+"""Extraction endpoint handlers extracted from runtime.py."""
 
 from __future__ import annotations
 
@@ -8,8 +8,7 @@ from bs4 import BeautifulSoup
 from fastapi import File, Form, HTTPException, UploadFile
 
 
-import importlib
-main = importlib.import_module("main_runtime")
+import main_runtime as runtime
 
 
 async def extract_image_for_orchestration(
@@ -22,33 +21,33 @@ async def extract_image_for_orchestration(
     if not image_bytes:
         raise HTTPException(status_code=400, detail="Imaginea încărcată este goală.")
 
-    main._validate_file_upload(
+    runtime._validate_file_upload(
         filename=filename,
         content_type=image_file.content_type,
         file_bytes=image_bytes,
-        max_bytes=main.MAX_IMAGE_BYTES,
-        allowed_exts=main.ALLOWED_IMAGE_EXTS,
-        allowed_mime_types=main.ALLOWED_IMAGE_MIME_TYPES,
-        magic_validator=main._is_allowed_image_bytes,
+        max_bytes=runtime.MAX_IMAGE_BYTES,
+        allowed_exts=runtime.ALLOWED_IMAGE_EXTS,
+        allowed_mime_types=runtime.ALLOWED_IMAGE_MIME_TYPES,
+        magic_validator=runtime._is_allowed_image_bytes,
     )
 
-    qr_payloads = main._extract_image_qr_payloads(image_bytes)
+    qr_payloads = runtime._extract_image_qr_payloads(image_bytes)
     try:
-        ocr_text, ocr_warning = await main.extract_text_for_scan(
+        ocr_text, ocr_warning = await runtime.extract_text_for_scan(
             filename=filename,
             file_bytes=image_bytes,
-            extract_fn=main.extract_text_with_vision,
+            extract_fn=runtime.extract_text_with_vision,
         )
     except HTTPException as exc:
         if exc.status_code != 503 or not qr_payloads:
             raise
         ocr_text = ""
         ocr_warning = str(exc.detail)
-    redacted_text = main.redact_pii(ocr_text)
-    extracted_urls = main._dedupe_preserve_order(
-        main.extract_urls(ocr_text)
-        + main.extract_urls(redacted_text)
-        + [url for payload in qr_payloads for url in main.extract_urls(payload)]
+    redacted_text = runtime.redact_pii(ocr_text)
+    extracted_urls = runtime._dedupe_preserve_order(
+        runtime.extract_urls(ocr_text)
+        + runtime.extract_urls(redacted_text)
+        + [url for payload in qr_payloads for url in runtime.extract_urls(payload)]
     )
     return {
         "input_type": "image_ocr",
@@ -72,26 +71,26 @@ async def extract_pdf_for_orchestration(
     if not pdf_bytes:
         raise HTTPException(status_code=400, detail="PDF-ul încărcat este gol.")
 
-    main._validate_file_upload(
+    runtime._validate_file_upload(
         filename=filename,
         content_type=pdf_file.content_type,
         file_bytes=pdf_bytes,
-        max_bytes=main.MAX_PDF_BYTES,
-        allowed_exts=main.ALLOWED_PDF_EXTS,
+        max_bytes=runtime.MAX_PDF_BYTES,
+        allowed_exts=runtime.ALLOWED_PDF_EXTS,
         allowed_mime_types={"application/pdf"},
     )
 
     if not pdf_bytes.startswith(b"%PDF-"):
         raise HTTPException(status_code=400, detail="Format PDF invalid.")
 
-    annotation_urls = main._extract_pdf_annotation_links(pdf_bytes)
-    qr_payloads = main._extract_pdf_qr_payloads(pdf_bytes)
-    embedded_text = main._extract_pdf_embedded_text(pdf_bytes)
+    annotation_urls = runtime._extract_pdf_annotation_links(pdf_bytes)
+    qr_payloads = runtime._extract_pdf_qr_payloads(pdf_bytes)
+    embedded_text = runtime._extract_pdf_embedded_text(pdf_bytes)
     try:
-        ocr_text, ocr_warning = await main.extract_text_for_scan(
+        ocr_text, ocr_warning = await runtime.extract_text_for_scan(
             filename=filename,
             file_bytes=pdf_bytes,
-            extract_fn=main.extract_text_from_pdf_with_vision,
+            extract_fn=runtime.extract_text_from_pdf_with_vision,
         )
     except HTTPException as exc:
         if exc.status_code != 503 or (not annotation_urls and not embedded_text):
@@ -99,14 +98,14 @@ async def extract_pdf_for_orchestration(
         # PDF annotations/embedded text are real scan evidence even when OCR cannot read text.
         ocr_text = ""
         ocr_warning = str(exc.detail)
-    ocr_text = main._merge_ocr_and_embedded_text(ocr_text, embedded_text)
+    ocr_text = runtime._merge_ocr_and_embedded_text(ocr_text, embedded_text)
 
-    redacted_text = main.redact_pii(ocr_text)
-    extracted_urls = main._dedupe_preserve_order(
+    redacted_text = runtime.redact_pii(ocr_text)
+    extracted_urls = runtime._dedupe_preserve_order(
         annotation_urls
-        + main.extract_urls(ocr_text)
-        + main.extract_urls(redacted_text)
-        + [url for payload in qr_payloads for url in main.extract_urls(payload)]
+        + runtime.extract_urls(ocr_text)
+        + runtime.extract_urls(redacted_text)
+        + [url for payload in qr_payloads for url in runtime.extract_urls(payload)]
     )
     return {
         "input_type": "pdf_ocr",
@@ -138,7 +137,7 @@ async def extract_email_for_orchestration(
 
     if email_file:
         content = await email_file.read()
-        if len(content) > main.MAX_TEXT_CHARS * 4:
+        if len(content) > runtime.MAX_TEXT_CHARS * 4:
             raise HTTPException(status_code=413, detail="Fișierul este prea mare.")
         try:
             parsed_message = message_from_bytes(content, policy=policy.default)
@@ -151,15 +150,15 @@ async def extract_email_for_orchestration(
                 if text_part:
                     html_to_parse = text_part.get_content()
         except Exception as exc:
-            main.logger.error(f"Error parsing .eml for extraction: {exc}")
+            runtime.logger.error(f"Error parsing .eml for extraction: {exc}")
             raise HTTPException(status_code=400, detail=f"Invalid .eml file format: {exc}")
     elif html_content:
-        if len(html_content) > main.MAX_TEXT_CHARS * 8:
+        if len(html_content) > runtime.MAX_TEXT_CHARS * 8:
             raise HTTPException(status_code=413, detail="Conținutul HTML este prea mare.")
         html_to_parse = html_content
 
-    html_to_parse = main._normalise_obfuscated_text(html_to_parse)
-    email_context = main._extract_email_auth_context(parsed_message, is_forwarded_guess=is_forwarded)
+    html_to_parse = runtime._normalise_obfuscated_text(html_to_parse)
+    email_context = runtime._extract_email_auth_context(parsed_message, is_forwarded_guess=is_forwarded)
     if not html_to_parse.strip():
         return {
             "input_type": "email",
@@ -173,7 +172,7 @@ async def extract_email_for_orchestration(
         }
 
     soup = BeautifulSoup(html_to_parse, "html.parser")
-    click_targets = main._collect_click_targets_from_html(soup)
+    click_targets = runtime._collect_click_targets_from_html(soup)
     discovered_urls: List[str] = []
     buttons: List[Dict[str, Any]] = []
     cta_words = [
@@ -209,14 +208,14 @@ async def extract_email_for_orchestration(
         )
 
     visible_text = soup.get_text(separator=" ", strip=True)
-    for url in main.extract_urls(visible_text):
+    for url in runtime.extract_urls(visible_text):
         if url not in discovered_urls:
             discovered_urls.append(url)
 
     email_subject = parsed_message.get("Subject", "") if parsed_message else ""
-    inferred_brand_hints = main._infer_brand_hints_from_click_targets(
+    inferred_brand_hints = runtime._infer_brand_hints_from_click_targets(
         click_targets,
-        main.BRAND_REGISTRY,
+        runtime.BRAND_REGISTRY,
     )
     content_for_analysis = "\n".join(
         part
@@ -230,7 +229,7 @@ async def extract_email_for_orchestration(
     return {
         "input_type": "email",
         "source_channel": source_channel,
-        "redacted_text": main.redact_pii(content_for_analysis),
+        "redacted_text": runtime.redact_pii(content_for_analysis),
         "html_content": html_to_parse,
         "extracted_urls": discovered_urls,
         "buttons": buttons,

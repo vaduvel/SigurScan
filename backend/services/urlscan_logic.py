@@ -1,4 +1,4 @@
-"""URLscan orchestration helpers extracted from main.py."""
+"""URLscan orchestration helpers extracted from runtime.py."""
 
 from __future__ import annotations
 
@@ -10,8 +10,7 @@ import urllib.parse
 from services.urlscan_helpers import _normalize_urlscan_preview_cache_entry
 
 
-import importlib
-main = importlib.import_module("main_runtime")
+import main_runtime as runtime
 
 
 def _save_urlscan_preview_cache(entry: Dict[str, Any]) -> None:
@@ -24,8 +23,8 @@ def _save_urlscan_preview_cache(entry: Dict[str, Any]) -> None:
     screenshot_ready = bool(entry.get("screenshot_ready", bool(screenshot_url))) and bool(screenshot_url)
     if not final_url or not report_url:
         return
-    final_privacy = main.prepare_external_url(final_url)
-    submitted_privacy = main.prepare_external_url(submitted_url or final_url)
+    final_privacy = runtime.prepare_external_url(final_url)
+    submitted_privacy = runtime.prepare_external_url(submitted_url or final_url)
     if (
         final_privacy.get("preview_allowed") is False
         or final_privacy.get("action") != "unchanged"
@@ -35,19 +34,19 @@ def _save_urlscan_preview_cache(entry: Dict[str, Any]) -> None:
         return
     hostname = (urllib.parse.urlparse(final_url).hostname or "").lower()
     lookup_urls = [final_url]
-    if submitted_url and main._canonical_urlscan_preview_cache_url(submitted_url) != main._canonical_urlscan_preview_cache_url(final_url):
+    if submitted_url and runtime._canonical_urlscan_preview_cache_url(submitted_url) != runtime._canonical_urlscan_preview_cache_url(final_url):
         lookup_urls.append(submitted_url)
 
     for lookup_url in lookup_urls:
-        cache_key = main._urlscan_preview_cache_key(lookup_url)
-        canonical_url = main._canonical_urlscan_preview_cache_url(lookup_url)
+        cache_key = runtime._urlscan_preview_cache_key(lookup_url)
+        canonical_url = runtime._canonical_urlscan_preview_cache_url(lookup_url)
         if not cache_key or not canonical_url:
             continue
         cache_entry = {
             "url_hash": cache_key,
             "canonical_url": canonical_url,
             "final_url": final_url,
-            "final_registered_domain": main._extract_domain_root(hostname),
+            "final_registered_domain": runtime._extract_domain_root(hostname),
             "uuid": entry.get("uuid"),
             "status": "finished",
             "submitted_url": submitted_url or final_url,
@@ -60,15 +59,15 @@ def _save_urlscan_preview_cache(entry: Dict[str, Any]) -> None:
             "score": entry.get("score") or 0,
             "categories": entry.get("categories") or [],
             "brands": entry.get("brands") or [],
-            "expires_at": int(time.time()) + main.URLSCAN_PREVIEW_CACHE_TTL_SECONDS,
+            "expires_at": int(time.time()) + runtime.URLSCAN_PREVIEW_CACHE_TTL_SECONDS,
         }
-        main._remember_preview_cache_entry(
-            main._URLSCAN_PREVIEW_CACHE,
+        runtime._remember_preview_cache_entry(
+            runtime._URLSCAN_PREVIEW_CACHE,
             cache_key,
             cache_entry,
-            main.URLSCAN_PREVIEW_CACHE_MAX_ENTRIES,
+            runtime.URLSCAN_PREVIEW_CACHE_MAX_ENTRIES,
         )
-        main.supabase_store.save_urlscan_preview_cache(cache_entry)
+        runtime.supabase_store.save_urlscan_preview_cache(cache_entry)
 
 
 def _urlscan_merge_rank(state: Dict[str, Any]) -> int:
@@ -128,7 +127,7 @@ def _sync_resolved_urls_with_urlscan_final(job: Dict[str, Any]) -> None:
     final_url = str(urlscan_summary.get("final_url") or preview.get("final_url") or "").strip()
     if not final_url:
         return
-    final_privacy = main.prepare_external_url(final_url)
+    final_privacy = runtime.prepare_external_url(final_url)
     safe_final_url = str(final_privacy.get("external_url") or "").strip()
     if not safe_final_url:
         return
@@ -139,7 +138,7 @@ def _sync_resolved_urls_with_urlscan_final(job: Dict[str, Any]) -> None:
 
     parsed = urllib.parse.urlparse(safe_final_url)
     final_hostname = (parsed.hostname or "").lower()
-    final_registered_domain = main._extract_domain_root(final_hostname)
+    final_registered_domain = runtime._extract_domain_root(final_hostname)
     resolved_urls = job.get("resolved_urls") if isinstance(job.get("resolved_urls"), list) else []
     if not resolved_urls:
         original_url = (
@@ -155,7 +154,7 @@ def _sync_resolved_urls_with_urlscan_final(job: Dict[str, Any]) -> None:
             entry["final_url"] = safe_final_url
             entry["final_hostname"] = final_hostname
             entry["final_registered_domain"] = final_registered_domain
-            entry["url_privacy"] = main._merge_url_privacy(
+            entry["url_privacy"] = runtime._merge_url_privacy(
                 entry.get("url_privacy") if isinstance(entry.get("url_privacy"), dict) else None,
                 final_privacy,
             )
@@ -163,9 +162,9 @@ def _sync_resolved_urls_with_urlscan_final(job: Dict[str, Any]) -> None:
                 original_url = str(entry.get("url") or entry.get("original_url") or "")
                 entry["hostname"] = (urllib.parse.urlparse(original_url).hostname or "").lower()
             if not entry.get("registered_domain"):
-                entry["registered_domain"] = main._extract_domain_root(entry.get("hostname"))
+                entry["registered_domain"] = runtime._extract_domain_root(entry.get("hostname"))
     job["primary_final_url"] = safe_final_url
-    job["primary_url_privacy"] = main._merge_url_privacy(
+    job["primary_url_privacy"] = runtime._merge_url_privacy(
         job.get("primary_url_privacy")
         if isinstance(job.get("primary_url_privacy"), dict)
         else None,
@@ -203,7 +202,7 @@ def _mark_urlscan_screenshot_unavailable(
     preview["screenshot_url"] = None
     preview["image_url"] = None
     preview["reason"] = "urlscan_screenshot_timeout"
-    preview["details"] = main.URLSCAN_SCREENSHOT_UNAVAILABLE_DETAILS
+    preview["details"] = runtime.URLSCAN_SCREENSHOT_UNAVAILABLE_DETAILS
 
 
 def _urlscan_pending_has_timed_out(job: Dict[str, Any]) -> bool:
@@ -214,14 +213,14 @@ def _urlscan_pending_has_timed_out(job: Dict[str, Any]) -> bool:
     if not waiting_for_result and not waiting_for_screenshot:
         return False
     created_at = int(job.get("created_at") or int(time.time()))
-    return int(time.time()) - created_at >= main.ORCHESTRATED_URLSCAN_PENDING_TIMEOUT_SECONDS
+    return int(time.time()) - created_at >= runtime.ORCHESTRATED_URLSCAN_PENDING_TIMEOUT_SECONDS
 
 
 def _urlscan_enhancement_done(job: Dict[str, Any]) -> bool:
     analysis = job.get("analysis") if isinstance(job.get("analysis"), dict) else {}
     evidence = analysis.get("evidence") if isinstance(analysis.get("evidence"), dict) else {}
     summary = evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {}
-    if main._has_bad_provider_verdict(summary):
+    if runtime._has_bad_provider_verdict(summary):
         # Hard provider evidence is already decisive. A screenshot remains useful,
         # but it must never delay a protective PERICULOS result.
         return True
@@ -256,9 +255,9 @@ def _sanitize_urlscan_result_payload(result: Dict[str, Any]) -> Dict[str, Any]:
     final_url = sanitized.get("final_url")
     if not isinstance(final_url, str) or not final_url.strip():
         return sanitized
-    privacy = main.prepare_external_url(final_url)
+    privacy = runtime.prepare_external_url(final_url)
     sanitized["final_url"] = privacy.get("external_url")
-    sanitized["url_privacy"] = main._merge_url_privacy(
+    sanitized["url_privacy"] = runtime._merge_url_privacy(
         sanitized.get("url_privacy")
         if isinstance(sanitized.get("url_privacy"), dict)
         else None,
@@ -337,7 +336,7 @@ def _apply_urlscan_preview_cache_hit(job: Dict[str, Any], cached: Dict[str, Any]
         summary["urlscan"] = _urlscan_provider_payload(cached_summary)
         summary["urlscan"]["cache_hit"] = True
     _sync_resolved_urls_with_urlscan_final(job)
-    main.orchestrated_engine._increment_orchestrated_metric(job, "urlscan_preview_cache_hit_count")
+    runtime.orchestrated_engine._increment_orchestrated_metric(job, "urlscan_preview_cache_hit_count")
     return job
 
 

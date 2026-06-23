@@ -1,4 +1,4 @@
-"""URLscan sandbox endpoint handlers extracted from main.py."""
+"""URLscan sandbox endpoint handlers extracted from runtime.py."""
 
 from __future__ import annotations
 
@@ -9,24 +9,23 @@ from fastapi.responses import Response
 from starlette.concurrency import run_in_threadpool
 
 
-import importlib
-main = importlib.import_module("main_runtime")
+import main_runtime as runtime
 
 
 async def submit_urlscan_sandbox(payload, request: Request):
-    main._require_urlscan_key()
-    url = main._validate_sandbox_url(payload.url)
-    visibility = main._safe_urlscan_visibility(payload.visibility)
+    runtime._require_urlscan_key()
+    url = runtime._validate_sandbox_url(payload.url)
+    visibility = runtime._safe_urlscan_visibility(payload.visibility)
 
     def build_submit_payload(selected_visibility: str, include_persona: bool = True):
         submit_payload = {
             "url": url,
             "visibility": selected_visibility,
-            "tags": main._urlscan_tags(payload.source_channel),
+            "tags": runtime._urlscan_tags(payload.source_channel),
         }
         if include_persona:
-            country = (payload.country or main.URLSCAN_COUNTRY_DEFAULT or "").strip().lower()
-            customagent = (payload.customagent or main.URLSCAN_CUSTOM_AGENT_DEFAULT or "").strip()
+            country = (payload.country or runtime.URLSCAN_COUNTRY_DEFAULT or "").strip().lower()
+            customagent = (payload.customagent or runtime.URLSCAN_CUSTOM_AGENT_DEFAULT or "").strip()
             if country:
                 submit_payload["country"] = country[:2]
             if customagent:
@@ -34,17 +33,17 @@ async def submit_urlscan_sandbox(payload, request: Request):
         return submit_payload
 
     def submit(selected_visibility: str, include_persona: bool = True):
-        return main.requests.post(
+        return runtime.requests.post(
             "https://urlscan.io/api/v1/scan/",
-            headers=main._urlscan_headers(),
+            headers=runtime._urlscan_headers(),
             json=build_submit_payload(selected_visibility, include_persona=include_persona),
-            timeout=main.URLSCAN_TIMEOUT_SECONDS,
+            timeout=runtime.URLSCAN_TIMEOUT_SECONDS,
         )
 
     include_persona = True
     response = await run_in_threadpool(submit, visibility, include_persona)
     if response.status_code in {400, 422} and (
-        payload.country or payload.customagent or main.URLSCAN_COUNTRY_DEFAULT or main.URLSCAN_CUSTOM_AGENT_DEFAULT
+        payload.country or payload.customagent or runtime.URLSCAN_COUNTRY_DEFAULT or runtime.URLSCAN_CUSTOM_AGENT_DEFAULT
     ):
         include_persona = False
         response = await run_in_threadpool(submit, visibility, include_persona)
@@ -54,7 +53,7 @@ async def submit_urlscan_sandbox(payload, request: Request):
     if response.status_code >= 400:
         raise HTTPException(
             status_code=502,
-            detail=main._urlscan_error_detail(response),
+            detail=runtime._urlscan_error_detail(response),
         )
 
     body = response.json()
@@ -65,24 +64,24 @@ async def submit_urlscan_sandbox(payload, request: Request):
     return {
         "uuid": uuid,
         "status": "pending",
-        "report_url": main._urlscan_report_url(uuid),
-        "result_url": main._public_route_url(request, "get_urlscan_result", uuid=uuid),
-        "screenshot_url": main._public_route_url(request, "urlscan_screenshot", uuid=uuid),
+        "report_url": runtime._urlscan_report_url(uuid),
+        "result_url": runtime._public_route_url(request, "get_urlscan_result", uuid=uuid),
+        "screenshot_url": runtime._public_route_url(request, "urlscan_screenshot", uuid=uuid),
         "submitted_url": url,
     }
 
 
 async def get_urlscan_result(uuid: str, request: Request):
-    main._require_urlscan_key()
+    runtime._require_urlscan_key()
     safe_uuid = re.sub(r"[^A-Za-z0-9._-]", "", uuid or "")
     if not safe_uuid:
         raise HTTPException(status_code=400, detail="uuid invalid.")
 
     def fetch_result():
-        return main.requests.get(
+        return runtime.requests.get(
             f"https://urlscan.io/api/v1/result/{safe_uuid}/",
-            headers=main._urlscan_headers(),
-            timeout=main.URLSCAN_TIMEOUT_SECONDS,
+            headers=runtime._urlscan_headers(),
+            timeout=runtime.URLSCAN_TIMEOUT_SECONDS,
         )
 
     response = await run_in_threadpool(fetch_result)
@@ -93,8 +92,8 @@ async def get_urlscan_result(uuid: str, request: Request):
             "verdict": "Pending",
             "severity": "unknown",
             "details": "urlscan.io sandbox inca proceseaza rezultatul.",
-            "report_url": main._urlscan_report_url(safe_uuid),
-            "screenshot_url": main._public_route_url(request, "urlscan_screenshot", uuid=safe_uuid),
+            "report_url": runtime._urlscan_report_url(safe_uuid),
+            "screenshot_url": runtime._public_route_url(request, "urlscan_screenshot", uuid=safe_uuid),
         }
     if response.status_code >= 400:
         raise HTTPException(
@@ -103,20 +102,20 @@ async def get_urlscan_result(uuid: str, request: Request):
         )
 
     payload = response.json()
-    return main._summarize_urlscan_payload(payload, safe_uuid, request)
+    return runtime._summarize_urlscan_payload(payload, safe_uuid, request)
 
 
 async def urlscan_screenshot(uuid: str):
-    main._require_urlscan_key()
+    runtime._require_urlscan_key()
     safe_uuid = re.sub(r"[^A-Za-z0-9._-]", "", uuid or "")
     if not safe_uuid:
         raise HTTPException(status_code=400, detail="uuid invalid.")
 
     def fetch_screenshot():
-        return main.requests.get(
+        return runtime.requests.get(
             f"https://urlscan.io/screenshots/{safe_uuid}.png",
-            headers={"api-key": main.URLSCAN_API_KEY},
-            timeout=main.URLSCAN_TIMEOUT_SECONDS,
+            headers={"api-key": runtime.URLSCAN_API_KEY},
+            timeout=runtime.URLSCAN_TIMEOUT_SECONDS,
         )
 
     response = await run_in_threadpool(fetch_screenshot)
