@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
+import importlib
+import sys
+
 from fastapi import HTTPException, Request
 
 
-import app as runtime
+def _runtime():
+    runtime = sys.modules.get("main")
+    if runtime is None:
+        runtime = importlib.import_module("app")
+    return runtime
 
 
 async def advance_orchestrated_scan_worker(scan_id: str, request: Request, max_steps: int = 1):
+    runtime = _runtime()
     runtime._require_internal_worker_auth(request)
     runtime.orchestrated_engine._prune_orchestrated_jobs()
     step_budget = max(1, min(int(max_steps or 1), 3))
@@ -64,6 +72,7 @@ async def start_orchestrated_scan(payload, request: Request):
     Starts the product-grade scan pipeline:
     intake -> persistent queued scan_id. Provider work is advanced idempotently by GET polling.
     """
+    runtime = _runtime()
     runtime.orchestrated_engine._prune_orchestrated_jobs()
     job = await runtime.orchestrated_engine._create_orchestrated_job(payload)
     response = runtime.orchestrated_engine._orchestrated_status_payload(job)
@@ -77,6 +86,7 @@ async def get_orchestrated_scan_status(
     after_revision=None,
     wait: float = 0.0,
 ):
+    runtime = _runtime()
     runtime.orchestrated_engine._prune_orchestrated_jobs()
     job, changed = await runtime.orchestrated_engine._wait_for_orchestrated_status_read(
         scan_id,
@@ -89,6 +99,7 @@ async def get_orchestrated_scan_status(
 
 
 async def get_orchestrated_scan(scan_id: str, request: Request):
+    runtime = _runtime()
     runtime.orchestrated_engine._prune_orchestrated_jobs()
     lock = runtime.orchestrated_engine._ORCHESTRATED_SCAN_LOCKS.setdefault(scan_id, runtime.asyncio.Lock())
     async with lock:
