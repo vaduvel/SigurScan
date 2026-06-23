@@ -1,19 +1,16 @@
-"""Static/landing pages, health checks and Play Integrity nonce.
+"""Static pages, health checks and Play Integrity nonce endpoints.
 
-References shared runtime config/helpers through the runtime bridge.
-Monkeypatching keeps working; routers are registered at the end of runtime module.
+These routes are intentionally thin and keep all mutable runtime state in core/services.
 """
 
 import time
-import json
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 
-import importlib
-main = importlib.import_module("main_runtime")
 from services import play_integrity_nonce
+from config import EXPOSE_API_DOCS
+from core.request_security import _extract_api_key, _play_integrity_client_binding, _provider_config_status
 
 router = APIRouter()
 
@@ -24,12 +21,12 @@ def read_root():
         "project": "SigurScan",
         "status": "active",
         "version": "1.0",
-        "api_docs": "/docs" if main.EXPOSE_API_DOCS else None,
+        "api_docs": "/docs" if EXPOSE_API_DOCS else None,
         "privacy_policy": "/privacy",
     }
 
 
-main.PRIVACY_POLICY_HTML = """<!doctype html>
+PRIVACY_POLICY_HTML = """<!doctype html>
 <html lang="ro">
 <head>
   <meta charset="utf-8">
@@ -129,10 +126,10 @@ main.PRIVACY_POLICY_HTML = """<!doctype html>
 @router.get("/privacy", response_class=HTMLResponse)
 @router.get("/privacy-policy", response_class=HTMLResponse)
 def privacy_policy() -> HTMLResponse:
-    return HTMLResponse(content=main.PRIVACY_POLICY_HTML)
+    return HTMLResponse(content=PRIVACY_POLICY_HTML)
 
 
-main.TERMS_OF_SERVICE_HTML = """<!doctype html>
+TERMS_OF_SERVICE_HTML = """<!doctype html>
 <html lang="ro">
 <head>
   <meta charset="utf-8">
@@ -228,7 +225,7 @@ main.TERMS_OF_SERVICE_HTML = """<!doctype html>
 @router.get("/terms", response_class=HTMLResponse)
 @router.get("/terms-of-service", response_class=HTMLResponse)
 def terms_of_service() -> HTMLResponse:
-    return HTMLResponse(content=main.TERMS_OF_SERVICE_HTML)
+    return HTMLResponse(content=TERMS_OF_SERVICE_HTML)
 
 
 @router.get("/health")
@@ -239,19 +236,19 @@ def read_health():
         "service": "SigurScan API",
         "version": "1.0",
         "timestamp": int(time.time()),
-        "config": main._provider_config_status(),
+        "config": _provider_config_status(),
     }
 
 
 @router.get("/health/security")
 def read_security_health():
-    return main._provider_config_status()
+    return _provider_config_status()
 
 
 @router.post("/v1/security/play-integrity/nonce")
 def issue_play_integrity_nonce(request: Request):
     result = play_integrity_nonce.issue_nonce(
-        main._play_integrity_client_binding(request, main._extract_api_key(request))
+        _play_integrity_client_binding(request, _extract_api_key(request))
     )
     if result.get("status") != "issued":
         if result.get("status") in {"invalid_client", "invalid_request"}:
