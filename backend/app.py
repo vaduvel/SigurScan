@@ -1,81 +1,64 @@
-"""Application entrypoint and runtime façade.
-
-The concrete implementation still lives in ``main_runtime``. This module exposes:
-- ``app`` and ``create_app`` for ASGI launchers
-- a legacy-compatible runtime surface via module attributes (e.g. ``_new_scan_id``)
-
-Keeping imports here lazy avoids import-time cycles when ``main_runtime`` loads
-its services, which now reference ``app`` for compatibility access.
-"""
+"""FastAPI application entrypoint."""
 
 from __future__ import annotations
 
-import importlib
-import sys
 from typing import Any
-from pathlib import Path
-
+import importlib
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-_runtime = None
-_app_instance = None
-_RUNTIME_FILE = Path(__file__).resolve().parent / "main_runtime.py"
+import config
+from core.request_security import security_guard
+
+RISK_THRESHOLD = config.RISK_THRESHOLD
+
+from routers import pages, circle, community, intel, analytics, extract, orchestrated, sandbox
+
+_RUNTIME_MODULE: Any | None = None
+
+def _main_runtime() -> Any:
+    global _RUNTIME_MODULE
+    if _RUNTIME_MODULE is None:
+        _RUNTIME_MODULE = importlib.import_module("main_runtime")
+    return _RUNTIME_MODULE
 
 
-def _runtime_module():
-    global _runtime
-    if _runtime is None:
-        for module_name in ("main_runtime", "backend.main_runtime"):
-            try:
-                _runtime = importlib.import_module(module_name)
-                break
-            except ModuleNotFoundError:
-                _runtime = None
-                continue
-        if _runtime is None and _RUNTIME_FILE.exists():
-            runtime_dir = str(_RUNTIME_FILE.parent)
-            inserted = False
-            if runtime_dir not in sys.path:
-                sys.path.insert(0, runtime_dir)
-                inserted = True
-            try:
-                _runtime = importlib.import_module("main_runtime")
-            except ModuleNotFoundError:
-                _runtime = None
-            finally:
-                if inserted:
-                    try:
-                        sys.path.remove(runtime_dir)
-                    except ValueError:
-                        pass
-        if _runtime is None:
-            raise ModuleNotFoundError("Unable to import main runtime module as 'main_runtime' or 'backend.main_runtime'.")
-    return _runtime
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="SigurScan API",
+        description="Anti-scam detection engine localized for Romania (2025-2026)",
+        version="1.0",
+        docs_url="/docs" if config.EXPOSE_API_DOCS else None,
+        redoc_url="/redoc" if config.EXPOSE_API_DOCS else None,
+        openapi_url="/openapi.json" if config.EXPOSE_API_DOCS else None,
+    )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=config.ALLOWED_ORIGINS,
+        allow_credentials="*" not in config.ALLOWED_ORIGINS,
+        allow_methods=config.ALLOWED_CORS_METHODS,
+        allow_headers=config.ALLOWED_CORS_HEADERS,
+    )
+    app.middleware("http")(security_guard)
+
+    # Register route modules.
+    for mod in (pages, circle, community, intel, analytics, extract, orchestrated, sandbox):
+        app.include_router(mod.router)
+
+    return app
+
+
+app = create_app()
 
 
 def __getattr__(name: str) -> Any:
     if name == "create_app":
         return create_app
-    return getattr(_runtime_module(), name)
+    if name == "app":
+        return app
+    return getattr(_main_runtime(), name)
 
 
 def __dir__():
-    try:
-        runtime = _runtime_module()
-        return sorted(set(globals()) | set(dir(runtime)))
-    except Exception:
-        return sorted(set(globals()))
-
-
-def create_app() -> FastAPI:
-    """Create a FastAPI application using the runtime factory."""
-
-    global _app_instance
-    if _app_instance is None:
-        _app_instance = _runtime_module().create_app()
-    return _app_instance
-
-
-# Backward-compatible module-level app object expected by ASGI runners.
-# The object is provided lazily via ``__getattr__`` to avoid import-time cycles
-# when loading this module from contexts that re-import services referencing it.
+    return sorted(set(globals()) | set(dir(_main_runtime())))

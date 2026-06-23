@@ -1,25 +1,31 @@
 from __future__ import annotations
 
 import hmac
+import asyncio
 import os
 import re
 import sys
 from typing import Any, Dict
 
 from fastapi import HTTPException, Request
+from fastapi.responses import JSONResponse
 
 from config import (
     ADMIN_API_KEYS,
     AI_OFFER_CLAIM_TIMEOUT_SECONDS,
     ALLOWED_MOCK_OCR,
     CLIENT_INSTANCE_HEADER,
+    PUBLIC_PATHS,
+    ADMIN_ONLY_PATHS,
     ENABLE_CLOUD_AI_EXPLANATION,
     ENABLE_RATE_LIMIT,
     _INTEGRITY_GUARDED_PREFIXES,
     _SCREENSHOT_PROXY_PATH_RE,
     INTERNAL_WORKER_TOKEN,
     PRIVACY_SAFE_MODE,
+    RATE_LIMIT_WINDOW_SECONDS,
     REQUIRE_API_KEY,
+    RATE_LIMIT_PER_MINUTE,
     URLSCAN_API_KEY,
     URLSCAN_VISIBILITY_DEFAULT,
     PLAY_INTEGRITY_NONCE_PATH,
@@ -247,3 +253,76 @@ def _is_integrity_guarded_path(path: str) -> bool:
 
 def _is_play_integrity_nonce_path(path: str) -> bool:
     return path == PLAY_INTEGRITY_NONCE_PATH
+
+
+async def security_guard(request: Request, call_next):
+    """HTTP middleware preserving the previous hardening behavior from main_runtime."""
+
+    path = request.url.path
+    if path in PUBLIC_PATHS or request.method == "OPTIONS":
+        return await call_next(request)
+
+    api_key = _extract_api_key(request)
+    internal_worker_authorized = path.startswith("/internal/") and _internal_worker_token_matches(request)
+    integrity_verdict = None
+    integrity_can_authorize_client = False
+    should_check_integrity = (
+        play_integrity.mode() != "off"
+        and request.method == "POST"
+        and _is_integrity_guarded_path(path)
+    )
+    if should_check_integrity:
+        integrity_verdict = play_integrity.evaluate_request_token(
+            request.headers.get(play_integrity.INTEGRITY_TOKEN_HEADER, ""),
+            _play_integrity_client_binding(request, api_key),
+        )
+        integrity_can_authorize_client = (
+            play_integrity.mode() == "enforce"
+            and not integrity_verdict["block"]
+            and (integrity_verdict.get("result") or {}).get("status") == "valid"
+        )
+
+    admin_api_keys = set(_runtime_setting("ADMIN_API_KEYS", ADMIN_API_KEYS) or [])
+    allowed_api_keys = set(_runtime_setting("ALLOWED_API_KEYS", ALLOWED_API_KEYS) or [])
+
+    if internal_worker_authorized:
+        return await call_next(request)
+
+    if path in ADMIN_ONLY_PATHS:
+        if not admin_api_keys:
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Admin access is not configured on this deployment."},
+            )
+        if not api_key or api_key not in admin_api_keys:
+            return JSONResponse(status_code=401, content={"detail": "Missing or invalid admin API key."})
+
+    elif _runtime_bool_setting("REQUIRE_API_KEY") and not (request.method == "GET" and _is_screenshot_proxy_path(path)):
+        nonce_request_allowed = _is_play_integrity_nonce_path(path) and play_integrity.mode() != "off"
+        api_key_authorized = bool(api_key and api_key in allowed_api_keys)
+        if not api_key_authorized and not integrity_can_authorize_client and not nonce_request_allowed:
+            return JSONResponse(status_code=401, content={"detail": "Missing or invalid API key."})
+
+    if integrity_verdict is not None and integrity_verdict["block"]:
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Play Integrity verification failed.", "integrity": integrity_verdict["result"]},
+        )
+
+    if _runtime_bool_setting("ENABLE_RATE_LIMIT"):
+        decision = await asyncio.to_thread(
+            rate_limiter.check_sync,
+            api_key or None,
+            request.client.host if request.client else "anonymous",
+            path,
+            int(_runtime_setting("RATE_LIMIT_PER_MINUTE", RATE_LIMIT_PER_MINUTE)),
+            path in ADMIN_ONLY_PATHS and api_key in admin_api_keys,
+        )
+        if not decision.allowed:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many requests. Try again later."},
+                headers={"Retry-After": str(decision.retry_after_seconds or RATE_LIMIT_WINDOW_SECONDS)},
+            )
+
+    return await call_next(request)
