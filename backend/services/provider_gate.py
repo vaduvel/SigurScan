@@ -9,8 +9,20 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+import importlib
+import sys
 
-import app as runtime
+
+
+class _RuntimeProxy:
+    def __getattr__(self, name: str):
+        runtime = sys.modules.get("main")
+        if runtime is None:
+            runtime = importlib.import_module("app")
+        return getattr(runtime, name)
+
+
+runtime = _RuntimeProxy()
 
 
 def _maybe_add_dns_reputation(summary: Dict[str, Any], resolved_urls: List[Dict[str, Any]]) -> None:

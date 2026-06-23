@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from typing import List, Optional
 
+import importlib
+import sys
+
 from fastapi import File, Form, HTTPException, UploadFile
 
 from api_models import OrchestratedScanRequest, TextScanRequest, URLScanRequest
@@ -15,7 +18,15 @@ from services.extract_pipeline import (
 )
 
 
-import app as runtime
+class _RuntimeProxy:
+    def __getattr__(self, name: str):
+        runtime = sys.modules.get("main")
+        if runtime is None:
+            runtime = importlib.import_module("app")
+        return getattr(runtime, name)
+
+
+runtime = _RuntimeProxy()
 
 
 async def scan_text(request: TextScanRequest):

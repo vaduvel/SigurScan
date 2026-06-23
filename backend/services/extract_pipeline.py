@@ -4,11 +4,23 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+import importlib
+import sys
+
+
 from bs4 import BeautifulSoup
 from fastapi import File, Form, HTTPException, UploadFile
 
 
-import app as runtime
+class _RuntimeProxy:
+    def __getattr__(self, name: str):
+        runtime = sys.modules.get("main")
+        if runtime is None:
+            runtime = importlib.import_module("app")
+        return getattr(runtime, name)
+
+
+runtime = _RuntimeProxy()
 
 
 async def extract_image_for_orchestration(

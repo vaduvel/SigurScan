@@ -6,11 +6,21 @@ from typing import Any, Dict, Optional
 import json
 import time
 import urllib.parse
+import importlib
+import sys
 
 from services.urlscan_helpers import _normalize_urlscan_preview_cache_entry
 
 
-import app as runtime
+class _RuntimeProxy:
+    def __getattr__(self, name: str):
+        runtime = sys.modules.get("main")
+        if runtime is None:
+            runtime = importlib.import_module("app")
+        return getattr(runtime, name)
+
+
+runtime = _RuntimeProxy()
 
 
 def _save_urlscan_preview_cache(entry: Dict[str, Any]) -> None:
