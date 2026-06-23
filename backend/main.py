@@ -5,9 +5,15 @@ from __future__ import annotations
 from typing import Any
 
 try:
-    import app as _runtime
-except ModuleNotFoundError:
     from . import app as _runtime
+except Exception:
+    import importlib
+
+    _fallback_module = importlib.import_module("app")
+    if hasattr(_fallback_module, "app") and hasattr(_fallback_module, "create_app"):
+        _runtime = _fallback_module
+    else:
+        from . import app as _runtime
 
 
 def __getattr__(name: str) -> Any:

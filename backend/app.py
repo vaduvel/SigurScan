@@ -11,12 +11,15 @@ its services, which now reference ``app`` for compatibility access.
 from __future__ import annotations
 
 import importlib
+import sys
 from typing import Any
+from pathlib import Path
 
 from fastapi import FastAPI
 
 _runtime = None
 _app_instance = None
+_RUNTIME_FILE = Path(__file__).resolve().parent / "main_runtime.py"
 
 
 def _runtime_module():
@@ -29,12 +32,32 @@ def _runtime_module():
             except ModuleNotFoundError:
                 _runtime = None
                 continue
+        if _runtime is None and _RUNTIME_FILE.exists():
+            runtime_dir = str(_RUNTIME_FILE.parent)
+            inserted = False
+            if runtime_dir not in sys.path:
+                sys.path.insert(0, runtime_dir)
+                inserted = True
+            try:
+                _runtime = importlib.import_module("main_runtime")
+            except ModuleNotFoundError:
+                _runtime = None
+            finally:
+                if inserted:
+                    try:
+                        sys.path.remove(runtime_dir)
+                    except ValueError:
+                        pass
         if _runtime is None:
             raise ModuleNotFoundError("Unable to import main runtime module as 'main_runtime' or 'backend.main_runtime'.")
     return _runtime
 
 
 def __getattr__(name: str) -> Any:
+    if name == "app":
+        return create_app()
+    if name == "create_app":
+        return create_app
     return getattr(_runtime_module(), name)
 
 
@@ -56,4 +79,5 @@ def create_app() -> FastAPI:
     
 
 # Backward-compatible module-level app object expected by ASGI runners.
-app = create_app()
+# The object is provided lazily via ``__getattr__`` to avoid import-time cycles
+# when loading this module from contexts that re-import services referencing it.
