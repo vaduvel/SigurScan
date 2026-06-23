@@ -5761,13 +5761,15 @@ from services.orchestrated_scan import orchestrated_engine
 # ── API routers ─────────────────────────────────────────────────────────────
 # Registered last so router handlers that reference the fully-initialized main
 # module (import main; main.X) resolve correctly and avoid import-time cycles.
-from routers import circle, community, intel, analytics, pages, scan  # noqa: E402
+from routers import circle, community, intel, analytics, pages, extract, orchestrated, sandbox  # noqa: E402
 app.include_router(pages.router)
 app.include_router(circle.router)
 app.include_router(community.router)
 app.include_router(intel.router)
 app.include_router(analytics.router)
-app.include_router(scan.router)
+app.include_router(extract.router)
+app.include_router(orchestrated.router)
+app.include_router(sandbox.router)
 
 
 def create_app():
