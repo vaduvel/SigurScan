@@ -297,7 +297,13 @@ def _should_allow_paid_company_registry(
                 cui=fields.cui,
                 issuer_name=fields.emitent,
             )
-            if payment_destination.get("matched") and payment_destination.get("brand_matches") is False:
+            if (
+                payment_destination.get("matched")
+                and payment_destination.get("brand_matches") is False
+                and payment_destination.get("cui_matches") is not True
+            ):
+                # cui_matches=True means the IBAN belongs to the SAME legal entity
+                # (CUI confirmed), so a brand-name string mismatch is not fraud.
                 preliminary_flags.add("PAYMENT_DESTINATION_BRAND_MISMATCH")
             elif (
                 payment_destination.get("matched") is False
@@ -669,7 +675,13 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
                 cui=fields.cui,
                 issuer_name=fields.emitent,
             )
-            if payment_destination.get("matched") and payment_destination.get("brand_matches") is False:
+            if (
+                payment_destination.get("matched")
+                and payment_destination.get("brand_matches") is False
+                and payment_destination.get("cui_matches") is not True
+            ):
+                # Same CUI => same legal entity; the official IBAN legitimately
+                # belongs to it even if the brand-name string did not match.
                 fraud_flags.append("PAYMENT_DESTINATION_BRAND_MISMATCH")
                 warnings.append("IBAN-ul este oficial pentru alt furnizor, nu pentru emitentul declarat.")
             elif payment_destination.get("matched") is False and iban_valid and iban_valid.valid_structure:

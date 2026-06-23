@@ -9313,7 +9313,12 @@ def _invoice_payment_destination_for_client(
                 payload["display"] = "IBAN publicat de furnizor într-o sursă oficială"
             else:
                 payload["display"] = "Destinație de plată confirmată"
-        elif payload.get("brand_matches") is False or payload.get("cui_matches") is False:
+        elif payload.get("cui_matches") is False or (
+            payload.get("brand_matches") is False
+            and payload.get("cui_matches") is not True
+        ):
+            # cui_matches=True => same legal entity; don't claim the IBAN belongs
+            # to someone else just because the brand-name string differed.
             payload["display"] = "IBAN asociat altei entități"
         elif payload.get("matched") is False:
             payload["display"] = "IBAN valid, dar destinație neconfirmată"

@@ -533,7 +533,9 @@ def match_payment_destination(
         "confidence": entry["confidence"],
         "can_contribute_to_safe": bool(
             entry["can_contribute_to_safe"]
-            and brand_matches
+            # Exact registry CUI match proves the SAME legal entity, so it stands
+            # in for a textual brand match (e.g. "Dante International SA" vs eMAG).
+            and (brand_matches or cui_matches is True)
             and not has_conflicting_non_safe_context
         ),
         "client_distribution_allowed": entry["client_distribution_allowed"],

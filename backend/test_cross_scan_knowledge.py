@@ -360,3 +360,67 @@ def test_provider_gate_preserves_pre_redaction_payment_destination():
     assert bundle["providers"]["payment_destination"]["matched"] is True
     assert bundle["providers"]["payment_destination"]["trust_tier"] == "T1_PUBLIC_OFFICIAL"
     assert result["evidence"]["provider_gate"]["label"] == "SAFE"
+
+
+def test_cui_match_suppresses_false_brand_mismatch():
+    """A matched official IBAN whose CUI confirms the SAME legal entity must NOT
+    raise PAYMENT_DESTINATION_BRAND_MISMATCH just because the brand-name string
+    did not match (e.g. 'Dante International SA' vs 'eMAG'). cui_matches=True is
+    affirmative proof it is the same entity."""
+    text = "Factura. IBAN: RO49AAAA1B31007593840000"
+    same_entity = {
+        "matched": True, "brand_matches": False, "cui_matches": True,
+        "registry_has_brand_destinations": True,
+    }
+    diff_entity = {
+        "matched": True, "brand_matches": False, "cui_matches": False,
+        "registry_has_brand_destinations": True,
+    }
+    with patch("services.cross_scan_knowledge.match_payment_destination", return_value=same_entity):
+        res = evaluate_cross_scan_knowledge(text=text, claimed_brand="dante", cui="14399840")
+        assert "PAYMENT_DESTINATION_BRAND_MISMATCH" not in res["fraud_flags"]
+    with patch("services.cross_scan_knowledge.match_payment_destination", return_value=diff_entity):
+        res = evaluate_cross_scan_knowledge(text=text, claimed_brand="dante", cui="999")
+        assert "PAYMENT_DESTINATION_BRAND_MISMATCH" in res["fraud_flags"]
+
+
+def test_cui_match_real_registry_contributes_to_safe():
+    """REAL registry path (no mock): the official eMAG/Dante IBAN with the matching
+    CUI must be can_contribute_to_safe=True even though the textual brand differs."""
+    from services.payment_destination_registry import match_payment_destination
+    m = match_payment_destination(
+        "RO38BRDE450SV88376004500", claimed_brand="dante international sa", cui="14399840"
+    )
+    assert m["matched"] is True
+    assert m["cui_matches"] is True
+    assert m["brand_matches"] is False  # textual brand differs (eMAG vs Dante)
+    assert m["can_contribute_to_safe"] is True  # CUI match stands in for brand match
+
+
+def test_invoice_truth_state_cui_match_not_mismatch():
+    """InvoiceTruth reducer: cui_matches=True overrides a textual brand mismatch."""
+    from services.invoice_truth_v4 import _payment_destination_state
+    same = {"matched": True, "brand_matches": False, "cui_matches": True, "can_contribute_to_safe": True}
+    diff = {"matched": True, "brand_matches": False, "cui_matches": False, "can_contribute_to_safe": False}
+    neither = {"matched": True, "brand_matches": False, "cui_matches": None, "can_contribute_to_safe": False}
+    assert _payment_destination_state(same, {}) == "OFFICIAL_REGISTRY_MATCH"
+    assert _payment_destination_state(diff, {}) == "MISMATCH"
+    # brand mismatch with no CUI confirmation is still a mismatch (recall-safe)
+    assert _payment_destination_state(neither, {}) == "MISMATCH"
+
+
+def test_invoice_payment_display_cui_match_not_other_entity():
+    """Client UI: cui_matches=True must not render 'IBAN asociat altei entități'."""
+    from types import SimpleNamespace
+    same = SimpleNamespace(payment_destination={
+        "matched": True, "brand_matches": False, "cui_matches": True,
+        "can_contribute_to_safe": True, "trust_tier": "T1_PUBLIC_OFFICIAL",
+    })
+    diff = SimpleNamespace(payment_destination={
+        "matched": True, "brand_matches": False, "cui_matches": False,
+        "can_contribute_to_safe": False, "trust_tier": "T1_PUBLIC_OFFICIAL",
+    })
+    out_same = app_main._invoice_payment_destination_for_client(same)
+    out_diff = app_main._invoice_payment_destination_for_client(diff)
+    assert out_same["display"] != "IBAN asociat altei entități"
+    assert out_diff["display"] == "IBAN asociat altei entități"

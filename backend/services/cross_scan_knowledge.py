@@ -53,7 +53,12 @@ def evaluate_cross_scan_knowledge(
     for iban in _extract_ibans(text):
         payment = match_payment_destination(iban, claimed_brand=claimed_brand, cui=cui)
         payment_destinations.append(payment)
-        if payment.get("matched") and payment.get("brand_matches") is False:
+        if (
+            payment.get("matched")
+            and payment.get("brand_matches") is False
+            and payment.get("cui_matches") is not True
+        ):
+            # cui_matches=True => same legal entity (CUI confirmed); not a mismatch.
             if "PAYMENT_DESTINATION_BRAND_MISMATCH" not in flags:
                 flags.append("PAYMENT_DESTINATION_BRAND_MISMATCH")
         elif (
