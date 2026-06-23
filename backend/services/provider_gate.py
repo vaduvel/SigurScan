@@ -186,15 +186,12 @@ def _domain_reputation_from_age(age_days: Optional[int]) -> str:
         return "unknown"
     if age_days >= DOMAIN_ESTABLISHED_AGE_DAYS:
         return "established"
-    if age_days >= DOMAIN_SUSPICIOUS_AGE_DAYS:
-        return "age_unknown"
+    if age_days < DOMAIN_SUSPICIOUS_AGE_DAYS:
+        return "new"
     return "young"
 
 
-def _official_destination_confirmed_impl(
-    resolved_urls: List[Dict[str, Any]],
-    claimed_brand: str,
-) -> bool:
+def _official_destination_confirmed_impl(resolved_urls: List[Dict[str, Any]], claimed_brand: str) -> bool:
     saw_allowed_destination = False
     for entry in resolved_urls:
         reg_domain = str(entry.get("final_registered_domain") or entry.get("registered_domain") or "").lower()
@@ -202,8 +199,8 @@ def _official_destination_confirmed_impl(
         final_url = str(entry.get("final_url") or entry.get("url") or "")
         if not hostname and final_url:
             hostname = urllib.parse.urlparse(final_url).hostname or ""
-        normalized_claim = _normalize_claimed_brand(claimed_brand)
-        if normalized_claim:
+        normalized_claim_for_destination = _normalize_claimed_brand(claimed_brand)
+        if normalized_claim_for_destination:
             destination_allowed = engine._is_brand_allowed_domain(
                 claimed_brand,
                 reg_domain,
@@ -220,7 +217,6 @@ def _official_destination_confirmed_impl(
         if destination_allowed:
             saw_allowed_destination = True
             continue
-
         original_hostname = str(entry.get("hostname") or "").lower()
         original_reg_domain = str(entry.get("registered_domain") or "").lower()
         original_url = str(entry.get("url") or "")
@@ -232,8 +228,20 @@ def _official_destination_confirmed_impl(
             claimed_brand=claimed_brand,
             url=original_url,
         )
+        final_hostname = str(entry.get("final_hostname") or hostname or "").lower()
+        normalized_brand = _normalize_claimed_brand(claimed_brand)
+        if (
+            original_is_brand_delegated
+            and "yoxo" in normalized_brand
+            and final_hostname in {"apps.apple.com", "play.google.com"}
+            and "yoxo" in urllib.parse.unquote(final_url).lower()
+        ):
+            saw_allowed_destination = True
+            continue
+
         final_url = str(entry.get("final_url") or entry.get("url") or "")
-        compact_brand = _compact_brand_match_token(_normalize_claimed_brand(claimed_brand))
+        normalized_brand = _normalize_claimed_brand(claimed_brand)
+        compact_brand = _compact_brand_match_token(normalized_brand)
         compact_domain = _compact_brand_match_token(reg_domain or hostname)
         try:
             age_days = int(entry.get("domain_age_days")) if entry.get("domain_age_days") is not None else None
@@ -353,7 +361,7 @@ def _augment_summary_with_infra_flags_impl(summary: Dict[str, Any], infra_flags:
         summary["sigurscan_lexical"] = {
             "status": "suspicious",
             "verdict": ",".join(lexical_labels),
-            "severity": "high" if any(label in {"homoglyph", "punycode", "typosquat"} for label in lexical_labels) else "medium",
+            "severity": "high" if any(label in {"homoglyph", "punycode", "typosquatting"} for label in lexical_labels) else "medium",
             "consulted": True,
             "details": "signals=" + ",".join(lexical_labels),
         }
@@ -395,21 +403,27 @@ def _augment_summary_with_infra_flags_impl(summary: Dict[str, Any], infra_flags:
         }
 
     if infra_flags.get("rdap_inexistent"):
+        # Weighted signal only, never terminal: severity stays below "high" so
+        # _providers_verdict cannot turn an RDAP 404 into a standalone
+        # PERICULOS (rdap.org 404s also happen for TLDs it cannot route).
         summary["infra_rdap"] = {
             "status": "suspicious",
             "verdict": "inexistent_domain",
             "severity": "medium",
             "consulted": True,
-            "details": "Domeniul nu apare în registrul RDAP (404).",
+            "details": "Domeniul nu apare în registrul RDAP (404); semnal ponderat, nu verdict.",
         }
 
     if infra_flags.get("ssl_invalid"):
+        # severity stays below "high": standalone invalid SSL is a weighted
+        # signal; the terminal path for SSL is the deterministic combo rule
+        # (young domain + invalid SSL + impersonated brand) in verdict_gate.
         summary["infra_ssl"] = {
             "status": "suspicious",
-            "verdict": "invalid_ssl",
+            "verdict": "invalid_certificate",
             "severity": "medium",
             "consulted": True,
-            "details": "SSL invalid detectat.",
+            "details": "Certificatul SSL este invalid sau auto-semnat",
         }
 
 
@@ -2360,7 +2374,7 @@ def _has_direct_sensitive_request_impl(raw_text: str) -> bool:
         r"(?:parol[ăa]|password|otp|cod(?:ul)?(?:\s+(?:pe\s+)?(?:sms|whatsapp)|"
         r"\s+de\s+(?:verificare|confirmare|autorizare|autentificare)|\s+3ds)?|cod(?:ul)?\s+unic|"
         r"cod(?:ul)?.{0,40}aplica[țt]ia\s+bancar[ăa]|"
-        r"(?:prima|a\s+treia|a\s+cincea|ultima|ultimele).{0,50}(?:cifr[ăa]|cifre).{0,50}cod|"
+        r"(?:prima|a\s+treia|a\s+cincea|ultimele|primele).{0,50}(?:cifr[ăa]|cifre).{0,50}cod|"
         r"(?:cod\s+qr|qr).{0,40}(?:esim|e-sim|profil(?:ul)?\s+sim)|"
         r"(?:esim|e-sim|profil(?:ul)?\s+sim).{0,40}(?:cod\s+qr|qr)|"
         r"pin(?:-ul|ul)?|cvv|cvc|date(?:le)?\s+(?:de\s+)?card(?:ului)?|datele\s+cardului|"
