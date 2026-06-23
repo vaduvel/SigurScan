@@ -21,6 +21,7 @@ from pypdf import PdfReader
 
 from api_models import OrchestratedScanRequest, UrlscanSandboxRequest
 from services.provider_gate import _apply_decision_contract_result, _apply_provider_gate_verdict, _claim_verifier_required, _skipped_offer_claim_payload
+from services.reputation_enrich import _has_bad_provider_verdict
 from services.verdict_gate import verdict as reduce_verdict
 from config import URLSCAN_VISIBILITY_DEFAULT, URLSCAN_COUNTRY_DEFAULT, URLSCAN_CUSTOM_AGENT_DEFAULT
 
@@ -1389,7 +1390,7 @@ class OrchestratedScanEngine:
         )
         job["threat_intel"] = threat_intel
 
-        if runtime._has_bad_provider_verdict(summary):
+        if _has_bad_provider_verdict(summary):
             analysis = self._timed_orchestrated_component(
                 job,
                 "fast_lane.provider_context_analysis",
@@ -1468,7 +1469,7 @@ class OrchestratedScanEngine:
         primary_final_url = runtime._apply_primary_resolved_url(job, primary_entry)
         if primary_final_url:
             job = runtime._apply_best_preview_cache_hit(job, primary_final_url)
-        next_stage = "analysis_ready" if runtime._has_bad_provider_verdict(summary) else "semantic_ready"
+        next_stage = "analysis_ready" if _has_bad_provider_verdict(summary) else "semantic_ready"
         self._set_orchestrated_stage(job, next_stage)
         job = self._timed_orchestrated_component(
             job,
@@ -1702,7 +1703,7 @@ class OrchestratedScanEngine:
             semantic_section = bundle.get("semantic_review") or semantic_section
         except Exception:
             gate_result = reduce_verdict(bundle)
-        if runtime._has_bad_provider_verdict(external_intel_summary) and str(gate_result.get("label") or "").upper() != "DANGEROUS":
+        if _has_bad_provider_verdict(external_intel_summary) and str(gate_result.get("label") or "").upper() != "DANGEROUS":
             gate_result = {
                 "label": "DANGEROUS",
                 "risk_level": "high",
@@ -2203,7 +2204,7 @@ class OrchestratedScanEngine:
             job["threat_intel"] = threat_intel
             runtime._apply_primary_resolved_url(job, primary_entry)
 
-            if runtime._has_bad_provider_verdict(summary):
+            if _has_bad_provider_verdict(summary):
                 analysis = runtime._provider_reputation_context_analysis(redacted_text, resolved_urls, summary)
                 analysis.setdefault("evidence", {})["source_channel"] = job.get("source_channel")
                 await runtime._enrich_semantic_review_async(redacted_text, analysis, resolved_urls)
@@ -2293,7 +2294,7 @@ class OrchestratedScanEngine:
             claim_required = bool(job.get("claim_verifier_required", _claim_verifier_required(analysis)))
             evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
             summary = evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {}
-            if claim_required and not runtime._has_bad_provider_verdict(summary):
+            if claim_required and not _has_bad_provider_verdict(summary):
                 await asyncio.gather(
                     runtime._enrich_semantic_review_async(redacted_text, analysis, resolved_urls),
                     runtime._enrich_offer_claim_verification_async(redacted_text, analysis, resolved_urls),
@@ -2304,7 +2305,7 @@ class OrchestratedScanEngine:
                     analysis,
                     _skipped_offer_claim_payload(
                         "Claim web check skipped because hard reputation evidence is already decisive."
-                        if runtime._has_bad_provider_verdict(summary)
+                        if _has_bad_provider_verdict(summary)
                         else "Claim web check skipped because no concrete offer/brand claim was detected."
                     ),
                 )
@@ -2316,7 +2317,7 @@ class OrchestratedScanEngine:
                 "orchestrated_stage_analysis_ready",
                 job,
                 claim_required=claim_required,
-                parallel_enrichment=claim_required and not runtime._has_bad_provider_verdict(summary),
+                parallel_enrichment=claim_required and not _has_bad_provider_verdict(summary),
             )
             return await self._finalize_orchestrated_job_if_ready(job, request)
 
@@ -2327,12 +2328,12 @@ class OrchestratedScanEngine:
             claim_required = bool(job.get("claim_verifier_required", _claim_verifier_required(analysis)))
             evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
             summary = evidence.get("external_intel_summary") if isinstance(evidence.get("external_intel_summary"), dict) else {}
-            if claim_required and not runtime._has_bad_provider_verdict(summary):
+            if claim_required and not _has_bad_provider_verdict(summary):
                 await runtime._enrich_offer_claim_verification_async(redacted_text, analysis, resolved_urls)
             else:
                 reason = (
                     "Claim web check skipped because hard reputation evidence is already decisive."
-                    if runtime._has_bad_provider_verdict(summary)
+                    if _has_bad_provider_verdict(summary)
                     else "Claim web check skipped because no concrete offer/brand claim was detected."
                 )
                 runtime._attach_offer_claim_verification(analysis, _skipped_offer_claim_payload(reason))
