@@ -5911,3 +5911,9 @@ app.include_router(community.router)
 app.include_router(intel.router)
 app.include_router(analytics.router)
 app.include_router(scan.router)
+
+
+def create_app():
+    """Factory entrypoint compatibility."""
+
+    return app
