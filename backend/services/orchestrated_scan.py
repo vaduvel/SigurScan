@@ -150,15 +150,6 @@ def _runtime_module():
     return runtime
 
 
-class _RuntimeNamespace:
-    def __getattr__(self, name: str):
-        runtime = _runtime_module()
-        return getattr(runtime, name)
-
-
-runtime = _RuntimeNamespace()
-
-
 class OrchestratedScanEngine:
     """Orchestrated-scan engine: owns the in-memory job store/locks and the full
     scan pipeline. Helpers/config that remain in py are referenced via X."""
