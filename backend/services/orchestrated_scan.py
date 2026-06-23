@@ -13,6 +13,8 @@ import hashlib
 import base64
 import secrets
 import urllib.parse
+import importlib
+import sys
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -26,7 +28,16 @@ from api_models import OrchestratedScanRequest, UrlscanSandboxRequest
 from services.verdict_gate import verdict as reduce_verdict
 from config import URLSCAN_VISIBILITY_DEFAULT, URLSCAN_COUNTRY_DEFAULT, URLSCAN_CUSTOM_AGENT_DEFAULT
 
-import app as runtime
+
+class _RuntimeProxy:
+    def __getattr__(self, name: str):
+        runtime = sys.modules.get("main")
+        if runtime is None:
+            runtime = importlib.import_module("app")
+        return getattr(runtime, name)
+
+
+runtime = _RuntimeProxy()
 
 
 class OrchestratedScanEngine:
