@@ -3,7 +3,7 @@ from __future__ import annotations
 from email import policy
 from email.message import Message
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional
+from typing import Any, Callable, Dict, List, Mapping, Optional
 import re
 import os
 import logging
@@ -294,9 +294,11 @@ def _safe_scan_url_list(
     urls: List[str],
     *,
     privacy_safe_mode: Optional[bool] = None,
+    resolve_redirects_safely_fn: Optional[Callable[[str], Dict[str, Any]]] = None,
 ) -> List[Dict[str, Any]]:
     resolved_urls: List[Dict[str, Any]] = []
     safe_mode = _is_privacy_safe_mode() if privacy_safe_mode is None else privacy_safe_mode
+    resolver_fn = resolve_redirects_safely_fn or resolve_redirects_safely
     if safe_mode:
         for url in urls:
             resolved_urls.append(sanitize_resolved_url_entry(_safe_mode_url_entry(url)))
@@ -304,7 +306,7 @@ def _safe_scan_url_list(
     for url in urls:
         try:
             resolved_urls.append(
-                sanitize_resolved_url_entry(resolve_redirects_safely(url))
+                sanitize_resolved_url_entry(resolver_fn(url))
             )
         except Exception as exc:
             failed_entry = sanitize_resolved_url_entry(

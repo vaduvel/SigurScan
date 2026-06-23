@@ -111,6 +111,7 @@ from services.external_url_privacy import (
     sanitize_external_text,
 )
 from services.redirect_resolver import (
+    resolve_redirects_safely,
     is_known_shortener,
     _is_scan_target_blocked,
     get_spf_dns_record,
@@ -694,7 +695,11 @@ def _safe_mode_url_entry(url: str) -> Dict[str, Any]:
 
 
 def _safe_scan_url_list(urls: List[str]) -> List[Dict[str, Any]]:
-    return _core_safe_scan_url_list(urls, privacy_safe_mode=PRIVACY_SAFE_MODE)
+    return _core_safe_scan_url_list(
+        urls,
+        privacy_safe_mode=PRIVACY_SAFE_MODE,
+        resolve_redirects_safely_fn=resolve_redirects_safely,
+    )
 
 
 def _gather_external_intel(
