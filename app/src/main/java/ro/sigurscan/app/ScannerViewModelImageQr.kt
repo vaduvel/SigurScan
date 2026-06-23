@@ -59,6 +59,7 @@ import java.net.URLDecoder
 import java.security.MessageDigest
 import java.nio.charset.StandardCharsets
 import java.util.*
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 import javax.net.ssl.SSLException
@@ -72,37 +73,64 @@ import retrofit2.HttpException
 // QR-code and image (camera/gallery) intake scanning, extracted from the ScannerViewModel
 // God object as behaviour-preserving extension functions.
 
+private const val QR_IMAGE_DECODE_TIMEOUT_MILLIS = 15_000L
+
+fun ScannerViewModel.onLiveQrDecoded(payload: String) {
+    val qrText = payload.trim()
+    if (qrText.isBlank()) {
+        publishQrExtractionIncomplete("Nu am găsit un cod QR lizibil în imagine.")
+        return
+    }
+    text = qrText
+    stagedEvidenceHtml = null
+    stagedEvidenceLinks = extractUrls(qrText)
+    stagedEvidenceText = qrText
+    stagedEvidenceInputKind = "qr"
+    stagedEvidenceChannel = "qr_scan"
+    onScanClick()
+}
+
 fun ScannerViewModel.onQrPicked(uri: Uri, context: Context) {
+    clearVisibleResultForNewScan()
     loading = true
     loadingMsg = "Scanăm codul QR..."
+    val completed = AtomicBoolean(false)
+
+    viewModelScope.launch {
+        kotlinx.coroutines.delay(QR_IMAGE_DECODE_TIMEOUT_MILLIS)
+        if (completed.compareAndSet(false, true)) {
+            publishQrExtractionIncomplete("Citirea codului QR a durat prea mult. Reîncearcă cu o poză mai clară.")
+        }
+    }
 
     try {
         val image = InputImage.fromFilePath(context, uri)
         barcodeScanner.process(image)
             .addOnSuccessListener { barcodes ->
-                val qrText = barcodes.firstOrNull()?.rawValue?.trim()
-                if (!qrText.isNullOrBlank()) {
-                    text = qrText
-                    stagedEvidenceHtml = null
-                    stagedEvidenceLinks = extractUrls(qrText)
-                    stagedEvidenceText = qrText
-                    stagedEvidenceInputKind = "qr"
-                    stagedEvidenceChannel = "qr_scan"
-                    onScanClick()
-                } else {
-                    publishQrExtractionIncomplete("Nu am găsit un cod QR lizibil în imagine.")
+                if (completed.compareAndSet(false, true)) {
+                    val qrText = barcodes.firstOrNull()?.rawValue?.trim()
+                    if (!qrText.isNullOrBlank()) {
+                        loading = false
+                        onLiveQrDecoded(qrText)
+                    } else {
+                        publishQrExtractionIncomplete("Nu am găsit un cod QR lizibil în imagine.")
+                    }
                 }
             }
             .addOnFailureListener {
-                publishQrExtractionIncomplete("Nu am putut citi codul QR din imagine. Reîncearcă cu o poză mai clară.")
+                if (completed.compareAndSet(false, true)) {
+                    publishQrExtractionIncomplete("Nu am putut citi codul QR din imagine. Reîncearcă cu o poză mai clară.")
+                }
             }
     } catch (e: Exception) {
-        publishQrExtractionIncomplete("Nu am putut deschide imaginea pentru citirea codului QR.")
+        if (completed.compareAndSet(false, true)) {
+            publishQrExtractionIncomplete("Nu am putut deschide imaginea pentru citirea codului QR.")
+        }
     }
 }
 
 internal fun ScannerViewModel.publishQrExtractionIncomplete(reason: String) {
-    val result = applyEvidenceGate(
+    val result = localUnverifiedAssessment(
         current = OfflineAssessment(
             family = "Scanare QR incompletă",
             riskScore = 0,
@@ -112,17 +140,16 @@ internal fun ScannerViewModel.publishQrExtractionIncomplete(reason: String) {
             keyDangers = listOf("Nu avem suficiente dovezi tehnice pentru verdict."),
             originalText = "Nu s-a extras conținut verificabil din codul QR."
         ),
-        rawInput = "QR fără conținut verificabil",
+        reasonCode = "LOCAL_QR_EXTRACTION_INCOMPLETE",
         inputKind = "qr",
-        channel = "qr_scan",
-        providerStates = unavailableProviderStates(),
-        completeness = EvidenceCompleteness.LOCAL_ONLY
+        channel = "qr_scan"
     )
     publishAssessmentResult(null, result)
     loading = false
 }
 
 fun ScannerViewModel.onImagePicked(uri: Uri, context: Context) {
+    clearVisibleResultForNewScan()
     loading = true
     loadingMsg = "Pregătim imaginea pentru verificare..."
 
@@ -136,7 +163,7 @@ fun ScannerViewModel.onImagePicked(uri: Uri, context: Context) {
                 context,
                 maxBytes = ScannerViewModel.MAX_IMAGE_UPLOAD_BYTES
             )
-            val (uploadMime, uploadName) = resolveImageUploadMeta(uri, context)
+            val (uploadMime, uploadName) = resolveImageUploadMeta(file, fileName)
             val requestFile = file.asRequestBody(uploadMime.toMediaTypeOrNull())
             val body = MultipartBody.Part.createFormData("image_file", uploadName, requestFile)
             val source = "android_image_upload".toRequestBody("text/plain".toMediaTypeOrNull())
@@ -196,7 +223,7 @@ internal suspend fun ScannerViewModel.runLocalImageOcrScanIfPossible(uri: Uri, c
 }
 
 internal fun ScannerViewModel.publishImageExtractionIncomplete(fileName: String, reason: String) {
-    val result = applyEvidenceGate(
+    val result = localUnverifiedAssessment(
         current = OfflineAssessment(
             family = "Scanare incompletă",
             riskScore = 0,
@@ -206,11 +233,9 @@ internal fun ScannerViewModel.publishImageExtractionIncomplete(fileName: String,
             keyDangers = listOf("Nu avem suficiente dovezi tehnice pentru verdict."),
             originalText = "Nu s-a extras conținut verificabil din $fileName."
         ),
-        rawInput = "Imagine fără text OCR verificabil: $fileName",
+        reasonCode = "LOCAL_IMAGE_OCR_INCOMPLETE",
         inputKind = "upload_image",
-        channel = "image_ocr",
-        providerStates = unavailableProviderStates(),
-        completeness = EvidenceCompleteness.LOCAL_ONLY
+        channel = "image_ocr"
     )
     publishAssessmentResult(null, result)
 }

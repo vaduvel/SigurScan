@@ -78,6 +78,7 @@ fun ScannerViewModel.scanInvoiceFromDocument(
     officialXmlUri: Uri? = null,
     sanbAttestation: String? = null
 ) {
+    assessment = null
     loading = true
     loadingMsg = when {
         sanbAttestation != null -> "Actualizăm verdictul după verificarea beneficiarului..."
@@ -109,10 +110,14 @@ fun ScannerViewModel.scanInvoiceFromDocument(
 
             loadingMsg = if (isPdf) "Scanăm factura PDF..." else "Optimizăm poza facturii..."
             file = if (isPdf) uriToFile(uri, context, ScannerViewModel.MAX_UPLOAD_BYTES) else prepareInvoiceImageUpload(uri, context)
-            val mediaType = if (isPdf) "application/pdf" else "image/jpeg"
+            val (mediaType, uploadName) = if (isPdf) {
+                "application/pdf" to fileName
+            } else {
+                resolveImageUploadMeta(file, fileName)
+            }
             val partName = if (isPdf) "pdf_file" else "image_file"
             val requestFile = file.asRequestBody(mediaType.toMediaTypeOrNull())
-            val body = MultipartBody.Part.createFormData(partName, fileName, requestFile)
+            val body = MultipartBody.Part.createFormData(partName, uploadName, requestFile)
             val source = "android_native".toRequestBody("text/plain".toMediaTypeOrNull())
             val sanbPart = sanbAttestation?.let {
                 it.toRequestBody("text/plain".toMediaTypeOrNull())
@@ -218,7 +223,7 @@ fun ScannerViewModel.scanOfferFromDocument(uri: Uri, context: Context) {
 
                 loadingMsg = "OCR local neclar. Încercăm extragerea cloud..."
                 file = uriToFile(uri, context, ScannerViewModel.MAX_UPLOAD_BYTES)
-                val (uploadMime, uploadName) = resolveImageUploadMeta(uri, context)
+                val (uploadMime, uploadName) = resolveImageUploadMeta(file, fileName)
                 val requestFile = file.asRequestBody(uploadMime.toMediaTypeOrNull())
                 val body = MultipartBody.Part.createFormData("image_file", uploadName, requestFile)
                 val source = "android_offer_image_upload".toRequestBody("text/plain".toMediaTypeOrNull())

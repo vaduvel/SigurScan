@@ -271,8 +271,7 @@ fun MainScreen(viewModel: ScannerViewModel) {
                     },
                     onClose = { closeQrScanner() },
                     onQrCodeScanned = { value ->
-                        viewModel.text = value
-                        viewModel.onScanClick()
+                        viewModel.onLiveQrDecoded(value)
                         closeQrScanner()
                     },
                     onPickImageFallback = {

@@ -157,11 +157,13 @@ internal fun ScannerViewModel.invoiceImageSampleSize(width: Int, height: Int): I
  * temporare nu au mereu extensie, iar un MIME wildcard nu e concret — trimitem MIME-ul
  * real + un nume cu extensie corectă (validatorul de magic-bytes acceptă oricare format).
  */
-internal fun ScannerViewModel.resolveImageUploadMeta(uri: Uri, context: Context): Pair<String, String> {
-    val rawMime = context.contentResolver.getType(uri)?.lowercase(Locale.ROOT)
-    val mime = when (rawMime) {
-        "image/png" -> "image/png"
-        "image/webp" -> "image/webp"
+internal fun resolveImageUploadMeta(uploadFile: File, originalName: String): Pair<String, String> {
+    val header = ByteArray(12)
+    val headerSize = uploadFile.inputStream().use { input -> input.read(header) }
+    val mime = when {
+        headerSize >= 3 && header[0] == 0xFF.toByte() && header[1] == 0xD8.toByte() && header[2] == 0xFF.toByte() -> "image/jpeg"
+        headerSize >= 8 && header.copyOfRange(0, 8).contentEquals(byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)) -> "image/png"
+        headerSize >= 12 && header.copyOfRange(0, 4).contentEquals("RIFF".toByteArray()) && header.copyOfRange(8, 12).contentEquals("WEBP".toByteArray()) -> "image/webp"
         else -> "image/jpeg"
     }
     val ext = when (mime) {
@@ -169,7 +171,7 @@ internal fun ScannerViewModel.resolveImageUploadMeta(uri: Uri, context: Context)
         "image/webp" -> ".webp"
         else -> ".jpg"
     }
-    val baseName = getFileName(uri, context).substringBeforeLast('.', "image").ifBlank { "image" }
+    val baseName = originalName.substringBeforeLast('.', originalName).ifBlank { "image" }
     return mime to "$baseName$ext"
 }
 

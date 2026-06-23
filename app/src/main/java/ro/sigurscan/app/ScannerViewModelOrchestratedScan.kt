@@ -761,6 +761,7 @@ internal fun ScannerViewModel.classifyOrchestratedError(error: Throwable): Strin
 fun ScannerViewModel.onScanClick(forceRefresh: Boolean = false) {
     if (loading || text.isBlank()) return
     loading = true
+    clearVisibleResultForNewScan()
     loadingMsg = "Analizăm textul și link-urile..."
 
     viewModelScope.launch {

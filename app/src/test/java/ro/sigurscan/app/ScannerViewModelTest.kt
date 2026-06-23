@@ -757,14 +757,140 @@ class ScannerViewModelTest {
         assertTrue("QR success branch must exist.", successStart >= 0 && failureStart > successStart)
 
         val successFlow = qrFlow.substring(successStart, failureStart)
-        assertTrue("QR text must become the scan input.", successFlow.contains("text = qrText"))
-        assertTrue("QR scan must extract any embedded URL before orchestrating.", successFlow.contains("stagedEvidenceLinks = extractUrls(qrText)"))
-        assertTrue("QR scan must keep the raw decoded payload as evidence.", successFlow.contains("stagedEvidenceText = qrText"))
-        assertTrue("QR scan must preserve the input kind for the backend evidence bundle.", successFlow.contains("""stagedEvidenceInputKind = "qr""""))
-        assertTrue("QR scan must preserve the QR channel for the backend evidence bundle.", successFlow.contains("""stagedEvidenceChannel = "qr_scan""""))
-        assertTrue("QR success must use the same orchestrated scan path as typed/shared text.", successFlow.contains("onScanClick()"))
+        assertTrue("QR import must use the shared QR provenance staging path.", successFlow.contains("onLiveQrDecoded(qrText)"))
         assertFalse("QR success must not publish a local guessed verdict.", successFlow.contains("publishQrExtractionIncomplete"))
         assertFalse("QR success must not call backend extraction endpoints directly.", successFlow.contains("api.extract"))
+    }
+
+    @Test
+    fun liveQrCameraPayloadPreservesQrProvenanceBeforeOrchestration() {
+        val activitySource = File("src/main/java/ro/sigurscan/app/MainActivity.kt").readText()
+        val qrSource = File("src/main/java/ro/sigurscan/app/ScannerViewModelImageQr.kt").readText()
+
+        assertTrue(activitySource.contains("viewModel.onLiveQrDecoded(value)"))
+        assertTrue(qrSource.contains("fun ScannerViewModel.onLiveQrDecoded(payload: String)"))
+        assertTrue(qrSource.contains("stagedEvidenceInputKind = \"qr\""))
+        assertTrue(qrSource.contains("stagedEvidenceChannel = \"qr_scan\""))
+        assertTrue(qrSource.contains("stagedEvidenceText = qrText"))
+        assertTrue(qrSource.contains("onScanClick()"))
+    }
+
+    @Test
+    fun qrImageImportLeavesLoadingStateBeforeForwardingDecodedPayload() {
+        val qrSource = File("src/main/java/ro/sigurscan/app/ScannerViewModelImageQr.kt").readText()
+        val imagePickerStart = qrSource.indexOf("fun ScannerViewModel.onQrPicked")
+        val decodedPayload = qrSource.indexOf("onLiveQrDecoded(qrText)", imagePickerStart)
+        val loadingReset = qrSource.indexOf("loading = false", imagePickerStart)
+
+        assertTrue("QR import needs a terminal timeout so the loading UI cannot hang forever.", qrSource.contains("QR_IMAGE_DECODE_TIMEOUT_MILLIS"))
+        assertTrue("QR import must complete loading before forwarding a decoded payload to onScanClick.", loadingReset in (imagePickerStart + 1) until decodedPayload)
+    }
+
+    @Test
+    fun uploadMetadataMatchesThePreparedBytesAndNewScansDoNotShowOldVerdicts() {
+        val image = File("src/main/java/ro/sigurscan/app/ScannerViewModelImageQr.kt").readText()
+        val document = File("src/main/java/ro/sigurscan/app/ScannerViewModelDocumentScan.kt").readText()
+        val media = File("src/main/java/ro/sigurscan/app/ScannerViewModelMedia.kt").readText()
+        val shared = File("src/main/java/ro/sigurscan/app/ScannerViewModelSharedIntake.kt").readText()
+        val orchestration = File("src/main/java/ro/sigurscan/app/ScannerViewModelOrchestratedScan.kt").readText()
+
+        assertTrue(image.contains("resolveImageUploadMeta(file, fileName)"))
+        assertTrue(document.contains("resolveImageUploadMeta(file, fileName)"))
+        assertTrue(media.contains("fun resolveImageUploadMeta(uploadFile: File, originalName: String)"))
+        assertTrue(shared.contains("uri.lastPathSegment"))
+
+        val invoiceStart = document.indexOf("fun ScannerViewModel.scanInvoiceFromDocument")
+        val offerStart = document.indexOf("fun ScannerViewModel.scanOfferFromDocument", invoiceStart)
+        assertTrue(invoiceStart >= 0 && offerStart > invoiceStart)
+        assertTrue(
+            "Invoice image uploads must describe the normalized file, not the original URI.",
+            document.substring(invoiceStart, offerStart).contains("resolveImageUploadMeta(file, fileName)")
+        )
+
+        val scanStart = orchestration.indexOf("fun ScannerViewModel.onScanClick")
+        val loadingStart = orchestration.indexOf("loading = true", scanStart)
+        val launchStart = orchestration.indexOf("viewModelScope.launch", scanStart)
+        val oldAssessmentCleared = orchestration.indexOf("clearVisibleResultForNewScan()", scanStart)
+        assertTrue(
+            "A new scan must clear a previous verdict before its asynchronous work begins.",
+            oldAssessmentCleared in (loadingStart + 1) until launchStart
+        )
+
+        assertTrue(image.contains("clearVisibleResultForNewScan()"))
+        assertTrue(shared.contains("clearVisibleResultForNewScan()"))
+        assertTrue(orchestration.contains("clearVisibleResultForNewScan()"))
+        val viewModel = File("src/main/java/ro/sigurscan/app/ScannerViewModel.kt").readText()
+        assertTrue(viewModel.contains("internal fun ScannerViewModel.clearVisibleResultForNewScan()"))
+        assertTrue(viewModel.contains("invoiceResult = null"))
+    }
+
+    @Test
+    fun textAndPdfImportsReleaseLoadingBeforeDelegatingToTheSharedScanPipeline() {
+        val shared = File("src/main/java/ro/sigurscan/app/ScannerViewModelSharedIntake.kt").readText()
+        val textStart = shared.indexOf("if (importKind == FileImportKind.TEXT)")
+        val emailStart = shared.indexOf("if (importKind == FileImportKind.EMAIL)", textStart)
+        val htmlStart = shared.indexOf("if (importKind == FileImportKind.HTML)", emailStart)
+        val pdfStart = shared.indexOf("loadingMsg = \"Analizăm documentul PDF...\"")
+        val audioStart = shared.indexOf("internal fun ScannerViewModel.publishAudioShareRequiresTranscript")
+
+        assertTrue(textStart >= 0 && emailStart > textStart && htmlStart > emailStart)
+        assertTrue(pdfStart >= 0 && audioStart > pdfStart)
+
+        val textFlow = shared.substring(textStart, emailStart)
+        val textScan = textFlow.indexOf("onScanClick()")
+        val textLoadingReset = textFlow.lastIndexOf("loading = false", textScan)
+        assertTrue(
+            "TXT import must release its extraction loading state before invoking onScanClick.",
+            textLoadingReset >= 0 && textLoadingReset < textScan
+        )
+
+        val pdfFlow = shared.substring(pdfStart, audioStart)
+        val pdfScan = pdfFlow.indexOf("onScanClick()")
+        val pdfLoadingReset = pdfFlow.lastIndexOf("loading = false", pdfScan)
+        assertTrue(
+            "PDF fallback must release its extraction loading state before invoking onScanClick.",
+            pdfLoadingReset >= 0 && pdfLoadingReset < pdfScan
+        )
+
+        val emailFlow = shared.substring(emailStart, htmlStart)
+        val emailScan = emailFlow.indexOf("onScanClick()")
+        val emailLoadingReset = emailFlow.lastIndexOf("loading = false", emailScan)
+        assertTrue(
+            "EML fallback must release its extraction loading state before invoking onScanClick.",
+            emailLoadingReset >= 0 && emailLoadingReset < emailScan
+        )
+    }
+
+    @Test
+    fun promotedScanFlowsUseExtractionThenTheCorrectBackendPipeline() {
+        val shared = File("src/main/java/ro/sigurscan/app/ScannerViewModelSharedIntake.kt").readText()
+        val imageQr = File("src/main/java/ro/sigurscan/app/ScannerViewModelImageQr.kt").readText()
+        val document = File("src/main/java/ro/sigurscan/app/ScannerViewModelDocumentScan.kt").readText()
+        val orchestration = File("src/main/java/ro/sigurscan/app/ScannerViewModelOrchestratedScan.kt").readText()
+
+        assertTrue(imageQr.contains("uploadApi.extractImage"))
+        assertTrue(shared.contains("uploadApi.extractPdf"))
+        assertTrue(shared.contains("MailShareInputAssembler.buildMailScanInput"))
+        assertTrue(shared.contains("stagedEvidenceHtml = htmlContentSource"))
+        assertTrue(document.contains("uploadApi.scanInvoice"))
+        assertTrue(document.contains("runBackendOrchestratedScan(confirmedInput"))
+        assertTrue(orchestration.contains("launchFinalOrchestratedPreviewRefresh"))
+        assertFalse(orchestration.contains("api.scanImage("))
+        assertFalse(orchestration.contains("api.scanPdf("))
+        assertFalse(orchestration.contains("api.scanEmail("))
+    }
+
+    @Test
+    fun offerConfirmationRoutesToOfferOrchestrationInsteadOfInvoiceUpload() {
+        val source = File("src/main/java/ro/sigurscan/app/ScannerViewModelDocumentScan.kt").readText()
+        val start = source.indexOf("fun ScannerViewModel.confirmOfferAndScan")
+        val end = source.indexOf("internal fun ScannerViewModel.normalizeOfferLinks", start)
+        assertTrue("confirmOfferAndScan must exist.", start >= 0 && end > start)
+
+        val flow = source.substring(start, end)
+        assertTrue(flow.contains("runBackendOrchestratedScan(confirmedInput"))
+        assertTrue(flow.contains("forcedInputType = \"offer\""))
+        assertFalse(flow.contains("uploadApi.scanInvoice"))
     }
 
     @Test

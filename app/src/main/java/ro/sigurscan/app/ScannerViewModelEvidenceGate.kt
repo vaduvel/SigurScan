@@ -147,7 +147,9 @@ internal fun ScannerViewModel.withGate(
 
 internal fun ScannerViewModel.localUnverifiedAssessment(
     current: OfflineAssessment,
-    reasonCode: String
+    reasonCode: String,
+    inputKind: String? = null,
+    channel: String? = null
 ): OfflineAssessment {
     val gateResult = GateResult(
         action = GateAction.UNVERIFIED,
@@ -162,10 +164,22 @@ internal fun ScannerViewModel.localUnverifiedAssessment(
         family = GateResultPresentation.familyLabel(gateResult, current.family),
         riskScore = GateResultPresentation.legacyRiskScore(gateResult),
         riskLevel = GateResultPresentation.legacyRiskLevel(gateResult),
-        reasons = listOf(reason).map { it.trim() }.filter { it.isNotBlank() }.distinct(),
+        reasons = (listOf(reason) + current.reasons).map { it.trim() }.filter { it.isNotBlank() }.distinct(),
         safeActions = (actions + current.safeActions).map { it.trim() }.filter { it.isNotBlank() }.distinct(),
         keyDangers = emptyList(),
         gateResult = gateResult,
+        evidenceSnapshot = if (!inputKind.isNullOrBlank() && !channel.isNullOrBlank()) {
+            EvidenceSnapshot(
+                scanId = current.scanId,
+                inputKind = inputKind,
+                channel = channel,
+                registryVersion = BrandKnowledgeRegistry.registryVersion(),
+                corpusVersion = BrandKnowledgeRegistry.corpusVersion(),
+                completeness = EvidenceCompleteness.LOCAL_ONLY
+            )
+        } else {
+            current.evidenceSnapshot
+        },
         inputFidelity = sharedContentFidelity
     )
 }
