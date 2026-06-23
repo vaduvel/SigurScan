@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import List, Optional
 
 from fastapi import File, Form, HTTPException, UploadFile
+import importlib
 
 from api_models import OrchestratedScanRequest, TextScanRequest, URLScanRequest
 from config import (
@@ -32,6 +33,7 @@ from core.url_intelligence import (
     extract_urls,
 )
 from services.google_vision_ocr import extract_text_from_pdf_with_vision, extract_text_with_vision
+from services import extract_pipeline
 from services.scan_helpers import (
     _invoice_payment_destination_for_client,
     _is_allowed_image_bytes,
@@ -40,6 +42,17 @@ from services.scan_helpers import (
     extract_text_for_scan,
 )
 from services.orchestrated_scan import orchestrated_engine
+
+
+def _extract_compat_fn(name: str, fallback):
+    try:
+        app_main = importlib.import_module("main")
+        candidate = getattr(app_main, name)
+        if callable(candidate):
+            return candidate
+    except Exception:
+        pass
+    return fallback
 
 
 async def scan_text(request: TextScanRequest):
@@ -81,8 +94,10 @@ async def scan_email(
     """
     Compatibility wrapper. Extracts email evidence, then starts orchestrated scan.
     """
-    from services.extract_pipeline import extract_email_for_orchestration
-
+    extract_email_for_orchestration = _extract_compat_fn(
+        "extract_email_for_orchestration",
+        extract_pipeline.extract_email_for_orchestration,
+    )
     extraction = await extract_email_for_orchestration(
         email_file=email_file,
         html_content=html_content,
@@ -103,8 +118,10 @@ async def scan_image(
     """
     Compatibility wrapper. Extracts OCR evidence, then starts orchestrated scan.
     """
-    from services.extract_pipeline import extract_image_for_orchestration
-
+    extract_image_for_orchestration = _extract_compat_fn(
+        "extract_image_for_orchestration",
+        extract_pipeline.extract_image_for_orchestration,
+    )
     extraction = await extract_image_for_orchestration(
         image_file=image_file,
         source_channel=source_channel,
@@ -124,8 +141,10 @@ async def scan_pdf(
     """
     Compatibility wrapper. Extracts PDF OCR evidence, then starts orchestrated scan.
     """
-    from services.extract_pipeline import extract_pdf_for_orchestration
-
+    extract_pdf_for_orchestration = _extract_compat_fn(
+        "extract_pdf_for_orchestration",
+        extract_pipeline.extract_pdf_for_orchestration,
+    )
     extraction = await extract_pdf_for_orchestration(
         pdf_file=pdf_file,
         source_channel=source_channel,

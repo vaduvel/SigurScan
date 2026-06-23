@@ -7,7 +7,7 @@ from core.request_security import security_guard
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import analytics, circle, community, extract, intel, pages, orchestrated, sandbox
+from routers import analytics, circle, community, intel, pages, scan, sandbox
 
 
 
@@ -31,7 +31,7 @@ def create_app() -> FastAPI:
     app.middleware("http")(security_guard)
 
     # Register route modules.
-    for mod in (pages, circle, community, intel, analytics, extract, orchestrated, sandbox):
+    for mod in (pages, circle, community, intel, analytics, scan, sandbox):
         app.include_router(mod.router)
 
     return app
