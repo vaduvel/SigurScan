@@ -8,6 +8,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.graphics.pdf.PdfRenderer
+import android.webkit.MimeTypeMap
 import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
 import android.content.SharedPreferences
@@ -558,15 +559,42 @@ internal fun ScannerViewModel.publishAudioShareRequiresTranscript(fileName: Stri
 }
 
 internal fun ScannerViewModel.getFileName(uri: Uri, context: Context): String {
-    var name = "document"
-    val cursor = runCatching {
+    fun sanitizeSegment(value: String?): String? {
+        return value
+            .orEmpty()
+            .trim()
+            .trimStart('.')
+            .ifBlank { null }
+    }
+
+    val fallbackPrefix = "document_${System.currentTimeMillis()}"
+    val displayName = runCatching {
         context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-    }.getOrNull()
-    cursor?.use {
-        if (it.moveToFirst()) {
-            val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (nameIndex != -1) name = it.getString(nameIndex)
+    }.getOrNull()?.use { cursor ->
+        if (cursor.moveToFirst()) {
+            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (nameIndex != -1) {
+                sanitizeSegment(cursor.getString(nameIndex))
+            } else {
+                null
+            }
+        } else {
+            null
         }
     }
-    return name
+
+    val segmentName = sanitizeSegment(uri.lastPathSegment)
+    val resolvedMime = runCatching { context.contentResolver.getType(uri) }.getOrNull().orEmpty()
+    val extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(resolvedMime)
+
+    val candidate = displayName ?: segmentName ?: fallbackPrefix
+    val hasExtension = candidate.contains('.')
+
+    if (hasExtension) {
+        return candidate
+    }
+
+    return extension?.let { ext ->
+        "$candidate.${ext.lowercase()}"
+    } ?: candidate
 }
