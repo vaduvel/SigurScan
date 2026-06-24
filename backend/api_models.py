@@ -1,13 +1,13 @@
 """API request/response schemas (Pydantic models) for the SigurScan backend.
 
-Extracted verbatim from main.py to separate the HTTP API contract from the route
-logic. URLSCAN defaults come from app_config to avoid a circular import with main.
+Extracted from main.py to separate the HTTP API contract from the route
+logic. URLSCAN defaults come from config to avoid circular imports.
 """
 
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 
-from app_config import (
+from config import (
     URLSCAN_VISIBILITY_DEFAULT,
     URLSCAN_COUNTRY_DEFAULT,
     URLSCAN_CUSTOM_AGENT_DEFAULT,

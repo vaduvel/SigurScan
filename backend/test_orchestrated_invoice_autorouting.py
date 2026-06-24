@@ -1,4 +1,5 @@
-import main as app_main
+from api_models import OrchestratedScanRequest
+from services.orchestrated_scan import orchestrated_engine
 
 
 def test_text_input_with_structured_invoice_routes_to_invoice_lane():
@@ -12,8 +13,8 @@ def test_text_input_with_structured_invoice_routes_to_invoice_lane():
         "O zi buna!"
     )
 
-    context = app_main.orchestrated_engine._build_orchestrated_text_context(
-        app_main.OrchestratedScanRequest(
+    context = orchestrated_engine._build_orchestrated_text_context(
+        OrchestratedScanRequest(
             input_type="text",
             text=text,
             source_channel="android_native",
@@ -31,8 +32,8 @@ def test_text_input_with_invoice_link_only_stays_text_or_url_context():
         "Descarca factura aici https://orange.ro/r/KK5IMyT"
     )
 
-    context = app_main.orchestrated_engine._build_orchestrated_text_context(
-        app_main.OrchestratedScanRequest(
+    context = orchestrated_engine._build_orchestrated_text_context(
+        OrchestratedScanRequest(
             input_type="text",
             text=text,
             source_channel="android_native",

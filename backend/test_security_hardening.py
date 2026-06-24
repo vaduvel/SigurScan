@@ -1,16 +1,17 @@
 import os
 import re
-import sys
 import time
 
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-import main as app_main
+import config
+from app import app
+from core.identity import _new_scan_id
+from core.scan_context import _resolve_eval_dataset_path
 from services import play_integrity, play_integrity_nonce, rate_limiter
+from services.scan_helpers import _is_allowed_image_bytes, _validate_file_upload
 
 
 CLIENT_KEY = "client-key-test-1"
@@ -49,17 +50,17 @@ def reset_rate_limiter_memory():
 
 
 def _enable_client_auth(monkeypatch):
-    monkeypatch.setattr(app_main, "REQUIRE_API_KEY", True)
-    monkeypatch.setattr(app_main, "ALLOWED_API_KEYS", {CLIENT_KEY, CLIENT_KEY_SECOND})
+    monkeypatch.setattr(config, "REQUIRE_API_KEY", True)
+    monkeypatch.setattr(config, "ALLOWED_API_KEYS", {CLIENT_KEY, CLIENT_KEY_SECOND})
 
 
 def _enable_admin_auth(monkeypatch):
-    monkeypatch.setattr(app_main, "ADMIN_API_KEYS", {ADMIN_KEY})
+    monkeypatch.setattr(config, "ADMIN_API_KEYS", {ADMIN_KEY})
 
 
 def test_health_stays_public_and_reports_security_posture(monkeypatch):
     _enable_client_auth(monkeypatch)
-    client = TestClient(app_main.app)
+    client = TestClient(app)
     response = client.get("/health")
     assert response.status_code == 200
     config = response.json()["config"]
@@ -72,20 +73,20 @@ def test_health_stays_public_and_reports_security_posture(monkeypatch):
 
 def test_security_health_exposes_non_secret_prod_posture(monkeypatch):
     _enable_client_auth(monkeypatch)
-    monkeypatch.setattr(app_main, "ALLOWED_MOCK_OCR", False)
-    client = TestClient(app_main.app)
+    monkeypatch.setattr(config, "ALLOWED_MOCK_OCR", False)
+    client = TestClient(app)
 
     response = client.get("/health/security")
 
     assert response.status_code == 200
-    config = response.json()
-    assert config["api_key_required"] is True
-    assert config["mock_ocr_allowed"] is False
-    assert "providers" in config
+    body = response.json()
+    assert body["api_key_required"] is True
+    assert body["mock_ocr_allowed"] is False
+    assert "providers" in body
 
 
 def test_api_docs_are_not_public_by_default():
-    client = TestClient(app_main.app)
+    client = TestClient(app)
 
     assert client.get("/docs").status_code != 200
     assert client.get("/openapi.json").status_code != 200
@@ -94,28 +95,28 @@ def test_api_docs_are_not_public_by_default():
 
 
 def test_cors_policy_uses_explicit_methods_and_headers():
-    assert "*" not in app_main.ALLOWED_CORS_METHODS
-    assert "*" not in app_main.ALLOWED_CORS_HEADERS
-    assert {"GET", "POST", "OPTIONS"}.issubset(set(app_main.ALLOWED_CORS_METHODS))
+    assert "*" not in config.ALLOWED_CORS_METHODS
+    assert "*" not in config.ALLOWED_CORS_HEADERS
+    assert {"GET", "POST", "OPTIONS"}.issubset(set(config.ALLOWED_CORS_METHODS))
     assert {
         "Authorization",
         "Content-Type",
         "X-API-KEY",
         "X-Play-Integrity-Token",
         "X-SigurScan-Client-Instance",
-    }.issubset(set(app_main.ALLOWED_CORS_HEADERS))
+    }.issubset(set(config.ALLOWED_CORS_HEADERS))
 
 
 def test_image_upload_validation_checks_magic_bytes():
     with pytest.raises(HTTPException) as exc:
-        app_main._validate_file_upload(
+        _validate_file_upload(
             filename="invoice.jpg",
             content_type="image/jpeg",
             file_bytes=b"not really an image",
-            max_bytes=app_main.MAX_IMAGE_BYTES,
-            allowed_exts=app_main.ALLOWED_IMAGE_EXTS,
-            allowed_mime_types=app_main.ALLOWED_IMAGE_MIME_TYPES,
-            magic_validator=app_main._is_allowed_image_bytes,
+            max_bytes=config.MAX_IMAGE_BYTES,
+            allowed_exts=config.ALLOWED_IMAGE_EXTS,
+            allowed_mime_types=config.ALLOWED_IMAGE_MIME_TYPES,
+            magic_validator=_is_allowed_image_bytes,
         )
 
     assert exc.value.status_code == 400
@@ -124,7 +125,7 @@ def test_image_upload_validation_checks_magic_bytes():
 
 def test_scan_routes_reject_missing_or_invalid_client_key(monkeypatch):
     _enable_client_auth(monkeypatch)
-    client = TestClient(app_main.app)
+    client = TestClient(app)
 
     assert client.get(CHEAP_CLIENT_ENDPOINT).status_code == 401
     assert client.get(CHEAP_CLIENT_ENDPOINT, headers={"X-API-KEY": "wrong"}).status_code == 401
@@ -133,7 +134,7 @@ def test_scan_routes_reject_missing_or_invalid_client_key(monkeypatch):
 
 def test_scan_routes_accept_any_configured_client_key_for_rotation(monkeypatch):
     _enable_client_auth(monkeypatch)
-    client = TestClient(app_main.app)
+    client = TestClient(app)
 
     assert client.get(CHEAP_CLIENT_ENDPOINT, headers={"X-API-KEY": CLIENT_KEY}).status_code == 200
     assert client.get(CHEAP_CLIENT_ENDPOINT, headers={"X-API-KEY": CLIENT_KEY_SECOND}).status_code == 200
@@ -142,18 +143,18 @@ def test_scan_routes_accept_any_configured_client_key_for_rotation(monkeypatch):
 
 
 def test_auth_fails_closed_when_no_client_keys_configured(monkeypatch):
-    monkeypatch.setattr(app_main, "REQUIRE_API_KEY", True)
-    monkeypatch.setattr(app_main, "ALLOWED_API_KEYS", set())
-    client = TestClient(app_main.app)
+    monkeypatch.setattr(config, "REQUIRE_API_KEY", True)
+    monkeypatch.setattr(config, "ALLOWED_API_KEYS", set())
+    client = TestClient(app)
 
     assert client.get(CHEAP_CLIENT_ENDPOINT).status_code == 401
     assert client.get(CHEAP_CLIENT_ENDPOINT, headers={"X-API-KEY": "anything"}).status_code == 401
 
 
 def test_admin_endpoints_fail_closed_when_admin_keys_missing(monkeypatch):
-    monkeypatch.setattr(app_main, "ADMIN_API_KEYS", set())
+    monkeypatch.setattr(config, "ADMIN_API_KEYS", set())
     _enable_client_auth(monkeypatch)
-    client = TestClient(app_main.app)
+    client = TestClient(app)
 
     for path in ADMIN_ENDPOINTS:
         response = client.get(path, headers={"X-API-KEY": CLIENT_KEY})
@@ -163,7 +164,7 @@ def test_admin_endpoints_fail_closed_when_admin_keys_missing(monkeypatch):
 def test_admin_endpoints_reject_client_key_and_accept_admin_key(monkeypatch):
     _enable_client_auth(monkeypatch)
     _enable_admin_auth(monkeypatch)
-    client = TestClient(app_main.app)
+    client = TestClient(app)
 
     for path in ADMIN_ENDPOINTS:
         assert client.get(path).status_code == 401, path
@@ -177,7 +178,7 @@ def test_admin_endpoints_reject_client_key_and_accept_admin_key(monkeypatch):
 def test_admin_key_does_not_work_on_client_routes(monkeypatch):
     _enable_client_auth(monkeypatch)
     _enable_admin_auth(monkeypatch)
-    client = TestClient(app_main.app)
+    client = TestClient(app)
 
     assert client.get(CHEAP_CLIENT_ENDPOINT, headers={"X-API-KEY": ADMIN_KEY}).status_code == 401
 
@@ -185,8 +186,8 @@ def test_admin_key_does_not_work_on_client_routes(monkeypatch):
 def test_internal_worker_routes_reject_client_and_admin_api_keys(monkeypatch):
     _enable_client_auth(monkeypatch)
     _enable_admin_auth(monkeypatch)
-    monkeypatch.setattr(app_main, "INTERNAL_WORKER_TOKEN", "unit-worker-token")
-    client = TestClient(app_main.app)
+    monkeypatch.setattr(config, "INTERNAL_WORKER_TOKEN", "unit-worker-token")
+    client = TestClient(app)
 
     path = "/internal/orchestrated/orch_missing/advance"
 
@@ -196,7 +197,7 @@ def test_internal_worker_routes_reject_client_and_admin_api_keys(monkeypatch):
 
 
 def test_scan_ids_do_not_expose_timestamp_or_low_entropy_suffix():
-    generated = {app_main._new_scan_id("orch") for _ in range(20)}
+    generated = {_new_scan_id("orch") for _ in range(20)}
 
     assert len(generated) == 20
     for scan_id in generated:
@@ -210,7 +211,7 @@ def test_evaluation_dataset_path_is_limited_to_backend_data(tmp_path):
     outside_dataset.write_text("{}\n", encoding="utf-8")
 
     with pytest.raises(HTTPException) as exc:
-        app_main._resolve_eval_dataset_path(str(outside_dataset))
+        _resolve_eval_dataset_path(str(outside_dataset))
 
     assert getattr(exc.value, "status_code", None) == 400
 
@@ -218,16 +219,16 @@ def test_evaluation_dataset_path_is_limited_to_backend_data(tmp_path):
 def test_screenshot_proxy_stays_loadable_without_headers(monkeypatch):
     """Coil/image loaders cannot attach headers; the GET screenshot proxy must not 401."""
     _enable_client_auth(monkeypatch)
-    client = TestClient(app_main.app)
+    client = TestClient(app)
 
     response = client.get("/v1/sandbox/urlscan/00000000-0000-0000-0000-000000000000/screenshot")
     assert response.status_code != 401
 
 
 def test_rate_limit_returns_429_after_burst(monkeypatch):
-    monkeypatch.setattr(app_main, "ENABLE_RATE_LIMIT", True)
-    monkeypatch.setattr(app_main, "RATE_LIMIT_PER_MINUTE", 3)
-    client = TestClient(app_main.app)
+    monkeypatch.setattr(config, "ENABLE_RATE_LIMIT", True)
+    monkeypatch.setattr(config, "RATE_LIMIT_PER_MINUTE", 3)
+    client = TestClient(app)
 
     statuses = [client.get(CHEAP_CLIENT_ENDPOINT).status_code for _ in range(5)]
     assert statuses[:3] == [200, 200, 200]
@@ -366,7 +367,7 @@ def test_rate_limiter_can_fail_closed_on_upstash_error(monkeypatch):
 def test_play_integrity_default_mode_off_does_not_block(monkeypatch):
     assert play_integrity.mode() == "off"
     _enable_client_auth(monkeypatch)
-    client = TestClient(app_main.app)
+    client = TestClient(app)
     response = client.get(CHEAP_CLIENT_ENDPOINT, headers={"X-API-KEY": CLIENT_KEY})
     assert response.status_code == 200
 
@@ -374,7 +375,7 @@ def test_play_integrity_default_mode_off_does_not_block(monkeypatch):
 def test_play_integrity_enforce_blocks_scan_without_token(monkeypatch):
     _enable_client_auth(monkeypatch)
     monkeypatch.setattr(play_integrity, "PLAY_INTEGRITY_MODE", "enforce")
-    client = TestClient(app_main.app)
+    client = TestClient(app)
 
     response = client.post(
         "/v1/scan/text", json={"text": "salut"}, headers={"X-API-KEY": CLIENT_KEY}
@@ -391,7 +392,7 @@ def test_play_integrity_enforce_allows_valid_token(monkeypatch):
         "verify_token",
         lambda token, api_key="": {"status": "valid", "verdict": "MEETS_DEVICE_INTEGRITY"},
     )
-    client = TestClient(app_main.app)
+    client = TestClient(app)
 
     response = client.post(
         "/v1/scan/text",
@@ -428,7 +429,7 @@ def test_play_integrity_enforce_blocks_unconfigured_or_transient_error(monkeypat
 def test_play_integrity_monitor_mode_never_blocks(monkeypatch):
     _enable_client_auth(monkeypatch)
     monkeypatch.setattr(play_integrity, "PLAY_INTEGRITY_MODE", "monitor")
-    client = TestClient(app_main.app)
+    client = TestClient(app)
 
     response = client.post(
         "/v1/scan/text", json={"text": "salut"}, headers={"X-API-KEY": CLIENT_KEY}
@@ -609,7 +610,7 @@ def test_play_integrity_enforce_can_authorize_scan_without_static_client_key(mon
         return {"block": False, "result": {"status": "valid"}}
 
     monkeypatch.setattr(play_integrity, "evaluate_request_token", fake_evaluate)
-    client = TestClient(app_main.app)
+    client = TestClient(app)
 
     response = client.post(
         "/v1/scan/text",
@@ -641,7 +642,7 @@ def test_play_integrity_nonce_endpoint_uses_client_instance_without_static_key(m
         "issue_nonce",
         fake_issue_nonce,
     )
-    client = TestClient(app_main.app)
+    client = TestClient(app)
 
     response = client.post(
         "/v1/security/play-integrity/nonce",
