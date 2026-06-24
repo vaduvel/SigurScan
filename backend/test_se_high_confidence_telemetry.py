@@ -3,6 +3,8 @@ branch. Guards: (1) the side-channel never changes a verdict, (2) the single emi
 helper produces the full event schema, separating Mistral vs local sub-signals.
 """
 
+import json
+
 import services.telemetry as telemetry
 from services.verdict_gate import verdict
 
@@ -46,8 +48,18 @@ def _decision_bundle(local, model, *, sensitive="none", channel="reply", source_
 
 
 def _capture(monkeypatch):
+    # The event is emitted as a structured JSON line on the telemetry logger
+    # ("se_high_confidence_fire <json>"), NOT via log_scan_event/supabase.
     events = []
-    monkeypatch.setattr(telemetry, "log_scan_event", lambda payload: events.append(payload))
+
+    def _fake_info(fmt, *args):
+        if args:
+            try:
+                events.append(json.loads(args[0]))
+            except (ValueError, TypeError):
+                pass
+
+    monkeypatch.setattr(telemetry._LOGGER, "info", _fake_info)
     return events
 
 

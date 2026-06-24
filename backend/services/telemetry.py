@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from datetime import datetime, timezone
 from collections import Counter, defaultdict
@@ -6,6 +7,8 @@ import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
+
+_LOGGER = logging.getLogger("sigurscan.telemetry")
 
 from config import RISK_THRESHOLD
 from services import supabase_store
@@ -142,7 +145,11 @@ def log_se_high_confidence_fire(
             "scan_id": scan_id,
             "revision": revision or os.getenv("K_REVISION") or os.getenv("K_REVISION_NAME"),
         }
-        log_scan_event(payload)
+        # Emit to STDOUT as a structured JSON line -> Cloud Logging (queryable,
+        # persistent, no key collision). Deliberately NOT log_scan_event/supabase:
+        # that table is keyed on scan_id and would 409 against the scan_completed row
+        # or merge-overwrite it. Redacted; observable-only; never changes a verdict.
+        _LOGGER.info("se_high_confidence_fire %s", json.dumps(_redact_log_value(payload), ensure_ascii=False, sort_keys=True))
     except Exception:
         # Observable-only: telemetry must never break a scan or change a verdict.
         return
