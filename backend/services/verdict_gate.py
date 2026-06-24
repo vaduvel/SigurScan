@@ -516,7 +516,7 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
         and not _bool(request.get("positive_action_request"))
         and not social_engineering.get("levers")
         and not re.search(
-            r"\b(executabil|instalator|\.exe|\.apk|\.msi|\.bat|\.cmd|\.scr|\.vbs|\.ps1|\.jar)\b",
+            r"\b(?:executabil|instalator)\b|\.(?:exe|apk|msi|bat|cmd|scr|vbs|ps1|jar)(?![a-z0-9])",
             str((bundle.get("input") or {}).get("redacted_text", "")),
             re.IGNORECASE,
         )
