@@ -138,7 +138,7 @@ from services.reputation_enrich import (
     _reputation_lookup_urls_from_resolved_entries,
     _sanitize_external_intel_results,
 )
-from services.provider_gate import _apply_provider_gate_verdict, _maybe_add_dns_reputation, _project_provider_gate_verdict
+from services.provider_gate import _apply_provider_gate_verdict, _maybe_add_dns_reputation, _project_provider_gate_verdict, _identity_data_request_token
 from services.scam_atlas import BRAND_ID_TO_DISPLAY_NAME, BRAND_REGISTRY, BRAND_WARNING_RULES
 from services.tier1_classifier import LEGIT_LABELS as TIER1_LEGIT_LABELS
 from services.gemini_explainer import generate_ai_explanation, generate_fallback_explanation
@@ -1965,6 +1965,9 @@ def _request_sensitivity_from_signals(
         return "password"
     if re.search(r"\b(copie\s+(?:ci|act)|ci\s+fa[țt][ăa][-\s]?verso|selfie|act(?:ul)?\s+(?:de\s+)?identitate|buletin)\b", normalized):
         return "id_document"
+    identity_data_token = _identity_data_request_token(normalized)
+    if identity_data_token:
+        return identity_data_token
     if re.search(r"\b(gift\s*card|carduri?\s+cadou|voucher)\b", normalized) and re.search(r"\b(cump[ăa]r|cite[șs]te|cod|pl[ăa]t|achit)\b", normalized):
         return "transfer"
     if _has_investment_money_risk(normalized):
