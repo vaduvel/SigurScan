@@ -1034,6 +1034,7 @@ class OrchestratedScanEngine:
                 resolved_urls,
                 raw_text=str(job.get("redacted_text") or ""),
                 pillars=pillars,
+                scan_id=str(job.get("scan_id") or "") or None,
             )
             _apply_final_url_unresolved_shortener_fail_safe(job, analysis)
         evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}

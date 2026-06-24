@@ -2902,6 +2902,7 @@ def _apply_provider_gate_verdict(
     *,
     raw_text: str = "",
     pillars: Optional[Dict[str, Dict[str, Any]]] = None,
+    scan_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     evidence = analysis.setdefault("evidence", {})
     summary = evidence.get("external_intel_summary")
@@ -3037,7 +3038,7 @@ def _apply_provider_gate_verdict(
             _telemetry.log_se_high_confidence_fire(
                 decision_bundle,
                 gate_result,
-                scan_id=str(analysis.get("scan_id") or analysis.get("id") or "") or None,
+                scan_id=(scan_id or str(analysis.get("scan_id") or analysis.get("id") or "") or None),
             )
         except Exception:
             pass
