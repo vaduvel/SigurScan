@@ -3029,6 +3029,18 @@ def _apply_provider_gate_verdict(
         sensitive_url_path=sensitive_url_path,
     )
     gate_result = reduce_verdict(decision_bundle)
+    # Observable-only: emit telemetry when the SE high-confidence branch decided,
+    # so we can measure live classifier (dis)agreement. Never changes the verdict.
+    if isinstance(gate_result, dict) and "social_engineering_high_confidence_intent" in (gate_result.get("reason_codes") or []):
+        try:
+            from services import telemetry as _telemetry
+            _telemetry.log_se_high_confidence_fire(
+                decision_bundle,
+                gate_result,
+                scan_id=str(analysis.get("scan_id") or analysis.get("id") or "") or None,
+            )
+        except Exception:
+            pass
     return _apply_decision_contract_result(analysis, decision_bundle, gate_result, provider_gate)
 
 
@@ -3218,6 +3230,15 @@ def _build_decision_evidence_bundle(
         bundle["community"] = community_data
     canonical = json.dumps(bundle, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     bundle["evidence_hash"] = "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    # Observable-only side-channel for SE telemetry: carry the RAW pre-merge local
+    # and Mistral sub-signals (lost by _normalize_model_social_engineering_signal)
+    # so the call-site can log classifier (dis)agreement. Attached AFTER the
+    # evidence_hash so it cannot change the hash, and never read by verdict_gate.
+    bundle["_se_signals_raw"] = {
+        "local": local_social_engineering,
+        "model": social_engineering_proto,
+        "source_channel": source_channel,
+    }
     return bundle
 def _apply_decision_contract_result(
     analysis: Dict[str, Any],

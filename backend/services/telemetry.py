@@ -69,6 +69,85 @@ def log_feedback_event(payload: Dict[str, Any]) -> None:
     _append_jsonl(FEEDBACK_LOG_PATH, base_payload)
 
 
+def log_se_high_confidence_fire(
+    decision_bundle: Dict[str, Any],
+    gate_result: Dict[str, Any],
+    *,
+    scan_id: Optional[str] = None,
+    revision: Optional[str] = None,
+) -> None:
+    """Observable-only telemetry for the `social_engineering_high_confidence_intent`
+    gate branch. It is the single source of truth for the event schema and is called
+    from the verdict call-site (provider_gate). It captures the RAW pre-merge local
+    vs Mistral sub-signals (carried on ``decision_bundle["_se_signals_raw"]``) so a
+    later analysis can separate FP candidates (Mistral fires, local does not) from
+    true positives (both agree). It NEVER raises and NEVER influences any verdict.
+    """
+    try:
+        from services.verdict_gate_constants import (
+            HARD_SENSITIVE_REQUESTS,
+            MONEY_OR_VALUE_REQUESTS,
+            WRONG_CHANNELS,
+            DANGEROUS_SOCIAL_ENGINEERING_INTENTS,
+            PROVIDER_CLEAN,
+        )
+        from services.verdict_gate import _has_positive_provenance, _providers_verdict
+
+        raw = decision_bundle.get("_se_signals_raw") if isinstance(decision_bundle, dict) else None
+        raw = raw if isinstance(raw, dict) else {}
+        local = raw.get("local") if isinstance(raw.get("local"), dict) else {}
+        model = raw.get("model") if isinstance(raw.get("model"), dict) else {}
+        request = decision_bundle.get("request") if isinstance(decision_bundle.get("request"), dict) else {}
+        identity = decision_bundle.get("identity") if isinstance(decision_bundle.get("identity"), dict) else {}
+        provenance = decision_bundle.get("provenance") if isinstance(decision_bundle.get("provenance"), dict) else {}
+        providers = decision_bundle.get("providers") if isinstance(decision_bundle.get("providers"), dict) else {}
+
+        def _conf(sig: Dict[str, Any]) -> float:
+            try:
+                return float(sig.get("confidence") or 0.0)
+            except (TypeError, ValueError):
+                return 0.0
+
+        def _se_high(sig: Dict[str, Any]) -> bool:
+            return (
+                bool(sig)
+                and str(sig.get("intent") or "").strip().lower() in DANGEROUS_SOCIAL_ENGINEERING_INTENTS
+                and _conf(sig) >= 0.78
+            )
+
+        mistral_present = bool(model)
+        sensitive = str(request.get("sensitive") or "none").strip().lower()
+        channel_mapped = str(request.get("channel") or "unknown").strip().lower()
+        has_prov = bool(_has_positive_provenance(identity, provenance))
+        provider_verdict = _providers_verdict(providers)
+
+        payload = {
+            "event": "se_high_confidence_fire",
+            "event_type": "se_high_confidence_fire",
+            "mistral_label": (str(model.get("intent") or "unknown").strip().lower() if mistral_present else None),
+            "mistral_confidence": (round(_conf(model), 2) if mistral_present else None),
+            "local_label": (str(local.get("intent") or "unknown").strip().lower() if local else None),
+            "local_confidence": (round(_conf(local), 2) if local else None),
+            "classifiers_agree": ((_se_high(model) and _se_high(local)) if mistral_present else False),
+            "hard_sensitive": sensitive in HARD_SENSITIVE_REQUESTS,
+            "hard_sensitive_token": (sensitive if sensitive in HARD_SENSITIVE_REQUESTS else None),
+            "value_sensitive": sensitive in MONEY_OR_VALUE_REQUESTS,
+            "positive_action_request": bool(request.get("positive_action_request")),
+            "channel_raw": raw.get("source_channel"),
+            "channel_mapped": channel_mapped,
+            "wrong_channel": channel_mapped in WRONG_CHANNELS,
+            "has_provenance": has_prov,
+            "provenance_clean": bool(has_prov and provider_verdict in PROVIDER_CLEAN),
+            "final_verdict": gate_result.get("label") if isinstance(gate_result, dict) else None,
+            "scan_id": scan_id,
+            "revision": revision or os.getenv("K_REVISION") or os.getenv("K_REVISION_NAME"),
+        }
+        log_scan_event(payload)
+    except Exception:
+        # Observable-only: telemetry must never break a scan or change a verdict.
+        return
+
+
 def _iter_jsonl(path: Path) -> Iterable[Dict[str, Any]]:
     if not path.exists():
         return []
