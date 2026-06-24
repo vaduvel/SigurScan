@@ -2502,6 +2502,35 @@ summary,
     )
 
 
+# Explicit *request* for identity data ("furnizați datele de identificare",
+# "transmiteți CNP-ul"). Authority/vishing scams ask for generic "date de
+# identificare" / "date personale" rather than "act de identitate"/"buletin",
+# so without this the request never lights HARD_SENSITIVE_REQUESTS and the gate
+# cannot escalate sensitive-on-wrong-channel. Gated on a 2nd-person request verb
+# adjacent to the identity-data target so benign/legal/negated mentions
+# ("nu transmitem date personale", "prelucrarea datelor personale conform GDPR",
+# "datele personale sunt protejate") do NOT fire. Shared by both the provider-gate
+# and scan-analysis sensitivity derivations to keep them from diverging.
+_IDENTITY_DATA_REQUEST_RE = re.compile(
+    r"\b(?:furniza[țt]i|transmite[țt]i|confirma[țt]i|trimite[țt]i|comunica[țt]i|"
+    r"valida[țt]i|prezenta[țt]i|introduce[țt]i|spune[țt]i|da[țt]i|dicta[țt]i)\b"
+    r"[^.?!]{0,40}?"
+    r"\b(?:date(?:le)?\s+(?:de\s+)?identificare|date(?:le)?\s+de\s+identitate|"
+    r"date(?:le)?\s+personale|cnp)\b",
+    re.IGNORECASE,
+)
+_IDENTITY_DATA_CNP_RE = re.compile(r"\bcnp\b", re.IGNORECASE)
+
+
+def _identity_data_request_token(normalized: str) -> Optional[str]:
+    """Return ``cnp``/``id_document`` when text explicitly *requests* identity data,
+    else ``None``. Operates on already-normalised (lowercased) text."""
+    match = _IDENTITY_DATA_REQUEST_RE.search(normalized or "")
+    if not match:
+        return None
+    return "cnp" if _IDENTITY_DATA_CNP_RE.search(match.group(0)) else "id_document"
+
+
 def _request_sensitivity_from_signals_impl(
     *,
     raw_text: str,
@@ -2628,6 +2657,9 @@ def _request_sensitivity_from_signals_impl(
         return "password"
     if re.search(r"\b(copie\s+(?:ci|act)|ci\s+fa[țt][ăa][-\s]?verso|selfie|act(?:ul)?\s+(?:de\s+)?identitate|buletin)\b", normalized):
         return "id_document"
+    identity_data_token = _identity_data_request_token(normalized)
+    if identity_data_token:
+        return identity_data_token
     if re.search(r"\b(gift\s*card|carduri?\s+cadou|voucher)\b", normalized) and re.search(r"\b(cump[ăa]r|cite[șs]te|cod|pl[ăa]t|achit)\b", normalized):
         return "transfer"
     if _has_investment_money_risk(normalized):
