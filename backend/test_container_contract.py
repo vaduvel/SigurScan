@@ -25,8 +25,26 @@ def test_cloud_run_container_build_is_reproducible_and_warning_free():
 def test_cloud_run_image_includes_backend_modules_imported_by_main():
     dockerfile = DOCKERFILE.read_text(encoding="utf-8")
 
-    assert "app_stores.py" in dockerfile
-    assert "COPY routers ./routers" in dockerfile
+    # Top-level modules imported at runtime by `uvicorn app:app` (app.py imports
+    # `config` and `core.request_security`; main.py/the engine import
+    # `runtime_state`). All of these must be copied into the image or it crashes
+    # on boot with ModuleNotFoundError -- a failure pytest cannot catch since it
+    # runs in the full source tree, not the built image (refactor #62 regression).
+    for module_file in (
+        "main.py",
+        "app.py",
+        "api_models.py",
+        "app_config.py",
+        "app_stores.py",
+        "config.py",
+        "runtime_state.py",
+    ):
+        assert module_file in dockerfile, f"Dockerfile must COPY {module_file} into the image"
+
+    for package_dir in ("core", "routers", "services"):
+        assert f"COPY {package_dir} ./{package_dir}" in dockerfile, (
+            f"Dockerfile must COPY the {package_dir}/ package into the image"
+        )
 
 
 def test_cloud_run_lockfile_covers_declared_requirements():
