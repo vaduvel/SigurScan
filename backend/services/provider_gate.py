@@ -1431,9 +1431,13 @@ def _local_high_risk_semantic_review(raw_text: str) -> Optional[Dict[str, Any]]:
         (
             "semantic:courier_fee_payment_link",
             "courier_fee_payment_link",
+            # Recall (#76/T5): courier-fee smishing carries the payment destination as a
+            # bare URL just as often as the literal word "link" (FAN/DHL campaigns). Accept
+            # either. The payment-verb lookahead stays required, so a legit tracking SMS with
+            # a URL but no card/payment ask does not match (green FP boundary preserved).
             r"(?=.{0,160}\b(?:tax[ăa]\s+de\s+livrare|taxa\s+de\s+livrare|colet\w*|livrare)\b)"
             r"(?=.{0,160}\b(?:achit\w*|achi[țt]\w*|pl[ăa]t\w*)\b)"
-            r"(?=.{0,160}\blink\w*\b)",
+            r"(?=.{0,160}(?:\blink\w*\b|https?://|www\.))",
         ),
         (
             "semantic:exclusive_new_iban_payment",
@@ -1511,6 +1515,18 @@ def _local_high_risk_semantic_review(raw_text: str) -> Optional[Dict[str, Any]]:
             r"(?=.{0,300}\b(?:tax[ăa]|comision|asigurar\w*|sum[ăa]|cau[țt]iune|garan[țt]i\w*|onorariu)\b)"
             r"(?=.{0,320}\b(?:[îi]n\s+avans|mai\s+[îi]nt[âa]i|achita\w*\s+[îi]n\s+avans|trebuie\s+(?:s[ăa]\s+)?(?:achita\w*|pl[ăa]ti\w*|[îi]ncheia\w*)|pentru\s+a)\b)"
             r"(?=.{0,360}\b(?:recupera\w*|retrage\w*|retragere\w*|debloca\w*|deblocare\w*|elibera\w*|primi\s+(?:profitul|banii|premiul|suma)|deblocheze)\b)",
+        ),
+        (
+            # Money-mule recruitment: money lands in YOUR account, you forward it ONWARD,
+            # and you keep a commission. The three-way combo (receive + forward-on + cut)
+            # is the mule signature; a legit reimbursement between acquaintances has the
+            # receive part only (no "forward onward" + "commission") -> FP boundary. Maps
+            # to the transfer (value) token; escalation stays channel-gated.
+            "semantic:money_mule_transit",
+            "money_mule_transit",
+            r"(?=.{0,260}\b(?:prime[șs]ti|prime[șs]te|vei\s+primi|primi[țt]i|intr[ăa]|se\s+vireaz[ăa]|virez)\b.{0,70}\b(?:bani|sum[ăa]|fonduri|transfer\w*|[îi]n\s+cont)\b)"
+            r"(?=.{0,300}\b(?:retrimi[țt]i|retrimite|trimi[țt]i\s+mai\s+departe|transfer\w*\s+mai\s+departe|muta\w*\s+(?:c[ăa]tre|la|[îi]n)|redirec[țt]ion\w*|trimi[țt]i\s+(?:apoi\s+)?c[ăa]tre)\b)"
+            r"(?=.{0,300}\b(?:comision|procent|p[ăa]strezi|p[ăa]stra\w*|opre[șs]ti|re[țt]ii|\d{1,2}\s*%)\b)",
         ),
         (
             "semantic:hospital_bail_no_call_money_request",
@@ -2683,6 +2699,7 @@ def _request_sensitivity_from_signals_impl(
             "bank_change_iban_format",
             "institution_fee_to_account",
             "advance_fee_unlock",
+            "money_mule_transit",
         }:
             return "transfer"
         if matched_family == "account_inventory_harvest":
