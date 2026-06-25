@@ -1896,7 +1896,20 @@ def _social_engineering_signal_for_decision_bundle(
     )
     if strong_callback or (generic_callback and not self_directed_verification):
         add_ask("callback")
-    if _se_pattern(text, r"\b(anydesk|teamviewer|rustdesk|remote\s+access|control\s+la\s+distan[țt][ăa]|instaleaz[ăa].{0,30}(?:aplica[țt]ia|apk))\b"):
+    # remote_install ask: named remote-control tools, sideloaded APK, or an "install
+    # the app" instruction tied to a remote-control / tech-support context. FP fix
+    # (#77): the bare "instaleaz[ăa] ... aplica[țt]ia" branch over-fired on legit
+    # anti-sideload advice ("instalează aplicația oficială din Google Play"); the
+    # generic install-app shape now requires a remote-control qualifier nearby.
+    if (
+        _se_pattern(text, r"\b(?:anydesk|teamviewer|rustdesk|remote\s+access|control\s+la\s+distan[țt][ăa])\b")
+        or _se_pattern(text, r"\binstaleaz[ăa]\b.{0,40}\bapk\b")
+        or _se_pattern(
+            text,
+            r"\binstaleaz[ăa]\b.{0,60}aplica[țt]ia\b.{0,40}"
+            r"(?:control|la\s+distan[țt][ăa]|preia\w*\s+control\w*|suport\s+(?:tehnic|bancar)|acces\s+remote|remote)",
+        )
+    ):
         add_ask("remote_install")
     if _se_pattern(text, r"\b(seed\s+phrase|fraza\s+seed|cheia\s+privat[ăa]|wallet|portofel\s+crypto)\b"):
         add_ask("seed_phrase")
