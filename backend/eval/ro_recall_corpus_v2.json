@@ -1,0 +1,182 @@
+[
+  {
+    "case_id": "RO-SCAM-2025-001",
+    "family_id": "social_vote_account_takeover",
+    "channel": "app",
+    "text": "Bună! Te rog să o votezi pe Adeline în acest sondaj. Este fiica prietenei mele, iar premiul este o bursă pentru studii în Franța. Mulțumesc mult!”",
+    "expected": "DANGEROUS",
+    "fidelity": "citat_exact",
+    "protected": false
+  },
+  {
+    "case_id": "RO-SCAM-2025-002",
+    "family_id": "job_task_scam_whatsapp",
+    "channel": "app",
+    "text": "Aţi primit pe WhatsApp un mesaj de la «Departamentul de Resurse Umane CERT.RO», care vă promite câştiguri de până la 1.000 lei/zi pentru a da like la videoclipuri?”",
+    "expected": "DANGEROUS",
+    "fidelity": "citat_exact",
+    "protected": false
+  },
+  {
+    "case_id": "RO-SCAM-2026-003",
+    "family_id": "courier_smishing_card",
+    "channel": "sms",
+    "text": "Bună ziua! Expedierea dvs. SAMEDAY este în curs de livrare, însă am observat unele erori în informațiile coletului. Vă rugăm să completați datele de livrare în termen de 12 ore aici: https://....com/ro”",
+    "expected": "DANGEROUS",
+    "fidelity": "citat_exact_redactat_de_sursă",
+    "protected": false
+  },
+  {
+    "case_id": "RO-SCAM-2026-004",
+    "family_id": "courier_whatsapp_takeover",
+    "channel": "sms",
+    "text": "Aveţi un colet la numărul dvs. Alegeţi un locker. FANBOX”",
+    "expected": "DANGEROUS",
+    "fidelity": "citat_exact",
+    "protected": false
+  },
+  {
+    "case_id": "RO-SCAM-2025-005",
+    "family_id": "courier_smishing_card",
+    "channel": "sms",
+    "text": "Bună ziua! Expedierea dvs. FAN Courier este în curs de livrare, însă am observat unele erori în informațiile coletului. Vă rugăm să completați la timp datele de livrare.”",
+    "expected": "DANGEROUS",
+    "fidelity": "citat_exact_din_avertisment_oficial",
+    "protected": false
+  },
+  {
+    "case_id": "RO-SCAM-2025-006",
+    "family_id": "authority_identity_vishing_anaf",
+    "channel": "email",
+    "text": "au dreptul la rambursare datorită plăţii în exces a impozitelor” → buton „Accesaţi Portalul ANAF” → mesaj fals de „analiză fiscală” cu „1.905 lei disponibilă pentru rambursare”.",
+    "expected": "DANGEROUS",
+    "fidelity": "adaptat_din_fragmente_citate",
+    "protected": false
+  },
+  {
+    "case_id": "RO-SCAM-2025-007",
+    "family_id": "authority_identity_vishing_anaf",
+    "channel": "email",
+    "text": "o posibilă neregularitate identificată în declarațiile fiscale depuse”",
+    "expected": "DANGEROUS",
+    "fidelity": "citat_exact",
+    "protected": false
+  },
+  {
+    "case_id": "RO-SCAM-2026-008",
+    "family_id": "authority_identity_vishing_anaf",
+    "channel": "voce",
+    "text": "Victimei i se comunică faptul că „figurează în evidențele fiscale cu impozit pe profit achitat în plus”, iar pentru restituire „vor fi contactați de un reprezentant al băncii”.",
+    "expected": "DANGEROUS",
+    "fidelity": "adaptat_din_descriere_oficiala",
+    "protected": false
+  },
+  {
+    "case_id": "RO-SCAM-2025-009",
+    "family_id": "authority_spoofing_police_bnr",
+    "channel": "voce",
+    "text": "Presupusa „agentă de la poliţie” susţine că un infractor internaţional căutat prin Interpol a încercat să contracteze un împrumut folosind identitatea persoanei vizate; apoi „specialistul” BNR cere extras de cont sub pretextul emiterii asigurării.",
+    "expected": "DANGEROUS",
+    "fidelity": "adaptat_din_descriere_oficiala",
+    "protected": false
+  },
+  {
+    "case_id": "RO-SCAM-2025-010",
+    "family_id": "authority_spoofing_police_bnr",
+    "channel": "voce",
+    "text": "Unde am conturi deschise? La ce bănci? Ce valori am în ele?”",
+    "expected": "DANGEROUS",
+    "fidelity": "citat_exact",
+    "protected": false
+  },
+  {
+    "case_id": "RO-SCAM-2025-011",
+    "family_id": "authority_spoofing_police_bnr",
+    "channel": "voce",
+    "text": "…trebuie să meargă la unitatea bancară unde aceasta deţine un cont bancar şi să facă un credit de nevoi personale în valoare de 50.000 lei (...) iar suma împrumutată să o transfere într-un presupus cont al Băncii Naţionale a României”",
+    "expected": "DANGEROUS",
+    "fidelity": "citat_exact_din_relatarea_poliției",
+    "protected": false
+  },
+  {
+    "case_id": "RO-SCAM-2025-012",
+    "family_id": "authority_popup_police_dnsc",
+    "channel": "app",
+    "text": "Mesajul afirmă că dispozitivul a fost blocat pentru accesarea unor materiale interzise, cere plata unei „amenzi” de 1.250 lei în două ore și conține formule greșite precum „Actiune Requerită” și „restriceăă”.",
+    "expected": "DANGEROUS",
+    "fidelity": "adaptat_din_descriere_oficiala",
+    "protected": false
+  },
+  {
+    "case_id": "RO-SCAM-2026-013",
+    "family_id": "rovinieta_cnair_smishing",
+    "channel": "sms",
+    "text": "Circulă în această perioadă mesaje înșelătoare care pretind că sunt trimise în numele «Rovinietei» sau al CNAIR și solicită plata urgentă a unei presupuse «taxe de drum restante», sub amenințarea aplicării de amenzi sau chiar a confiscării vehiculului.”",
+    "expected": "DANGEROUS",
+    "fidelity": "citat_exact",
+    "protected": false
+  },
+  {
+    "case_id": "RO-SCAM-2026-014",
+    "family_id": "ai_voice_clone_emergency",
+    "channel": "voce",
+    "text": "NU ESTE REAL. ESTE O VOCE FALSĂ. Și totuși… sună exact ca el/ea. «Am avut un accident…» «Ajută-mă, te rog! Am nevoie de bani. ACUM!»”",
+    "expected": "DANGEROUS",
+    "fidelity": "citat_exact",
+    "protected": false
+  },
+  {
+    "case_id": "RO-SCAM-2025-015",
+    "family_id": "fake_investment_authority",
+    "channel": "app",
+    "text": "rentabilități ridicate între 75% și 150%”",
+    "expected": "DANGEROUS",
+    "fidelity": "citat_exact",
+    "protected": false
+  },
+  {
+    "case_id": "RO-SCAM-2026-016",
+    "family_id": "fake_press_investment",
+    "channel": "app",
+    "text": "o oportunitate extraordinară de a câștiga zeci sau sute de mii de lei ca pensie cu o investiție minimă de 1.300 de lei”",
+    "expected": "DANGEROUS",
+    "fidelity": "citat_exact",
+    "protected": false
+  },
+  {
+    "case_id": "RO-SCAM-2026-017",
+    "family_id": "pig_butchering_investment",
+    "channel": "app",
+    "text": "Sunt Elena Uleia, analist senior, și așteptăm cu nerăbdare să colaborăm pentru a vă sprijini în atingerea obiectivelor financiare”",
+    "expected": "DANGEROUS",
+    "fidelity": "citat_exact",
+    "protected": false
+  },
+  {
+    "case_id": "RO-SCAM-2026-018",
+    "family_id": "pig_butchering_investment",
+    "channel": "voce",
+    "text": "Se înregistrează contul de investiții pe datele dumneavoastră (...) Treceți verificarea cu documentul de identitate (...) Ne dați un extras de cont (...) faceți alimentarea contului. Primele sesiuni de tranzacționare le facem împreună”",
+    "expected": "DANGEROUS",
+    "fidelity": "citat_exact",
+    "protected": false
+  },
+  {
+    "case_id": "RO-SCAM-2026-019",
+    "family_id": "pig_butchering_investment",
+    "channel": "app",
+    "text": "trebuie să încheie o asigurare care costă alți 10.000 de euro” pentru a putea retrage „profitul” din platformă",
+    "expected": "DANGEROUS",
+    "fidelity": "citat_exact_din_relatarea_cazului",
+    "protected": false
+  },
+  {
+    "case_id": "RO-SCAM-2025-020",
+    "family_id": "quishing_parking",
+    "channel": "qr",
+    "text": "Apare o aplicaţie unde ni se cere să plătim, imediat după scanare. În mod normal, plata se face pe oră. Aici avem opţiuni de 15, 20, 45 de minute şi mai departe. Dacă am introduce datele bancare, ni s-ar lua banii şi ni s-ar copia şi datele de pe card.”",
+    "expected": "DANGEROUS",
+    "fidelity": "citat_exact",
+    "protected": false
+  }
+]

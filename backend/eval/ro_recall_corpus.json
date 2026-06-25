@@ -1,0 +1,186 @@
+[
+  {
+    "case_id": "AUTH_IDENTITY-001",
+    "family_id": "AUTH_IDENTITY",
+    "channel": "voce",
+    "text": "Bună ziua, vă sunăm din partea DIICOT. Numele dumneavoastră apare într-un dosar penal aflat în lucru. Pentru verificare și pentru a vă dovedi nevinovăția, am nevoie să-mi confirmați datele de identificare: numele complet, CNP-ul și seria de buletin. Dosarul este confidențial, nu aveți voie să discutați cu nimeni.",
+    "expected": "DANGEROUS",
+    "protected": false
+  },
+  {
+    "case_id": "AUTH_IDENTITY-002",
+    "family_id": "AUTH_IDENTITY",
+    "channel": "voce",
+    "text": "Sunt inspector în cadrul Direcției Generale Antifraudă Fiscală. Figurați cu o verificare în curs. Trebuie să confirmați telefonic datele personale și informații despre conturile sau cardurile bancare, altfel se aplică sancțiuni.",
+    "expected": "DANGEROUS",
+    "protected": false
+  },
+  {
+    "case_id": "AUTH_IDENTITY-003",
+    "family_id": "AUTH_IDENTITY",
+    "channel": "voce",
+    "text": "Sunt de la Poliție. Numele dumneavoastră este implicat într-un dosar. Pentru a vă dovedi nevinovăția, furnizați datele de identificare și cooperați telefonic acum.",
+    "expected": "DANGEROUS",
+    "protected": false
+  },
+  {
+    "case_id": "ANAF_REFUND-001",
+    "family_id": "ANAF_REFUND",
+    "channel": "email",
+    "text": "Stimate contribuabil, în urma verificărilor figurați cu un impozit pe profit achitat în plus. Pentru restituirea sumei, accesați linkul și confirmați datele contului bancar pentru virament: <LINK>",
+    "expected": "DANGEROUS",
+    "protected": false
+  },
+  {
+    "case_id": "DELIVERY_SMISH-001",
+    "family_id": "DELIVERY_SMISH",
+    "channel": "sms",
+    "text": "Poșta Română: coletul dumneavoastră nu a putut fi livrat (adresă incompletă). Actualizați datele și achitați taxa de livrare aici: <LINK>",
+    "expected": "DANGEROUS",
+    "protected": false
+  },
+  {
+    "case_id": "DELIVERY_SMISH-002",
+    "family_id": "DELIVERY_SMISH",
+    "channel": "sms",
+    "text": "FAN Courier: aveți un colet asociat numărului dumneavoastră. Alegeți lockerul de ridicare accesând: <LINK>",
+    "expected": "DANGEROUS",
+    "protected": false
+  },
+  {
+    "case_id": "DELIVERY_SMISH-003",
+    "family_id": "DELIVERY_SMISH",
+    "channel": "sms",
+    "text": "Tranzacția OLX a fost confirmată. Pentru a primi plata coletului, confirmați datele cardului la: <LINK>",
+    "expected": "DANGEROUS",
+    "protected": false
+  },
+  {
+    "case_id": "DELIVERY_SMISH-004",
+    "family_id": "DELIVERY_SMISH",
+    "channel": "whatsapp",
+    "text": "Salut, am o problemă urgentă și nu pot accesa banca acum. Poți să-mi împrumuți niște bani până mâine? Îți trimit eu IBAN-ul.",
+    "expected": "DANGEROUS",
+    "protected": false
+  },
+  {
+    "case_id": "GHISEUL_FINE-001",
+    "family_id": "GHISEUL_FINE",
+    "channel": "sms",
+    "text": "Ghișeul.ro: figurați cu o amendă restantă. Verificați și achitați accesând: <LINK>. Introduceți numărul de înmatriculare pentru a vedea suma datorată.",
+    "expected": "DANGEROUS",
+    "protected": false
+  },
+  {
+    "case_id": "QUISH_PARKING-001",
+    "family_id": "QUISH_PARKING",
+    "channel": "qr",
+    "text": "Plătiți parcarea scanând codul QR. Sesiune zonă centrală.",
+    "expected": "DANGEROUS",
+    "protected": false
+  },
+  {
+    "case_id": "BANK_PHISH-001",
+    "family_id": "BANK_PHISH",
+    "channel": "email",
+    "text": "BCR: din motive de securitate este necesară actualizarea/confirmarea datelor contului de internet banking. Accesați linkul pentru a confirma datele, altfel contul va fi restricționat: <LINK>",
+    "expected": "DANGEROUS",
+    "protected": false
+  },
+  {
+    "case_id": "BANK_VISHING-001",
+    "family_id": "BANK_VISHING",
+    "channel": "voce",
+    "text": "Vă sun de la departamentul antifraudă al băncii. Am detectat o tranzacție suspectă pe contul dumneavoastră. Pentru protecție, trebuie să transferați imediat fondurile într-un cont de siguranță și să-mi citiți codul primit prin SMS.",
+    "expected": "DANGEROUS",
+    "protected": false
+  },
+  {
+    "case_id": "BANK_VISHING-002",
+    "family_id": "BANK_VISHING",
+    "channel": "voce",
+    "text": "Vă felicităm, creditul solicitat a fost aprobat. Pentru a primi banii, urmați pașii pe care vi-i indic eu la telefon și deschideți un cont nou pentru a încasa dividendele.",
+    "expected": "DANGEROUS",
+    "protected": false
+  },
+  {
+    "case_id": "INVEST_DEEPFAKE-001",
+    "family_id": "INVEST_DEEPFAKE",
+    "channel": "app",
+    "text": "Fiecare român poate câștiga 9.000 RON pe lună prin programul național de investiții «Neptun Deep». Tot ce trebuie este o plată de activare de 1.400 RON pentru a începe. Locuri limitate!",
+    "expected": "DANGEROUS",
+    "protected": false
+  },
+  {
+    "case_id": "PIG_BUTCHERING-001",
+    "family_id": "PIG_BUTCHERING",
+    "channel": "sms",
+    "text": "Bună, Andrei, mai e valabilă întâlnirea de mâine? — Cred că ați greșit numărul. — Vai, scuze! Dar ce zi frumoasă să cunoști pe cineva nou, nu? De unde ești?",
+    "expected": "SUSPECT",
+    "protected": false
+  },
+  {
+    "case_id": "PIG_BUTCHERING-002",
+    "family_id": "PIG_BUTCHERING",
+    "channel": "chat",
+    "text": "Am făcut profituri mari pe o platformă de crypto, te învăț eu. Depune doar 500 USDT pentru început, vezi cum crește, apoi poți retrage oricând.",
+    "expected": "DANGEROUS",
+    "protected": false
+  },
+  {
+    "case_id": "RECOVERY_SCAM-001",
+    "family_id": "RECOVERY_SCAM",
+    "channel": "email",
+    "text": "Am identificat fondurile pierdute în escrocheria anterioară. Putem recupera banii, însă trebuie achitată în avans o taxă de procesare/juridică pentru a debloca transferul.",
+    "expected": "DANGEROUS",
+    "protected": false
+  },
+  {
+    "case_id": "JOB_TASK-001",
+    "family_id": "JOB_TASK",
+    "channel": "whatsapp",
+    "text": "Bună ziua! Oferim job part-time de acasă: evaluezi produse/hoteluri, 30 min/zi, 150–300 lei/zi. Interesat? Continuăm pe Telegram.",
+    "expected": "SUSPECT",
+    "protected": false
+  },
+  {
+    "case_id": "JOB_TASK-002",
+    "family_id": "JOB_TASK",
+    "channel": "telegram",
+    "text": "Felicitări, ai strâns 420 lei! Pentru a debloca următorul set de task-uri și a retrage câștigurile, depune 200 USDT în contul de activare.",
+    "expected": "DANGEROUS",
+    "protected": false
+  },
+  {
+    "case_id": "FAKE_APP-001",
+    "family_id": "FAKE_APP",
+    "channel": "app",
+    "text": "Pentru a vă proteja cardul, instalați aplicația oficială de securitate de la linkul de mai jos și urmați pașii de activare.",
+    "expected": "DANGEROUS",
+    "protected": false
+  },
+  {
+    "case_id": "BEC_IBAN-001",
+    "family_id": "BEC_IBAN",
+    "channel": "email",
+    "text": "Bună ziua, vă informăm că ne-am schimbat banca în urma unui audit intern. Vă rugăm achitați factura atașată în noul cont IBAN. Restul detaliilor rămân neschimbate. Mulțumim.",
+    "expected": "DANGEROUS",
+    "protected": true
+  },
+  {
+    "case_id": "OSIM_INVOICE-001",
+    "family_id": "OSIM_INVOICE",
+    "channel": "email",
+    "text": "Pentru cererea dumneavoastră de marcă depusă la OSIM, este necesară achitarea unei taxe de înregistrare/publicare. Efectuați plata în contul indicat în termen de 5 zile pentru a evita respingerea cererii.",
+    "expected": "DANGEROUS",
+    "protected": true
+  },
+  {
+    "case_id": "PAYROLL_DIVERT-001",
+    "family_id": "PAYROLL_DIVERT",
+    "channel": "email",
+    "text": "Bună, mi-am schimbat banca. Te rog actualizează contul în care îmi virați salariul, începând cu luna aceasta. Îți trimit noul IBAN mai jos.",
+    "expected": "DANGEROUS",
+    "protected": true
+  }
+]
