@@ -51,7 +51,7 @@ MODE = {
     "RO-SCAM-2025-020": "HARD_FLOOR",
     "RO-SCAM-2025-006": "NON_MESSAGE",     # degraded fragment w/ arrows; clean ANAF-portal msg already fires
     # RO-SCAM-2025-010 ("unde ai conturi/solduri") fixed by account_inventory_harvest -> HARD_FLOOR.
-    "RO-SCAM-2026-017": "NON_MESSAGE",     # investment intro/opener, no concrete ask
+    "RO-SCAM-2026-017": "KNOWN_GAP",       # citat_exact pig-butchering opener (real msg, no concrete ask) -> honest gap like PIG-001, not NON_MESSAGE
     "RO-SCAM-2026-018": "KNOWN_GAP",       # investment onboarding (ID+statement+deposit); FP-risky to force
     # RO-SCAM-2026-019 (advance-fee "insurance to withdraw") fixed by advance_fee_unlock -> HARD_FLOOR.
     "RO-SCAM-2026-003": "INDICATOR_ONLY",
