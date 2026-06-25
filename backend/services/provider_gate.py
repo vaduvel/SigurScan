@@ -1243,6 +1243,26 @@ def _local_high_risk_semantic_review(raw_text: str) -> Optional[Dict[str, Any]]:
             r"(?=.{0,240}\b(?:install|instalare|instaleaz[ăa]|descarc[ăa]|apk|package|aplica[țt]ie)\b)",
         ),
         (
+            # "Protect your card -> install our security app + follow the activation
+            # steps" (fake bank/security app, remote-control/NFC malware). The family
+            # above misses the imperative + inflected forms: "instalați aplicația"
+            # (instala[țt]i + aplica[țt]ia) and "activare/pașii de activare". Anchor on
+            # a security/bank/card pretext + install-app verb + an app/remote/activation
+            # target. Maps to the `remote` token like security_update_install_link;
+            # escalation stays channel-gated (official app-store / official destination
+            # is not escalated).
+            "semantic:fake_security_app_install",
+            "fake_security_app_install",
+            # Scam-specific app type: a "security/protection/antifraud app" OR a
+            # remote-control tool. (Legit "install our official BT Pay app from
+            # Google Play" matches none of these -> no FP.)
+            r"(?=.{0,260}\b(?:aplica[țt]i\w*\s+(?:oficial\w*\s+)?(?:de\s+)?(?:securitate|protec[țt]\w*|antifraud\w*)|anydesk|teamviewer|rustdesk|control\s+(?:de\s+)?la\s+distan[țt]\w*|acces\s+la\s+distan[țt]\w*|\bremote\b)\b)"
+            r"(?=.{0,300}\b(?:instala[țt]i?|instaleaz[ăa]|instalare|descarca[țt]i?|descarc[ăa]|activa[țt]i?|preia\w*\s+control\w*)\b)"
+            # Dangerous distribution / control cue: sideload link, apk, access code,
+            # activation steps, taking control. (Official app store has none.)
+            r"(?=.{0,340}\b(?:de\s+la\s+link\w*|linkul\s+de\s+mai\s+jos|din\s+link\w*|\bapk\b|cod(?:ul)?\s+de\s+acces|pa[șs]ii\s+de\s+activare|s[ăa]\s+preiau)\b)",
+        ),
+        (
             "semantic:qr_epc_safe_account_payment",
             "safe_account_or_protective_transfer",
             r"(?=.{0,500}\bBCD\b)"
@@ -2636,7 +2656,7 @@ def _request_sensitivity_from_signals_impl(
             return "card"
         if matched_family in {"brand_login_update_link", "bank_credential_update_phish", "password_update_link", "safety_education_login_pretext", "data_url_credential_form"}:
             return "password"
-        if matched_family in {"executable_invoice_attachment", "security_update_install_link", "deeplink_fallback_login_or_install"}:
+        if matched_family in {"executable_invoice_attachment", "security_update_install_link", "fake_security_app_install", "deeplink_fallback_login_or_install"}:
             return "remote"
         if matched_family == "anti_verification_pressure":
             if re.search(r"\b(transfer\w*|iban|cont\w*|pl[ăa]t\w*|achit\w*|bani|lei|ron)\b", normalized):

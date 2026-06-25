@@ -37,7 +37,9 @@ MODE = {
     # now flags it deterministically -> promoted to HARD_FLOOR (xfail flipped to pass).
     # BANK_PHISH-001 was a gap; the bank_credential_update_phish family now flags it
     # (channel-gated: official-destination bank emails stay clean) -> HARD_FLOOR.
-    "FAKE_APP-001": "KNOWN_GAP",
+    # FAKE_APP-001 was a gap; the fake_security_app_install family now flags the
+    # "install our security app via link / take remote control" shape -> HARD_FLOOR
+    # (legit "install our app from the official store" stays clean).
     "RECOVERY_SCAM-001": "KNOWN_GAP",      # offline UNVERIFIED / live DANGEROUS (Mistral, non-det)
     "PIG_BUTCHERING-001": "KNOWN_GAP",     # grooming, no ask yet
     "DELIVERY_SMISH-002": "INDICATOR_ONLY",
