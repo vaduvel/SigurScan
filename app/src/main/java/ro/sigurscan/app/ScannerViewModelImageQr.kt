@@ -74,30 +74,47 @@ import retrofit2.HttpException
 
 fun ScannerViewModel.onQrPicked(uri: Uri, context: Context) {
     loading = true
-    loadingMsg = "Scanăm codul QR..."
+    loadingMsg = "Citim codul QR..."
 
-    try {
-        val image = InputImage.fromFilePath(context, uri)
-        barcodeScanner.process(image)
-            .addOnSuccessListener { barcodes ->
-                val qrText = barcodes.firstOrNull()?.rawValue?.trim()
-                if (!qrText.isNullOrBlank()) {
-                    text = qrText
-                    stagedEvidenceHtml = null
-                    stagedEvidenceLinks = extractUrls(qrText)
-                    stagedEvidenceText = qrText
-                    stagedEvidenceInputKind = "qr"
-                    stagedEvidenceChannel = "qr_scan"
-                    onScanClick()
-                } else {
-                    publishQrExtractionIncomplete("Nu am găsit un cod QR lizibil în imagine.")
-                }
-            }
-            .addOnFailureListener {
-                publishQrExtractionIncomplete("Nu am putut citi codul QR din imagine. Reîncearcă cu o poză mai clară.")
-            }
-    } catch (e: Exception) {
-        publishQrExtractionIncomplete("Nu am putut deschide imaginea pentru citirea codului QR.")
+    // A QR picked from the gallery is decoded via the cloud image-extraction path, NOT the
+    // on-device ML Kit barcode scanner. Proven on Nokia C22 (Android Go): ML Kit's barcode decode
+    // of a *picked file* blocks the main thread permanently on first use — neither listener ever
+    // fires and the spinner hangs forever (a coroutine watchdog can't rescue it, because the main
+    // thread itself is frozen; verified by 3 device repros + logcat). The cloud extractor decodes
+    // QR payloads server-side and works on every device. QR provenance is preserved (inputKind/
+    // channel = qr) so the evidence bundle keeps the "came from a QR" signal and the decoded
+    // payload, instead of degrading to a generic URL scan. Live-camera QR keeps the on-device
+    // streaming scanner (warmed up by the camera pipeline) and is unaffected.
+    viewModelScope.launch {
+        var file: File? = null
+        try {
+            loadingMsg = "Citim codul QR din imagine..."
+            file = prepareInvoiceImageUpload(
+                uri,
+                context,
+                maxBytes = ScannerViewModel.MAX_IMAGE_UPLOAD_BYTES
+            )
+            val (uploadMime, uploadName) = resolveImageUploadMeta(uri, context)
+            val requestFile = file.asRequestBody(uploadMime.toMediaTypeOrNull())
+            val body = MultipartBody.Part.createFormData("image_file", uploadName, requestFile)
+            val source = "android_qr_image".toRequestBody("text/plain".toMediaTypeOrNull())
+
+            val response = uploadApi.extractImage(body, source)
+            runBackendOrchestratedScanFromExtraction(
+                response = response,
+                fileName = file.name,
+                inputKind = "qr",
+                channel = "qr_scan"
+            )
+        } catch (e: Exception) {
+            // Non-silent failure is the invariant the original bug violated: on any cloud
+            // decode/upload error or timeout we publish an explicit, actionable error state —
+            // never an infinite spinner.
+            publishQrExtractionIncomplete("Nu am putut citi codul QR din imagine. Reîncearcă cu o poză mai clară sau introdu linkul manual.")
+        } finally {
+            file?.delete()
+            loading = false
+        }
     }
 }
 

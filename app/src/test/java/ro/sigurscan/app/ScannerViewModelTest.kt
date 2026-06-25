@@ -722,8 +722,20 @@ class ScannerViewModelTest {
         )
     }
 
+    // NOTE: picked-QR decoding was changed from on-device ML Kit to cloud-first (2026-06-25).
+    // Rationale: on Nokia C22 (Android Go) the on-device ML Kit barcode decode of a *picked file*
+    // blocks the main thread permanently on first use — neither listener fires, so the scan hung
+    // forever with a silent infinite spinner (reproduced 3x on-device + logcat). A coroutine
+    // watchdog can't rescue it because the main thread itself is frozen. The fix routes picked QR
+    // through the cloud image extractor (works on every device). These guards were updated to the
+    // new contract; the safety invariant (never a silent stop) is preserved and strengthened, and
+    // the live-camera QR path (still on-device ML Kit, in QrScannerScreen) is intentionally out of
+    // scope here.
+
     @Test
-    fun qrImageFailurePublishesIncompleteEvidenceInsteadOfSilentStop() {
+    fun qrImagePickPublishesErrorStateInsteadOfSilentStop() {
+        // Safety invariant the original bug violated: a picked-QR scan must ALWAYS resolve to a
+        // verdict or an explicit error state — never an infinite spinner / silent stop.
         val viewModelSource = viewModelSource()
         val qrStart = viewModelSource.indexOf("fun ScannerViewModel.onQrPicked(uri: Uri, context: Context)")
         val qrEnd = viewModelSource.indexOf("fun ScannerViewModel.onImagePicked(uri: Uri, context: Context)", qrStart)
@@ -731,40 +743,64 @@ class ScannerViewModelTest {
 
         val qrFlow = viewModelSource.substring(qrStart, qrEnd)
         assertTrue(
-            "QR image import must show an incomplete-evidence result when no QR is readable.",
-            qrFlow.contains("publishQrExtractionIncomplete(\"Nu am găsit un cod QR lizibil în imagine.\")")
+            "Picked-QR failure must publish an explicit incomplete/error state, never stop silently.",
+            qrFlow.contains("catch") && qrFlow.contains("publishQrExtractionIncomplete(")
         )
         assertTrue(
-            "QR image import must show an incomplete-evidence result when MLKit fails.",
-            qrFlow.contains("publishQrExtractionIncomplete(\"Nu am putut citi codul QR din imagine. Reîncearcă cu o poză mai clară.\")")
+            "Picked-QR scan must always clear the loading spinner (no infinite spinner).",
+            qrFlow.contains("finally") && qrFlow.contains("loading = false")
         )
         assertTrue(
-            "QR incomplete result must stay unknown, not local-risk.",
+            "Picked-QR incomplete/error result must stay unknown, not a guessed local risk.",
             qrFlow.contains("""riskLevel = "unknown"""")
         )
     }
 
     @Test
-    fun qrImageSuccessRoutesThroughOrchestratedScanWithQrEvidence() {
+    fun qrImagePickRoutesThroughCloudExtractionPreservingQrProvenance() {
+        // QR success still routes through the orchestrated scan, but the decode happens server-side
+        // (cloud extractor, reliable on every device) and the evidence keeps QR provenance
+        // (inputKind/channel = qr) + the decoded payload — it is not degraded to a generic URL scan.
         val viewModelSource = viewModelSource()
         val qrStart = viewModelSource.indexOf("fun ScannerViewModel.onQrPicked(uri: Uri, context: Context)")
         val qrEnd = viewModelSource.indexOf("fun ScannerViewModel.onImagePicked(uri: Uri, context: Context)", qrStart)
         assertTrue("onQrPicked must exist.", qrStart >= 0 && qrEnd > qrStart)
 
         val qrFlow = viewModelSource.substring(qrStart, qrEnd)
-        val successStart = qrFlow.indexOf("if (!qrText.isNullOrBlank())")
-        val failureStart = qrFlow.indexOf("} else {", successStart)
-        assertTrue("QR success branch must exist.", successStart >= 0 && failureStart > successStart)
+        assertTrue(
+            "Picked QR must be decoded via the cloud image extractor.",
+            qrFlow.contains("uploadApi.extractImage(")
+        )
+        assertTrue(
+            "Picked QR must run the orchestrated scan from the extraction result.",
+            qrFlow.contains("runBackendOrchestratedScanFromExtraction(")
+        )
+        assertTrue(
+            "Picked QR must preserve QR input-kind provenance for the evidence bundle.",
+            qrFlow.contains("""inputKind = "qr"""")
+        )
+        assertTrue(
+            "Picked QR must preserve the QR channel for the evidence bundle.",
+            qrFlow.contains("""channel = "qr_scan"""")
+        )
+    }
 
-        val successFlow = qrFlow.substring(successStart, failureStart)
-        assertTrue("QR text must become the scan input.", successFlow.contains("text = qrText"))
-        assertTrue("QR scan must extract any embedded URL before orchestrating.", successFlow.contains("stagedEvidenceLinks = extractUrls(qrText)"))
-        assertTrue("QR scan must keep the raw decoded payload as evidence.", successFlow.contains("stagedEvidenceText = qrText"))
-        assertTrue("QR scan must preserve the input kind for the backend evidence bundle.", successFlow.contains("""stagedEvidenceInputKind = "qr""""))
-        assertTrue("QR scan must preserve the QR channel for the backend evidence bundle.", successFlow.contains("""stagedEvidenceChannel = "qr_scan""""))
-        assertTrue("QR success must use the same orchestrated scan path as typed/shared text.", successFlow.contains("onScanClick()"))
-        assertFalse("QR success must not publish a local guessed verdict.", successFlow.contains("publishQrExtractionIncomplete"))
-        assertFalse("QR success must not call backend extraction endpoints directly.", successFlow.contains("api.extract"))
+    @Test
+    fun qrImagePickAvoidsOnDeviceBarcodeDecodeThatHangsOnGo() {
+        // Regression guard for the fixed hang: the on-device ML Kit barcode decode of a *picked file*
+        // froze the main thread forever on Android Go (Nokia C22). onQrPicked must NOT invoke it;
+        // picked QR must go through the cloud extractor. (Live-camera QR keeps barcodeScanner in
+        // QrScannerScreen and is intentionally not covered here.)
+        val viewModelSource = viewModelSource()
+        val qrStart = viewModelSource.indexOf("fun ScannerViewModel.onQrPicked(uri: Uri, context: Context)")
+        val qrEnd = viewModelSource.indexOf("fun ScannerViewModel.onImagePicked(uri: Uri, context: Context)", qrStart)
+        assertTrue("onQrPicked must exist.", qrStart >= 0 && qrEnd > qrStart)
+
+        val qrFlow = viewModelSource.substring(qrStart, qrEnd)
+        assertFalse(
+            "onQrPicked must not invoke the on-device barcode scanner for picked files (it hangs on Android Go).",
+            qrFlow.contains("barcodeScanner.process(")
+        )
     }
 
     @Test
