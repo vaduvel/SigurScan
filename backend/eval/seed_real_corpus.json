@@ -1,0 +1,756 @@
+{
+  "_meta": {
+    "purpose": "Real-world RO scam recall corpus (provenance-tracked) for the closeout round (#76/T5).",
+    "schema": [
+      "id",
+      "type",
+      "text",
+      "ground_truth",
+      "expected_labels",
+      "expected_token",
+      "fidelity",
+      "channel",
+      "input_type",
+      "source_url",
+      "promote_class"
+    ],
+    "fidelity_levels": {
+      "citat_exact": "verbatim quote from a cited public report",
+      "adaptat_din_fragmente_citate": "RO-language reconstruction of a documented pattern from cited fragments; scam-specific artifacts (phishing URLs / fraudulent IBANs) left as <NEEDS_LIVE_CAPTURE>",
+      "needs_live_capture": "core artifact must be captured live (URLhaus/urlscan/DNSC feed) before use"
+    },
+    "promote_class": {
+      "green": "clear FP boundary -> eligible for HARD_FLOOR (courier-link, OLX-link, money-mule already promoted in provider_gate.py)",
+      "yellow": "high FP risk (job/investment/voice-clone) -> keep known_gap; re-attack only with an additional signal (channel + link/APK/crypto)",
+      "control": "legit negative control that must NOT escalate"
+    },
+    "VOLUME_CAVEAT": "The §4 target of >=80-120 cases/type is NOT met here and was deliberately NOT padded: per the sacred rule 'NU fabricam cazuri', reaching that volume requires live capture of real artifacts (phishing domains from URLhaus/urlscan, fraudulent IBANs from DNSC/ARB dossiers) which cannot be synthesized. This file is the honest, provenance-tracked seed; the <NEEDS_LIVE_CAPTURE> markers enumerate exactly what to collect to scale each type.",
+    "sources": [
+      "https://www.digi24.ro/stiri/actualitate/dnsc-avertizeaza-ca-inca-se-desfasoara-o-campanie-de-frauda-prin-folosirea-identitatii-unor-companii-de-curierat-cum-va-puteti-proteja-3074593",
+      "https://www.fancourier.ro/en/a-new-phishing-attack-targets-fan-courier-and-olx/",
+      "https://startupcafe.ro/olx-furt-online-htm-14851",
+      "https://seenews.com/news/social-media-scam-ads-generate-140-mln-euro-in-bulgaria-romania-in-2025-revolut-1289724",
+      "https://www.bitdefender.com/en-us/blog/hotforsecurity/deepfake-scam-exploits-romanian-presidential-candidates-to-lure-victims-into-fake-neptun-deep-investment",
+      "https://www.group-ib.com/blog/voice-deepfake-scams/",
+      "https://www.dnsc.ro/citeste/comunicat-presa-dnsc-ing-persoanele-juridice-vizate-phishing-actualizarea-datelor-apeluri-false-anaf"
+    ]
+  },
+  "cases": [
+    {
+      "id": "GRN-COURIER-001",
+      "type": "courier_smishing",
+      "text": "Posta Romana: coletul dvs. nu a putut fi livrat din cauza unei taxe vamale neachitate. Achitati taxa pentru a evita returnarea: <NEEDS_LIVE_CAPTURE>",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "card",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "sms",
+      "input_type": "text",
+      "source_url": "https://www.digi24.ro/stiri/actualitate/dnsc-avertizeaza-ca-inca-se-desfasoara-o-campanie-de-frauda-prin-folosirea-identitatii-unor-companii-de-curierat-cum-va-puteti-proteja-3074593",
+      "promote_class": "green",
+      "links": [
+        "<NEEDS_LIVE_CAPTURE>"
+      ]
+    },
+    {
+      "id": "GRN-COURIER-002",
+      "type": "courier_smishing",
+      "text": "FAN Courier: coletul asteapta livrarea. Confirmati adresa si plata taxei de livrare cu cardul: <NEEDS_LIVE_CAPTURE>",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "card",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "sms",
+      "input_type": "text",
+      "source_url": "https://www.fancourier.ro/en/a-new-phishing-attack-targets-fan-courier-and-olx/",
+      "promote_class": "green",
+      "links": [
+        "<NEEDS_LIVE_CAPTURE>"
+      ]
+    },
+    {
+      "id": "GRN-COURIER-003",
+      "type": "courier_smishing",
+      "text": "DHL: pachetul nu poate fi livrat pana nu achitati taxa vamala de 3 lei. Plata online: <NEEDS_LIVE_CAPTURE>",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "card",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "sms",
+      "input_type": "text",
+      "source_url": "https://www.digi24.ro/stiri/actualitate/dnsc-avertizeaza-ca-inca-se-desfasoara-o-campanie-de-frauda-prin-folosirea-identitatii-unor-companii-de-curierat-cum-va-puteti-proteja-3074593",
+      "promote_class": "green",
+      "links": [
+        "<NEEDS_LIVE_CAPTURE>"
+      ]
+    },
+    {
+      "id": "GRN-COURIER-004",
+      "type": "courier_smishing",
+      "text": "Sameday: adresa de livrare este incompleta. Actualizati datele si achitati diferenta de transport: <NEEDS_LIVE_CAPTURE>",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "card",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "sms",
+      "input_type": "text",
+      "source_url": "https://www.digi24.ro/stiri/actualitate/dnsc-avertizeaza-ca-inca-se-desfasoara-o-campanie-de-frauda-prin-folosirea-identitatii-unor-companii-de-curierat-cum-va-puteti-proteja-3074593",
+      "promote_class": "green",
+      "links": [
+        "<NEEDS_LIVE_CAPTURE>"
+      ]
+    },
+    {
+      "id": "CTL-COURIER-101",
+      "type": "courier_smishing",
+      "text": "Coletul tau AWB 12345 este in livrare azi, interval 14:00-18:00. Detalii si tracking: <NEEDS_LIVE_CAPTURE>",
+      "ground_truth": "legitim_confirmat",
+      "expected_labels": [
+        "SAFE",
+        "UNVERIFIED"
+      ],
+      "expected_token": null,
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "sms",
+      "input_type": "text",
+      "source_url": "https://www.digi24.ro/stiri/actualitate/dnsc-avertizeaza-ca-inca-se-desfasoara-o-campanie-de-frauda-prin-folosirea-identitatii-unor-companii-de-curierat-cum-va-puteti-proteja-3074593",
+      "promote_class": "control",
+      "links": [
+        "<NEEDS_LIVE_CAPTURE>"
+      ]
+    },
+    {
+      "id": "CTL-COURIER-102",
+      "type": "courier_smishing",
+      "text": "Comanda ta a fost expediata. Curierul te va contacta telefonic inainte de livrare. Multumim.",
+      "ground_truth": "legitim_confirmat",
+      "expected_labels": [
+        "SAFE",
+        "UNVERIFIED"
+      ],
+      "expected_token": null,
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "sms",
+      "input_type": "text",
+      "source_url": "https://www.digi24.ro/stiri/actualitate/dnsc-avertizeaza-ca-inca-se-desfasoara-o-campanie-de-frauda-prin-folosirea-identitatii-unor-companii-de-curierat-cum-va-puteti-proteja-3074593",
+      "promote_class": "control"
+    },
+    {
+      "id": "GRN-OLX-001",
+      "type": "olx_delivery_phish",
+      "text": "Cumparatorul a achitat prin Livrare OLX. Pentru a primi banii, confirmati cardul, CVV si soldul pe aceasta pagina: <NEEDS_LIVE_CAPTURE>",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "card",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "whatsapp",
+      "input_type": "text",
+      "source_url": "https://startupcafe.ro/olx-furt-online-htm-14851",
+      "promote_class": "green",
+      "links": [
+        "<NEEDS_LIVE_CAPTURE>"
+      ]
+    },
+    {
+      "id": "GRN-OLX-002",
+      "type": "olx_delivery_phish",
+      "text": "Buna, am platit produsul prin sistemul de livrare OLX. Trimite datele cardului pe linkul de mai jos ca sa se elibereze plata: <NEEDS_LIVE_CAPTURE>",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "card",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "whatsapp",
+      "input_type": "text",
+      "source_url": "https://www.fancourier.ro/en/a-new-phishing-attack-targets-fan-courier-and-olx/",
+      "promote_class": "green",
+      "links": [
+        "<NEEDS_LIVE_CAPTURE>"
+      ]
+    },
+    {
+      "id": "GRN-OLX-003",
+      "type": "olx_delivery_phish",
+      "text": "Publi24: livrare cu plata online activata. Introduceti numarul cardului si codul CVV pentru a confirma tranzactia: <NEEDS_LIVE_CAPTURE>",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "card",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "sms",
+      "input_type": "text",
+      "source_url": "https://startupcafe.ro/olx-furt-online-htm-14851",
+      "promote_class": "green",
+      "links": [
+        "<NEEDS_LIVE_CAPTURE>"
+      ]
+    },
+    {
+      "id": "CTL-OLX-101",
+      "type": "olx_delivery_phish",
+      "text": "Salut, mai este disponibil produsul? Putem stabili livrarea prin curier cu plata ramburs la primire?",
+      "ground_truth": "legitim_confirmat",
+      "expected_labels": [
+        "SAFE",
+        "UNVERIFIED"
+      ],
+      "expected_token": null,
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "whatsapp",
+      "input_type": "text",
+      "source_url": "https://startupcafe.ro/olx-furt-online-htm-14851",
+      "promote_class": "control"
+    },
+    {
+      "id": "GRN-MULE-001",
+      "type": "money_mule",
+      "text": "Oferta: primesti bani in contul tau si ii retrimiti mai departe, pastrezi 10% comision. Trimite-mi IBAN-ul tau ca sa incepem azi.",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "transfer",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "telegram",
+      "input_type": "text",
+      "source_url": "https://seenews.com/news/social-media-scam-ads-generate-140-mln-euro-in-bulgaria-romania-in-2025-revolut-1289724",
+      "promote_class": "green"
+    },
+    {
+      "id": "GRN-MULE-002",
+      "type": "money_mule",
+      "text": "Job usor de acasa: vei primi sume in cont, le transferi mai departe catre partenerii nostri si opresti un procent.",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "transfer",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "whatsapp",
+      "input_type": "text",
+      "source_url": "https://seenews.com/news/social-media-scam-ads-generate-140-mln-euro-in-bulgaria-romania-in-2025-revolut-1289724",
+      "promote_class": "green"
+    },
+    {
+      "id": "GRN-MULE-003",
+      "type": "money_mule",
+      "text": "Cautam colaboratori: intra bani in contul tau, ii redirectionezi catre alt cont si pastrezi comisionul tau.",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "transfer",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "telegram",
+      "input_type": "text",
+      "source_url": "https://seenews.com/news/social-media-scam-ads-generate-140-mln-euro-in-bulgaria-romania-in-2025-revolut-1289724",
+      "promote_class": "green"
+    },
+    {
+      "id": "CTL-MULE-101",
+      "type": "money_mule",
+      "text": "Salut, iti returnez cei 200 lei pe care mi i-ai imprumutat saptamana trecuta. Multumesc!",
+      "ground_truth": "legitim_confirmat",
+      "expected_labels": [
+        "SAFE",
+        "UNVERIFIED"
+      ],
+      "expected_token": null,
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "sms",
+      "input_type": "text",
+      "source_url": "https://seenews.com/news/social-media-scam-ads-generate-140-mln-euro-in-bulgaria-romania-in-2025-revolut-1289724",
+      "promote_class": "control"
+    },
+    {
+      "id": "CTL-MULE-102",
+      "type": "money_mule",
+      "text": "Castigi 10% comision din vanzarile aduse. Banii intra lunar in contul tau.",
+      "ground_truth": "legitim_confirmat",
+      "expected_labels": [
+        "SAFE",
+        "UNVERIFIED"
+      ],
+      "expected_token": null,
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "email",
+      "input_type": "text",
+      "source_url": "https://seenews.com/news/social-media-scam-ads-generate-140-mln-euro-in-bulgaria-romania-in-2025-revolut-1289724",
+      "promote_class": "control"
+    },
+    {
+      "id": "YEL-JOB-001",
+      "type": "job_scam_advance_fee",
+      "text": "Felicitari! Ai fost selectat pentru un job platit din care castigi usor. Pentru activarea contului de lucru achiti o taxa initiala de 150 lei.",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "transfer",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "whatsapp",
+      "input_type": "text",
+      "source_url": "https://seenews.com/news/social-media-scam-ads-generate-140-mln-euro-in-bulgaria-romania-in-2025-revolut-1289724",
+      "promote_class": "yellow"
+    },
+    {
+      "id": "YEL-JOB-002",
+      "type": "job_scam_advance_fee",
+      "text": "Task-uri simple, plata zilnica. Trimite-ne datele contului bancar pentru a-ti vira castigurile si depune garantia de start.",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "transfer",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "telegram",
+      "input_type": "text",
+      "source_url": "https://seenews.com/news/social-media-scam-ads-generate-140-mln-euro-in-bulgaria-romania-in-2025-revolut-1289724",
+      "promote_class": "yellow"
+    },
+    {
+      "id": "CTL-JOB-101",
+      "type": "job_scam_advance_fee",
+      "text": "Buna ziua, in urma interviului va rugam sa ne trimiteti CV-ul actualizat si IBAN-ul pentru contractul de munca.",
+      "ground_truth": "legitim_confirmat",
+      "expected_labels": [
+        "SAFE",
+        "UNVERIFIED"
+      ],
+      "expected_token": null,
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "email",
+      "input_type": "text",
+      "source_url": "https://seenews.com/news/social-media-scam-ads-generate-140-mln-euro-in-bulgaria-romania-in-2025-revolut-1289724",
+      "promote_class": "control"
+    },
+    {
+      "id": "YEL-INV-001",
+      "type": "investment_pig_butchering",
+      "text": "Platforma Neptun Deep: profit garantat din investitii in gaze. Depune minim 250 EUR in crypto pe contul de activare si dublezi suma in 30 zile.",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "crypto",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "unofficial_site",
+      "input_type": "text",
+      "source_url": "https://www.bitdefender.com/en-us/blog/hotforsecurity/deepfake-scam-exploits-romanian-presidential-candidates-to-lure-victims-into-fake-neptun-deep-investment",
+      "promote_class": "yellow"
+    },
+    {
+      "id": "YEL-INV-002",
+      "type": "investment_pig_butchering",
+      "text": "Grup privat de trading Hidroelectrica: membrii fac profituri zilnice. Trimite depunerea in crypto la wallet-ul agentului si incepi azi.",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "crypto",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "telegram",
+      "input_type": "text",
+      "source_url": "https://www.bitdefender.com/en-us/blog/hotforsecurity/deepfake-scam-exploits-romanian-presidential-candidates-to-lure-victims-into-fake-neptun-deep-investment",
+      "promote_class": "yellow"
+    },
+    {
+      "id": "CTL-INV-101",
+      "type": "investment_pig_butchering",
+      "text": "Pentru deschiderea contului de brokeraj, conform KYC, va rugam completati formularul oficial si incarcati actul de identitate in portalul securizat.",
+      "ground_truth": "legitim_confirmat",
+      "expected_labels": [
+        "SAFE",
+        "UNVERIFIED"
+      ],
+      "expected_token": null,
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "email",
+      "input_type": "text",
+      "source_url": "https://www.bitdefender.com/en-us/blog/hotforsecurity/deepfake-scam-exploits-romanian-presidential-candidates-to-lure-victims-into-fake-neptun-deep-investment",
+      "promote_class": "control"
+    },
+    {
+      "id": "YEL-VOICE-001",
+      "type": "voice_clone_emergency",
+      "text": "Mama, sunt eu, am avut un accident si am nevoie urgent de bani. Te rog trimite acum 3000 lei in contul asta, nu pot vorbi mult.",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "transfer",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "phone",
+      "input_type": "audio",
+      "source_url": "https://www.group-ib.com/blog/voice-deepfake-scams/",
+      "promote_class": "yellow"
+    },
+    {
+      "id": "YEL-VOICE-002",
+      "type": "voice_clone_emergency",
+      "text": "Sunt nepotul tau, m-au retinut si am nevoie de o cautiune urgenta. Nu spune nimanui, trimite banii prin transfer acum.",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "transfer",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "phone",
+      "input_type": "audio",
+      "source_url": "https://www.group-ib.com/blog/voice-deepfake-scams/",
+      "promote_class": "yellow"
+    },
+    {
+      "id": "CTL-VOICE-101",
+      "type": "voice_clone_emergency",
+      "text": "Buna mama, ajung mai tarziu azi, raman la birou pana spre seara. Te sun cand plec. Pa!",
+      "ground_truth": "legitim_confirmat",
+      "expected_labels": [
+        "SAFE",
+        "UNVERIFIED"
+      ],
+      "expected_token": null,
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "phone",
+      "input_type": "audio",
+      "source_url": "https://www.group-ib.com/blog/voice-deepfake-scams/",
+      "promote_class": "control"
+    },
+    {
+      "id": "IMG-SMISH-PR-001",
+      "type": "legacy_smishing",
+      "title": "Screenshot SMS 'coletul nu a putut fi livrat' - identitate Posta Romana",
+      "text": "Posta Romana: coletul dvs. nu a putut fi livrat (adresa incompleta). Actualizati datele in 6 ore pentru a evita taxe de depozitare; coletul va fi returnat in 3 zile. Continuati: <LINK>",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "card",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "android_image_scan",
+      "input_type": "image_ocr",
+      "source_url": null,
+      "source_note": "DNSC avertizare (instagram.com/dnsc.ro, 24 mar 2026) + posta-romana.ro comunicate + ziare.com 09 aug 2024",
+      "promote_class": "yellow",
+      "links": [
+        "<NEEDS_LIVE_CAPTURE: domeniu phishing tip posta-* din feed URLhaus/urlscan sau raport DNSC>"
+      ]
+    },
+    {
+      "id": "IMG-PHISH-BCR-002",
+      "type": "legacy_phish",
+      "title": "Screenshot email 'confirmati datele de card' - identitate BCR",
+      "text": "BCR: din motive de securitate trebuie sa confirmati datele cardului si codul primit prin SMS. In caz contrar contul va fi blocat. Accesati: <LINK>",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "password",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "android_image_scan",
+      "input_type": "image_ocr",
+      "source_url": null,
+      "source_note": "bcr.ro/.../tentative-de-frauda-phishing",
+      "promote_class": "yellow",
+      "links": [
+        "<NEEDS_LIVE_CAPTURE: domeniu phishing bcr-* din feed/urlscan>"
+      ]
+    },
+    {
+      "id": "IMG-LEGIT-DELIVERY-003",
+      "type": "legacy_legit_delivery",
+      "title": "Screenshot SMS livrare LEGITIM cu link catre domeniu oficial curier",
+      "text": "Coletul tau AWB <NR> este in livrare azi, interval 14:00-18:00. Detalii: <LINK_OFICIAL>",
+      "ground_truth": "legitim_confirmat",
+      "expected_labels": [
+        "SAFE"
+      ],
+      "expected_token": null,
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "android_image_scan",
+      "input_type": "image_ocr",
+      "source_url": null,
+      "source_note": "control negativ - SMS livrare real",
+      "promote_class": "control",
+      "links": [
+        "<NEEDS_LIVE_CAPTURE: URL real catre domeniul oficial al curierului (sameday/fan/dpd)>"
+      ]
+    },
+    {
+      "id": "QR-QUISH-PARK-001",
+      "type": "legacy_quish",
+      "title": "QR fals lipit pe parcometru -> pagina de plata falsa",
+      "text": "Platiti parcarea scanand codul. Sesiune: zona centrala.",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "card",
+      "fidelity": "needs_live_capture",
+      "channel": "android_qr_scan",
+      "input_type": "qr",
+      "source_url": null,
+      "source_note": "BBC 11 apr 2025 (Action Fraud, 1386 rapoarte) + NYC DOT + Netcraft (PayByPhone)",
+      "promote_class": "yellow",
+      "links": [
+        "<NEEDS_LIVE_CAPTURE>"
+      ],
+      "qr_payloads": [
+        "<NEEDS_LIVE_CAPTURE: URL pagina plata falsa parcare din raport Netcraft/urlscan>"
+      ]
+    },
+    {
+      "id": "QR-QUISH-EPC-002",
+      "type": "legacy_quish",
+      "title": "QR de plata EPC cu IBAN manipulat (beneficiar fals)",
+      "text": "Scaneaza pentru a achita factura. Suma si IBAN precompletate.",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "card",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "android_qr_scan",
+      "input_type": "qr",
+      "source_url": null,
+      "source_note": "European Payments Council - 2025 Payments Threats & Fraud Trends Report",
+      "promote_class": "yellow",
+      "qr_payloads": [
+        "BCD\n002\n1\nSCT\n<BIC>\n<NUME_BENEFICIAR_FALS>\n<NEEDS_LIVE_CAPTURE: IBAN catar din dosar/raport>\nEUR<SUMA>\n\nPlata factura"
+      ],
+      "iban": "<NEEDS_LIVE_CAPTURE: IBAN fraudulos real - NU se fabrica>"
+    },
+    {
+      "id": "QR-LEGIT-EPC-003",
+      "type": "legacy_legit_payment",
+      "title": "QR EPC LEGITIM pe factura corecta (format SEPA standard)",
+      "text": "Factura 2026-0042. Scaneaza pentru plata SEPA; IBAN si suma afisate si in clar pe factura.",
+      "ground_truth": "legitim_confirmat",
+      "expected_labels": [
+        "SAFE"
+      ],
+      "expected_token": null,
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "android_qr_scan",
+      "input_type": "qr",
+      "source_url": null,
+      "source_note": "EPC069-12 v3.1 spec + girocodegenerator.com",
+      "promote_class": "control",
+      "qr_payloads": [
+        "BCD\n002\n1\nSCT\nSSKMDEMMXXX\nMax Mustermann GmbH\nDE02120300000000202051\nEUR1250.00\n\nInvoice 2026-0042"
+      ],
+      "iban": "DE02120300000000202051"
+    },
+    {
+      "id": "EML-BEC-IBAN-001",
+      "type": "legacy_bec_iban",
+      "title": "Factura furnizor cu IBAN schimbat (BEC) - domeniu lookalike",
+      "text": "Buna ziua, va informam ca ne-am schimbat banca. Va rugam achitati factura atasata in noul cont IBAN. Restul detaliilor raman neschimbate. Multumim.",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "iban",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "android_email_scan",
+      "input_type": "email_html",
+      "source_url": null,
+      "source_note": "FBI BEC + ING 'Cum ne ferim de fraudele cu facturi' + ARB",
+      "promote_class": "yellow",
+      "links": [],
+      "iban": "<NEEDS_LIVE_CAPTURE: IBAN fraudulos din dosar/raport - NU se fabrica>",
+      "email_auth": {
+        "spf": "<NEEDS_LIVE_CAPTURE>",
+        "dkim": "<NEEDS_LIVE_CAPTURE>",
+        "dmarc": "<NEEDS_LIVE_CAPTURE>",
+        "aligned": false
+      }
+    },
+    {
+      "id": "EML-PHISH-ANAF-002",
+      "type": "legacy_phish",
+      "title": "Email phishing 'returnare taxe ANAF' cu link",
+      "text": "Stimate contribuabil, in urma verificarilor aveti o rambursare de impozit de incasat. Accesati linkul si confirmati datele contului pentru virament: <LINK>",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "password",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "android_email_scan",
+      "input_type": "email_html",
+      "source_url": null,
+      "source_note": "DNSC & ING + ANAF comunicat 28 nov 2025 + stirileprotv.ro",
+      "promote_class": "yellow",
+      "links": [
+        "<NEEDS_LIVE_CAPTURE: domeniu fals tip anaf-* din feed/urlscan>"
+      ],
+      "email_auth": {
+        "spf": "<NEEDS_LIVE_CAPTURE>",
+        "dkim": "<NEEDS_LIVE_CAPTURE>",
+        "dmarc": "<NEEDS_LIVE_CAPTURE>",
+        "aligned": false
+      }
+    },
+    {
+      "id": "EML-LEGIT-BANK-003",
+      "type": "legacy_legit_bank",
+      "title": "Email tranzactional bancar LEGITIM (DKIM=pass, aliniat)",
+      "text": "Tranzactie autorizata: <SUMA> la <COMERCIANT>. Daca nu recunoasteti operatiunea, deschideti aplicatia. Nu va cerem date prin acest email.",
+      "ground_truth": "legitim_confirmat",
+      "expected_labels": [
+        "SAFE"
+      ],
+      "expected_token": null,
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "android_email_scan",
+      "input_type": "email_html",
+      "source_url": null,
+      "source_note": "control negativ - email bancar real DKIM=pass (Revolut/Raiffeisen pattern)",
+      "promote_class": "control",
+      "links": [],
+      "email_auth": {
+        "spf": "pass",
+        "dkim": "pass",
+        "dmarc": "pass",
+        "aligned": true
+      }
+    },
+    {
+      "id": "PDF-INVOICE-FRAUD-001",
+      "type": "legacy_invoice_fraud",
+      "title": "Factura PDF falsificata - IBAN schimbat (font diferit la datele bancare)",
+      "text": "FACTURA FISCALA. Furnizor: <FIRMA>. Total de plata: <SUMA> RON. Cont (IBAN): <IBAN_MODIFICAT>. Termen: 5 zile.",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "iban",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "android_pdf_scan",
+      "input_type": "pdf_ocr",
+      "source_url": null,
+      "source_note": "ING 'Cum ne ferim de fraudele cu facturi' + Reddit r/cybersecurity + ARB",
+      "promote_class": "yellow",
+      "iban": "<NEEDS_LIVE_CAPTURE: IBAN fraudulos real>"
+    },
+    {
+      "id": "PDF-QR-PHISH-002",
+      "type": "legacy_phish",
+      "title": "Atasament PDF 'document oficial' cu QR -> pagina login falsa",
+      "text": "Document securizat. Scanati codul QR pentru a va autentifica si a accesa documentul.",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "password",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "android_pdf_scan",
+      "input_type": "pdf_ocr",
+      "source_url": null,
+      "source_note": "Kaspersky + Cybersecurity-Insiders (aug-nov 2025: PDF cu QR -> fake login, +5x)",
+      "promote_class": "yellow",
+      "qr_payloads": [
+        "<NEEDS_LIVE_CAPTURE: URL pagina login falsa din feed/urlscan>"
+      ]
+    },
+    {
+      "id": "PDF-LEGIT-INVOICE-003",
+      "type": "legacy_legit_invoice",
+      "title": "Factura PDF LEGITIMA corecta (IBAN corespunde CUI/furnizor)",
+      "text": "FACTURA FISCALA seria <X>. Furnizor <FIRMA>, CUI <CUI>. Total <SUMA> RON. IBAN <IBAN_CORECT> deschis la <BANCA>.",
+      "ground_truth": "legitim_confirmat",
+      "expected_labels": [
+        "SAFE"
+      ],
+      "expected_token": null,
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "android_pdf_scan",
+      "input_type": "pdf_ocr",
+      "source_url": null,
+      "source_note": "control negativ - factura reala corecta",
+      "promote_class": "control",
+      "iban": "<NEEDS_LIVE_CAPTURE: IBAN real corect de firma>"
+    },
+    {
+      "id": "AUD-VISH-ANAF-001",
+      "type": "legacy_vishing",
+      "title": "Transcript vishing 'inspector Antifrauda ANAF' - cere date bancare",
+      "text": "Buna ziua, sunt inspector in cadrul Directiei Antifrauda ANAF. Figurati cu o suma de recuperat / o verificare in curs. Pentru a procesa, am nevoie sa-mi confirmati numarul cardului si codul primit prin SMS. Daca nu confirmati acum, dosarul se inchide.",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "card",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "android_audio_scan",
+      "input_type": "audio",
+      "source_url": null,
+      "source_note": "ANAF comunicat 28 nov 2025 + DNSC & ING + stirileprotv.ro",
+      "promote_class": "yellow"
+    },
+    {
+      "id": "AUD-VISH-BANK-002",
+      "type": "legacy_vishing",
+      "title": "Transcript vishing 'angajat banca' - transfer in 'cont de siguranta'",
+      "text": "Va sun de la departamentul antifrauda al bancii. Am detectat o tranzactie suspecta pe contul dvs. Pentru protectie, trebuie sa transferati imediat fondurile intr-un cont de siguranta si sa-mi cititi codul primit prin SMS.",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "card",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "android_audio_scan",
+      "input_type": "audio",
+      "source_url": null,
+      "source_note": "BCR (bancherul.ro) + HotNews 14 mai 2024 + Revolut anti-impersonare",
+      "promote_class": "yellow"
+    },
+    {
+      "id": "AUD-VISH-POLICE-003",
+      "type": "legacy_vishing",
+      "title": "Transcript vishing impersonare Politie/autoritate",
+      "text": "Sunt de la Politie / o institutie a statului. Numele dvs. e implicat intr-un dosar. Pentru a va dovedi nevinovatia, furnizati datele de identificare si cooperati telefonic acum.",
+      "ground_truth": "scam_confirmat",
+      "expected_labels": [
+        "DANGEROUS"
+      ],
+      "expected_token": "card",
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "android_audio_scan",
+      "input_type": "audio",
+      "source_url": null,
+      "source_note": "DNSC - scenariu apeluri false in numele Politiei (facebook.com/DNSC.RO)",
+      "promote_class": "yellow"
+    },
+    {
+      "id": "AUD-LEGIT-BANK-004",
+      "type": "legacy_legit_bank",
+      "title": "Transcript apel bancar LEGITIM (NU cere date sensibile)",
+      "text": "Buna ziua, va sunam pentru a confirma o programare la sucursala. Nu va cerem date de card sau coduri; pentru orice operatiune, va rugam folositi aplicatia sau veniti in sucursala.",
+      "ground_truth": "legitim_confirmat",
+      "expected_labels": [
+        "SAFE"
+      ],
+      "expected_token": null,
+      "fidelity": "adaptat_din_fragmente_citate",
+      "channel": "android_audio_scan",
+      "input_type": "audio",
+      "source_url": null,
+      "source_note": "control negativ - apel bancar real fara cerere de date sensibile",
+      "promote_class": "control"
+    }
+  ]
+}
