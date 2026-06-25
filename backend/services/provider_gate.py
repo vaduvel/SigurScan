@@ -1450,6 +1450,30 @@ def _local_high_risk_semantic_review(raw_text: str) -> Optional[Dict[str, Any]]:
             r"(?=.{0,180}\b(?:[îi]nainte\s+de\s+livrare|expir[ăa]|azi)\b)",
         ),
         (
+            # BEC P0 hole: the bank-change families above key on "contul schimbat" /
+            # "banca noua" and on the literal word "iban". A real BEC that writes
+            # "ne-am schimbat banca ... in noul nostru cont: RO49..." (verb form +
+            # IBAN *format*, no "iban" keyword) slipped through to UNVERIFIED. Anchor
+            # on the change pretext + a payment + an IBAN-format / new-account ref.
+            "semantic:bank_change_iban_format",
+            "bank_change_iban_format",
+            r"(?=.{0,220}\b(?:ne-am\s+schimbat|am\s+schimbat|s-a\s+schimbat|schimbat\s+(?:banca|contul|sediul|iban)|schimbare(?:a)?\s+(?:de\s+)?(?:banc[ăa]|cont|sediu|iban)|audit\s+intern)\b)"
+            r"(?=.{0,300}\b(?:plat[ăa]|achit\w*|factur[ăa]|virament|transfer\w*)\b)"
+            r"(?=.{0,360}(?:\bRO[A-Z0-9]{16,30}\b|\biban\b|cont(?:ul)?\s+nou|noul\s+(?:nostru\s+)?cont))",
+        ),
+        (
+            # OSIM/EUIPO/IP & judicial bodies never request a fee paid to an
+            # indicated/private account inside a message. Anchor on such an institution
+            # + a fee/invoice + a payment action + an account/IBAN -> protected fee
+            # impersonation. Legit invoices (no such institution as payee) do not match.
+            "semantic:institution_fee_to_account",
+            "institution_fee_to_account",
+            r"(?=.{0,320}\b(?:osim|euipo|oapi|oepm|parchet\w*|tribunal\w*|judec[ăa]tor\w*|instan[țt]\w*|diicot|inspectorat\w*)\b)"
+            r"(?=.{0,320}\b(?:tax[ăa]|tarif|factur[ăa]|cerere\s+de\s+marc[ăa]|[îi]nregistrare|publicare)\b)"
+            r"(?=.{0,320}\b(?:efectua\w*\s+plata|achit\w*|plata\s+[îi]n\s+cont|pl[ăa]ti[țt]i|virament|plata\s+unei)\b)"
+            r"(?=.{0,380}(?:\bRO[A-Z0-9]{16,30}\b|cont(?:ul)?(?:\s+indicat)?|\biban\b))",
+        ),
+        (
             "semantic:hospital_bail_no_call_money_request",
             "hospital_bail_no_call_money_request",
             r"(?=.{0,180}\b(?:spital|cau[țt]iune|cautiune|accident)\b)"
@@ -2588,6 +2612,8 @@ def _request_sensitivity_from_signals_impl(
             "courier_refundable_deposit_link",
             "package_release_token_fee",
             "migrated_account_new_iban",
+            "bank_change_iban_format",
+            "institution_fee_to_account",
         }:
             return "transfer"
         if matched_family in {"bank_data_collection", "external_card_cvv_otp_collection"}:
