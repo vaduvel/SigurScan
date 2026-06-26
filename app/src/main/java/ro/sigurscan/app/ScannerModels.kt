@@ -240,6 +240,7 @@ data class SpeakerGuardSnapshot(
     val latestReasonCode: String? = null,
     val latestArcFamily: String? = null,
     val latestLatencyMs: Long? = null,
-    val status: String = "Speaker Guard este oprit.",
+    val startedAtEpochMillis: Long? = null,
+    val status: String = "Urechea este oprită.",
     val rawAudioStored: Boolean = false
 )

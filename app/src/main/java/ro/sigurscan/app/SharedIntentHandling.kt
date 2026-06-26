@@ -115,7 +115,7 @@ internal fun handleIncomingIntent(context: Context, intent: Intent?, viewModel: 
                     }
                     SharedIntentDestination.SPEAKER_GUARD -> {
                         viewModel.currentTab = "radar"
-                        viewModel.audioReadinessStatus = "Pune apelul pe difuzor, apoi pornește Speaker Guard."
+                        viewModel.audioReadinessStatus = "Pune apelul pe difuzor, apoi apasă Ascultă pe difuzor."
                     }
                 }
             }

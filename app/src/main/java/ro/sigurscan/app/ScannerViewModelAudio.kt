@@ -82,15 +82,23 @@ fun ScannerViewModel.setAudioPrivacyDisclosureAccepted(value: Boolean) {
     refreshAudioReadiness()
 }
 
+fun ScannerViewModel.acceptSpeakerGuardConsent() {
+    audioReadiness = audioReadiness.copy(
+        explicitConsent = true,
+        privacyDisclosureAccepted = true
+    )
+    refreshAudioReadiness()
+}
+
 fun ScannerViewModel.refreshAudioReadiness() {
-    audioReadinessStatus = "Verificăm readiness audio local."
+    audioReadinessStatus = "Verific pregătirea locală."
     viewModelScope.launch {
         val (snapshot, reasons) = evaluateAudioReadiness(audioReadiness)
         audioReadiness = snapshot
         audioReadinessStatus = if (snapshot.decision.allowed) {
-            "Whisper local este pregătit. Captura rămâne on-device."
+            "Urechea este pregătită. Audio-ul rămâne pe telefon."
         } else {
-            "ASR audio rămâne blocat: ${reasons.joinToString(", ")}."
+            "Urechea nu poate porni încă: ${audioReadinessReasonLabels(reasons).joinToString(", ")}."
         }
     }
 }
@@ -98,13 +106,13 @@ fun ScannerViewModel.refreshAudioReadiness() {
 fun ScannerViewModel.startSpeakerGuard() {
     if (speakerGuardSession?.active == true) return
 
-    audioReadinessStatus = "Pregătim modelul Whisper local."
+    audioReadinessStatus = "Pregătesc ascultarea locală."
     viewModelScope.launch {
         val (snapshot, reasons) = evaluateAudioReadiness(audioReadiness)
         audioReadiness = snapshot
         val decision = snapshot.decision
         if (!decision.allowed) {
-            audioReadinessStatus = "Speaker Guard nu poate porni: ${reasons.joinToString(", ")}."
+            audioReadinessStatus = "Urechea nu poate porni încă: ${audioReadinessReasonLabels(reasons).joinToString(", ")}."
             return@launch
         }
         val modelFile = withContext(Dispatchers.IO) { prepareWhisperModelFile() }
@@ -170,7 +178,7 @@ fun ScannerViewModel.stopSpeakerGuard() {
     speakerGuardSnapshot = speakerGuardSnapshot.copy(
         active = false,
         phase = SpeakerGuardPhase.STOPPED,
-        status = "Speaker Guard este oprit."
+        status = "Urechea este oprită."
     )
 }
 
@@ -178,6 +186,11 @@ internal fun ScannerViewModel.applySpeakerGuardUpdate(update: SpeakerGuardUpdate
     val evidence = update.result?.evidence
     if (evidence != null) {
         audioEvidenceResult = evidence
+    }
+    val startedAt = when {
+        update.active && speakerGuardSnapshot.startedAtEpochMillis == null -> System.currentTimeMillis()
+        update.active -> speakerGuardSnapshot.startedAtEpochMillis
+        else -> null
     }
     speakerGuardSnapshot = SpeakerGuardSnapshot(
         active = update.active,
@@ -188,6 +201,7 @@ internal fun ScannerViewModel.applySpeakerGuardUpdate(update: SpeakerGuardUpdate
         latestReasonCode = update.reasonCode ?: update.result?.reasonCode,
         latestArcFamily = evidence?.arcFamily ?: speakerGuardSnapshot.latestArcFamily,
         latestLatencyMs = update.latencyMs ?: speakerGuardSnapshot.latestLatencyMs,
+        startedAtEpochMillis = startedAt,
         status = update.status,
         rawAudioStored = false
     )
@@ -231,4 +245,18 @@ fun ScannerViewModel.analyzeCurrentTextAsAudioTranscript() {
         AudioEvidenceVerdict.SUSPECT -> "Analiza locală a transcrierii: SUSPECT."
         AudioEvidenceVerdict.UNVERIFIED -> "Analiza locală a transcrierii: nu sunt suficiente dovezi."
     }
+}
+
+private fun audioReadinessReasonLabels(reasons: List<String>): List<String> {
+    return reasons.map { reason ->
+        when (reason) {
+            "feature_disabled" -> "funcția audio nu este activată în această versiune"
+            "asr_model_missing" -> "modelul audio local lipsește"
+            "native_runtime_missing" -> "runtime-ul audio local lipsește"
+            "privacy_disclosure_missing" -> "confirmă că analiza rămâne pe telefon"
+            "explicit_consent_missing" -> "apasă Ascultă pe difuzor ca să pornești"
+            "microphone_permission_missing" -> "permite microfonul"
+            else -> reason.replace('_', ' ')
+        }
+    }.distinct()
 }

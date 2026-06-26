@@ -71,7 +71,7 @@ class SpeakerGuardSession(
                         phase = SpeakerGuardPhase.ERROR,
                         active = false,
                         reasonCode = throwable.javaClass.simpleName,
-                        status = "Speaker Guard s-a oprit: ${throwable.message ?: "eroare audio"}."
+                        status = "Urechea s-a oprit: ${throwable.message ?: "eroare audio"}."
                     )
                 )
             }
@@ -248,7 +248,7 @@ class SpeakerGuardSession(
                     active = false,
                     chunksAnalyzed = chunksAnalyzed,
                     chunksDropped = chunksDropped,
-                    status = "Speaker Guard este oprit."
+                    status = "Urechea este oprită."
                 )
             )
         }

@@ -341,7 +341,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
                 radarScreeningAudit = radarScreeningAuditStore.load()
                 btrSyncSnapshot = btrSyncStore.load()
                 circleSnapshot = loadCircleProtectionSnapshot()
-                audioReadinessStatus = "Apasă readiness sau pornește Speaker Guard pentru verificarea locală."
+                audioReadinessStatus = "Pune apelul pe difuzor, apoi apasă Ascultă pe difuzor."
             }
         }
     }
