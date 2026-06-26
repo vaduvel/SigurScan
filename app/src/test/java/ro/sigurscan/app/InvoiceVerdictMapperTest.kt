@@ -211,4 +211,29 @@ class InvoiceVerdictMapperTest {
         assertEquals("Periculos", p.headline) // cession never changes the verdict word
         assertTrue(p.action.lowercase().contains("cesiune"))
     }
+
+    // ---- FIX-9a: XML-ul oficial devine opt-in post-result, nu dialog forțat pre-scan ----
+
+    @Test
+    fun sourceLabelWithoutOfficialXmlSaysScannedDocument() {
+        assertEquals("Sursă: document scanat", invoiceSourceLabel(null))
+        assertEquals(
+            "Sursă: document scanat",
+            invoiceSourceLabel(OfficialDocumentCheckResponse(provided = false)),
+        )
+    }
+
+    @Test
+    fun sourceLabelWithMatchingOfficialXmlSaysVerified() {
+        assertEquals(
+            "Sursă: document scanat + XML oficial verificat",
+            invoiceSourceLabel(OfficialDocumentCheckResponse(provided = true, status = "match")),
+        )
+    }
+
+    @Test
+    fun sourceLabelWithMismatchOfficialXmlFlagsDivergence() {
+        val label = invoiceSourceLabel(OfficialDocumentCheckResponse(provided = true, status = "mismatch"))
+        assertTrue(label.lowercase().contains("nu se potrivește"))
+    }
 }

@@ -125,20 +125,6 @@ class MainActivity : ComponentActivity() {
 fun MainScreen(viewModel: ScannerViewModel) {
     val context = LocalContext.current
     var pendingInvoicePhotoUri by remember { mutableStateOf<Uri?>(null) }
-    var pendingInvoiceScanUri by remember { mutableStateOf<Uri?>(null) }
-    var showOfficialInvoiceXmlChooser by remember { mutableStateOf(false) }
-    fun stageInvoiceForOptionalXml(uri: Uri) {
-        pendingInvoiceScanUri = uri
-        showOfficialInvoiceXmlChooser = true
-    }
-    fun continueInvoiceWithoutOfficialXml() {
-        val invoiceUri = pendingInvoiceScanUri
-        showOfficialInvoiceXmlChooser = false
-        pendingInvoiceScanUri = null
-        if (invoiceUri != null) {
-            viewModel.scanInvoiceFromDocument(invoiceUri, context)
-        }
-    }
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
@@ -159,16 +145,18 @@ fun MainScreen(viewModel: ScannerViewModel) {
     val invoicePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
-        uri?.let { stageInvoiceForOptionalXml(it) }
+        uri?.let { viewModel.scanInvoiceFromDocument(it, context) }
     }
     val invoiceOfficialXmlPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { xmlUri ->
-        val invoiceUri = pendingInvoiceScanUri
-        showOfficialInvoiceXmlChooser = false
-        pendingInvoiceScanUri = null
-        if (invoiceUri != null) {
-            viewModel.scanInvoiceFromDocument(invoiceUri, context, officialXmlUri = xmlUri)
+        xmlUri?.let { selectedXmlUri ->
+            val invoiceUri = viewModel.lastInvoiceScanSource?.uri
+            if (invoiceUri != null) {
+                viewModel.scanInvoiceFromDocument(invoiceUri, context, officialXmlUri = selectedXmlUri)
+            } else {
+                Toast.makeText(context, "Reîncarcă factura înainte să atașezi XML-ul oficial.", Toast.LENGTH_SHORT).show()
+            }
         }
     }
     val invoicePhotoLauncher = rememberLauncherForActivityResult(
@@ -176,7 +164,7 @@ fun MainScreen(viewModel: ScannerViewModel) {
     ) { captured ->
         val capturedUri = pendingInvoicePhotoUri
         if (captured && capturedUri != null) {
-            stageInvoiceForOptionalXml(capturedUri)
+            viewModel.scanInvoiceFromDocument(capturedUri, context)
         }
         pendingInvoicePhotoUri = null
     }
@@ -239,6 +227,9 @@ fun MainScreen(viewModel: ScannerViewModel) {
                     onScanQr = { showQrScanner = true },
                     onCaptureInvoicePhoto = captureInvoicePhoto,
                     onScanInvoice = { invoicePickerLauncher.launch(arrayOf("image/*", "application/pdf")) },
+                    onInvoiceOfficialXmlCheck = {
+                        invoiceOfficialXmlPickerLauncher.launch(arrayOf("application/xml", "text/xml", "text/*"))
+                    },
                     onScanOffer = { offerPickerLauncher.launch(arrayOf("image/*", "application/pdf", "text/*", "text/html", "message/rfc822")) }
                 )
                 "radar" -> RadarTab(viewModel)
@@ -278,15 +269,6 @@ fun MainScreen(viewModel: ScannerViewModel) {
                     onPickImageFallback = {
                         closeQrScanner()
                         qrPickerLauncher.launch("image/*")
-                    }
-                )
-            }
-            if (showOfficialInvoiceXmlChooser) {
-                OfficialInvoiceXmlChooserDialog(
-                    onDismiss = { continueInvoiceWithoutOfficialXml() },
-                    onSkip = { continueInvoiceWithoutOfficialXml() },
-                    onPickXml = {
-                        invoiceOfficialXmlPickerLauncher.launch(arrayOf("application/xml", "text/xml", "text/*"))
                     }
                 )
             }

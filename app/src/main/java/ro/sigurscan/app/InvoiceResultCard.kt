@@ -97,6 +97,7 @@ fun InvoiceResultCard(
     result: InvoiceScanResponse,
     sanbStatus: String? = null,
     onSanbAttestation: (String) -> Unit = {},
+    onOfficialXmlCheck: (() -> Unit)? = null,
     onBack: () -> Unit
 ) {
     val isError = result.error != null
@@ -134,6 +135,44 @@ fun InvoiceResultCard(
                     tone = tone,
                     modifier = Modifier.widthIn(max = 210.dp)
                 )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                invoiceSourceLabel(result.officialDocumentCheck),
+                fontSize = 12.sp,
+                color = SigurColors.TextSecondary,
+                lineHeight = 16.sp
+            )
+            result.officialDocumentCheck?.takeIf { it.provided && it.status == "mismatch" }?.let { check ->
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "XML-ul oficial nu se potrivește cu factura scanată.",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = SigurColors.Dangerous
+                )
+                check.mismatches.take(2).forEach { mismatch ->
+                    Text(
+                        "• ${invoiceOfficialFieldLabel(mismatch.field)} diferă între factură și XML",
+                        fontSize = 12.sp,
+                        color = SigurColors.TextSecondary,
+                        modifier = Modifier.padding(start = 8.dp, top = 3.dp)
+                    )
+                }
+            }
+            if (result.officialDocumentCheck?.provided != true && onOfficialXmlCheck != null && !isError) {
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = onOfficialXmlCheck,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Ai XML-ul oficial de la ANAF? Verifică-l")
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
