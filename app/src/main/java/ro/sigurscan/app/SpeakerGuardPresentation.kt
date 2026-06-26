@@ -33,7 +33,11 @@ fun speakerGuardPresentation(
     evidence: AudioEvidenceResult?,
     nowMillis: Long = System.currentTimeMillis()
 ): SpeakerGuardPresentation {
-    val verdict = evidence?.verdict ?: snapshot.latestVerdict
+    val rawVerdict = evidence?.verdict ?: snapshot.latestVerdict
+    val verdict = when {
+        !snapshot.active && rawVerdict == AudioEvidenceVerdict.UNVERIFIED -> null
+        else -> rawVerdict
+    }
     return SpeakerGuardPresentation(
         title = "Urechea ascultă",
         listeningLabel = if (snapshot.active) "Ascult pe difuzor" else "Oprit",

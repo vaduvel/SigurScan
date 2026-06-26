@@ -73,4 +73,21 @@ class SpeakerGuardPresentationTest {
         assertTrue(prompt.privacyLine.contains("Pornește doar dacă apeși"))
         assertTrue(prompt.privacyLine.contains("telefonul tău"))
     }
+
+    @Test
+    fun stoppedUnverifiedListeningDoesNotRemainAsBigPendingVerdict() {
+        val snapshot = SpeakerGuardSnapshot(
+            active = false,
+            phase = SpeakerGuardPhase.STOPPED,
+            latestVerdict = AudioEvidenceVerdict.UNVERIFIED,
+            status = "Urechea este oprită."
+        )
+
+        val presentation = speakerGuardPresentation(snapshot, evidence = null, nowMillis = 10_000L)
+
+        assertEquals("Oprit", presentation.listeningLabel)
+        assertEquals("Ascult conversația", presentation.verdictTitle)
+        assertEquals("Pune apelul pe difuzor și lasă analiza locală pornită.", presentation.primaryAction)
+        assertFalse(presentation.showHangUpCta)
+    }
 }
