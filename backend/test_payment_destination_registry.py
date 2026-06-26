@@ -831,6 +831,66 @@ def test_registry_loads_wave3_hosting_and_education_destinations():
     assert telecom_academy["can_contribute_to_safe"] is True
 
 
+def test_registry_loads_wave4_public_utility_tax_and_onrc_destinations():
+    from services.payment_destination_registry import match_payment_destination
+
+    termoficare_constanta = match_payment_destination(
+        "RO76 BRDE 140S V072 8591 1400",
+        claimed_brand="Termoficare Constanta",
+        cui="43709449",
+    )
+    buzau_tax = match_payment_destination(
+        "RO87 TREZ 1662 1030 218X XXXX",
+        claimed_brand="Primaria Municipiului Buzau",
+        cui="4233874",
+    )
+    onrc = match_payment_destination(
+        "RO72 TREZ 7035 032X XX01 1591",
+        claimed_brand="ONRC",
+        cui="14942091",
+    )
+
+    assert termoficare_constanta["matched"] is True
+    assert termoficare_constanta["brand_id"] == "termoficare_constanta"
+    assert termoficare_constanta["can_contribute_to_safe"] is True
+    assert buzau_tax["matched"] is True
+    assert buzau_tax["brand_id"] == "primaria_municipiului_buzau"
+    assert buzau_tax["can_contribute_to_safe"] is True
+    assert onrc["matched"] is True
+    assert onrc["brand_id"] == "onrc"
+    assert onrc["can_contribute_to_safe"] is True
+
+
+def test_registry_loads_wave4_private_services_and_retail_destinations():
+    from services.payment_destination_registry import match_payment_destination
+
+    royal_hospital = match_payment_destination(
+        "RO12 BTRL 0410 1202 N821 94XX",
+        claimed_brand="Royal Hospital",
+        cui="16140205",
+    )
+    autochelu = match_payment_destination(
+        "RO10 INGB 0000 9999 0739 0967",
+        claimed_brand="AutoChelu",
+        cui="19236542",
+    )
+    unimat = match_payment_destination(
+        "RO59 BRDE 330S V022 5920 3300",
+        claimed_brand="Unimat",
+        cui="10152375",
+    )
+
+    assert royal_hospital["matched"] is True
+    assert royal_hospital["brand_id"] == "royal_hospital"
+    assert royal_hospital["can_contribute_to_safe"] is True
+    assert autochelu["matched"] is True
+    assert autochelu["brand_id"] == "autochelu"
+    assert autochelu["can_contribute_to_safe"] is True
+    assert unimat["matched"] is True
+    assert unimat["brand_id"] == "unimat"
+    assert unimat["can_contribute_to_safe"] is True
+
+
 def test_registry_loads_contextual_utility_destinations_without_safe_contribution():
     from services.payment_destination_registry import match_payment_destination
 
