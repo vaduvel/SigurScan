@@ -859,9 +859,8 @@ class ScannerViewModelTest {
             activitySource.contains("createInvoiceCaptureUri(context)")
         )
         assertTrue(
-            "Successful invoice photo capture must stage the photo for the same optional XML + invoice endpoint flow.",
-            activitySource.contains("stageInvoiceForOptionalXml(capturedUri)") &&
-                activitySource.contains("viewModel.scanInvoiceFromDocument(invoiceUri, context)")
+            "Successful invoice photo capture must scan immediately; XML cross-check is post-result opt-in.",
+            activitySource.contains("viewModel.scanInvoiceFromDocument(capturedUri, context)")
         )
         assertTrue(
             "Invoice camera capture must request CAMERA permission before launching TakePicture.",
@@ -875,16 +874,17 @@ class ScannerViewModelTest {
                 activitySource.contains("Încarcă imagine/PDF")
         )
         assertTrue(
-            "Invoice flow must offer optional official e-Factura XML after selecting the invoice.",
-            activitySource.contains("OfficialInvoiceXmlChooserDialog") &&
-                activitySource.contains("Atașează XML e-Factura") &&
-                activitySource.contains("Continuă fără XML")
+            "Picking an invoice document must scan immediately; it must not stage a forced XML dialog.",
+            activitySource.contains("uri?.let { viewModel.scanInvoiceFromDocument(it, context) }")
         )
         assertTrue(
-            "Closing the optional XML dialog must continue the invoice scan without XML, not discard the staged invoice.",
-            activitySource.contains("fun continueInvoiceWithoutOfficialXml()") &&
-                activitySource.contains("onDismiss = { continueInvoiceWithoutOfficialXml() }") &&
-                activitySource.contains("onSkip = { continueInvoiceWithoutOfficialXml() }")
+            "Official XML remains available as a post-result opt-in action wired to the existing XML picker.",
+            activitySource.contains("onInvoiceOfficialXmlCheck = {") &&
+                activitySource.contains("invoiceOfficialXmlPickerLauncher.launch(arrayOf(\"application/xml\", \"text/xml\", \"text/*\"))")
+        )
+        assertFalse(
+            "The old XML chooser must not appear before every invoice scan.",
+            activitySource.contains("OfficialInvoiceXmlChooserDialog")
         )
         assertTrue(
             "Invoice API upload must support optional official_xml_file without replacing pdf_file/image_file.",

@@ -134,3 +134,11 @@ fun invoiceVerdictPresentation(result: InvoiceVerdictResult): InvoiceVerdictPres
         )
     }
 }
+
+fun invoiceSourceLabel(check: OfficialDocumentCheckResponse?): String = when {
+    check?.provided != true -> "Sursă: document scanat"
+    check.status == "match" -> "Sursă: document scanat + XML oficial verificat"
+    check.status == "mismatch" -> "Sursă: document scanat + XML oficial nu se potrivește"
+    check.status == "parse_error" -> "Sursă: document scanat + XML oficial ilizibil"
+    else -> "Sursă: document scanat + XML oficial primit"
+}

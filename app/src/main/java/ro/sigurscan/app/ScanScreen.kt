@@ -107,6 +107,7 @@ fun ScanTab(
     onScanQr: () -> Unit,
     onCaptureInvoicePhoto: () -> Unit = {},
     onScanInvoice: () -> Unit = {},
+    onInvoiceOfficialXmlCheck: () -> Unit = {},
     onScanOffer: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -153,6 +154,7 @@ fun ScanTab(
                     onSanbAttestation = { attestation ->
                         viewModel.submitInvoiceBeneficiaryAttestation(attestation, context)
                     },
+                    onOfficialXmlCheck = onInvoiceOfficialXmlCheck,
                     onBack = { viewModel.reset() }
                 )
                 assessment != null -> ResultCard(
@@ -651,48 +653,6 @@ fun InvoiceSourceChooserDialog(
                     desc = "Alege o factură salvată",
                     icon = Icons.Default.UploadFile,
                     onClick = onPickDocument
-                )
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Închide")
-            }
-        },
-        containerColor = SigurColors.BackgroundCard,
-        shape = DSCardShape
-    )
-}
-
-@Composable
-fun OfficialInvoiceXmlChooserDialog(
-    onDismiss: () -> Unit,
-    onSkip: () -> Unit,
-    onPickXml: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "XML e-Factura",
-                color = SigurColors.TextPrimary,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                InvoiceSourceAction(
-                    title = "Atașează XML e-Factura",
-                    desc = "Compară factura cu documentul oficial",
-                    icon = Icons.Default.UploadFile,
-                    onClick = onPickXml
-                )
-                InvoiceSourceAction(
-                    title = "Continuă fără XML",
-                    desc = "Scanează doar factura aleasă",
-                    icon = Icons.Default.Receipt,
-                    onClick = onSkip
                 )
             }
         },
