@@ -35,8 +35,30 @@ private val STOP_REASON_CODES = setOf(
     "HIGH_RISK_PAYMENT_PATTERN_REQUIRES_VERIFICATION",
 )
 
-private fun normalizeEntity(value: String?): String =
-    value?.uppercase(Locale.ROOT)?.replace(Regex("[^A-Z0-9]"), "").orEmpty()
+private val LEGAL_FORM_TOKENS = setOf(
+    "SC",
+    "SRL",
+    "SRLD",
+    "SA",
+    "PFA",
+    "II",
+    "IF",
+    "SNC",
+    "SCS",
+    "SCA",
+    "IFN",
+    "RA",
+)
+
+private fun entityCoreTokens(value: String?): Set<String> =
+    value
+        ?.uppercase(Locale.ROOT)
+        ?.replace("SRL-D", "SRLD")
+        ?.split(Regex("\\s+"))
+        ?.map { it.replace(Regex("[^A-Z0-9]"), "") }
+        ?.filter { it.isNotBlank() && it !in LEGAL_FORM_TOKENS }
+        ?.toSet()
+        .orEmpty()
 
 /**
  * True only when the payment beneficiary is a genuinely different entity than the issuer.
@@ -44,12 +66,10 @@ private fun normalizeEntity(value: String?): String =
  * invoice is never flagged on cosmetics alone.
  */
 internal fun invoiceBeneficiaryMismatch(fields: InvoiceFieldsResponse?): Boolean {
-    val emitent = normalizeEntity(fields?.emitent)
-    val beneficiary = normalizeEntity(fields?.paymentBeneficiary)
-    if (emitent.isBlank() || beneficiary.isBlank()) return false
-    if (emitent == beneficiary) return false
-    if (emitent.contains(beneficiary) || beneficiary.contains(emitent)) return false
-    return true
+    val emitent = entityCoreTokens(fields?.emitent)
+    val beneficiary = entityCoreTokens(fields?.paymentBeneficiary)
+    if (emitent.isEmpty() || beneficiary.isEmpty()) return false
+    return emitent != beneficiary
 }
 
 private fun anafCheckedNotFound(anaf: Map<String, Any>?): Boolean {
