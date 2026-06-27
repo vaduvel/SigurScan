@@ -2,6 +2,7 @@ package ro.sigurscan.app
 
 import com.google.gson.Gson
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -159,6 +160,67 @@ class InvoiceVerdictMapperTest {
             )
         )
         assertEquals(InvoiceVerdict.NEVERIFICAT, r.verdict)
+    }
+
+    @Test
+    fun beneficiaryWithoutLegalFormSuffixAndPunctuationIsNotAMismatch() {
+        val r = invoiceVerdict(
+            fromJson(
+                """
+                {
+                  "fields": {"emitent": "Electrica S.A.", "payment_beneficiary": "Electrica",
+                             "iban": "RO17BTRL0000456789012345"},
+                  "coherence": {"totals_match": true, "tva_rate_plausible": true, "dates_plausible": true, "all_ok": true},
+                  "invoice_truth": {"verdict": "VERIFY_BEFORE_PAYING", "safe_to_pay": false,
+                                    "primary_reason_code": "UNCONFIRMED_DESTINATION", "hard_conflicts": []}
+                }
+                """
+            )
+        )
+        assertEquals(InvoiceVerdict.NEVERIFICAT, r.verdict)
+        assertFalse(r.beneficiaryMismatch)
+    }
+
+    @Test
+    fun beneficiaryWithExtraSignificantWordsIsAMismatch() {
+        val r = invoiceVerdict(
+            fromJson(
+                """
+                {
+                  "fields": {"emitent": "Electrica SA", "payment_beneficiary": "Global Electrica Trading SRL",
+                             "iban": "RO17BTRL0000456789012345"},
+                  "coherence": {"totals_match": true, "tva_rate_plausible": true, "dates_plausible": true, "all_ok": true},
+                  "invoice_truth": {"verdict": "VERIFY_BEFORE_PAYING", "safe_to_pay": false,
+                                    "primary_reason_code": "UNCONFIRMED_DESTINATION", "hard_conflicts": []}
+                }
+                """
+            )
+        )
+        assertEquals(InvoiceVerdict.PERICULOS, r.verdict)
+        assertTrue(r.beneficiaryMismatch)
+
+        val p = invoiceVerdictPresentation(r)
+        assertEquals("Periculos", p.headline)
+        assertTrue(p.action.lowercase().contains("cesiune"))
+    }
+
+    @Test
+    fun beneficiaryContainingShortIssuerNameWithExtraSignificantWordsIsAMismatch() {
+        val r = invoiceVerdict(
+            fromJson(
+                """
+                {
+                  "fields": {"emitent": "Electrica", "payment_beneficiary": "Global Electrica Trading SRL",
+                             "iban": "RO17BTRL0000456789012345"},
+                  "coherence": {"totals_match": true, "tva_rate_plausible": true, "dates_plausible": true, "all_ok": true},
+                  "invoice_truth": {"verdict": "VERIFY_BEFORE_PAYING", "safe_to_pay": false,
+                                    "primary_reason_code": "UNCONFIRMED_DESTINATION", "hard_conflicts": []}
+                }
+                """
+            )
+        )
+        assertEquals(InvoiceVerdict.PERICULOS, r.verdict)
+        assertTrue(r.beneficiaryMismatch)
     }
 
     // ---- Presentation: app verdict word as headline + locked decision copy ----
