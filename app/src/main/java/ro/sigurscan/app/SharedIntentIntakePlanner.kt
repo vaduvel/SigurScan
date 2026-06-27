@@ -12,7 +12,10 @@ internal enum class SharedIntentAutoScan {
 
 internal sealed interface SharedIntentIntakePlan {
     data class DeepLink(val text: String?) : SharedIntentIntakePlan
-    data class Navigate(val destination: SharedIntentDestination) : SharedIntentIntakePlan
+    data class Navigate(
+        val destination: SharedIntentDestination,
+        val autoStartSpeakerGuard: Boolean = false
+    ) : SharedIntentIntakePlan
 
     data class SharedContent(
         val textPayload: ResolvedSharedTextPayload?,
@@ -32,7 +35,7 @@ internal enum class SharedIntentDestination {
 internal interface SharedIntentIntakeSink {
     fun clear()
     fun showDeepLink(text: String?)
-    fun navigate(destination: SharedIntentDestination)
+    fun navigate(destination: SharedIntentDestination, autoStartSpeakerGuard: Boolean)
     fun stageText(payload: ResolvedSharedTextPayload, preservePendingFiles: Boolean)
     fun stageFile(uri: Uri, fallbackMime: String, preserveSharedTextState: Boolean)
     fun scanText()
@@ -46,7 +49,10 @@ internal fun buildSharedIntentIntakePlan(intent: Intent?): SharedIntentIntakePla
         return SharedIntentIntakePlan.DeepLink(resolveDeepLinkScanText(intent))
     }
     if (intent.action == Intent.ACTION_VIEW && isDeepLinkRadarIntent(intent)) {
-        return SharedIntentIntakePlan.Navigate(resolveDeepLinkDestination(intent))
+        return SharedIntentIntakePlan.Navigate(
+            destination = resolveDeepLinkDestination(intent),
+            autoStartSpeakerGuard = shouldAutoStartSpeakerGuard(intent)
+        )
     }
 
     if (
@@ -95,7 +101,7 @@ internal fun executeSharedIntentIntakePlan(
 ) {
     when (plan) {
         is SharedIntentIntakePlan.DeepLink -> sink.showDeepLink(plan.text)
-        is SharedIntentIntakePlan.Navigate -> sink.navigate(plan.destination)
+        is SharedIntentIntakePlan.Navigate -> sink.navigate(plan.destination, plan.autoStartSpeakerGuard)
         SharedIntentIntakePlan.Ignore -> Unit
         is SharedIntentIntakePlan.SharedContent -> {
             sink.clear()
@@ -119,4 +125,15 @@ internal fun executeSharedIntentIntakePlan(
             }
         }
     }
+}
+
+private fun shouldAutoStartSpeakerGuard(intent: Intent): Boolean {
+    val data = intent.data ?: return false
+    val target = data.host?.lowercase(Locale.getDefault())
+        ?: data.path?.trim('/')?.lowercase(Locale.getDefault())
+        ?: return false
+    if (target != "speaker-guard") return false
+    return data.getQueryParameter("autostart")
+        ?.trim()
+        ?.lowercase(Locale.getDefault()) in setOf("1", "true", "yes")
 }
