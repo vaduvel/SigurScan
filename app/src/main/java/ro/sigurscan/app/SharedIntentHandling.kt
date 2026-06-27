@@ -108,14 +108,27 @@ internal fun handleIncomingIntent(context: Context, intent: Intent?, viewModel: 
                 viewModel.currentTab = "scan"
             }
 
-            override fun navigate(destination: SharedIntentDestination) {
+            override fun navigate(destination: SharedIntentDestination, autoStartSpeakerGuard: Boolean) {
                 when (destination) {
                     SharedIntentDestination.RADAR -> {
                         viewModel.currentTab = "radar"
                     }
                     SharedIntentDestination.SPEAKER_GUARD -> {
                         viewModel.currentTab = "radar"
-                        viewModel.audioReadinessStatus = "Pune apelul pe difuzor, apoi apasă Ascultă pe difuzor."
+                        if (autoStartSpeakerGuard && BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR) {
+                            viewModel.acceptSpeakerGuardConsent()
+                            val microphoneGranted = ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.RECORD_AUDIO
+                            ) == PackageManager.PERMISSION_GRANTED
+                            if (microphoneGranted) {
+                                viewModel.startSpeakerGuard()
+                            } else {
+                                viewModel.audioReadinessStatus = "Permite microfonul, pune apelul pe difuzor, apoi pornește Urechea."
+                            }
+                        } else {
+                            viewModel.audioReadinessStatus = "Pune apelul pe difuzor, apoi apasă Ascultă pe difuzor."
+                        }
                     }
                 }
             }

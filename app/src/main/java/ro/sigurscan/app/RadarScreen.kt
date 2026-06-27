@@ -103,6 +103,15 @@ fun RadarTab(viewModel: ScannerViewModel) {
             ) == PackageManager.PERMISSION_GRANTED
         )
     }
+    var hasCallPromptNotificationPermission by remember {
+        mutableStateOf(
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
     val microphonePermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         hasMicrophonePermission = granted
         viewModel.refreshAudioReadiness()
@@ -110,6 +119,14 @@ fun RadarTab(viewModel: ScannerViewModel) {
             viewModel.startSpeakerGuard()
         } else {
             viewModel.audioReadinessStatus = "Permisiunea microfonului este necesară pentru Urechea."
+        }
+    }
+    val callPromptNotificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        hasCallPromptNotificationPermission = granted
+        viewModel.radarHotCacheStatus = if (granted) {
+            "Alerta Urechea poate apărea când Radar semnalează un apel."
+        } else {
+            "Fără notificări, deschide manual Urechea din Radar în timpul apelului."
         }
     }
     val locatedCampaigns = remember(viewModel.campaigns) {
@@ -137,12 +154,20 @@ fun RadarTab(viewModel: ScannerViewModel) {
             audit = viewModel.radarScreeningAudit,
             loading = viewModel.radarHotCacheLoading,
             status = viewModel.radarHotCacheStatus,
+            hasCallPromptNotificationPermission = hasCallPromptNotificationPermission,
             reportPhoneInput = viewModel.radarReportPhoneInput,
             reportPhoneLoading = viewModel.radarReportPhoneLoading,
             reportPhoneStatus = viewModel.radarReportPhoneStatus,
             onSync = { viewModel.syncRadarHotCache() },
             onRefreshAudit = { viewModel.refreshRadarScreeningAudit() },
             onEnableRole = { requestCallScreeningRole(context) },
+            onEnableCallPromptNotification = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    callPromptNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    hasCallPromptNotificationPermission = true
+                }
+            },
             onReportPhoneInputChange = { viewModel.radarReportPhoneInput = it },
             onReportPhone = { viewModel.reportRadarPhoneNumber() }
         )

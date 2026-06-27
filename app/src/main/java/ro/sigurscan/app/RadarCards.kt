@@ -747,12 +747,14 @@ internal fun RadarCallProtectionCard(
     audit: RadarScreeningAudit?,
     loading: Boolean,
     status: String?,
+    hasCallPromptNotificationPermission: Boolean,
     reportPhoneInput: String,
     reportPhoneLoading: Boolean,
     reportPhoneStatus: String?,
     onSync: () -> Unit,
     onRefreshAudit: () -> Unit,
     onEnableRole: () -> Unit,
+    onEnableCallPromptNotification: () -> Unit,
     onReportPhoneInputChange: (String) -> Unit,
     onReportPhone: () -> Unit
 ) {
@@ -825,6 +827,35 @@ internal fun RadarCallProtectionCard(
             reportPhoneStatus?.takeIf { it.isNotBlank() }?.let {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(it, color = SigurColors.TextSecondary, fontSize = 11.sp, lineHeight = 15.sp)
+            }
+            if (!hasCallPromptNotificationPermission) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = SigurColors.BrandTint),
+                    border = BorderStroke(1.dp, SigurColors.Brand.copy(alpha = 0.25f)),
+                    shape = DSCardShape
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text(
+                            "Permite alerta Urechea ca să apară în timpul unui apel semnalat.",
+                            color = SigurColors.TextSecondary,
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = onEnableCallPromptNotification,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = SigurColors.SafeLight),
+                            border = BorderStroke(1.dp, SigurColors.SafeBorder),
+                            shape = DSPillShape
+                        ) {
+                            Icon(Icons.Default.Notifications, contentDescription = null, tint = SigurColors.Safe, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Permite alerta", color = SigurColors.Safe, fontSize = 11.sp)
+                        }
+                    }
+                }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Button(

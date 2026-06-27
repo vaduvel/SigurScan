@@ -84,6 +84,27 @@ class RadarHotCacheTest {
     }
 
     @Test
+    fun callScreeningWarnsWithSpeakerGuardPrompt() {
+        val serviceSource = java.io.File("src/main/java/ro/sigurscan/app/SigurScanCallScreeningService.kt").readText()
+        val notifierSource = java.io.File("src/main/java/ro/sigurscan/app/SpeakerGuardCallPromptNotifier.kt").takeIf { it.exists() }?.readText().orEmpty()
+
+        assertTrue(
+            "CallScreeningService must surface a user-controlled Speaker Guard prompt for WARN decisions.",
+            serviceSource.contains("SpeakerGuardCallPromptNotifier.fromContext(applicationContext).showIfNeeded(decision)")
+        )
+        assertTrue(
+            "The call-time prompt must deep-link to Speaker Guard with autostart, not to a generic Radar page.",
+            notifierSource.contains("sigurscan://speaker-guard") &&
+                notifierSource.contains("autostart=1") &&
+                notifierSource.contains("source=call_screening")
+        )
+        assertTrue(
+            "The prompt must be gated behind the reviewed local ASR feature flag.",
+            notifierSource.contains("BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR")
+        )
+    }
+
+    @Test
     fun campaignHashPrefixWarnsOffline() {
         val phoneHash = PhoneNumberHasher.hashPhone("+40 721 123 456")
         val cache = RadarHotCacheSnapshot(

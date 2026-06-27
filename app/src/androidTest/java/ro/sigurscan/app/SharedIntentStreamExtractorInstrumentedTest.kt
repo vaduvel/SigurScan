@@ -81,6 +81,21 @@ class SharedIntentStreamExtractorInstrumentedTest {
     }
 
     @Test
+    fun callScreeningSpeakerGuardDeepLinkRequestsAutoStart() {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("sigurscan://speaker-guard?autostart=1&source=call_screening"))
+
+        val plan = buildSharedIntentIntakePlan(intent)
+
+        assertEquals(
+            SharedIntentIntakePlan.Navigate(
+                destination = SharedIntentDestination.SPEAKER_GUARD,
+                autoStartSpeakerGuard = true
+            ),
+            plan
+        )
+    }
+
+    @Test
     fun actionSendPrefersExtraHtmlTextOverVisibleText() {
         val html = """<a href="https://rides.sng.link/Aw5zn/hw3r?_fallback_redirect=https%3A%2F%2Fwww.uber.com">Comandă o cursă</a>"""
         val intent = Intent(Intent.ACTION_SEND)
@@ -305,8 +320,8 @@ class SharedIntentStreamExtractorInstrumentedTest {
                 events += "deep:$text"
             }
 
-            override fun navigate(destination: SharedIntentDestination) {
-                events += "navigate:$destination"
+            override fun navigate(destination: SharedIntentDestination, autoStartSpeakerGuard: Boolean) {
+                events += "navigate:$destination:$autoStartSpeakerGuard"
             }
 
             override fun stageText(payload: ResolvedSharedTextPayload, preservePendingFiles: Boolean) {
