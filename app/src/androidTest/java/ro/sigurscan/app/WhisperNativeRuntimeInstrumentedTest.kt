@@ -53,9 +53,13 @@ class WhisperNativeRuntimeInstrumentedTest {
             )
         )
         val elapsedMs = System.currentTimeMillis() - startedAt
-        Log.i("SigurScanWhisperTest", "elapsed_ms=$elapsedMs transcript=${result.transcript}")
+        Log.i(
+            "SigurScanWhisperTest",
+            "elapsed_ms=$elapsedMs transcript_present=${result.transcript.isNotBlank()} " +
+                "verdict=${result.evidence?.verdict} reason=${result.reasonCode ?: "ok"}"
+        )
 
-        assertTrue(result.transcript, result.success)
+        assertTrue("ASR should succeed without retaining transcript in logs; reason=${result.reasonCode}", result.success)
         assertNotNull(result.evidence)
         assertNotEquals(AudioEvidenceVerdict.UNVERIFIED, result.evidence!!.verdict)
     }

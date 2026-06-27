@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 class AudioSafetyPolicyTest {
     @Test
@@ -163,5 +164,21 @@ class AudioSafetyPolicyTest {
         assertFalse(manifest.valid)
         assertTrue(manifest.reasonCodes.contains("language_not_romanian"))
         assertTrue(manifest.reasonCodes.contains("sha256_missing_or_invalid"))
+    }
+
+    @Test
+    fun instrumentedWhisperRuntimeTestDoesNotLogRawTranscript() {
+        val source = File("src/androidTest/java/ro/sigurscan/app/WhisperNativeRuntimeInstrumentedTest.kt")
+            .readText()
+
+        assertFalse(source.contains("transcript=${'$'}{result.transcript}"))
+        assertFalse(source.contains("assertTrue(result.transcript,"))
+    }
+
+    @Test
+    fun nativeWhisperBridgeDoesNotReturnTranscriptWithNewStringUtf() {
+        val source = File("src/main/cpp/sigurscan_whisper_jni.cpp").readText()
+
+        assertFalse(source.contains("NewStringUTF(transcript.c_str())"))
     }
 }

@@ -50,6 +50,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -88,6 +89,7 @@ import java.io.File
 import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.delay
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
@@ -465,11 +467,22 @@ internal fun AudioAsrReadinessCard(
     onRefresh: () -> Unit,
     onAnalyzeTranscript: () -> Unit,
     speakerGuard: SpeakerGuardSnapshot,
+    callPrompt: SpeakerGuardCallPromptPresentation?,
     hasMicrophonePermission: Boolean,
     onStartSpeakerGuard: () -> Unit,
     onStopSpeakerGuard: () -> Unit
 ) {
     val blocked = !snapshot.decision.allowed
+    var nowMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+    var showLocalSetup by remember(blocked) { mutableStateOf(blocked) }
+    LaunchedEffect(speakerGuard.active, speakerGuard.startedAtEpochMillis) {
+        nowMillis = System.currentTimeMillis()
+        while (speakerGuard.active) {
+            delay(1000L)
+            nowMillis = System.currentTimeMillis()
+        }
+    }
+    val presentation = speakerGuardPresentation(speakerGuard, evidenceResult, nowMillis)
     Card(
         colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
         border = DSCardBorder,
@@ -478,30 +491,19 @@ internal fun AudioAsrReadinessCard(
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.MicOff, contentDescription = null, tint = if (blocked) SigurColors.Suspect else SigurColors.Safe, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Security, contentDescription = null, tint = SigurColors.Brand, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Whisper ASR local", color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text("Nu se trimite audio la server. Captura pornește doar cu Whisper local și consimțământ.", color = SigurColors.TextMuted, fontSize = 11.sp, lineHeight = 15.sp)
+                    Text("Urechea SigurScan", color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("Pentru apeluri nesigure: pui pe difuzor, apeși start, iar analiza rămâne pe telefon.", color = SigurColors.TextMuted, fontSize = 11.sp, lineHeight = 15.sp)
                 }
-                DSChip(if (blocked) "blocat" else "pregătit", tone = if (blocked) DSChipTone.Suspect else DSChipTone.Safe)
+                DSChip(if (speakerGuard.active) "live" else if (blocked) "nepregătit" else "pregătit", tone = if (speakerGuard.active) DSChipTone.Brand else if (blocked) DSChipTone.Suspect else DSChipTone.Safe)
             }
 
             Spacer(modifier = Modifier.height(10.dp))
-            ReadinessRow("Feature flag", snapshot.featureFlagEnabled)
-            ReadinessRow("Model Whisper local", snapshot.modelAvailable)
-            ReadinessRow("Runtime Whisper native", snapshot.nativeRuntimeAvailable)
-            ReadinessRow("Permisiune microfon", snapshot.microphonePermissionGranted || hasMicrophonePermission)
-            ReadinessRow("Consimțământ explicit", snapshot.explicitConsent)
-            ReadinessRow("Disclosure privacy acceptat", snapshot.privacyDisclosureAccepted)
-
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
-                Checkbox(checked = snapshot.explicitConsent, onCheckedChange = onConsentChanged)
-                Text("Accept pornirea capturii audio locale", color = SigurColors.TextSecondary, fontSize = 11.sp)
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(checked = snapshot.privacyDisclosureAccepted, onCheckedChange = onDisclosureChanged)
-                Text("Am citit că audio-ul nu părăsește telefonul", color = SigurColors.TextSecondary, fontSize = 11.sp)
+            callPrompt?.let { prompt ->
+                SpeakerGuardCallPromptCard(prompt = prompt, onStartSpeakerGuard = onStartSpeakerGuard)
+                Spacer(modifier = Modifier.height(10.dp))
             }
 
             status?.takeIf { it.isNotBlank() }?.let {
@@ -509,38 +511,9 @@ internal fun AudioAsrReadinessCard(
                 Text(it, color = SigurColors.TextSecondary, fontSize = 11.sp, lineHeight = 15.sp)
             }
 
-            evidenceResult?.let { result ->
-                Spacer(modifier = Modifier.height(8.dp))
-                DSChip(
-                    text = when (result.verdict) {
-                        AudioEvidenceVerdict.DANGEROUS -> "PERICULOS"
-                        AudioEvidenceVerdict.SUSPECT -> "SUSPECT"
-                        AudioEvidenceVerdict.UNVERIFIED -> "NEVERIFICAT"
-                    },
-                    tone = when (result.verdict) {
-                        AudioEvidenceVerdict.DANGEROUS -> DSChipTone.Danger
-                        AudioEvidenceVerdict.SUSPECT -> DSChipTone.Suspect
-                        AudioEvidenceVerdict.UNVERIFIED -> DSChipTone.Neutral
-                    }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-            SpeakerGuardStatusBlock(speakerGuard)
+            SpeakerGuardStatusBlock(presentation, speakerGuard.latestVerdict ?: evidenceResult?.verdict)
 
             Spacer(modifier = Modifier.height(12.dp))
-            Button(
-                onClick = onRefresh,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = SigurColors.BackgroundSurface),
-                border = BorderStroke(1.dp, SigurColors.GlassBorder),
-                shape = DSPillShape
-            ) {
-                Icon(Icons.Default.Security, contentDescription = null, tint = SigurColors.TextPrimary, modifier = Modifier.size(14.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Verifică readiness", color = SigurColors.TextPrimary, fontSize = 11.sp)
-            }
-            Spacer(modifier = Modifier.height(8.dp))
             Button(
                 onClick = if (speakerGuard.active) onStopSpeakerGuard else onStartSpeakerGuard,
                 modifier = Modifier.fillMaxWidth(),
@@ -561,7 +534,7 @@ internal fun AudioAsrReadinessCard(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    if (speakerGuard.active) "Oprește Speaker Guard" else "Pornește Speaker Guard",
+                    if (speakerGuard.active) "Oprește Urechea" else "Ascultă pe difuzor",
                     color = if (speakerGuard.active) SigurColors.Dangerous else SigurColors.Safe,
                     fontSize = 11.sp
                 )
@@ -577,71 +550,183 @@ internal fun AudioAsrReadinessCard(
             ) {
                 Icon(Icons.Default.Security, contentDescription = null, tint = SigurColors.TextPrimary, modifier = Modifier.size(14.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Analizează transcrierea curentă", color = SigurColors.TextPrimary, fontSize = 11.sp)
+                Text("Analizează transcrierea lipită", color = SigurColors.TextPrimary, fontSize = 11.sp)
+            }
+
+            TextButton(onClick = { showLocalSetup = !showLocalSetup }, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.Info, contentDescription = null, tint = SigurColors.TextMuted, modifier = Modifier.size(14.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(if (showLocalSetup) "Ascunde pregătirea locală" else "Arată pregătirea locală", color = SigurColors.TextMuted, fontSize = 11.sp)
+            }
+
+            if (showLocalSetup) {
+                Spacer(modifier = Modifier.height(4.dp))
+                ReadinessRow("Feature flag", snapshot.featureFlagEnabled)
+                ReadinessRow("Model audio local", snapshot.modelAvailable)
+                ReadinessRow("Runtime audio local", snapshot.nativeRuntimeAvailable)
+                ReadinessRow("Permisiune microfon", snapshot.microphonePermissionGranted || hasMicrophonePermission)
+                ReadinessRow("Consimțământ explicit", snapshot.explicitConsent)
+                ReadinessRow("Privacy acceptat", snapshot.privacyDisclosureAccepted)
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+                    Checkbox(checked = snapshot.explicitConsent, onCheckedChange = onConsentChanged)
+                    Text("Accept pornirea ascultării locale", color = SigurColors.TextSecondary, fontSize = 11.sp)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = snapshot.privacyDisclosureAccepted, onCheckedChange = onDisclosureChanged)
+                    Text("Am citit că audio-ul nu părăsește telefonul", color = SigurColors.TextSecondary, fontSize = 11.sp)
+                }
+                Button(
+                    onClick = onRefresh,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = SigurColors.BackgroundSurface),
+                    border = BorderStroke(1.dp, SigurColors.GlassBorder),
+                    shape = DSPillShape
+                ) {
+                    Icon(Icons.Default.Security, contentDescription = null, tint = SigurColors.TextPrimary, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Verifică pregătirea", color = SigurColors.TextPrimary, fontSize = 11.sp)
+                }
             }
         }
     }
 }
 
 @Composable
-internal fun SpeakerGuardStatusBlock(snapshot: SpeakerGuardSnapshot) {
-    val tone = when (snapshot.latestVerdict) {
-        AudioEvidenceVerdict.DANGEROUS -> DSChipTone.Danger
-        AudioEvidenceVerdict.SUSPECT -> DSChipTone.Suspect
-        AudioEvidenceVerdict.UNVERIFIED -> DSChipTone.Neutral
-        null -> if (snapshot.active) DSChipTone.Brand else DSChipTone.Neutral
-    }
+internal fun SpeakerGuardCallPromptCard(
+    prompt: SpeakerGuardCallPromptPresentation,
+    onStartSpeakerGuard: () -> Unit
+) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundSurface),
-        border = BorderStroke(1.dp, SigurColors.BorderSubtle),
+        colors = CardDefaults.cardColors(containerColor = SigurColors.BrandTint),
+        border = BorderStroke(1.dp, SigurColors.Brand.copy(alpha = 0.30f)),
         shape = DSCardShape,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(10.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    if (snapshot.active) Icons.Default.GraphicEq else Icons.Default.MicOff,
-                    contentDescription = null,
-                    tint = if (snapshot.active) SigurColors.Brand else SigurColors.TextMuted,
-                    modifier = Modifier.size(16.dp)
-                )
+                Icon(Icons.Default.Phone, contentDescription = null, tint = SigurColors.Brand, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Speaker Guard", color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                Spacer(modifier = Modifier.weight(1f))
-                DSChip(
-                    when {
-                        snapshot.latestVerdict == AudioEvidenceVerdict.DANGEROUS -> "PERICULOS"
-                        snapshot.latestVerdict == AudioEvidenceVerdict.SUSPECT -> "SUSPECT"
-                        snapshot.active -> "ascultă"
-                        else -> "oprit"
-                    },
-                    tone = tone
-                )
+                Text(prompt.title, color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
             Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                snapshot.status,
-                color = SigurColors.TextSecondary,
-                fontSize = 11.sp,
-                lineHeight = 15.sp
-            )
+            Text(prompt.body, color = SigurColors.TextSecondary, fontSize = 11.sp, lineHeight = 15.sp)
             Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                "Fragmente analizate: ${snapshot.chunksAnalyzed} · pierdute: ${snapshot.chunksDropped} · audio brut salvat: nu",
-                color = SigurColors.TextMuted,
-                fontSize = 10.sp,
-                lineHeight = 14.sp
-            )
-            snapshot.latestLatencyMs?.let { latency ->
-                Text(
-                    "Ultima analiză: ${latency / 1000.0}s${snapshot.latestArcFamily?.let { " · $it" } ?: ""}",
-                    color = SigurColors.TextMuted,
-                    fontSize = 10.sp,
-                    lineHeight = 14.sp
-                )
+            Text(prompt.privacyLine, color = SigurColors.TextMuted, fontSize = 10.sp, lineHeight = 14.sp)
+            Spacer(modifier = Modifier.height(10.dp))
+            Button(
+                onClick = onStartSpeakerGuard,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = SigurColors.SafeLight),
+                border = BorderStroke(1.dp, SigurColors.SafeBorder),
+                shape = DSPillShape
+            ) {
+                Icon(Icons.Default.Mic, contentDescription = null, tint = SigurColors.Safe, modifier = Modifier.size(14.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(prompt.primaryCta, color = SigurColors.Safe, fontSize = 11.sp)
             }
         }
     }
+}
+
+@Composable
+internal fun SpeakerGuardStatusBlock(
+    presentation: SpeakerGuardPresentation,
+    verdict: AudioEvidenceVerdict?
+) {
+    val tone = speakerGuardTone(verdict)
+    val accent = speakerGuardAccent(verdict)
+    val light = speakerGuardLight(verdict)
+    Card(
+        colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundSurface),
+        border = BorderStroke(1.dp, speakerGuardBorder(verdict)),
+        shape = DSCardShape,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(light, SigurColors.BackgroundCard)
+                        ),
+                        RoundedCornerShape(16.dp)
+                    )
+                    .padding(12.dp)
+            ) {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.GraphicEq, contentDescription = null, tint = accent, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(presentation.title, color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text(presentation.privacyLine, color = SigurColors.TextMuted, fontSize = 10.sp, lineHeight = 14.sp)
+                        }
+                        DSChip(presentation.listeningLabel, tone = tone)
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(presentation.verdictTitle, color = accent, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        Spacer(modifier = Modifier.weight(1f))
+                        Text(presentation.elapsedLabel, color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(presentation.primaryAction, color = SigurColors.TextSecondary, fontSize = 12.sp, lineHeight = 16.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(presentation.status, color = SigurColors.TextSecondary, fontSize = 11.sp, lineHeight = 15.sp)
+            presentation.diagnosticLine?.let {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(it, color = SigurColors.TextMuted, fontSize = 10.sp, lineHeight = 14.sp)
+            }
+
+            if (presentation.reasons.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text("Ce am auzit suspect", color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(6.dp))
+                presentation.reasons.forEach { reason ->
+                    Row(modifier = Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.Top) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = accent, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(reason.title, color = SigurColors.TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
+                            Text(reason.body, color = SigurColors.TextMuted, fontSize = 10.sp, lineHeight = 14.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun speakerGuardTone(verdict: AudioEvidenceVerdict?): DSChipTone = when (verdict) {
+    AudioEvidenceVerdict.DANGEROUS -> DSChipTone.Danger
+    AudioEvidenceVerdict.SUSPECT -> DSChipTone.Suspect
+    AudioEvidenceVerdict.UNVERIFIED -> DSChipTone.Pending
+    null -> DSChipTone.Brand
+}
+
+private fun speakerGuardAccent(verdict: AudioEvidenceVerdict?): Color = when (verdict) {
+    AudioEvidenceVerdict.DANGEROUS -> SigurColors.Dangerous
+    AudioEvidenceVerdict.SUSPECT -> SigurColors.Suspect
+    AudioEvidenceVerdict.UNVERIFIED -> SigurColors.Pending
+    null -> SigurColors.Brand
+}
+
+private fun speakerGuardLight(verdict: AudioEvidenceVerdict?): Color = when (verdict) {
+    AudioEvidenceVerdict.DANGEROUS -> SigurColors.DangerousLight
+    AudioEvidenceVerdict.SUSPECT -> SigurColors.SuspectLight
+    AudioEvidenceVerdict.UNVERIFIED -> SigurColors.PendingLight
+    null -> SigurColors.BrandTint
+}
+
+private fun speakerGuardBorder(verdict: AudioEvidenceVerdict?): Color = when (verdict) {
+    AudioEvidenceVerdict.DANGEROUS -> SigurColors.DangerousBorder
+    AudioEvidenceVerdict.SUSPECT -> SigurColors.SuspectBorder
+    AudioEvidenceVerdict.UNVERIFIED -> SigurColors.BrandLight.copy(alpha = 0.35f)
+    null -> SigurColors.Brand.copy(alpha = 0.25f)
 }
 
 @Composable
@@ -662,12 +747,14 @@ internal fun RadarCallProtectionCard(
     audit: RadarScreeningAudit?,
     loading: Boolean,
     status: String?,
+    hasCallPromptNotificationPermission: Boolean,
     reportPhoneInput: String,
     reportPhoneLoading: Boolean,
     reportPhoneStatus: String?,
     onSync: () -> Unit,
     onRefreshAudit: () -> Unit,
     onEnableRole: () -> Unit,
+    onEnableCallPromptNotification: () -> Unit,
     onReportPhoneInputChange: (String) -> Unit,
     onReportPhone: () -> Unit
 ) {
@@ -740,6 +827,35 @@ internal fun RadarCallProtectionCard(
             reportPhoneStatus?.takeIf { it.isNotBlank() }?.let {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(it, color = SigurColors.TextSecondary, fontSize = 11.sp, lineHeight = 15.sp)
+            }
+            if (!hasCallPromptNotificationPermission) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = SigurColors.BrandTint),
+                    border = BorderStroke(1.dp, SigurColors.Brand.copy(alpha = 0.25f)),
+                    shape = DSCardShape
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text(
+                            "Permite alerta Urechea ca să apară în timpul unui apel semnalat.",
+                            color = SigurColors.TextSecondary,
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = onEnableCallPromptNotification,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = SigurColors.SafeLight),
+                            border = BorderStroke(1.dp, SigurColors.SafeBorder),
+                            shape = DSPillShape
+                        ) {
+                            Icon(Icons.Default.Notifications, contentDescription = null, tint = SigurColors.Safe, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Permite alerta", color = SigurColors.Safe, fontSize = 11.sp)
+                        }
+                    }
+                }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Button(

@@ -45,6 +45,43 @@ jstring empty_string(JNIEnv * env) {
     return env->NewStringUTF("");
 }
 
+jstring string_from_utf8_bytes(JNIEnv * env, const std::string & value) {
+    if (value.empty()) {
+        return empty_string(env);
+    }
+
+    jbyteArray bytes = env->NewByteArray(static_cast<jsize>(value.size()));
+    if (bytes == nullptr) {
+        return empty_string(env);
+    }
+    env->SetByteArrayRegion(
+        bytes,
+        0,
+        static_cast<jsize>(value.size()),
+        reinterpret_cast<const jbyte *>(value.data())
+    );
+
+    jclass string_class = env->FindClass("java/lang/String");
+    jmethodID constructor = string_class == nullptr
+        ? nullptr
+        : env->GetMethodID(string_class, "<init>", "([BLjava/lang/String;)V");
+    jstring charset = env->NewStringUTF("UTF-8");
+    jobject result = nullptr;
+    if (constructor != nullptr && charset != nullptr) {
+        result = env->NewObject(string_class, constructor, bytes, charset);
+    }
+
+    env->DeleteLocalRef(bytes);
+    if (charset != nullptr) {
+        env->DeleteLocalRef(charset);
+    }
+    if (string_class != nullptr) {
+        env->DeleteLocalRef(string_class);
+    }
+
+    return result == nullptr ? empty_string(env) : static_cast<jstring>(result);
+}
+
 whisper_context * get_or_load_context_locked(const std::string & model_path) {
     if (g_ctx != nullptr && g_model_path == model_path) {
         return g_ctx;
@@ -142,5 +179,5 @@ Java_ro_sigurscan_app_WhisperCppNativeBridge_nativeTranscribe(
             transcript += text;
         }
     }
-    return env->NewStringUTF(transcript.c_str());
+    return string_from_utf8_bytes(env, transcript);
 }

@@ -11,6 +11,11 @@ class SigurScanCallScreeningService : CallScreeningService() {
         val cache = RadarHotCacheStore.fromContext(applicationContext).load()
         val decision = RadarCallDecider.decide(number, cache)
         RadarScreeningAuditStore.fromContext(applicationContext).save(RadarScreeningAudit.fromDecision(decision))
+        runCatching {
+            SpeakerGuardCallPromptNotifier.fromContext(applicationContext).showIfNeeded(decision)
+        }.onFailure {
+            Log.w(TAG, "speaker_guard_prompt_failed reason=${it.javaClass.simpleName}")
+        }
         Log.i(TAG, "call_screened action=${decision.action} reason=${decision.reason} family=${decision.family.orEmpty()}")
         val builder = CallResponse.Builder()
             .setDisallowCall(decision.rejectCall)

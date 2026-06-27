@@ -103,13 +103,30 @@ fun RadarTab(viewModel: ScannerViewModel) {
             ) == PackageManager.PERMISSION_GRANTED
         )
     }
+    var hasCallPromptNotificationPermission by remember {
+        mutableStateOf(
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
     val microphonePermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         hasMicrophonePermission = granted
         viewModel.refreshAudioReadiness()
         if (granted) {
             viewModel.startSpeakerGuard()
         } else {
-            viewModel.audioReadinessStatus = "Permisiunea microfonului este necesară pentru Speaker Guard."
+            viewModel.audioReadinessStatus = "Permisiunea microfonului este necesară pentru Urechea."
+        }
+    }
+    val callPromptNotificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        hasCallPromptNotificationPermission = granted
+        viewModel.radarHotCacheStatus = if (granted) {
+            "Alerta Urechea poate apărea când Radar semnalează un apel."
+        } else {
+            "Fără notificări, deschide manual Urechea din Radar în timpul apelului."
         }
     }
     val locatedCampaigns = remember(viewModel.campaigns) {
@@ -137,16 +154,62 @@ fun RadarTab(viewModel: ScannerViewModel) {
             audit = viewModel.radarScreeningAudit,
             loading = viewModel.radarHotCacheLoading,
             status = viewModel.radarHotCacheStatus,
+            hasCallPromptNotificationPermission = hasCallPromptNotificationPermission,
             reportPhoneInput = viewModel.radarReportPhoneInput,
             reportPhoneLoading = viewModel.radarReportPhoneLoading,
             reportPhoneStatus = viewModel.radarReportPhoneStatus,
             onSync = { viewModel.syncRadarHotCache() },
             onRefreshAudit = { viewModel.refreshRadarScreeningAudit() },
             onEnableRole = { requestCallScreeningRole(context) },
+            onEnableCallPromptNotification = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    callPromptNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    hasCallPromptNotificationPermission = true
+                }
+            },
             onReportPhoneInputChange = { viewModel.radarReportPhoneInput = it },
             onReportPhone = { viewModel.reportRadarPhoneNumber() }
         )
         Spacer(modifier = Modifier.height(16.dp))
+
+        if (BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR) {
+            val speakerGuardPrompt = viewModel.radarScreeningAudit
+                ?.takeIf { it.action == RadarCallAction.WARN && !viewModel.speakerGuardSnapshot.active }
+                ?.let {
+                    speakerGuardCallPrompt(
+                        RadarCallDecision(
+                            action = it.action,
+                            reason = it.reason,
+                            family = it.family
+                        )
+                    )
+            }
+            val startSpeakerGuardWithConsent = {
+                viewModel.acceptSpeakerGuardConsent()
+                if (!hasMicrophonePermission) {
+                    microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                } else {
+                    viewModel.startSpeakerGuard()
+                }
+            }
+            AudioAsrReadinessCard(
+                snapshot = viewModel.audioReadiness,
+                status = viewModel.audioReadinessStatus,
+                evidenceResult = viewModel.audioEvidenceResult,
+                hasAssessment = viewModel.assessment != null,
+                onConsentChanged = { viewModel.setAudioConsent(it) },
+                onDisclosureChanged = { viewModel.setAudioPrivacyDisclosureAccepted(it) },
+                onRefresh = { viewModel.refreshAudioReadiness() },
+                onAnalyzeTranscript = { viewModel.analyzeCurrentTextAsAudioTranscript() },
+                speakerGuard = viewModel.speakerGuardSnapshot,
+                callPrompt = speakerGuardPrompt,
+                hasMicrophonePermission = hasMicrophonePermission,
+                onStartSpeakerGuard = startSpeakerGuardWithConsent,
+                onStopSpeakerGuard = { viewModel.stopSpeakerGuard() }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         BtrOnDeviceCard(
             snapshot = viewModel.btrSyncSnapshot,
@@ -178,30 +241,6 @@ fun RadarTab(viewModel: ScannerViewModel) {
             }
         )
         Spacer(modifier = Modifier.height(16.dp))
-
-        if (BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR) {
-            AudioAsrReadinessCard(
-                snapshot = viewModel.audioReadiness,
-                status = viewModel.audioReadinessStatus,
-                evidenceResult = viewModel.audioEvidenceResult,
-                hasAssessment = viewModel.assessment != null,
-                onConsentChanged = { viewModel.setAudioConsent(it) },
-                onDisclosureChanged = { viewModel.setAudioPrivacyDisclosureAccepted(it) },
-                onRefresh = { viewModel.refreshAudioReadiness() },
-                onAnalyzeTranscript = { viewModel.analyzeCurrentTextAsAudioTranscript() },
-                speakerGuard = viewModel.speakerGuardSnapshot,
-                hasMicrophonePermission = hasMicrophonePermission,
-                onStartSpeakerGuard = {
-                    if (!hasMicrophonePermission) {
-                        microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                    } else {
-                        viewModel.startSpeakerGuard()
-                    }
-                },
-                onStopSpeakerGuard = { viewModel.stopSpeakerGuard() }
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-        }
 
         viewModel.liveCampaignEvent?.let { liveCampaignEvent ->
             ActiveCampaignBanner(liveCampaignEvent) {

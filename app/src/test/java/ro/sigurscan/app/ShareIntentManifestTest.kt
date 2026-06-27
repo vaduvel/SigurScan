@@ -76,7 +76,6 @@ class ShareIntentManifestTest {
             "android.permission.SEND_SMS",
             "android.permission.READ_CALL_LOG",
             "android.permission.READ_CONTACTS",
-            "android.permission.POST_NOTIFICATIONS",
             "android.permission.READ_PHONE_NUMBERS",
             "android.permission.ANSWER_PHONE_CALLS",
             "android.permission.PROCESS_OUTGOING_CALLS"
@@ -88,6 +87,18 @@ class ShareIntentManifestTest {
                 manifest.contains("""android:name="$permission"""")
             )
         }
+    }
+
+    @Test
+    fun callTimeSpeakerGuardPromptCanUseNotificationsButNotOverlays() {
+        assertTrue(
+            "Incoming-call Speaker Guard needs a user-visible system prompt; Android 13+ requires POST_NOTIFICATIONS for that prompt.",
+            manifest.contains("""android:name="android.permission.POST_NOTIFICATIONS"""")
+        )
+        assertFalse(
+            "Speaker Guard must not use overlay permission for call-time prompts.",
+            manifest.contains("""android:name="android.permission.SYSTEM_ALERT_WINDOW"""")
+        )
     }
 
     @Test
