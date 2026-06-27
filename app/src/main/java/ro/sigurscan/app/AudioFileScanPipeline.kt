@@ -14,6 +14,7 @@ data class AudioFileScanResult(
     val evidence: AudioEvidenceResult?,
     val reasonCode: String?,
     val transcriptForTelemetry: String,
+    val redactedTranscriptForSemanticReview: String = "",
     val rawAudioBytesRetained: Int = 0
 )
 
@@ -38,14 +39,17 @@ class AudioFileScanPipeline(
                 evidence = AudioEvidenceEngine.evaluate(AudioEvidenceInput()),
                 reasonCode = asr.reasonCode,
                 transcriptForTelemetry = "",
+                redactedTranscriptForSemanticReview = "",
                 rawAudioBytesRetained = asr.rawAudioBytesRetained
             )
         }
+        val redactedTranscript = AudioTranscriptRedactor.redact(asr.transcript)
         return AudioFileScanResult(
             success = true,
             evidence = asr.evidence ?: AudioTranscriptEvidence.analyze(asr.transcript),
             reasonCode = null,
             transcriptForTelemetry = "[redactat]",
+            redactedTranscriptForSemanticReview = redactedTranscript,
             rawAudioBytesRetained = asr.rawAudioBytesRetained
         )
     }

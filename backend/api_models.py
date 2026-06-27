@@ -143,6 +143,16 @@ class LegalActionPlanRequest(BaseModel):
     document_type: Optional[str] = None
 
 
+class AudioSemanticReviewRequest(BaseModel):
+    transcript_redacted: str
+    locale: Optional[str] = "ro-RO"
+    channel: Optional[str] = "call_live"
+    local_verdict: Optional[str] = "UNVERIFIED"
+    local_reason_codes: Optional[List[str]] = None
+    claimed_identity: Optional[str] = None
+    arc_family: Optional[str] = None
+
+
 class IntelStatusData(BaseModel):
     last_run_at: Optional[float] = None
     entries_ingested: int = 0

@@ -101,7 +101,7 @@ PUBLIC_PATHS = {
 _SCREENSHOT_PROXY_PATH_RE = re.compile(r"^/v1/sandbox/urlscan/[^/]+/screenshot$")
 
 # Scan intake routes covered by Play Integrity once it leaves "off" mode.
-_INTEGRITY_GUARDED_PREFIXES = ("/v1/scan/", "/v1/extract/", "/v1/sandbox/urlscan")
+_INTEGRITY_GUARDED_PREFIXES = ("/v1/scan/", "/v1/extract/", "/v1/audio/", "/v1/sandbox/urlscan")
 PLAY_INTEGRITY_NONCE_PATH = "/v1/security/play-integrity/nonce"
 CLIENT_INSTANCE_HEADER = "X-SigurScan-Client-Instance"
 GENERIC_LOOKALIKE_TOKENS = {

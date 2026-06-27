@@ -11,7 +11,7 @@ class AudioFileScanPipelineTest {
         val pipeline = AudioFileScanPipeline(
             asrEngine = WhisperCppAsrEngine(
                 nativeRuntime = FakeWhisperRuntime(
-                    transcript = "BNR spune ca s-a facut un credit pe numele tau si trebuie sa muti banii intr-un cont sigur"
+                    transcript = "BNR spune ca s-a facut un credit pe numele tau si trebuie sa muti banii in RO49AAAA1B31007593840000. Codul este 123456."
                 )
             )
         )
@@ -30,6 +30,10 @@ class AudioFileScanPipelineTest {
         assertEquals(AudioEvidenceVerdict.DANGEROUS, result.evidence?.verdict)
         assertEquals(0, result.rawAudioBytesRetained)
         assertFalse(result.transcriptForTelemetry.contains("BNR"))
+        assertTrue(result.redactedTranscriptForSemanticReview.contains("[iban]"))
+        assertTrue(result.redactedTranscriptForSemanticReview.contains("[cod]"))
+        assertFalse(result.redactedTranscriptForSemanticReview.contains("RO49AAAA1B31007593840000"))
+        assertFalse(result.redactedTranscriptForSemanticReview.contains("123456"))
     }
 
     @Test

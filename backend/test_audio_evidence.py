@@ -6,6 +6,8 @@ on-device. STT solo → max SUSPECT; combo „cont sigur"+OTP+bancă → DANGERO
 """
 import json
 
+from fastapi.testclient import TestClient
+
 from services.audio_evidence import build_audio_case_verdict
 
 
@@ -67,8 +69,18 @@ class TestVerdictRules:
 
 
 class TestNoServerAudioEndpoint:
-    def test_no_audio_route_registered(self):
-        # Linia roșie §14.5: niciun endpoint care primește audio.
+    def test_only_redacted_audio_semantic_route_registered(self):
+        # Linia roșie actualizată: niciun endpoint care primește audio brut.
+        # Este permis doar adaptorul semantic pentru transcript deja redactat.
         import main as app_main
-        paths = {r.path for r in app_main.app.routes if hasattr(r, "path")}
-        assert not any("audio" in p.lower() for p in paths)
+        client = TestClient(app_main.app)
+
+        semantic = client.post(
+            "/v1/audio/semantic-review",
+            json={"transcript_redacted": "[redactat]", "local_verdict": "UNVERIFIED"},
+        )
+        assert semantic.status_code == 200
+        assert semantic.json()["privacy"]["raw_audio_received"] is False
+
+        raw_upload = client.post("/v1/audio", files={"audio": ("call.wav", b"RIFF", "audio/wav")})
+        assert raw_upload.status_code == 404

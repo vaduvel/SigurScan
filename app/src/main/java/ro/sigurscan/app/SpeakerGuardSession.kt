@@ -41,7 +41,8 @@ data class SpeakerGuardUpdate(
 
 class SpeakerGuardSession(
     private val context: Context,
-    private val asrEngine: WhisperCppAsrEngine = WhisperCppAsrEngine()
+    private val asrEngine: WhisperCppAsrEngine = WhisperCppAsrEngine(),
+    private val semanticReviewer: AudioSemanticReviewer = NoopAudioSemanticReviewer
 ) {
     private var job: Job? = null
     @Volatile
@@ -218,7 +219,8 @@ class SpeakerGuardSession(
                             )
                         )
                     }
-                    val result = rawResult.withSessionEvidence(evidenceAggregator)
+                    val semanticResult = rawResult.withSemanticReview()
+                    val result = semanticResult.withSessionEvidence(evidenceAggregator)
                     chunksAnalyzed += 1
                     val latency = System.currentTimeMillis() - started
                     onUpdate(
@@ -289,6 +291,16 @@ class SpeakerGuardSession(
         } else {
             copy(evidence = aggregatedEvidence)
         }
+    }
+
+    private suspend fun LocalAsrResult.withSemanticReview(): LocalAsrResult {
+        if (!success || transcript.isBlank()) return this
+        val redacted = AudioTranscriptRedactor.redact(transcript)
+        val review = withContext(Dispatchers.IO) {
+            semanticReviewer.review(redacted, evidence)
+        }
+        val fused = AudioSemanticReviewFusion.fuse(evidence, review)
+        return copy(evidence = fused)
     }
 
     companion object {

@@ -116,7 +116,10 @@ fun ScannerViewModel.startSpeakerGuard() {
             return@launch
         }
         val modelFile = withContext(Dispatchers.IO) { prepareWhisperModelFile() }
-        val session = SpeakerGuardSession(getApplication())
+        val session = SpeakerGuardSession(
+            context = getApplication(),
+            semanticReviewer = BackendAudioSemanticReviewer(scanStartApi, channel = "call_live")
+        )
         speakerGuardSession = session
         session.start(viewModelScope, modelFile.absolutePath) { update ->
             viewModelScope.launch(Dispatchers.Main) {

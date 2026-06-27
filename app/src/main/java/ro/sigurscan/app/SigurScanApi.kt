@@ -139,6 +139,33 @@ data class ActionPlanRequest(
     @SerializedName("document_type") val documentType: String? = null
 )
 
+data class AudioSemanticReviewRequest(
+    @SerializedName("transcript_redacted") val transcriptRedacted: String,
+    val locale: String = "ro-RO",
+    val channel: String = "call_live",
+    @SerializedName("local_verdict") val localVerdict: String = "UNVERIFIED",
+    @SerializedName("local_reason_codes") val localReasonCodes: List<String> = emptyList(),
+    @SerializedName("claimed_identity") val claimedIdentity: String? = null,
+    @SerializedName("arc_family") val arcFamily: String? = null
+)
+
+data class AudioSemanticReviewPayload(
+    val status: String? = null,
+    @SerializedName("risk_class") val riskClass: String? = null,
+    @SerializedName("matched_family") val matchedFamily: String? = null,
+    @SerializedName("reason_codes") val reasonCodes: List<String> = emptyList(),
+    val source: String? = null
+)
+
+data class AudioSemanticReviewResponse(
+    val status: String? = null,
+    @SerializedName("semantic_review") val semanticReview: AudioSemanticReviewPayload? = null,
+    @SerializedName("reason_codes") val reasonCodes: List<String> = emptyList(),
+    val escalates: Boolean = false,
+    val model: String? = null,
+    val privacy: Map<String, Any>? = null
+)
+
 data class ExtractionResponse(
     @SerializedName("input_type") val inputType: String? = null,
     @SerializedName("source_channel") val sourceChannel: String? = null,
@@ -667,6 +694,9 @@ interface SigurScanApi {
 
     @POST("v1/legal/action-plan")
     suspend fun getActionPlan(@Body request: ActionPlanRequest): ActionPlan
+
+    @POST("v1/audio/semantic-review")
+    suspend fun reviewAudioTranscript(@Body request: AudioSemanticReviewRequest): AudioSemanticReviewResponse
 
     @GET("v1/evaluation/readiness")
     suspend fun getReadiness(

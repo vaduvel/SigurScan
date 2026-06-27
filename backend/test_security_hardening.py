@@ -384,6 +384,21 @@ def test_play_integrity_enforce_blocks_scan_without_token(monkeypatch):
     assert "integrity" in response.json()["detail"].lower()
 
 
+def test_play_integrity_enforce_blocks_audio_semantic_review_without_token(monkeypatch):
+    _enable_client_auth(monkeypatch)
+    monkeypatch.setattr(play_integrity, "PLAY_INTEGRITY_MODE", "enforce")
+    client = TestClient(app)
+
+    response = client.post(
+        "/v1/audio/semantic-review",
+        json={"transcript_redacted": "[redactat]"},
+        headers={"X-API-KEY": CLIENT_KEY},
+    )
+
+    assert response.status_code == 401
+    assert "integrity" in response.json()["detail"].lower()
+
+
 def test_play_integrity_enforce_allows_valid_token(monkeypatch):
     _enable_client_auth(monkeypatch)
     monkeypatch.setattr(play_integrity, "PLAY_INTEGRITY_MODE", "enforce")

@@ -27,6 +27,7 @@ REQUIRED_CORE_ROUTES = {
     "/v1/scan/image",
     "/v1/scan/pdf",
     "/v1/scan/invoice",
+    "/v1/audio/semantic-review",
 }
 
 
