@@ -175,15 +175,17 @@ fun RadarTab(viewModel: ScannerViewModel) {
 
         if (BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR) {
             val speakerGuardPrompt = viewModel.radarScreeningAudit
-                ?.takeIf { it.action == RadarCallAction.WARN && !viewModel.speakerGuardSnapshot.active }
                 ?.let {
-                    speakerGuardCallPrompt(
-                        RadarCallDecision(
-                            action = it.action,
-                            reason = it.reason,
-                            family = it.family
-                        )
+                    RadarCallDecision(
+                        action = it.action,
+                        reason = it.reason,
+                        family = it.family,
+                        isKnownContact = it.isKnownContact
                     )
+                }
+                ?.takeIf { SpeakerGuardCallPromptPolicy.shouldOffer(it) && !viewModel.speakerGuardSnapshot.active }
+                ?.let {
+                    speakerGuardCallPrompt(it)
             }
             val startSpeakerGuardWithConsent = {
                 viewModel.acceptSpeakerGuardConsent()

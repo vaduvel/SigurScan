@@ -83,6 +83,7 @@ class SpeakerGuardForegroundService : Service() {
         private const val EXTRA_WARNING_BODY = "warning_body"
         private const val EXTRA_REJECT_CALL = "reject_call"
         private const val EXTRA_SILENCE_CALL = "silence_call"
+        private const val EXTRA_IS_KNOWN_CONTACT = "is_known_contact"
         private const val CHANNEL_ID = "speaker_guard_foreground"
         private const val NOTIFICATION_ID = 4731
         private const val FOREGROUND_REQUEST_CODE = 4731
@@ -91,7 +92,7 @@ class SpeakerGuardForegroundService : Service() {
 
         fun startForCallPrompt(context: Context, decision: RadarCallDecision) {
             if (!BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR) return
-            if (decision.action != RadarCallAction.WARN) return
+            if (!SpeakerGuardCallPromptPolicy.shouldOffer(decision)) return
             val intent = Intent(context, SpeakerGuardForegroundService::class.java).apply {
                 action = ACTION_SHOW_CALL_PROMPT
                 putExtra(EXTRA_ACTION, decision.action.name)
@@ -101,6 +102,7 @@ class SpeakerGuardForegroundService : Service() {
                 putExtra(EXTRA_WARNING_BODY, decision.warningBody)
                 putExtra(EXTRA_REJECT_CALL, decision.rejectCall)
                 putExtra(EXTRA_SILENCE_CALL, decision.silenceCall)
+                putExtra(EXTRA_IS_KNOWN_CONTACT, decision.isKnownContact)
             }
             ContextCompat.startForegroundService(context.applicationContext, intent)
         }
@@ -116,7 +118,8 @@ class SpeakerGuardForegroundService : Service() {
                 warningTitle = intent.getStringExtra(EXTRA_WARNING_TITLE),
                 warningBody = intent.getStringExtra(EXTRA_WARNING_BODY),
                 rejectCall = intent.getBooleanExtra(EXTRA_REJECT_CALL, false),
-                silenceCall = intent.getBooleanExtra(EXTRA_SILENCE_CALL, false)
+                silenceCall = intent.getBooleanExtra(EXTRA_SILENCE_CALL, false),
+                isKnownContact = intent.getBooleanExtra(EXTRA_IS_KNOWN_CONTACT, false)
             )
         }
 

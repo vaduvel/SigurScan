@@ -52,6 +52,12 @@ class AudioFileScanPipelineTest {
         assertEquals("whisper_native_unavailable", result.reasonCode)
         assertEquals(AudioEvidenceVerdict.UNVERIFIED, result.evidence?.verdict)
         assertEquals(0, result.rawAudioBytesRetained)
+
+        val assessment = result.toOfflineAssessment("voice-note.m4a")
+        assertEquals("Neverificat", assessment.family)
+        assertEquals("unknown", assessment.riskLevel)
+        assertEquals("Neverificat", assessment.reputationVerdict)
+        assertEquals(0, assessment.riskScore)
     }
 
     private class FakeWhisperRuntime(

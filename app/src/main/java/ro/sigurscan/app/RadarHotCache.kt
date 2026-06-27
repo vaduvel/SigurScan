@@ -28,7 +28,8 @@ data class RadarCallDecision(
     val warningTitle: String? = null,
     val warningBody: String? = null,
     val rejectCall: Boolean = false,
-    val silenceCall: Boolean = false
+    val silenceCall: Boolean = false,
+    val isKnownContact: Boolean = false
 )
 
 enum class RadarCallAction {
@@ -40,7 +41,8 @@ data class RadarScreeningAudit(
     val checkedAtEpochMillis: Long,
     val action: RadarCallAction,
     val reason: String,
-    val family: String? = null
+    val family: String? = null,
+    val isKnownContact: Boolean = false
 ) {
     companion object {
         fun fromDecision(decision: RadarCallDecision, checkedAtEpochMillis: Long = System.currentTimeMillis()): RadarScreeningAudit {
@@ -48,9 +50,16 @@ data class RadarScreeningAudit(
                 checkedAtEpochMillis = checkedAtEpochMillis,
                 action = decision.action,
                 reason = decision.reason,
-                family = decision.family
+                family = decision.family,
+                isKnownContact = decision.isKnownContact
             )
         }
+    }
+}
+
+object SpeakerGuardCallPromptPolicy {
+    fun shouldOffer(decision: RadarCallDecision): Boolean {
+        return !decision.isKnownContact
     }
 }
 

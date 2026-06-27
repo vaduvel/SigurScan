@@ -179,10 +179,14 @@ object Pcm16Resampler {
             .roundToInt()
             .coerceAtLeast(1)
         return ShortArray(outFrames) { index ->
-            val sourceIndex = ((index.toLong() * sourceSampleRateHz) / WhisperCppAsrEngine.REQUIRED_SAMPLE_RATE_HZ)
-                .toInt()
-                .coerceIn(0, mono.lastIndex)
-            mono[sourceIndex]
+            val sourcePosition = (index.toDouble() * sourceSampleRateHz) / WhisperCppAsrEngine.REQUIRED_SAMPLE_RATE_HZ
+            val left = sourcePosition.toInt().coerceIn(0, mono.lastIndex)
+            val right = (left + 1).coerceAtMost(mono.lastIndex)
+            val fraction = sourcePosition - left
+            val interpolated = mono[left] + ((mono[right] - mono[left]) * fraction)
+            interpolated.roundToInt()
+                .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+                .toShort()
         }
     }
 }
