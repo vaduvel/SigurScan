@@ -139,6 +139,7 @@ class TestNegativeIbanRegistry:
         nir.reload_registry()
 
         assert nir.is_reported_fraud("SK07 1111 0000 0013 2910 0001") is True
+        assert nir.is_reported_fraud("PL54 1160 2202 0000 0004 9175 6367") is True
         assert nir.is_reported_fraud("ES91 2100 2020 4601 4443 9386") is False
 
     def test_reported_fraud_ibans_loads_supabase_reports_lazily(self, monkeypatch):

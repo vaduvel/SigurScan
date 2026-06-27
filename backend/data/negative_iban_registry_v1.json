@@ -13,6 +13,20 @@
       "reported_at": "2015-09-15",
       "family": "misleading_invoice_ip",
       "notes": "EPO warning sample lists this IBAN in a fraudulent/misleading invoice example."
+    },
+    {
+      "iban": "PL54116022020000000491756367",
+      "status": "verified",
+      "confidence": "high",
+      "source_kind": "official_ip_office",
+      "source_url": "https://link.epo.org/web/warning_invoice_goip_en.pdf",
+      "source_ref": "Fake invoice 3.jpg / warning invoice GOIP",
+      "source_publisher": "European Patent Office (EPO)",
+      "reported_at": "2026-06-26",
+      "family": "misleading_invoice_ip",
+      "reported_entity": "GOIP-PROPERTY",
+      "impersonated_brand": "EUIPO / Community trade mark registration",
+      "notes": "Beneficiary: GOIP-PROPERTY; Bank: MILLENIUM BANK; IBAN: PL 54 1160 2202 0000 0004 9175 6367; STATUS: PAYMENT PENDING"
     }
   ],
   "research_refs": [

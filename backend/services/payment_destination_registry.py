@@ -355,6 +355,23 @@ def _entry_name_keys(entry: Dict[str, Any], brand_id: str) -> set[str]:
     return keys
 
 
+def _entry_brand_keys(entry: Dict[str, Any], brand_id: str) -> set[str]:
+    keys: set[str] = set()
+    for value in (
+        brand_id,
+        str(brand_id or "").replace("_", " "),
+        entry.get("display_name"),
+    ):
+        key = _name_key(value)
+        if key:
+            keys.add(key)
+    for alias in entry.get("aliases") or []:
+        key = _name_key(alias)
+        if key:
+            keys.add(key)
+    return keys
+
+
 def _identity_key(candidate: Dict[str, Any]) -> tuple[str, str]:
     return (str(candidate.get("brand_id") or ""), str(candidate.get("cui") or ""))
 
@@ -411,6 +428,7 @@ def _registry() -> Dict[str, Any]:
                 "brand_id": brand_id,
                 "display_name": entry.get("display_name"),
                 "legal_name": entry.get("legal_name"),
+                "brand_keys": _entry_brand_keys(entry, brand_id),
                 "cui": _norm_cui(entry.get("cui")),
                 "trust_tier": destination.get("trust_tier"),
                 "confidence": destination.get("confidence") or "unknown",
@@ -503,7 +521,11 @@ def match_payment_destination(
 
     brand_matches = True
     if canonical_claim:
-        brand_matches = entry["brand_id"] == canonical_claim
+        claim_name_key = _name_key(claimed_brand)
+        brand_matches = (
+            entry["brand_id"] == canonical_claim
+            or bool(claim_name_key and claim_name_key in (entry.get("brand_keys") or set()))
+        )
     entry_cui = entry.get("cui") or ""
     cui_matches = None
     if entry_cui and _norm_cui(cui):

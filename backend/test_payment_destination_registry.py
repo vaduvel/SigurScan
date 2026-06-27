@@ -254,6 +254,24 @@ def test_registry_loads_orange_communications_official_destination():
     assert match["can_contribute_to_safe"] is True
 
 
+def test_registry_loads_agent_batch_cup_focsani_official_destination():
+    from services.payment_destination_registry import match_payment_destination
+
+    match = match_payment_destination(
+        "RO49 BRDE 400S V019 1767 4000",
+        claimed_brand="CUP Focsani",
+        cui="1443170",
+        issuer_name="Compania de Utilitati Publice S.A. Focsani",
+    )
+
+    assert match["matched"] is True
+    assert match["brand_matches"] is True
+    assert match["cui_matches"] is True
+    assert match["brand_id"] == "cup_focsani"
+    assert match["trust_tier"] == "T1_PUBLIC_OFFICIAL"
+    assert match["can_contribute_to_safe"] is True
+
+
 def test_registry_loads_apa_nova_official_destination_from_utility_delta():
     from services.payment_destination_registry import match_payment_destination
 
