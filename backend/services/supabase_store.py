@@ -86,13 +86,19 @@ def _utc_iso(value: Optional[datetime] = None) -> str:
     return candidate.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def _post_json(table: str, payload: Dict[str, Any], prefer: str = "return=minimal") -> None:
+def _post_json(
+    table: str,
+    payload: Dict[str, Any],
+    prefer: str = "return=minimal",
+    params: Optional[Dict[str, Any]] = None,
+) -> None:
     if not is_supabase_enabled():
         return
     try:
         requests.post(
             _table_url(table),
             headers=_headers(prefer),
+            params=params,
             json=payload,
             timeout=SUPABASE_TIMEOUT_SECONDS,
         ).raise_for_status()
@@ -200,7 +206,12 @@ def log_scan_event(payload: Dict[str, Any]) -> None:
     if created_at:
         row["created_at"] = created_at
     if row["scan_id"]:
-        _post_json("scan_events", row, "resolution=merge-duplicates,return=minimal")
+        _post_json(
+            "scan_events",
+            row,
+            "resolution=merge-duplicates,return=minimal",
+            params={"on_conflict": "scan_id"},
+        )
 
 
 def log_feedback_event(payload: Dict[str, Any]) -> None:
@@ -670,7 +681,6 @@ def save_urlscan_preview_cache(entry: Dict[str, Any]) -> None:
         "uuid": entry.get("uuid"),
         "report_url": entry.get("report_url"),
         "screenshot_url": entry.get("screenshot_url"),
-        "screenshot_ready": bool(entry.get("screenshot_ready")),
         "verdict": entry.get("verdict"),
         "severity": entry.get("severity"),
         "details": entry.get("details"),

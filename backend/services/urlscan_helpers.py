@@ -400,7 +400,10 @@ def _normalize_urlscan_preview_cache_entry(entry: Any) -> Optional[Dict[str, Any
     )
     normalized["screenshot_url"] = screenshot_url
     normalized["report_url"] = report_url
-    normalized["screenshot_ready"] = bool(normalized.get("screenshot_ready")) and bool(screenshot_url)
+    screenshot_ready = normalized.get("screenshot_ready")
+    if screenshot_ready is None and screenshot_url.startswith("https://urlscan.io/screenshots/"):
+        screenshot_ready = True
+    normalized["screenshot_ready"] = bool(screenshot_ready) and bool(screenshot_url)
     normalized["cache_hit"] = True
     normalized.setdefault("verdict", "No malicious classification")
     normalized.setdefault("severity", "low")
