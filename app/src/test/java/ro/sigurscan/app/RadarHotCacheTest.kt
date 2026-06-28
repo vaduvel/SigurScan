@@ -127,10 +127,17 @@ class RadarHotCacheTest {
             foregroundServiceSource.contains("startForeground(") &&
                 foregroundServiceSource.contains("SpeakerGuardCallPromptNotifier.fromContext(applicationContext).showIfNeeded(decision)")
         )
+        val promptHandler = Regex(
+            """private fun handleCallPrompt[\s\S]*?return START_NOT_STICKY"""
+        ).find(foregroundServiceSource)?.value.orEmpty()
         assertFalse(
-            "SpeakerGuardForegroundService must not start microphone capture before the user taps the prompt.",
-            foregroundServiceSource.contains("AudioRecord") ||
-                foregroundServiceSource.contains("startSpeakerGuard(") ||
+            "The call prompt branch must not start microphone capture before the user taps the prompt.",
+            promptHandler.contains("SpeakerGuardSession(") ||
+                promptHandler.contains("ACTION_START_CAPTURE")
+        )
+        assertTrue(
+            "After explicit consent, live-call microphone capture must be owned by the foreground service.",
+            foregroundServiceSource.contains("ACTION_START_CAPTURE") &&
                 foregroundServiceSource.contains("SpeakerGuardSession(")
         )
     }

@@ -104,7 +104,7 @@ fun ScannerViewModel.refreshAudioReadiness() {
 }
 
 fun ScannerViewModel.startSpeakerGuard() {
-    if (speakerGuardSession?.active == true) return
+    if (speakerGuardSnapshot.active) return
 
     audioReadinessStatus = "Pregătesc ascultarea locală."
     viewModelScope.launch {
@@ -116,16 +116,18 @@ fun ScannerViewModel.startSpeakerGuard() {
             return@launch
         }
         val modelFile = withContext(Dispatchers.IO) { prepareWhisperModelFile() }
-        val session = SpeakerGuardSession(
-            context = getApplication(),
-            semanticReviewer = BackendAudioSemanticReviewer(scanStartApi, channel = "call_live")
+        speakerGuardServiceUpdatesJob?.cancel()
+        speakerGuardServiceUpdatesJob = SpeakerGuardForegroundServiceEvents.updates
+            .onEach { update -> applySpeakerGuardUpdate(update) }
+            .launchIn(viewModelScope)
+        speakerGuardSnapshot = SpeakerGuardSnapshot(
+            active = true,
+            phase = SpeakerGuardPhase.LISTENING,
+            status = "Pornește serviciul vizibil de microfon. Ține apelul pe difuzor.",
+            rawAudioStored = false
         )
-        speakerGuardSession = session
-        session.start(viewModelScope, modelFile.absolutePath) { update ->
-            viewModelScope.launch(Dispatchers.Main) {
-                applySpeakerGuardUpdate(update)
-            }
-        }
+        audioReadinessStatus = speakerGuardSnapshot.status
+        SpeakerGuardForegroundService.startCapture(getApplication(), modelFile.absolutePath)
     }
 }
 
@@ -176,8 +178,9 @@ internal suspend fun ScannerViewModel.evaluateAudioReadiness(base: AudioReadines
 }
 
 fun ScannerViewModel.stopSpeakerGuard() {
-    speakerGuardSession?.stop()
-    speakerGuardSession = null
+    SpeakerGuardForegroundService.stopCapture(getApplication())
+    speakerGuardServiceUpdatesJob?.cancel()
+    speakerGuardServiceUpdatesJob = null
     speakerGuardSnapshot = speakerGuardSnapshot.copy(
         active = false,
         phase = SpeakerGuardPhase.STOPPED,
@@ -210,7 +213,8 @@ internal fun ScannerViewModel.applySpeakerGuardUpdate(update: SpeakerGuardUpdate
     )
     audioReadinessStatus = update.status
     if (!update.active && update.phase != SpeakerGuardPhase.PROCESSING) {
-        speakerGuardSession = null
+        speakerGuardServiceUpdatesJob?.cancel()
+        speakerGuardServiceUpdatesJob = null
     }
 }
 

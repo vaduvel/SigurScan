@@ -29,6 +29,7 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -179,7 +180,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     var audioReadinessStatus by mutableStateOf<String?>(null)
     var audioEvidenceResult by mutableStateOf<AudioEvidenceResult?>(null)
     var speakerGuardSnapshot by mutableStateOf(SpeakerGuardSnapshot())
-    internal var speakerGuardSession: SpeakerGuardSession? = null
+    internal var speakerGuardServiceUpdatesJob: Job? = null
 
     // Family protection
     var familyMembers = mutableStateListOf<FamilyMember>()
@@ -609,8 +610,9 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     }
 
     override fun onCleared() {
-        speakerGuardSession?.stop()
-        speakerGuardSession = null
+        SpeakerGuardForegroundService.stopCapture(getApplication())
+        speakerGuardServiceUpdatesJob?.cancel()
+        speakerGuardServiceUpdatesJob = null
         super.onCleared()
     }
 }

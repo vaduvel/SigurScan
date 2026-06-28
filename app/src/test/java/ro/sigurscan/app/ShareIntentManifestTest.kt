@@ -100,6 +100,10 @@ class ShareIntentManifestTest {
             manifest.contains("""android:name="android.permission.FOREGROUND_SERVICE"""")
         )
         assertTrue(
+            "Live-call Speaker Guard must declare the microphone foreground-service permission so Android keeps capture alive behind the dialer.",
+            manifest.contains("""android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"""")
+        )
+        assertTrue(
             "The call-time prompt may need a full-screen intent when the app is closed and the phone is ringing.",
             manifest.contains("""android:name="android.permission.USE_FULL_SCREEN_INTENT"""")
         )
@@ -111,9 +115,9 @@ class ShareIntentManifestTest {
             speakerGuardForegroundService.contains("""android:name=".SpeakerGuardForegroundService"""") &&
                 speakerGuardForegroundService.contains("""android:exported="false"""")
         )
-        assertFalse(
-            "SpeakerGuardForegroundService is only the prompt carrier and must not claim microphone foreground type before user consent.",
-            speakerGuardForegroundService.contains("foregroundServiceType")
+        assertTrue(
+            "After user consent, SpeakerGuardForegroundService must claim microphone foreground type for live-call capture.",
+            speakerGuardForegroundService.contains("""android:foregroundServiceType="microphone"""")
         )
         assertFalse(
             "Speaker Guard must not use overlay permission for call-time prompts.",
