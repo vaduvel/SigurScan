@@ -10,9 +10,10 @@ SERVICE_NAME="${SERVICE_NAME:-sigurscan-api}"
 IMAGE_NAME="${IMAGE_NAME:-sigurscan-api}"
 TAG="${TAG:-$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M%S)}"
 REPOSITORY="${REPOSITORY:-sigurscan}"
-MIN_INSTANCES="${MIN_INSTANCES:-1}"
+MIN_INSTANCES="${MIN_INSTANCES:-0}"
 MAX_INSTANCES="${MAX_INSTANCES:-5}"
 CONCURRENCY="${CONCURRENCY:-2}"
+TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-60}"
 CPU_THROTTLING="${CPU_THROTTLING:-true}"
 ORCHESTRATED_CLOUD_TASKS_ENABLED="${ORCHESTRATED_CLOUD_TASKS_ENABLED:-false}"
 CLOUD_TASKS_PROJECT="${CLOUD_TASKS_PROJECT:-$PROJECT_ID}"
@@ -69,7 +70,7 @@ echo "Project: $PROJECT_ID"
 echo "Region:  $REGION"
 echo "Service: $SERVICE_NAME"
 echo "Image:   $IMAGE"
-echo "Scaling: min-instances=$MIN_INSTANCES max-instances=$MAX_INSTANCES concurrency=$CONCURRENCY cpu-throttling=$CPU_THROTTLING"
+echo "Scaling: min-instances=$MIN_INSTANCES max-instances=$MAX_INSTANCES concurrency=$CONCURRENCY timeout=${TIMEOUT_SECONDS}s cpu-throttling=$CPU_THROTTLING"
 
 gcloud artifacts repositories describe "$REPOSITORY" \
   --project "$PROJECT_ID" \
@@ -93,7 +94,7 @@ gcloud run deploy "$SERVICE_NAME" \
   --port 8080 \
   --cpu 1 \
   --memory 1Gi \
-  --timeout 300 \
+  --timeout "$TIMEOUT_SECONDS" \
   --concurrency "$CONCURRENCY" \
   --min-instances "$MIN_INSTANCES" \
   --max-instances "$MAX_INSTANCES" \
