@@ -318,8 +318,18 @@ async def security_guard(request: Request, call_next):
 
     elif _runtime_bool_setting("REQUIRE_API_KEY") and not (request.method == "GET" and _is_screenshot_proxy_path(path)):
         nonce_request_allowed = _is_play_integrity_nonce_path(path) and play_integrity.mode() != "off"
+        # Public early-access waitlist intake from the marketing landing page.
+        # The browser form carries no API key; allow this single POST past the
+        # key check but keep it subject to the rate limiter below. It never
+        # reaches scan/extract/audio pipelines and stores only a validated email.
+        waitlist_request_allowed = request.method == "POST" and path == "/v1/waitlist"
         api_key_authorized = bool(api_key and api_key in allowed_api_keys)
-        if not api_key_authorized and not integrity_can_authorize_client and not nonce_request_allowed:
+        if (
+            not api_key_authorized
+            and not integrity_can_authorize_client
+            and not nonce_request_allowed
+            and not waitlist_request_allowed
+        ):
             return JSONResponse(status_code=401, content={"detail": "Missing or invalid API key."})
 
     if integrity_verdict is not None and integrity_verdict["block"]:
