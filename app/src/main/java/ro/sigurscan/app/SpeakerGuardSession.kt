@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -38,6 +39,30 @@ data class SpeakerGuardUpdate(
     val reasonCode: String? = null,
     val status: String
 )
+
+internal class SpeakerGuardChunkQueue(
+    capacity: Int
+) {
+    private val channel = Channel<ShortArray>(
+        capacity = capacity,
+        onBufferOverflow = BufferOverflow.SUSPEND
+    )
+
+    val chunksDropped: Int
+        get() = 0
+
+    suspend fun send(chunk: ShortArray) {
+        channel.send(chunk)
+    }
+
+    suspend fun receive(): ShortArray = channel.receive()
+
+    fun receiveChannel(): ReceiveChannel<ShortArray> = channel
+
+    fun close() {
+        channel.close()
+    }
+}
 
 class SpeakerGuardSession(
     private val context: Context,
@@ -147,12 +172,8 @@ class SpeakerGuardSession(
             return@coroutineScope
         }
 
-        val chunks = Channel<ShortArray>(
-            capacity = 1,
-            onBufferOverflow = BufferOverflow.DROP_OLDEST
-        )
+        val chunks = SpeakerGuardChunkQueue(capacity = CHUNK_QUEUE_CAPACITY)
         var chunksAnalyzed = 0
-        var chunksDropped = 0
         val evidenceAggregator = AudioEvidenceSessionAggregator()
 
         try {
@@ -188,8 +209,7 @@ class SpeakerGuardSession(
                         consumed += copyCount
 
                         if (offset == chunk.size) {
-                            val sent = chunks.trySend(chunk).isSuccess
-                            if (!sent) chunksDropped += 1
+                            chunks.send(chunk)
                             chunk = ShortArray(chunkSamples)
                             offset = 0
                         }
@@ -198,13 +218,13 @@ class SpeakerGuardSession(
             }
 
             val processor = launch(Dispatchers.Default) {
-                for (chunk in chunks) {
+                for (chunk in chunks.receiveChannel()) {
                     onUpdate(
                         SpeakerGuardUpdate(
                             phase = SpeakerGuardPhase.PROCESSING,
                             active = true,
                             chunksAnalyzed = chunksAnalyzed,
-                            chunksDropped = chunksDropped,
+                            chunksDropped = chunks.chunksDropped,
                             status = "Analizează local ultimul fragment audio."
                         )
                     )
@@ -228,7 +248,7 @@ class SpeakerGuardSession(
                             phase = SpeakerGuardPhase.LISTENING,
                             active = true,
                             chunksAnalyzed = chunksAnalyzed,
-                            chunksDropped = chunksDropped,
+                            chunksDropped = chunks.chunksDropped,
                             result = result,
                             latencyMs = latency,
                             reasonCode = result.reasonCode,
@@ -251,7 +271,7 @@ class SpeakerGuardSession(
                     phase = SpeakerGuardPhase.STOPPED,
                     active = false,
                     chunksAnalyzed = chunksAnalyzed,
-                    chunksDropped = chunksDropped,
+                    chunksDropped = chunks.chunksDropped,
                     status = "Urechea este oprită."
                 )
             )
@@ -306,6 +326,7 @@ class SpeakerGuardSession(
     companion object {
         const val SAMPLE_RATE_HZ = 16_000
         const val CHUNK_SECONDS = 6
+        private const val CHUNK_QUEUE_CAPACITY = 4
         private const val BYTES_PER_SAMPLE = 2
     }
 }
