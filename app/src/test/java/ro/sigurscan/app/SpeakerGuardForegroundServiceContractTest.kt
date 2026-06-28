@@ -31,6 +31,10 @@ class SpeakerGuardForegroundServiceContractTest {
             .takeIf { it.exists() }
             ?.readText()
             .orEmpty()
+        val promptActivitySource = File("src/main/java/ro/sigurscan/app/SpeakerGuardPromptActivity.kt")
+            .takeIf { it.exists() }
+            ?.readText()
+            .orEmpty()
 
         assertTrue(serviceSource.contains("ACTION_START_CAPTURE"))
         assertTrue(serviceSource.contains("ACTION_STOP_CAPTURE"))
@@ -64,9 +68,15 @@ class SpeakerGuardForegroundServiceContractTest {
         )
         assertTrue(
             "The unlocked-call fallback must tell the user the real action sequence, not just mention a hidden notification.",
-            promptServiceSource.contains("Răspunde") &&
+            promptServiceSource.contains("răspunde") &&
                 promptServiceSource.contains("pune pe difuzor") &&
-                promptServiceSource.contains("atinge notificarea SigurScan")
+                promptServiceSource.contains("cardul de jos")
+        )
+        assertTrue(
+            "Unlocked incoming-call UX must not compete with the dialer popup at the top of the screen.",
+            promptActivitySource.contains("contentAlignment = Alignment.BottomCenter") &&
+                promptActivitySource.contains("Răspunde sus") &&
+                promptActivitySource.contains("Cardul stă jos")
         )
     }
 }

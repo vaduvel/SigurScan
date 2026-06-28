@@ -110,6 +110,9 @@ class ShareIntentManifestTest {
         val speakerGuardPromptService = Regex(
             """<service[^>]*android:name="\.SpeakerGuardPromptForegroundService"[^>]*/>"""
         ).find(manifest)?.value.orEmpty()
+        val speakerGuardPromptActivity = Regex(
+            """<activity[^>]*android:name="\.SpeakerGuardPromptActivity"[\s\S]*?/>"""
+        ).find(manifest)?.value.orEmpty()
         val speakerGuardCaptureService = Regex(
             """<service[^>]*android:name="\.SpeakerGuardForegroundService"[^>]*/>"""
         ).find(manifest)?.value.orEmpty()
@@ -121,6 +124,14 @@ class ShareIntentManifestTest {
         assertFalse(
             "The prompt-only foreground service must not declare microphone type before user consent.",
             speakerGuardPromptService.contains("""android:foregroundServiceType="microphone"""")
+        )
+        assertTrue(
+            "Unlocked incoming-call prompts need a dedicated internal activity that can render below the system call popup.",
+            speakerGuardPromptActivity.contains("""android:name=".SpeakerGuardPromptActivity"""") &&
+                speakerGuardPromptActivity.contains("""android:exported="false"""") &&
+                speakerGuardPromptActivity.contains("""android:noHistory="true"""") &&
+                speakerGuardPromptActivity.contains("""android:excludeFromRecents="true"""") &&
+                speakerGuardPromptActivity.contains("""android:showWhenLocked="true"""")
         )
         assertTrue(
             "SpeakerGuardForegroundService must be declared as the internal microphone capture service.",

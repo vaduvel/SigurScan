@@ -94,6 +94,16 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".SpeakerGuardPromptActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:label="@string/app_name"
+            android:noHistory="true"
+            android:showWhenLocked="true"
+            android:theme="@style/Theme.SigurScan"
+            android:turnScreenOn="true" />
+
         <service
             android:name=".SigurScanCallScreeningService"
             android:exported="true"

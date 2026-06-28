@@ -7,7 +7,6 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -50,7 +49,7 @@ class SpeakerGuardPromptForegroundService : Service() {
     private fun showUnlockedIncomingCallNudge() {
         Toast.makeText(
             applicationContext,
-            "SigurScan: Răspunde, pune pe difuzor, apoi atinge notificarea SigurScan.",
+            "SigurScan: răspunde, pune pe difuzor, apoi folosește cardul de jos.",
             Toast.LENGTH_LONG
         ).show()
         Log.i(TAG, "speaker_guard_prompt_toast_shown")
@@ -74,7 +73,7 @@ class SpeakerGuardPromptForegroundService : Service() {
         val pendingIntent = PendingIntent.getActivity(
             this,
             FOREGROUND_REQUEST_CODE,
-            speakerGuardDeepLinkIntent(this),
+            SpeakerGuardPromptActivity.startIntent(this),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
@@ -104,7 +103,6 @@ class SpeakerGuardPromptForegroundService : Service() {
         private const val NOTIFICATION_ID = 4731
         private const val FOREGROUND_REQUEST_CODE = 4731
         private const val PROMPT_SERVICE_WINDOW_MS = 12_000L
-        private const val DEEP_LINK = "sigurscan://speaker-guard?autostart=1&source=call_screening"
         private const val TAG = "SpeakerGuardPrompt"
 
         fun startForCallPrompt(context: Context, decision: RadarCallDecision) {
@@ -138,13 +136,6 @@ class SpeakerGuardPromptForegroundService : Service() {
                 silenceCall = intent.getBooleanExtra(EXTRA_SILENCE_CALL, false),
                 isKnownContact = intent.getBooleanExtra(EXTRA_IS_KNOWN_CONTACT, false)
             )
-        }
-
-        private fun speakerGuardDeepLinkIntent(context: Context): Intent {
-            return Intent(Intent.ACTION_VIEW, Uri.parse(DEEP_LINK)).apply {
-                setPackage(context.packageName)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            }
         }
     }
 }

@@ -88,6 +88,7 @@ class RadarHotCacheTest {
         val serviceSource = java.io.File("src/main/java/ro/sigurscan/app/SigurScanCallScreeningService.kt").readText()
         val notifierSource = java.io.File("src/main/java/ro/sigurscan/app/SpeakerGuardCallPromptNotifier.kt").takeIf { it.exists() }?.readText().orEmpty()
         val promptServiceSource = java.io.File("src/main/java/ro/sigurscan/app/SpeakerGuardPromptForegroundService.kt").takeIf { it.exists() }?.readText().orEmpty()
+        val promptActivitySource = java.io.File("src/main/java/ro/sigurscan/app/SpeakerGuardPromptActivity.kt").takeIf { it.exists() }?.readText().orEmpty()
         val foregroundServiceSource = java.io.File("src/main/java/ro/sigurscan/app/SpeakerGuardForegroundService.kt").takeIf { it.exists() }?.readText().orEmpty()
 
         assertTrue(
@@ -95,10 +96,11 @@ class RadarHotCacheTest {
             serviceSource.contains("SpeakerGuardPromptForegroundService.startForCallPrompt(applicationContext, decision)")
         )
         assertTrue(
-            "The call-time prompt must deep-link to Speaker Guard with autostart, not to a generic Radar page.",
-            notifierSource.contains("sigurscan://speaker-guard") &&
-                notifierSource.contains("autostart=1") &&
-                notifierSource.contains("source=call_screening")
+            "The call-time prompt must open a dedicated lower-screen consent activity, which then deep-links to Speaker Guard with autostart.",
+            notifierSource.contains("SpeakerGuardPromptActivity.startIntent(context)") &&
+                promptActivitySource.contains("sigurscan://speaker-guard") &&
+                promptActivitySource.contains("autostart=1") &&
+                promptActivitySource.contains("source=call_screening")
         )
         assertTrue(
             "The call-time prompt should be allowed to surface as a full-screen/high-priority call prompt when the app is closed.",
@@ -108,10 +110,15 @@ class RadarHotCacheTest {
                 notifierSource.contains(".setTimeoutAfter(")
         )
         assertTrue(
-            "When the unlocked incoming-call UI covers the heads-up card, the prompt service must also show a lower-screen nudge so the user knows SigurScan is available.",
+            "When the unlocked incoming-call UI covers the heads-up card, the prompt service must also point the user to the lower-screen card.",
             promptServiceSource.contains("Toast.makeText") &&
-                promptServiceSource.contains("notificare") &&
-                promptServiceSource.contains("Urechea")
+                promptServiceSource.contains("cardul de jos")
+        )
+        assertTrue(
+            "The dedicated prompt activity must anchor the CTA at the bottom so the system incoming-call popup cannot cover it.",
+            promptActivitySource.contains("contentAlignment = Alignment.BottomCenter") &&
+                promptActivitySource.contains("Cardul stă jos") &&
+                promptActivitySource.contains("Am răspuns. Ascultă pe difuzor")
         )
         assertTrue(
             "The prompt must be gated behind the reviewed local ASR feature flag.",

@@ -6,9 +6,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -46,14 +44,10 @@ class SpeakerGuardCallPromptNotifier private constructor(
     @SuppressLint("MissingPermission")
     private fun show(decision: RadarCallDecision) {
         val prompt = speakerGuardCallPrompt(decision)
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(DEEP_LINK)).apply {
-            setPackage(context.packageName)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        }
         val pendingIntent = PendingIntent.getActivity(
             context,
             REQUEST_CODE,
-            intent,
+            SpeakerGuardPromptActivity.startIntent(context),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -78,7 +72,6 @@ class SpeakerGuardCallPromptNotifier private constructor(
         private const val NOTIFICATION_ID = 4721
         private const val REQUEST_CODE = 4721
         private const val PROMPT_TIMEOUT_MS = 120_000L
-        private const val DEEP_LINK = "sigurscan://speaker-guard?autostart=1&source=call_screening"
 
         fun fromContext(context: Context): SpeakerGuardCallPromptNotifier {
             return SpeakerGuardCallPromptNotifier(context.applicationContext)
