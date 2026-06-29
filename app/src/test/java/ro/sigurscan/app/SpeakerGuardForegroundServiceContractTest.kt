@@ -142,4 +142,90 @@ class SpeakerGuardForegroundServiceContractTest {
             sessionSource.contains("reviewWithDiagnostics(")
         )
     }
+
+    @Test
+    fun sharedAudioIntakeUsesSemanticDiagnosticsAndPrivacySafeTelemetry() {
+        val sharedIntakeSource = File("src/main/java/ro/sigurscan/app/ScannerViewModelSharedIntake.kt").readText()
+
+        assertTrue(
+            "Shared audio files must use diagnostic semantic review so a Neverificat result has a concrete backend/Mistral reason.",
+            sharedIntakeSource.contains("reviewWithDiagnostics(")
+        )
+        assertFalse(
+            "Shared audio intake must not collapse semantic failures to null with the compatibility review() API.",
+            sharedIntakeSource.contains("BackendAudioSemanticReviewer(scanStartApi, channel = \"audio_share\").review(")
+        )
+        assertTrue(
+            "Shared audio telemetry must record whether semantic review was received without logging raw transcript or audio.",
+            sharedIntakeSource.contains("semanticReceived=")
+        )
+        assertTrue(
+            "Shared audio telemetry must record semantic failure reason codes for real-device triage.",
+            sharedIntakeSource.contains("semanticReason=")
+        )
+        assertTrue(
+            "Shared audio telemetry must record transcript length only, never transcript content.",
+            sharedIntakeSource.contains("transcriptChars=")
+        )
+    }
+
+    @Test
+    fun sharedAudioDebugPreviewIsDebugOnlyRedactedAndBounded() {
+        val sharedIntakeSource = File("src/main/java/ro/sigurscan/app/ScannerViewModelSharedIntake.kt").readText()
+
+        assertTrue(
+            "Device-grade ASR triage may log a redacted transcript preview only in debug builds.",
+            sharedIntakeSource.contains("BuildConfig.DEBUG") &&
+                sharedIntakeSource.contains("debugRedactedPreview=")
+        )
+        assertTrue(
+            "The debug preview must use the already-redacted semantic transcript, not raw ASR text.",
+            sharedIntakeSource.contains("result.redactedTranscriptForSemanticReview")
+        )
+        assertTrue(
+            "The debug preview must be bounded so device logs cannot contain full conversations.",
+            sharedIntakeSource.contains(".take(240)")
+        )
+        assertFalse(
+            "Shared audio debug logs must never preview raw ASR transcript text.",
+            sharedIntakeSource.contains("debugRedactedPreview=${'$'}{result.transcript")
+        )
+    }
+
+    @Test
+    fun speakerGuardDebugPreviewIsDebugOnlyRedactedAndBounded() {
+        val sessionSource = File("src/main/java/ro/sigurscan/app/SpeakerGuardSession.kt").readText()
+
+        assertTrue(
+            "Live-call triage may log a redacted ASR preview only in debug builds.",
+            sessionSource.contains("BuildConfig.DEBUG") &&
+                sessionSource.contains("asr_debug_redacted_preview")
+        )
+        assertTrue(
+            "Live-call debug preview must redact ASR text before logging.",
+            sessionSource.contains("AudioTranscriptRedactor.redact(result.transcript)")
+        )
+        assertTrue(
+            "Live-call debug preview must be bounded so logs cannot contain full conversations.",
+            sessionSource.contains(".take(160)")
+        )
+    }
+
+    @Test
+    fun sharedIntentIntakeLogsPlanForRealDeviceTriage() {
+        val sharedIntentSource = File("src/main/java/ro/sigurscan/app/SharedIntentHandling.kt").readText()
+
+        assertTrue(
+            "Shared intent intake must log action/type and resolved plan so share-sheet failures are not silent on real devices.",
+            sharedIntentSource.contains("SharedIntentIntake")
+        )
+        assertTrue(
+            "Shared intent intake logs must include stream count for audio/file shares.",
+            sharedIntentSource.contains("streamCount=")
+        )
+        assertTrue(
+            "Shared intent intake logs must include autoScan so we know whether audio should start immediately.",
+            sharedIntentSource.contains("autoScan=")
+        )
+    }
 }

@@ -993,6 +993,8 @@ class ScannerViewModelTest {
 
         assertTrue("Manifest must expose user-initiated audio shares.", manifestSource.contains("""android:mimeType="audio/*""""))
         assertTrue("Audio shares should be labeled distinctly in the pending-file UI.", activitySource.contains("Audio partajat"))
+        assertTrue("Audio shares need a dedicated fidelity card, not the generic HTML/PDF/image copy.", activitySource.contains("SharedContentFidelity.AUDIO_FILE"))
+        assertTrue("Audio fidelity card should describe local audio transcription.", activitySource.contains("Transcriem local audio-ul pe telefon"))
         assertTrue("Audio MIME/extensions need a dedicated classifier result, not generic unsupported.", classifierSource.contains("FileImportKind.AUDIO"))
         assertTrue(
             "Audio files must not be sent through PDF/image extraction.",
@@ -1010,6 +1012,12 @@ class ScannerViewModelTest {
             "Audio share pipeline should use explicit audio telemetry.",
             fileFlow.contains("""inputKind = "import_audio_file"""") &&
                 fileFlow.contains("""channel = "audio_share"""")
+        )
+        assertTrue(
+            "Audio MIME must set audio-specific shared-content fidelity and channel before scan.",
+            viewModelSource.contains("SharedContentFidelity.AUDIO_FILE") &&
+                viewModelSource.contains("""stagedEvidenceInputKind = if (mime.startsWith("audio/")) "import_audio_file"""") &&
+                viewModelSource.contains("""stagedEvidenceChannel = if (mime.startsWith("audio/")) "audio_share"""")
         )
     }
 

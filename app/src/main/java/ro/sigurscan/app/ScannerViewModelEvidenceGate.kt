@@ -226,6 +226,7 @@ internal fun ScannerViewModel.reevaluateGateWithThreatIntel(
 
 internal fun ScannerViewModel.inferEvidenceInputKind(rawInput: String): String = when {
     sharedContentFidelity == SharedContentFidelity.FULL_HTML -> "share_html_email"
+    sharedContentFidelity == SharedContentFidelity.AUDIO_FILE -> "import_audio_file"
     sharedContentFidelity == SharedContentFidelity.FILE_OR_EMAIL -> "import_file"
     looksLikeUrlOnly(rawInput.trim(), extractUrls(rawInput).firstOrNull().orEmpty()) -> "paste_url"
     else -> "paste_text"
@@ -234,6 +235,7 @@ internal fun ScannerViewModel.inferEvidenceInputKind(rawInput: String): String =
 internal fun ScannerViewModel.inferEvidenceChannel(rawInput: String): String = when {
     sharedContentFidelity == SharedContentFidelity.FULL_HTML -> "email_html"
     sharedContentFidelity == SharedContentFidelity.PLAIN_TEXT_ONLY -> "visible_text"
+    sharedContentFidelity == SharedContentFidelity.AUDIO_FILE -> "audio_share"
     sharedContentFidelity == SharedContentFidelity.FILE_OR_EMAIL -> "file_or_email"
     extractUrls(rawInput).isNotEmpty() -> "text_with_url"
     else -> "text"

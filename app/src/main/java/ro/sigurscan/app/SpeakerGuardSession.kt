@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.util.Log
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
@@ -89,6 +90,32 @@ internal class SpeakerGuardChunkQueue(
             closed = true
         }
         available.close()
+    }
+}
+
+internal object SpeakerGuardVoiceGate {
+    private const val VOICE_MEAN_ABS_THRESHOLD = 180.0
+    private const val VOICE_PEAK_ABS_THRESHOLD = 900
+
+    fun hasVoiceEnergy(buffer: ShortArray, sampleCount: Int = buffer.size): Boolean {
+        if (sampleCount <= 0) return false
+        val safeCount = sampleCount.coerceAtMost(buffer.size)
+        var sum = 0L
+        var peak = 0
+        for (index in 0 until safeCount) {
+            val sample = buffer[index].toInt()
+            val absolute = if (sample < 0) -sample else sample
+            sum += absolute
+            if (absolute > peak) {
+                peak = absolute
+            }
+        }
+        val meanAbsoluteAmplitude = sum.toDouble() / safeCount.toDouble()
+        return meanAbsoluteAmplitude >= VOICE_MEAN_ABS_THRESHOLD || peak >= VOICE_PEAK_ABS_THRESHOLD
+    }
+
+    fun shouldProcessChunk(pcm16Mono: ShortArray): Boolean {
+        return hasVoiceEnergy(pcm16Mono, pcm16Mono.size)
     }
 }
 
@@ -202,6 +229,8 @@ class SpeakerGuardSession(
 
         val chunks = SpeakerGuardChunkQueue(capacity = CHUNK_QUEUE_CAPACITY)
         var chunksAnalyzed = 0
+        var chunksQueued = 0
+        var chunksSkippedByVoiceGate = 0
         val evidenceAggregator = AudioEvidenceSessionAggregator()
         val semanticCoordinator = SpeakerGuardSemanticReviewCoordinator()
         var heardVoice = false
@@ -209,6 +238,11 @@ class SpeakerGuardSession(
         try {
             activeAudioRecord = audioRecord
             audioRecord.startRecording()
+            Log.i(
+                TAG,
+                "capture_started sampleRate=$SAMPLE_RATE_HZ chunkSeconds=$CHUNK_SECONDS " +
+                    "recordBufferSamples=$recordBufferSamples minBufferBytes=$minBufferBytes"
+            )
             onUpdate(
                 SpeakerGuardUpdate(
                     phase = SpeakerGuardPhase.LISTENING,
@@ -251,7 +285,22 @@ class SpeakerGuardSession(
                         consumed += copyCount
 
                         if (offset == chunk.size) {
-                            chunks.send(chunk)
+                            if (SpeakerGuardVoiceGate.shouldProcessChunk(chunk)) {
+                                chunks.send(chunk)
+                                chunksQueued += 1
+                                Log.i(
+                                    TAG,
+                                    "chunk_queued queued=$chunksQueued analyzed=$chunksAnalyzed " +
+                                        "dropped=${chunks.chunksDropped} skipped=$chunksSkippedByVoiceGate"
+                                )
+                            } else {
+                                chunksSkippedByVoiceGate += 1
+                                Log.i(
+                                    TAG,
+                                    "chunk_skipped_voice_gate skipped=$chunksSkippedByVoiceGate " +
+                                        "queued=$chunksQueued analyzed=$chunksAnalyzed"
+                                )
+                            }
                             chunk = ShortArray(chunkSamples)
                             offset = 0
                         }
@@ -276,6 +325,11 @@ class SpeakerGuardSession(
                         )
                     )
                     val started = System.currentTimeMillis()
+                    Log.i(
+                        TAG,
+                        "asr_started nextChunk=${chunksAnalyzed + 1} queued=$chunksQueued " +
+                            "dropped=${chunks.chunksDropped}"
+                    )
                     val rawResult = withContext(Dispatchers.Default) {
                         asrEngine.transcribe(
                             LocalAsrRequest(
@@ -289,6 +343,22 @@ class SpeakerGuardSession(
                     val result = rawResult.withSessionEvidence(evidenceAggregator)
                     chunksAnalyzed += 1
                     val latency = System.currentTimeMillis() - started
+                    val redactedTranscript = AudioTranscriptRedactor.redact(result.transcript)
+                    if (BuildConfig.DEBUG && redactedTranscript.isNotBlank()) {
+                        Log.i(
+                            TAG,
+                            "asr_debug_redacted_preview chunk=$chunksAnalyzed " +
+                                "preview=${redactedTranscript.take(160)}"
+                        )
+                    }
+                    Log.i(
+                        TAG,
+                        "asr_finished chunk=$chunksAnalyzed success=${result.success} " +
+                            "reason=${result.reasonCode ?: "none"} transcriptChars=${result.transcript.length} " +
+                            "redactedChars=${redactedTranscript.length} " +
+                            "verdict=${result.evidence?.verdict ?: "none"} latencyMs=$latency " +
+                            "dropped=${chunks.chunksDropped}"
+                    )
                     onUpdate(
                         SpeakerGuardUpdate(
                             phase = SpeakerGuardPhase.LISTENING,
@@ -334,14 +404,7 @@ class SpeakerGuardSession(
     }
 
     private fun hasVoiceEnergy(buffer: ShortArray, sampleCount: Int): Boolean {
-        if (sampleCount <= 0) return false
-        var sum = 0L
-        for (index in 0 until sampleCount) {
-            val sample = buffer[index].toInt()
-            sum += if (sample < 0) -sample else sample
-        }
-        val meanAbsoluteAmplitude = sum.toDouble() / sampleCount.toDouble()
-        return meanAbsoluteAmplitude >= VOICE_MEAN_ABS_THRESHOLD
+        return SpeakerGuardVoiceGate.hasVoiceEnergy(buffer, sampleCount)
     }
 
     private fun releaseActiveAudioRecord() {
@@ -392,14 +455,32 @@ class SpeakerGuardSession(
     ): Job {
         val semanticRequest = synchronized(semanticCoordinator) {
             semanticCoordinator.offer(result)
-        } ?: return launch { }
+        } ?: return launch {
+            Log.i(
+                TAG,
+                "semantic_skipped reason=no_recall_trigger transcriptChars=${AudioTranscriptRedactor.redact(result.transcript).length} " +
+                    "localVerdict=${result.evidence?.verdict ?: "none"}"
+            )
+        }
         return launch(Dispatchers.IO) {
+            val semanticStarted = System.currentTimeMillis()
+            Log.i(
+                TAG,
+                "semantic_started transcriptChars=${semanticRequest.redactedTranscript.length} " +
+                    "localVerdict=${semanticRequest.localEvidence?.verdict ?: "none"} " +
+                    "family=${semanticRequest.localEvidence?.arcFamily ?: "none"}"
+            )
             val attempt = semanticReviewer.reviewWithDiagnostics(
                 redactedTranscript = semanticRequest.redactedTranscript,
                 localEvidence = semanticRequest.localEvidence
             )
             if (attempt.response == null) {
                 val reasonCode = attempt.reasonCode ?: "semantic_unavailable"
+                Log.i(
+                    TAG,
+                    "semantic_finished received=false reason=$reasonCode " +
+                        "elapsedMs=${System.currentTimeMillis() - semanticStarted}"
+                )
                 onUpdate(
                     SpeakerGuardUpdate(
                         phase = SpeakerGuardPhase.LISTENING,
@@ -416,6 +497,12 @@ class SpeakerGuardSession(
             }
 
             val fusedEvidence = AudioSemanticReviewFusion.fuse(result.evidence, attempt.response)
+            Log.i(
+                TAG,
+                "semantic_finished received=true escalates=${attempt.response.escalates} " +
+                    "riskClass=${attempt.response.semanticReview?.riskClass ?: "none"} fusedVerdict=${fusedEvidence.verdict} " +
+                    "elapsedMs=${System.currentTimeMillis() - semanticStarted}"
+            )
             if (fusedEvidence == result.evidence) return@launch
             val aggregatedEvidence = synchronized(evidenceAggregator) {
                 evidenceAggregator.absorb(fusedEvidence)
@@ -437,10 +524,10 @@ class SpeakerGuardSession(
     }
 
     companion object {
+        private const val TAG = "SpeakerGuardLive"
         const val SAMPLE_RATE_HZ = 16_000
-        const val CHUNK_SECONDS = 6
+        const val CHUNK_SECONDS = 3
         private const val CHUNK_QUEUE_CAPACITY = 4
         private const val BYTES_PER_SAMPLE = 2
-        private const val VOICE_MEAN_ABS_THRESHOLD = 500.0
     }
 }

@@ -48,6 +48,42 @@ class SpeakerGuardSemanticReviewCoordinatorTest {
         assertEquals(0, coordinator.reviewsStarted)
     }
 
+    @Test
+    fun residualButSuspiciousTranscriptStillGoesToMistralForRecall() {
+        val coordinator = SpeakerGuardSemanticReviewCoordinator(minNewChars = 20, maxReviews = 4)
+        val residual = AudioEvidenceEngine.evaluate(AudioEvidenceInput())
+
+        val request = coordinator.offer(
+            transcript(
+                "Sunt Mihai de pe un numar nou si am nevoie urgent sa ma ajuti azi, ramane intre noi.",
+                residual
+            )
+        )
+
+        assertTrue(request != null)
+        assertEquals(residual, request?.localEvidence)
+        assertEquals(1, coordinator.reviewsStarted)
+    }
+
+    @Test
+    fun defaultThresholdSendsDeviceGradeBankIntroToSemanticReview() {
+        val coordinator = SpeakerGuardSemanticReviewCoordinator()
+        val evidence = AudioTranscriptEvidence.analyze(
+            "Bu neziva, văsun din parte abunci meridian, departamento de seguridad. Am o-pops, am o-p"
+        )
+
+        val request = coordinator.offer(
+            transcript(
+                "Bu neziva, văsun din parte abunci meridian, departamento de seguridad. Am o-pops, am o-p",
+                evidence
+            )
+        )
+
+        assertTrue(request != null)
+        assertEquals(evidence, request?.localEvidence)
+        assertEquals(1, coordinator.reviewsStarted)
+    }
+
     private fun transcript(value: String, evidence: AudioEvidenceResult): LocalAsrResult {
         return LocalAsrResult(
             success = true,

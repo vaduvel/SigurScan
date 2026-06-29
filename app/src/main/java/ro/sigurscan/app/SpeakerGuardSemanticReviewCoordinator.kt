@@ -27,7 +27,7 @@ internal class SpeakerGuardSemanticReviewCoordinator(
         trimWindow()
 
         if (reviewsStarted >= maxReviews) return null
-        if (!isEscalable(result.evidence)) return null
+        if (!shouldAskSemanticReview(result.evidence, transcriptWindow.toString())) return null
 
         val newChars = transcriptWindow.length - lastSentChars
         if (newChars < minNewChars) return null
@@ -47,6 +47,11 @@ internal class SpeakerGuardSemanticReviewCoordinator(
         lastSentChars = (lastSentChars - removeCount).coerceAtLeast(0)
     }
 
+    private fun shouldAskSemanticReview(evidence: AudioEvidenceResult?, redactedTranscriptWindow: String): Boolean {
+        if (isEscalable(evidence)) return true
+        return looksLikeSocialEngineeringForRecall(redactedTranscriptWindow)
+    }
+
     private fun isEscalable(evidence: AudioEvidenceResult?): Boolean {
         if (evidence == null) return false
         if (evidence.verdict != AudioEvidenceVerdict.UNVERIFIED) return true
@@ -59,8 +64,48 @@ internal class SpeakerGuardSemanticReviewCoordinator(
         }
     }
 
+    private fun looksLikeSocialEngineeringForRecall(value: String): Boolean {
+        val text = value.lowercase()
+        val hasTrustedOrAuthority = listOf(
+            "coleg",
+            "colega",
+            "prieten",
+            "prietena",
+            "sef",
+            "sefa",
+            "numar nou",
+            "banca",
+            "politie",
+            "procuror",
+            "suport",
+            "curier"
+        ).any(text::contains)
+        val hasPressure = listOf(
+            "urgent",
+            "repede",
+            "imediat",
+            "azi",
+            "nu spune",
+            "nu zice",
+            "ramane intre noi",
+            "confidential"
+        ).any(text::contains)
+        val hasAction = listOf(
+            "bani",
+            "transfer",
+            "imprumut",
+            "cod",
+            "otp",
+            "card",
+            "parola",
+            "anydesk",
+            "teamviewer"
+        ).any(text::contains)
+        return (hasTrustedOrAuthority && hasPressure) || (hasPressure && hasAction) || (hasTrustedOrAuthority && hasAction)
+    }
+
     companion object {
-        private const val DEFAULT_MIN_NEW_CHARS = 200
+        private const val DEFAULT_MIN_NEW_CHARS = 80
         private const val DEFAULT_MAX_REVIEWS = 4
         private const val MAX_WINDOW_CHARS = 2_500
     }

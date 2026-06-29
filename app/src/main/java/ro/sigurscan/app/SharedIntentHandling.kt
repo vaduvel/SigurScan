@@ -94,6 +94,13 @@ import kotlin.math.pow
 
 internal fun handleIncomingIntent(context: Context, intent: Intent?, viewModel: ScannerViewModel) {
     val plan = buildSharedIntentIntakePlan(intent)
+    val streamCount = (plan as? SharedIntentIntakePlan.SharedContent)?.streams?.size ?: 0
+    val autoScan = (plan as? SharedIntentIntakePlan.SharedContent)?.autoScan?.name ?: "not_applicable"
+    Log.i(
+        "SharedIntentIntake",
+        "Incoming intent: action=${intent?.action ?: "none"}, type=${intent?.type ?: "none"}, " +
+            "plan=${plan.javaClass.simpleName}, streamCount=$streamCount, autoScan=$autoScan"
+    )
     executeSharedIntentIntakePlan(
         plan = plan,
         sink = object : SharedIntentIntakeSink {
@@ -159,6 +166,10 @@ internal fun handleIncomingIntent(context: Context, intent: Intent?, viewModel: 
             }
 
             override fun scanSingleFile() {
+                Log.i(
+                    "SharedIntentIntake",
+                    "Auto-scanning single shared file: pendingCount=${viewModel.pendingSharedFiles.size}"
+                )
                 viewModel.scanPendingSharedFile(
                     viewModel.pendingSharedFiles.singleOrNull()?.id.orEmpty(),
                     context

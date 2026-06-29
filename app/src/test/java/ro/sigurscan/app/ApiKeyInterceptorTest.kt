@@ -156,4 +156,11 @@ class ApiKeyInterceptorTest {
         assertNull(normalizedApiKey("   "))
         assertEquals("abc", normalizedApiKey(" abc "))
     }
+
+    @Test
+    fun `normalizedApiKey uses first token from multiline or comma separated secrets`() {
+        assertEquals("first-key", normalizedApiKey(" first-key\n,second-key "))
+        assertEquals("first-key", normalizedApiKey(" first-key,second-key "))
+        assertEquals("first-key", normalizedApiKey("\n first-key \n second-key "))
+    }
 }
