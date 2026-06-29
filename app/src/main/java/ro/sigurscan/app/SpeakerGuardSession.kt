@@ -12,9 +12,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -24,6 +23,7 @@ import kotlin.math.max
 enum class SpeakerGuardPhase {
     IDLE,
     LISTENING,
+    HEARD_VOICE,
     PROCESSING,
     STOPPED,
     ERROR
@@ -43,24 +43,52 @@ data class SpeakerGuardUpdate(
 internal class SpeakerGuardChunkQueue(
     capacity: Int
 ) {
-    private val channel = Channel<ShortArray>(
-        capacity = capacity,
-        onBufferOverflow = BufferOverflow.SUSPEND
-    )
+    private val capacity = max(1, capacity)
+    private val lock = Any()
+    private val pending = ArrayDeque<ShortArray>()
+    private val available = Channel<Unit>(Channel.UNLIMITED)
+    private var closed = false
+    private var droppedCount = 0
 
     val chunksDropped: Int
-        get() = 0
+        get() = synchronized(lock) { droppedCount }
 
     suspend fun send(chunk: ShortArray) {
-        channel.send(chunk)
+        var accepted = false
+        synchronized(lock) {
+            if (!closed) {
+                if (pending.size >= capacity) {
+                    pending.removeFirst()
+                    droppedCount += 1
+                }
+                pending.addLast(chunk)
+                accepted = true
+            }
+        }
+        if (accepted) {
+            available.trySend(Unit)
+        }
     }
 
-    suspend fun receive(): ShortArray = channel.receive()
-
-    fun receiveChannel(): ReceiveChannel<ShortArray> = channel
+    suspend fun receive(): ShortArray {
+        while (true) {
+            synchronized(lock) {
+                if (pending.isNotEmpty()) {
+                    return pending.removeFirst()
+                }
+                if (closed) {
+                    throw ClosedReceiveChannelException("speaker guard chunk queue closed")
+                }
+            }
+            available.receive()
+        }
+    }
 
     fun close() {
-        channel.close()
+        synchronized(lock) {
+            closed = true
+        }
+        available.close()
     }
 }
 
@@ -175,6 +203,7 @@ class SpeakerGuardSession(
         val chunks = SpeakerGuardChunkQueue(capacity = CHUNK_QUEUE_CAPACITY)
         var chunksAnalyzed = 0
         val evidenceAggregator = AudioEvidenceSessionAggregator()
+        var heardVoice = false
 
         try {
             activeAudioRecord = audioRecord
@@ -195,6 +224,18 @@ class SpeakerGuardSession(
                 while (isActive) {
                     val read = audioRecord.read(readBuffer, 0, readBuffer.size)
                     if (read <= 0) continue
+                    if (!heardVoice && hasVoiceEnergy(readBuffer, read)) {
+                        heardVoice = true
+                        onUpdate(
+                            SpeakerGuardUpdate(
+                                phase = SpeakerGuardPhase.HEARD_VOICE,
+                                active = true,
+                                chunksAnalyzed = chunksAnalyzed,
+                                chunksDropped = chunks.chunksDropped,
+                                status = "Am prins voce. Analizez local conversația."
+                            )
+                        )
+                    }
 
                     var consumed = 0
                     while (consumed < read) {
@@ -218,7 +259,12 @@ class SpeakerGuardSession(
             }
 
             val processor = launch(Dispatchers.Default) {
-                for (chunk in chunks.receiveChannel()) {
+                while (isActive) {
+                    val chunk = try {
+                        chunks.receive()
+                    } catch (_: ClosedReceiveChannelException) {
+                        break
+                    }
                     onUpdate(
                         SpeakerGuardUpdate(
                             phase = SpeakerGuardPhase.PROCESSING,
@@ -239,8 +285,7 @@ class SpeakerGuardSession(
                             )
                         )
                     }
-                    val semanticResult = rawResult.withSemanticReview()
-                    val result = semanticResult.withSessionEvidence(evidenceAggregator)
+                    val result = rawResult.withSessionEvidence(evidenceAggregator)
                     chunksAnalyzed += 1
                     val latency = System.currentTimeMillis() - started
                     onUpdate(
@@ -254,6 +299,14 @@ class SpeakerGuardSession(
                             reasonCode = result.reasonCode,
                             status = statusFor(result)
                         )
+                    )
+                    launchSemanticReview(
+                        result = result,
+                        evidenceAggregator = evidenceAggregator,
+                        chunksAnalyzed = chunksAnalyzed,
+                        chunksDropped = chunks.chunksDropped,
+                        latencyMs = latency,
+                        onUpdate = onUpdate
                     )
                 }
             }
@@ -276,6 +329,17 @@ class SpeakerGuardSession(
                 )
             )
         }
+    }
+
+    private fun hasVoiceEnergy(buffer: ShortArray, sampleCount: Int): Boolean {
+        if (sampleCount <= 0) return false
+        var sum = 0L
+        for (index in 0 until sampleCount) {
+            val sample = buffer[index].toInt()
+            sum += if (sample < 0) -sample else sample
+        }
+        val meanAbsoluteAmplitude = sum.toDouble() / sampleCount.toDouble()
+        return meanAbsoluteAmplitude >= VOICE_MEAN_ABS_THRESHOLD
     }
 
     private fun releaseActiveAudioRecord() {
@@ -305,7 +369,9 @@ class SpeakerGuardSession(
         aggregator: AudioEvidenceSessionAggregator
     ): LocalAsrResult {
         val currentEvidence = evidence ?: return this
-        val aggregatedEvidence = aggregator.absorb(currentEvidence)
+        val aggregatedEvidence = synchronized(aggregator) {
+            aggregator.absorb(currentEvidence)
+        }
         return if (aggregatedEvidence == currentEvidence) {
             this
         } else {
@@ -313,14 +379,40 @@ class SpeakerGuardSession(
         }
     }
 
-    private suspend fun LocalAsrResult.withSemanticReview(): LocalAsrResult {
-        if (!success || transcript.isBlank()) return this
-        val redacted = AudioTranscriptRedactor.redact(transcript)
-        val review = withContext(Dispatchers.IO) {
-            semanticReviewer.review(redacted, evidence)
+    private fun CoroutineScope.launchSemanticReview(
+        result: LocalAsrResult,
+        evidenceAggregator: AudioEvidenceSessionAggregator,
+        chunksAnalyzed: Int,
+        chunksDropped: Int,
+        latencyMs: Long,
+        onUpdate: (SpeakerGuardUpdate) -> Unit
+    ): Job {
+        if (!result.success || result.transcript.isBlank()) {
+            return launch { }
         }
-        val fused = AudioSemanticReviewFusion.fuse(evidence, review)
-        return copy(evidence = fused)
+        return launch(Dispatchers.IO) {
+            val redacted = AudioTranscriptRedactor.redact(result.transcript)
+            if (redacted.isBlank()) return@launch
+            val review = semanticReviewer.review(redacted, result.evidence)
+            val fusedEvidence = AudioSemanticReviewFusion.fuse(result.evidence, review)
+            if (fusedEvidence == result.evidence) return@launch
+            val aggregatedEvidence = synchronized(evidenceAggregator) {
+                evidenceAggregator.absorb(fusedEvidence)
+            }
+            val semanticResult = result.copy(evidence = aggregatedEvidence)
+            onUpdate(
+                SpeakerGuardUpdate(
+                    phase = SpeakerGuardPhase.LISTENING,
+                    active = true,
+                    chunksAnalyzed = chunksAnalyzed,
+                    chunksDropped = chunksDropped,
+                    result = semanticResult,
+                    latencyMs = latencyMs,
+                    reasonCode = semanticResult.reasonCode,
+                    status = statusFor(semanticResult)
+                )
+            )
+        }
     }
 
     companion object {
@@ -328,5 +420,6 @@ class SpeakerGuardSession(
         const val CHUNK_SECONDS = 6
         private const val CHUNK_QUEUE_CAPACITY = 4
         private const val BYTES_PER_SAMPLE = 2
+        private const val VOICE_MEAN_ABS_THRESHOLD = 500.0
     }
 }

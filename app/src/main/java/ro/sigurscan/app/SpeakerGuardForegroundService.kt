@@ -15,6 +15,7 @@ import android.os.IBinder
 import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -29,11 +30,16 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object SpeakerGuardForegroundServiceEvents {
-    private val _updates = MutableSharedFlow<SpeakerGuardUpdate>(extraBufferCapacity = 64)
+    private val _updates = MutableSharedFlow<SpeakerGuardUpdate>(replay = 1, extraBufferCapacity = 64)
     val updates: SharedFlow<SpeakerGuardUpdate> = _updates.asSharedFlow()
 
     fun publish(update: SpeakerGuardUpdate) {
         _updates.tryEmit(update)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun clear() {
+        _updates.resetReplayCache()
     }
 }
 

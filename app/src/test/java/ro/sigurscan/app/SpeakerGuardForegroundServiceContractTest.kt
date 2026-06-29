@@ -42,4 +42,50 @@ class SpeakerGuardForegroundServiceContractTest {
                 serviceSource.contains("ACTION_START_CAPTURE")
         )
     }
+
+    @Test
+    fun foregroundServiceEventsReplayLatestUpdateForActivityRebind() {
+        val serviceSource = File("src/main/java/ro/sigurscan/app/SpeakerGuardForegroundService.kt").readText()
+
+        assertTrue(
+            "Live-call updates must replay the latest state so Activity recreation behind the dialer does not lose the current verdict.",
+            serviceSource.contains("MutableSharedFlow<SpeakerGuardUpdate>(replay = 1")
+        )
+        assertTrue(
+            "Fresh sessions must clear replayed STOPPED/error states before starting capture.",
+            serviceSource.contains("fun clear()")
+        )
+    }
+
+    @Test
+    fun speakerGuardSessionDoesNotBlockAsrLoopOnSemanticReview() {
+        val sessionSource = File("src/main/java/ro/sigurscan/app/SpeakerGuardSession.kt").readText()
+
+        assertFalse(
+            "The ASR loop must not await semantic review before publishing the local result.",
+            sessionSource.contains("val semanticResult = rawResult.withSemanticReview()")
+        )
+        assertFalse(
+            "Semantic review must not be called inside LocalAsrResult.withSemanticReview() as an awaited step in the ASR loop.",
+            sessionSource.contains("private suspend fun LocalAsrResult.withSemanticReview()")
+        )
+        assertTrue(
+            "Semantic review should be launched as a fire-and-update path after the local ASR verdict is emitted.",
+            sessionSource.contains("launchSemanticReview(")
+        )
+    }
+
+    @Test
+    fun speakerGuardSessionEmitsHeardVoicePhaseFromLocalAudioLevel() {
+        val sessionSource = File("src/main/java/ro/sigurscan/app/SpeakerGuardSession.kt").readText()
+
+        assertTrue(
+            "The user needs immediate proof that Urechea hears voice before Whisper finishes.",
+            sessionSource.contains("HEARD_VOICE")
+        )
+        assertTrue(
+            "Voice feedback must be based on local audio energy/RMS, not on a completed ASR transcript.",
+            sessionSource.contains("hasVoiceEnergy(")
+        )
+    }
 }
