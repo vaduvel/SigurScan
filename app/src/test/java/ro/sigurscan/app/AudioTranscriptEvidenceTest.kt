@@ -113,22 +113,22 @@ class AudioTranscriptEvidenceTest {
     }
 
     @Test
-    fun deviceTinyBankAntiFraudIntroFromProfi12IsSuspectNotResidual() {
+    fun deviceTinyBankAntiFraudIntroFromProfi12IsDangerous() {
         val result = AudioTranscriptEvidence.analyze(
             "Bu nezioa, văsun din partea bănsin o vă trast, departamentul anti-fraude. Am"
         )
 
-        assertEquals(AudioEvidenceVerdict.SUSPECT, result.verdict)
+        assertEquals(AudioEvidenceVerdict.DANGEROUS, result.verdict)
         assertEquals("CONV_BANK_ANTI_FRAUD_CALL", result.arcFamily)
     }
 
     @Test
-    fun deviceTinyBankSecurityIntroFromProfi13IsSuspectNotResidual() {
+    fun deviceTinyBankSecurityIntroFromProfi13IsDangerous() {
         val result = AudioTranscriptEvidence.analyze(
             "Bu neziva, văsun din parte abunci meridian, departamento de seguridad. Am o-pops, am o-p"
         )
 
-        assertEquals(AudioEvidenceVerdict.SUSPECT, result.verdict)
+        assertEquals(AudioEvidenceVerdict.DANGEROUS, result.verdict)
         assertEquals("CONV_BANK_ANTI_FRAUD_CALL", result.arcFamily)
     }
 
@@ -154,22 +154,22 @@ class AudioTranscriptEvidenceTest {
     }
 
     @Test
-    fun deviceTinyBankAntiFraudIntroFromProfi14IsSuspectNotResidual() {
+    fun deviceTinyBankAntiFraudIntroFromProfi14IsDangerous() {
         val result = AudioTranscriptEvidence.analyze(
             "Bu nezua, văsun de la Banca 10 a capital din departamentul antifraude. A-a bănța"
         )
 
-        assertEquals(AudioEvidenceVerdict.SUSPECT, result.verdict)
+        assertEquals(AudioEvidenceVerdict.DANGEROUS, result.verdict)
         assertEquals("CONV_BANK_ANTI_FRAUD_CALL", result.arcFamily)
     }
 
     @Test
-    fun deviceTinyCreditLineIntroFromProfi15IsSuspectNotResidual() {
+    fun deviceTinyCreditLineIntroFromProfi15IsDangerous() {
         val result = AudioTranscriptEvidence.analyze(
             "Bu nezioa, văsun din parte acreditline Romania. Avem o veste buna, ats fune, ats f"
         )
 
-        assertEquals(AudioEvidenceVerdict.SUSPECT, result.verdict)
+        assertEquals(AudioEvidenceVerdict.DANGEROUS, result.verdict)
         assertEquals("CONV_BANK_FRAUDULENT_CREDIT", result.arcFamily)
     }
 
@@ -196,12 +196,12 @@ class AudioTranscriptEvidenceTest {
     }
 
     @Test
-    fun deviceTinyBankTechSupportIntroFromProfi16IsSuspectNotResidual() {
+    fun deviceTinyBankTechSupportIntroFromProfi16IsDangerous() {
         val result = AudioTranscriptEvidence.analyze(
             "Unăsiva, văsun de la Banca e Urogarant, departamentul de suport technique. Unăsiva, v"
         )
 
-        assertEquals(AudioEvidenceVerdict.SUSPECT, result.verdict)
+        assertEquals(AudioEvidenceVerdict.DANGEROUS, result.verdict)
         assertEquals("CONV_TECH_SUPPORT_REMOTE_ACCESS", result.arcFamily)
     }
 

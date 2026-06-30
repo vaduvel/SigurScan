@@ -5,7 +5,7 @@
   "asr_engine": "whisper.cpp tiny-q8",
   "chunk_seconds": 3,
   "tiny_transcript": "Bu nezioa, v\u0103sun din parte acreditline Romania. Avem o veste buna, ats fune, ats f",
-  "expected_min_verdict": "SUSPECT",
+  "expected_min_verdict": "DANGEROUS",
   "expected_family": "CONV_BANK_FRAUDULENT_CREDIT",
   "ground_truth": "scam",
   "notes": "Captured from Nokia C22 tiny-q8 output; intentionally garbled and partial."

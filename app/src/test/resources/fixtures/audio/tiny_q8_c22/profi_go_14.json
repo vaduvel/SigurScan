@@ -5,7 +5,7 @@
   "asr_engine": "whisper.cpp tiny-q8",
   "chunk_seconds": 3,
   "tiny_transcript": "Bu nezua, v\u0103sun de la Banca 10 a capital din departamentul antifraude. A-a b\u0103n\u021ba",
-  "expected_min_verdict": "SUSPECT",
+  "expected_min_verdict": "DANGEROUS",
   "expected_family": "CONV_BANK_ANTI_FRAUD_CALL",
   "ground_truth": "scam",
   "notes": "Captured from Nokia C22 tiny-q8 output; intentionally garbled and partial."

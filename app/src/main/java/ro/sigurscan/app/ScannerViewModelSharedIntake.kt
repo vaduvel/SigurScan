@@ -656,24 +656,28 @@ internal fun ScannerViewModel.publishAudioShareRequiresTranscript(fileName: Stri
     stagedEvidenceInputKind = "import_audio_file"
     stagedEvidenceChannel = "audio_share"
     text = ""
-    assessment = applyEvidenceGate(
-        current = OfflineAssessment(
-            family = "Audio primit",
-            riskScore = 0,
-            riskLevel = "unknown",
-            reasons = listOf(reason),
-            safeActions = listOf(
-                "Lipește transcriptul conversației sau partajează textul conversației către SigurScan.",
-                "Nu trimite bani, coduri sau date personale până nu verifici conversația printr-un canal oficial."
-            ),
-            keyDangers = listOf("Fișierul audio nu a fost transcris, deci nu avem dovezi suficiente pentru verdict."),
-            originalText = "Audio primit, transcriere necesară: $fileName."
+    val baseAssessment = OfflineAssessment(
+        family = "Audio primit",
+        riskScore = 0,
+        riskLevel = "unknown",
+        reasons = listOf(reason),
+        safeActions = listOf(
+            "Lipește transcriptul conversației sau partajează textul conversației către SigurScan.",
+            "Nu trimite bani, coduri sau date personale până nu verifici conversația printr-un canal oficial."
         ),
-        rawInput = "Audio primit, transcriere necesară: $fileName ($reasonCode)",
-        inputKind = "import_audio_file",
-        channel = "audio_share",
-        providerStates = unavailableProviderStates(),
-        completeness = EvidenceCompleteness.LOCAL_ONLY
+        keyDangers = emptyList(),
+        originalText = "Audio primit, transcriere necesară: $fileName.",
+        reputationVerdict = "Neverificat",
+        domainAgeText = "Nu se aplică",
+        sslStatus = "Nu se aplică",
+        aiConfidence = "Transcriere audio indisponibilă"
+    )
+    val neutralAssessment = localUnverifiedAssessment(
+        current = baseAssessment,
+        reasonCode = "LOCAL_AUDIO_TRANSCRIPTION_UNAVAILABLE"
+    )
+    assessment = neutralAssessment.copy(
+        reasons = (listOf(reason) + neutralAssessment.reasons).distinct()
     )
     loading = false
     loadingMsg = ""

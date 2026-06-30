@@ -214,3 +214,74 @@ def test_audio_semantic_review_falls_back_without_green_claim(monkeypatch):
     assert body["escalates"] is False
     assert "semantic:mistral_fallback" in body["semantic_review"]["reason_codes"]
     assert "Sigur" not in json.dumps(body, ensure_ascii=False)
+
+
+def test_audio_semantic_review_uses_full_scam_atlas_when_mistral_unavailable(monkeypatch):
+    monkeypatch.setattr(audio_semantic_review, "PRIVACY_SAFE_MODE", False, raising=False)
+    monkeypatch.setattr(audio_semantic_review, "ENABLE_MISTRAL_SEMANTIC_PILLAR", False, raising=False)
+    monkeypatch.setattr(audio_semantic_review, "MISTRAL_SEMANTIC_API_KEY", "", raising=False)
+
+    client = TestClient(app_main.app)
+    response = client.post(
+        "/v1/audio/semantic-review",
+        json={
+            "transcript_redacted": (
+                "Sunt de la banca. Mutati banii intr-un cont sigur si nu spuneti nimanui. "
+                "Codul primit prin SMS trebuie comunicat acum."
+            ),
+            "channel": "call_live",
+            "local_verdict": "SUSPECT",
+            "local_reason_codes": ["campaign_match_only"],
+            "arc_family": "CONV_BANK_ANTI_FRAUD_CALL",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "fallback"
+    assert body["semantic_review"]["source"] == "scam_atlas_structured"
+    assert body["semantic_review"]["risk_class"] == "high"
+    assert body["escalates"] is True
+    assert "raw_audio_received" in json.dumps(body, ensure_ascii=False)
+    assert "Mutati banii" not in json.dumps(body, ensure_ascii=False)
+
+
+def test_audio_semantic_review_never_lets_mistral_medium_downgrade_atlas_high(monkeypatch):
+    captured_payloads = []
+
+    def fake_mistral(payload):
+        captured_payloads.append(payload)
+        return {
+            "risk_class": "medium",
+            "claim_matches_known_scam_family": True,
+            "matched_family": "CONV_BANK_ANTI_FRAUD_CALL",
+            "reason_codes": ["semantic:bank_antifraud_intro_only"],
+        }
+
+    monkeypatch.setattr(audio_semantic_review, "PRIVACY_SAFE_MODE", False, raising=False)
+    monkeypatch.setattr(audio_semantic_review, "ENABLE_MISTRAL_SEMANTIC_PILLAR", True, raising=False)
+    monkeypatch.setattr(audio_semantic_review, "MISTRAL_SEMANTIC_API_KEY", "test-key", raising=False)
+    monkeypatch.setattr(audio_semantic_review, "_call_mistral_semantic_review", fake_mistral)
+
+    client = TestClient(app_main.app)
+    response = client.post(
+        "/v1/audio/semantic-review",
+        json={
+            "transcript_redacted": (
+                "Sunt de la suport tehnic bancar. Instalati aplicatia de suport pentru "
+                "diagnoza la distanta in mobile banking."
+            ),
+            "channel": "audio_share",
+            "local_verdict": "SUSPECT",
+            "local_reason_codes": ["campaign_match_only"],
+            "arc_family": "CONV_TECH_SUPPORT_REMOTE_ACCESS",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert captured_payloads
+    assert captured_payloads[0]["atlas_semantic_review"]["risk_class"] == "high"
+    assert body["semantic_review"]["risk_class"] == "high"
+    assert body["semantic_review"]["source"] == "scam_atlas_structured"
+    assert body["escalates"] is True
