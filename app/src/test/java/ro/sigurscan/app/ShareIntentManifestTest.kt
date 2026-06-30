@@ -119,6 +119,16 @@ class ShareIntentManifestTest {
             "After user consent, SpeakerGuardForegroundService must claim microphone foreground type for live-call capture.",
             speakerGuardForegroundService.contains("""android:foregroundServiceType="microphone"""")
         )
+        val speakerGuardPromptActivity = Regex(
+            """<activity[\s\S]*?android:name="\.SpeakerGuardCallPromptActivity"[\s\S]*?/?>"""
+        ).find(manifest)?.value.orEmpty()
+        assertTrue(
+            "Incoming-call Speaker Guard needs an internal, lock-screen capable prompt Activity instead of only navigating to MainActivity.",
+            speakerGuardPromptActivity.contains("""android:name=".SpeakerGuardCallPromptActivity"""") &&
+                speakerGuardPromptActivity.contains("""android:exported="false"""") &&
+                speakerGuardPromptActivity.contains("""android:showWhenLocked="true"""") &&
+                speakerGuardPromptActivity.contains("""android:turnScreenOn="true""")
+        )
         assertFalse(
             "Speaker Guard must not use overlay permission for call-time prompts.",
             manifest.contains("""android:name="android.permission.SYSTEM_ALERT_WINDOW"""")
