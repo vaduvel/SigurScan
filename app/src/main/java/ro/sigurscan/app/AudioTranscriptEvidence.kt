@@ -21,6 +21,11 @@ object AudioTranscriptEvidence {
             "CONV_INVESTMENT_REMOTE_ACCESS" -> 0.90
             "CONV_FAMILY_EMERGENCY" -> 0.88
             "CONV_TRUSTED_CONTACT_MONEY_URGENCY" -> 0.91
+            "CONV_AUTHORITY_IMPERSONATION_LEGAL_THREAT" -> 0.90
+            "CONV_UTILITIES_DISCONNECTION_PAYMENT" -> 0.88
+            "CONV_PRIZE_RELEASE_FEE" -> 0.87
+            "CONV_TELECOM_OPERATOR_ACCOUNT_TAKEOVER" -> 0.86
+            "CONV_DELIVERY_CUSTOMS_RELEASE_FEE" -> 0.86
             else -> 0.0
         }
 
@@ -125,6 +130,18 @@ object AudioTranscriptEvidence {
                 ) || containsAny(compact, "multibani", "mutibani", "mutibanii", "conttemporar", "sumaDisponibila".lowercase())
             ) {
                 add("transfer")
+            }
+            if (
+                Regex("""\bsim\b""").containsMatchIn(text) &&
+                containsAny(text, "portare", "portarea", "duplicat", "inlocuire", "reactivare", "activare", "schimb")
+            ) {
+                add("sim_swap")
+            }
+            if (containsAny(text, "cod client", "cod de client", "codul de client", "cod abonat")) {
+                add("cod_client")
+            }
+            if (containsAny(text, "card cadou", "carduri cadou", "gift card", "voucher", "vouchere", "tichet valoric")) {
+                add("gift_card")
             }
         }.toList()
     }
@@ -239,6 +256,165 @@ object AudioTranscriptEvidence {
             "support technic",
             "suport technique"
         )
+        val hasTelecomIdentity = containsAny(
+            text,
+            "vodafone",
+            "orange",
+            "telekom",
+            "digi mobil",
+            "rcs rds",
+            "operatorul dumneavoastra",
+            "operatorul tau",
+            "operator de telefonie",
+            "compania de telefonie",
+            "abonamentul",
+            "ancom"
+        ) || Regex("""\boperator\b|\boparator\b""").containsMatchIn(text)
+        val telecomPretext = containsAny(
+            text,
+            "fidelizare",
+            "fidelitate",
+            "beneficii",
+            "benificii",
+            "puncte de fidelitate",
+            "verificarea unor plati",
+            "factura restanta",
+            "restanta la abonament",
+            "reabonare",
+            "oferta de loialitate",
+            "portare",
+            "portarea"
+        ) || "sim_swap" in sensitiveAsks
+        val hasUtilityIdentity = containsAny(
+            text,
+            "electrica",
+            "enel",
+            "e on",
+            "eon",
+            "engie",
+            "ppc",
+            "distrigaz",
+            "hidroelectrica",
+            "furnizor de energie",
+            "furnizorul de energie",
+            "furnizorul de gaz",
+            "gaze naturale",
+            "energie electrica"
+        )
+        val utilityPretext = containsAny(
+            text,
+            "deconectare",
+            "deconectarea",
+            "deconectaria",
+            "debransare",
+            "debransarea",
+            "sold restant",
+            "soldu restant",
+            "neplata",
+            "neplatii",
+            "intrerupere",
+            "sistare",
+            "reconectare",
+            "reconectaria",
+            "alimentarea poate fi stopata"
+        )
+        val hasCourierIdentity = containsAny(
+            text,
+            "curier",
+            "curierat",
+            "coletul",
+            "colet",
+            "coletu",
+            "posta romana",
+            "fan courier",
+            "fancourier",
+            "sameday",
+            "cargus",
+            "expediere",
+            "livrarea"
+        )
+        val deliveryPretext = containsAny(
+            text,
+            "vama",
+            "vamala",
+            "vamale",
+            "taxa vamala",
+            "taxe vamale",
+            "fama",
+            "adresa incorecta",
+            "adresa gresita",
+            "deblocare",
+            "taxa de deblocare",
+            "suma simbolica",
+            "eroare de date",
+            "erori de date",
+            "eroare de dati",
+            "actualizare date",
+            "taxa suplimentara",
+            "taxe suplimentare"
+        )
+        val hasPrizePretext = containsAny(
+            text,
+            "ati castigat",
+            "ai castigat",
+            "castigat un premiu",
+            "ati fost selectat",
+            "norocosul castigator",
+            "loterie",
+            "tombola",
+            "tragere la sorti",
+            "concurs cu premii",
+            "premiul dumneavoastra",
+            "un cadou"
+        )
+        val prizeReleaseFee = containsAny(
+            text,
+            "taxa de eliberare",
+            "taxa de procesare",
+            "cost de procesare",
+            "taxa de livrare",
+            "taxa de transport",
+            "comision de eliberare"
+        ) || "gift_card" in sensitiveAsks ||
+            (
+                containsAny(text, "premiu", "premii", "cadou") &&
+                    (
+                        containsAny(text, "taxa", "sa platiti", "achitati", "comision") ||
+                            "card" in sensitiveAsks ||
+                            "transfer" in sensitiveAsks
+                        )
+                )
+        val hasAuthorityLegalIdentity = hasAuthority || containsAny(
+            text,
+            "anap",
+            "antifrauda",
+            "antifraude",
+            "garda financiara",
+            "politia",
+            "parchet",
+            "instanta",
+            "tribunal",
+            "judecatorie",
+            "fisc",
+            "administratia financiara"
+        )
+        val legalThreat = containsAny(
+            text,
+            "dosar",
+            "dosar penal",
+            "amenda",
+            "ancheta",
+            "verificare fiscala",
+            "executare silita",
+            "mandat",
+            "proces verbal",
+            "consecinte legale",
+            "raspundere penala",
+            "perchezitie",
+            "citatie",
+            "urmarire penala",
+            "neregula fiscala"
+        )
 
         return when {
             containsAny(text, "cont sigur", "cont de siguranta") ||
@@ -283,6 +459,49 @@ object AudioTranscriptEvidence {
             hasTrustedContact && "transfer" in sensitiveAsks && (hasUrgency || hasSecrecy) ->
                 "CONV_TRUSTED_CONTACT_MONEY_URGENCY"
 
+            !hasBank && hasAuthorityLegalIdentity && legalThreat &&
+                (
+                    "id_document" in sensitiveAsks ||
+                        "card" in sensitiveAsks ||
+                        "transfer" in sensitiveAsks ||
+                        "crypto" in sensitiveAsks ||
+                        hasUrgency
+                    ) ->
+                "CONV_AUTHORITY_IMPERSONATION_LEGAL_THREAT"
+
+            hasUtilityIdentity && utilityPretext &&
+                (
+                    "card" in sensitiveAsks ||
+                        "transfer" in sensitiveAsks ||
+                        "cod_client" in sensitiveAsks ||
+                        hasUrgency ||
+                        containsAny(text, "plateste acum", "plata imediata", "link de plata", "sa platiti")
+                    ) ->
+                "CONV_UTILITIES_DISCONNECTION_PAYMENT"
+
+            hasPrizePretext && prizeReleaseFee ->
+                "CONV_PRIZE_RELEASE_FEE"
+
+            hasTelecomIdentity && telecomPretext &&
+                (
+                    "otp" in sensitiveAsks ||
+                        "id_document" in sensitiveAsks ||
+                        "transfer" in sensitiveAsks ||
+                        "sim_swap" in sensitiveAsks ||
+                        hasUrgency
+                    ) ->
+                "CONV_TELECOM_OPERATOR_ACCOUNT_TAKEOVER"
+
+            hasCourierIdentity && deliveryPretext &&
+                (
+                    "card" in sensitiveAsks ||
+                        "otp" in sensitiveAsks ||
+                        "id_document" in sensitiveAsks ||
+                        hasUrgency ||
+                        containsAny(text, "taxa", "sa platiti", "achitati")
+                    ) ->
+                "CONV_DELIVERY_CUSTOMS_RELEASE_FEE"
+
             else -> null
         }
     }
@@ -316,6 +535,11 @@ object AudioTranscriptEvidence {
             arcFamily == "CONV_TECH_SUPPORT_REMOTE_ACCESS" -> "suport_tehnic"
             arcFamily == "CONV_BANK_ANTI_FRAUD_CALL" -> "banca"
             arcFamily == "CONV_INVESTMENT_REMOTE_ACCESS" -> "consultant_investitii"
+            arcFamily == "CONV_AUTHORITY_IMPERSONATION_LEGAL_THREAT" -> "autoritate"
+            arcFamily == "CONV_TELECOM_OPERATOR_ACCOUNT_TAKEOVER" -> "operator_telecom"
+            arcFamily == "CONV_UTILITIES_DISCONNECTION_PAYMENT" -> "furnizor_utilitati"
+            arcFamily == "CONV_DELIVERY_CUSTOMS_RELEASE_FEE" -> "curier"
+            arcFamily == "CONV_PRIZE_RELEASE_FEE" -> "organizator_premii"
             else -> null
         }
     }
