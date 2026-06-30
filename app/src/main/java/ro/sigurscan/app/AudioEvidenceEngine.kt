@@ -54,7 +54,7 @@ object AudioEvidenceEngine {
             sensitive in hardSensitive ->
                 AudioEvidenceVerdict.DANGEROUS to listOf("sensitive_wrong_channel")
 
-            campaignHigh && sttOnly ->
+            campaignHigh ->
                 AudioEvidenceVerdict.SUSPECT to listOf("campaign_match_only")
 
             sensitive in valueSensitive ->

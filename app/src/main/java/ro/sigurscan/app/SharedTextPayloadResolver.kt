@@ -15,6 +15,10 @@ enum class SharedContentFidelity(
     FILE_OR_EMAIL(
         title = "Am primit fișier/email partajat",
         description = "Încercăm să citim fișierul complet și să extragem linkurile din HTML, PDF sau imagine."
+    ),
+    AUDIO_FILE(
+        title = "Am primit audio partajat",
+        description = "Transcriem local audio-ul pe telefon și analizăm semnalele de fraudă din conversație."
     )
 }
 

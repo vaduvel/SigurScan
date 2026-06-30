@@ -117,6 +117,7 @@ fun ScannerViewModel.startSpeakerGuard() {
         }
         val modelFile = withContext(Dispatchers.IO) { prepareWhisperModelFile() }
         speakerGuardServiceUpdatesJob?.cancel()
+        SpeakerGuardForegroundServiceEvents.clear()
         speakerGuardServiceUpdatesJob = SpeakerGuardForegroundServiceEvents.updates
             .onEach { update -> applySpeakerGuardUpdate(update) }
             .launchIn(viewModelScope)

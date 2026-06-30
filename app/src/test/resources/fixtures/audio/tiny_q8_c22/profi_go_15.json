@@ -1,0 +1,12 @@
+{
+  "id": "profi_go_15_tiny_q8_c22",
+  "source_audio": "Profi Go 15.m4a",
+  "device": "Nokia C22 Android 13",
+  "asr_engine": "whisper.cpp tiny-q8",
+  "chunk_seconds": 3,
+  "tiny_transcript": "Bu nezioa, v\u0103sun din parte acreditline Romania. Avem o veste buna, ats fune, ats f",
+  "expected_min_verdict": "SUSPECT",
+  "expected_family": "CONV_BANK_FRAUDULENT_CREDIT",
+  "ground_truth": "scam",
+  "notes": "Captured from Nokia C22 tiny-q8 output; intentionally garbled and partial."
+}

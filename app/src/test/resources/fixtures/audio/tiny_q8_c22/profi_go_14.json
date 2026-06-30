@@ -1,0 +1,12 @@
+{
+  "id": "profi_go_14_tiny_q8_c22",
+  "source_audio": "Profi Go 14.m4a",
+  "device": "Nokia C22 Android 13",
+  "asr_engine": "whisper.cpp tiny-q8",
+  "chunk_seconds": 3,
+  "tiny_transcript": "Bu nezua, v\u0103sun de la Banca 10 a capital din departamentul antifraude. A-a b\u0103n\u021ba",
+  "expected_min_verdict": "SUSPECT",
+  "expected_family": "CONV_BANK_ANTI_FRAUD_CALL",
+  "ground_truth": "scam",
+  "notes": "Captured from Nokia C22 tiny-q8 output; intentionally garbled and partial."
+}

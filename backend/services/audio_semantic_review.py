@@ -19,6 +19,7 @@ from config import (
     PRIVACY_SAFE_MODE,
 )
 from services.external_url_privacy import sanitize_external_text
+from services.audio_scam_context import build_audio_scam_context
 from services.scan_analysis import _call_mistral_semantic_review, _normalize_mistral_semantic_review
 
 
@@ -111,6 +112,11 @@ async def review_redacted_audio_transcript(request: AudioSemanticReviewRequest) 
         "locale": request.locale or "ro-RO",
         "claimed_identity": request.claimed_identity,
         "atlas_semantic_review": fallback,
+        "audio_scam_context": build_audio_scam_context(
+            provider_safe_text,
+            local_family=request.arc_family,
+            local_reason_codes=list(request.local_reason_codes or []),
+        ),
         "family": {
             "id": request.arc_family,
             "name": request.arc_family,

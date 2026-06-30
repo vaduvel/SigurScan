@@ -1,10 +1,25 @@
 package ro.sigurscan.app
 
+import java.io.IOException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import retrofit2.HttpException
+
+data class AudioSemanticReviewAttempt(
+    val response: AudioSemanticReviewResponse?,
+    val reasonCode: String? = null
+)
+
 interface AudioSemanticReviewer {
     suspend fun review(
         redactedTranscript: String,
         localEvidence: AudioEvidenceResult?
-    ): AudioSemanticReviewResponse?
+    ): AudioSemanticReviewResponse? = reviewWithDiagnostics(redactedTranscript, localEvidence).response
+
+    suspend fun reviewWithDiagnostics(
+        redactedTranscript: String,
+        localEvidence: AudioEvidenceResult?
+    ): AudioSemanticReviewAttempt
 }
 
 class BackendAudioSemanticReviewer(
@@ -14,28 +29,49 @@ class BackendAudioSemanticReviewer(
     override suspend fun review(
         redactedTranscript: String,
         localEvidence: AudioEvidenceResult?
-    ): AudioSemanticReviewResponse? {
-        if (redactedTranscript.isBlank()) return null
-        return runCatching {
-            api.reviewAudioTranscript(
-                AudioSemanticReviewRequest(
-                    transcriptRedacted = redactedTranscript,
-                    channel = channel,
-                    localVerdict = localEvidence?.verdict?.name ?: AudioEvidenceVerdict.UNVERIFIED.name,
-                    localReasonCodes = localEvidence?.reasonCodes.orEmpty(),
-                    claimedIdentity = localEvidence?.claimedIdentity,
-                    arcFamily = localEvidence?.arcFamily
+    ): AudioSemanticReviewResponse? = reviewWithDiagnostics(redactedTranscript, localEvidence).response
+
+    override suspend fun reviewWithDiagnostics(
+        redactedTranscript: String,
+        localEvidence: AudioEvidenceResult?
+    ): AudioSemanticReviewAttempt {
+        if (redactedTranscript.isBlank()) {
+            return AudioSemanticReviewAttempt(response = null, reasonCode = "semantic_blank_transcript")
+        }
+        return try {
+            AudioSemanticReviewAttempt(
+                response = api.reviewAudioTranscript(
+                    AudioSemanticReviewRequest(
+                        transcriptRedacted = redactedTranscript,
+                        channel = channel,
+                        localVerdict = localEvidence?.verdict?.name ?: AudioEvidenceVerdict.UNVERIFIED.name,
+                        localReasonCodes = localEvidence?.reasonCodes.orEmpty(),
+                        claimedIdentity = localEvidence?.claimedIdentity,
+                        arcFamily = localEvidence?.arcFamily
+                    )
                 )
             )
-        }.getOrNull()
+        } catch (throwable: Throwable) {
+            AudioSemanticReviewAttempt(response = null, reasonCode = reasonCodeFor(throwable))
+        }
+    }
+
+    private fun reasonCodeFor(throwable: Throwable): String {
+        return when (throwable) {
+            is SocketTimeoutException -> "semantic_timeout"
+            is UnknownHostException -> "semantic_network_unavailable"
+            is HttpException -> "semantic_http_${throwable.code()}"
+            is IOException -> "semantic_io_error"
+            else -> "semantic_error_${throwable.javaClass.simpleName}"
+        }
     }
 }
 
 object NoopAudioSemanticReviewer : AudioSemanticReviewer {
-    override suspend fun review(
+    override suspend fun reviewWithDiagnostics(
         redactedTranscript: String,
         localEvidence: AudioEvidenceResult?
-    ): AudioSemanticReviewResponse? = null
+    ): AudioSemanticReviewAttempt = AudioSemanticReviewAttempt(response = null, reasonCode = "semantic_noop")
 }
 
 object AudioSemanticReviewFusion {

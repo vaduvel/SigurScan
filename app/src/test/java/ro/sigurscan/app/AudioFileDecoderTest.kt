@@ -1,11 +1,30 @@
 package ro.sigurscan.app
 
+import java.io.File
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.abs
 
 class AudioFileDecoderTest {
+    @Test
+    fun decoderKeepsAssetDescriptorOpenAndUsesOffsetLength() {
+        val source = File("src/main/java/ro/sigurscan/app/AudioFileDecoder.kt").readText()
+
+        assertTrue(
+            "Shared audio content URIs can be backed by a file slice; MediaExtractor must receive offset/length.",
+            source.contains("openAssetFileDescriptor(uri, \"r\")") &&
+                source.contains("extractor.setDataSource(") &&
+                source.contains("assetDescriptor.startOffset") &&
+                source.contains("assetDescriptor.length")
+        )
+        assertFalse(
+            "Do not close the descriptor immediately after setDataSource; keep it open while MediaExtractor decodes.",
+            source.contains("openFileDescriptor(uri, \"r\")?.use")
+        )
+    }
+
     @Test
     fun resamplerDownmixesStereoBeforeWhisper() {
         val source = shortArrayOf(

@@ -139,12 +139,16 @@ fun ScannerViewModel.stageSharedFile(
         pendingSharedInput = null
         pendingSharedSourceLabel = sourceLabel
         sharedContentSourceLabel = sourceLabel
-        sharedContentFidelity = SharedContentFidelity.FILE_OR_EMAIL
+        sharedContentFidelity = if (mime.startsWith("audio/")) {
+            SharedContentFidelity.AUDIO_FILE
+        } else {
+            SharedContentFidelity.FILE_OR_EMAIL
+        }
         stagedEvidenceHtml = null
         stagedEvidenceLinks = emptyList()
         stagedEvidenceText = null
-        stagedEvidenceInputKind = "import_file"
-        stagedEvidenceChannel = "file_or_email"
+        stagedEvidenceInputKind = if (mime.startsWith("audio/")) "import_audio_file" else "import_file"
+        stagedEvidenceChannel = if (mime.startsWith("audio/")) "audio_share" else "file_or_email"
         text = ""
     }
     currentTab = "scan"
@@ -528,6 +532,8 @@ fun ScannerViewModel.onFilePicked(uri: Uri, context: Context) {
 }
 
 internal fun ScannerViewModel.scanSharedAudioFile(uri: Uri, context: Context, fileName: String) {
+    Log.i("SharedAudioIntake", "Starting shared audio scan: scheme=${uri.scheme}, fileName=$fileName")
+    val startedAtMillis = System.currentTimeMillis()
     stagedEvidenceHtml = null
     stagedEvidenceLinks = emptyList()
     stagedEvidenceText = null
@@ -555,27 +561,82 @@ internal fun ScannerViewModel.scanSharedAudioFile(uri: Uri, context: Context, fi
             val decoded = withContext(Dispatchers.IO) {
                 AudioFileDecoder.decodeToWhisperPcm(context, uri)
             }
+            Log.i(
+                "SharedAudioIntake",
+                "Decoded shared audio: fileName=$fileName, durationMs=${decoded.durationMs ?: -1}, " +
+                    "sampleRateHz=${decoded.sampleRateHz}, samples=${decoded.pcm16Mono.size}"
+            )
             val result = withContext(Dispatchers.Default) {
                 AudioFileScanPipeline().scan(decoded, modelFile.absolutePath)
             }
+            val transcriptChars = result.redactedTranscriptForSemanticReview.length
+            if (BuildConfig.DEBUG && result.redactedTranscriptForSemanticReview.isNotBlank()) {
+                Log.i(
+                    "SharedAudioIntake",
+                    "debugRedactedPreview=fileName=$fileName " +
+                        "preview=${result.redactedTranscriptForSemanticReview.take(240)}"
+                )
+            }
+            Log.i(
+                "SharedAudioIntake",
+                "Local shared audio scan complete: fileName=$fileName, success=${result.success}, " +
+                    "localVerdict=${result.evidence?.verdict ?: AudioEvidenceVerdict.UNVERIFIED}, " +
+                    "reasonCode=${result.reasonCode ?: "none"}, transcriptChars=$transcriptChars"
+            )
             loadingMsg = "Analizăm semantic transcriptul redactat..."
-            val semanticReview = withContext(Dispatchers.IO) {
-                BackendAudioSemanticReviewer(scanStartApi, channel = "audio_share").review(
+            val semanticAttempt = withContext(Dispatchers.IO) {
+                BackendAudioSemanticReviewer(scanStartApi, channel = "audio_share").reviewWithDiagnostics(
                     redactedTranscript = result.redactedTranscriptForSemanticReview,
                     localEvidence = result.evidence
                 )
             }
             val reviewedResult = result.copy(
-                evidence = AudioSemanticReviewFusion.fuse(result.evidence, semanticReview)
+                evidence = AudioSemanticReviewFusion.fuse(result.evidence, semanticAttempt.response)
             )
             audioEvidenceResult = reviewedResult.evidence
-            assessment = reviewedResult.toOfflineAssessment(fileName)
+            assessment = reviewedResult
+                .toOfflineAssessment(fileName)
+                .withAudioSemanticDiagnostic(semanticAttempt.reasonCode, semanticAttempt.response != null)
+            Log.i(
+                "SharedAudioIntake",
+                "Shared audio scan completed: fileName=$fileName, " +
+                    "semanticReceived=${semanticAttempt.response != null}, " +
+                    "semanticReason=${semanticAttempt.reasonCode ?: "none"}, " +
+                    "transcriptChars=$transcriptChars, " +
+                    "finalVerdict=${reviewedResult.evidence?.verdict ?: AudioEvidenceVerdict.UNVERIFIED}, " +
+                    "elapsedMs=${System.currentTimeMillis() - startedAtMillis}"
+            )
             loading = false
             loadingMsg = ""
         } catch (e: Exception) {
+            Log.w("SharedAudioIntake", "Shared audio scan failed: ${e.message ?: e.javaClass.simpleName}", e)
             publishAudioShareRequiresTranscript(fileName, e.message ?: e.javaClass.simpleName)
         }
     }
+}
+
+private fun OfflineAssessment.withAudioSemanticDiagnostic(
+    reasonCode: String?,
+    semanticReceived: Boolean
+): OfflineAssessment {
+    if (semanticReceived || reasonCode.isNullOrBlank()) return this
+    val friendlyReason = when {
+        reasonCode == "semantic_blank_transcript" ->
+            "Transcrierea audio nu conține suficient text clar pentru analiza semantică online."
+        reasonCode == "semantic_timeout" ->
+            "Analiza semantică online nu a răspuns la timp; verdictul rămâne pe analiza locală."
+        reasonCode == "semantic_network_unavailable" ->
+            "Nu am putut contacta analiza semantică online; verdictul rămâne pe analiza locală."
+        reasonCode == "semantic_noop" ->
+            "Analiza semantică online nu este activă în acest build; verdictul rămâne pe analiza locală."
+        reasonCode.startsWith("semantic_http_") ->
+            "Analiza semantică online a fost respinsă de server; verdictul rămâne pe analiza locală."
+        else ->
+            "Analiza semantică online nu a returnat un răspuns complet; verdictul rămâne pe analiza locală."
+    }
+    return copy(
+        reasons = (reasons + friendlyReason + "Semnal audio: $reasonCode").distinct()
+    )
 }
 
 internal fun ScannerViewModel.publishAudioShareRequiresTranscript(fileName: String, reasonCode: String = "audio_asr_unavailable") {
