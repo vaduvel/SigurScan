@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 import main as app_main
 from services import audio_semantic_review
+from services.audio_scam_context import build_audio_scam_context
 
 
 def test_audio_semantic_review_uses_mistral_without_echoing_redacted_transcript(monkeypatch):
@@ -184,6 +185,76 @@ def test_audio_semantic_review_sends_creditline_context_for_tiny_asr(monkeypatch
     assert "CONV_BANK_FRAUDULENT_CREDIT" in family_ids
     assert context["local_family_hint"] == "CONV_BANK_FRAUDULENT_CREDIT"
     assert "acreditline" not in json.dumps(context, ensure_ascii=False)
+
+
+def test_audio_semantic_review_sends_marketplace_context_to_mistral(monkeypatch):
+    captured_payloads = []
+
+    def fake_mistral(payload):
+        captured_payloads.append(payload)
+        return {
+            "risk_class": "high",
+            "claim_matches_known_scam_family": True,
+            "matched_family": "CONV_MARKETPLACE_RECEIVE_MONEY",
+            "reason_codes": ["semantic:marketplace_receive_money_card"],
+        }
+
+    monkeypatch.setattr(audio_semantic_review, "PRIVACY_SAFE_MODE", False, raising=False)
+    monkeypatch.setattr(audio_semantic_review, "ENABLE_MISTRAL_SEMANTIC_PILLAR", True, raising=False)
+    monkeypatch.setattr(audio_semantic_review, "MISTRAL_SEMANTIC_API_KEY", "test-key", raising=False)
+    monkeypatch.setattr(audio_semantic_review, "_call_mistral_semantic_review", fake_mistral)
+
+    client = TestClient(app_main.app)
+    response = client.post(
+        "/v1/audio/semantic-review",
+        json={
+            "transcript_redacted": (
+                "Sunt cumparatorul de pe OLX. Ca sa primesti banii, intra pe linkul de livrare "
+                "si introdu datele cardului."
+            ),
+            "channel": "audio_share",
+            "local_verdict": "SUSPECT",
+            "local_reason_codes": ["campaign_match_only"],
+            "arc_family": "CONV_MARKETPLACE_RECEIVE_MONEY",
+        },
+    )
+
+    assert response.status_code == 200
+    context = captured_payloads[0]["audio_scam_context"]
+    family_ids = {item["id"] for item in context["candidate_families"]}
+
+    assert "CONV_MARKETPLACE_RECEIVE_MONEY" in family_ids
+    assert context["local_family_hint"] == "CONV_MARKETPLACE_RECEIVE_MONEY"
+    assert "OLX" not in json.dumps(context, ensure_ascii=False)
+
+
+def test_audio_semantic_review_context_covers_research_v2_families(monkeypatch):
+    expected = {
+        "CONV_BANK_SAFE_ACCOUNT",
+        "CONV_AUTHORITY_IMPERSONATION_LEGAL_THREAT",
+        "CONV_TECH_SUPPORT_REMOTE_ACCESS",
+        "CONV_REFUND_OVERPAYMENT_REVERSAL",
+        "CONV_VOICE_CLONE_EMERGENCY_IMPERSONATION",
+        "CONV_DELIVERY_CUSTOMS_RELEASE_FEE",
+        "CONV_TELECOM_OPERATOR_ACCOUNT_TAKEOVER",
+        "CONV_UTILITIES_DISCONNECTION_PAYMENT",
+        "CONV_PRIZE_RELEASE_FEE",
+        "CONV_RECOVERY_SCAM",
+        "CONV_JOB_TASK_ADVANCE_PAYMENT",
+        "CONV_MARKETPLACE_RECEIVE_MONEY",
+    }
+
+    seen = set()
+    for family_id in expected:
+        context = build_audio_scam_context(
+            "generic redacted text",
+            local_family=family_id,
+            local_reason_codes=["campaign_match_only"],
+            max_families=1,
+        )
+        seen.update(item["id"] for item in context["candidate_families"])
+
+    assert expected <= seen
 
 
 def test_audio_semantic_review_falls_back_without_green_claim(monkeypatch):

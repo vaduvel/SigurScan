@@ -79,6 +79,66 @@ class AudioTranscriptEvidenceCoreAtlasV2Test {
     }
 
     @Test
+    fun refundOverpaymentReturnDifferenceProducesDangerous() {
+        val result = AudioTranscriptEvidence.analyze(
+            "Buna ziua, sunt de la departamentul de plati al magazinului. Din greseala v-am rambursat " +
+                "prea mult si trebuie sa returnati diferenta prin transfer acum. Va ghidez eu pas cu pas."
+        )
+
+        assertEquals("CONV_REFUND_OVERPAYMENT_REVERSAL", result.arcFamily)
+        assertEquals("suport_refund", result.claimedIdentity)
+        assertEquals(AudioEvidenceVerdict.DANGEROUS, result.verdict)
+    }
+
+    @Test
+    fun jobTaskTopUpProducesDangerous() {
+        val result = AudioTranscriptEvidence.analyze(
+            "Va scriu de la platforma de recrutare. Castigati bani din task-uri simple, dar pentru " +
+                "a debloca task-urile mai bine platite trebuie sa depuneti o suma acum pe contul indicat."
+        )
+
+        assertEquals("CONV_JOB_TASK_ADVANCE_PAYMENT", result.arcFamily)
+        assertEquals("recrutor_task", result.claimedIdentity)
+        assertEquals(AudioEvidenceVerdict.DANGEROUS, result.verdict)
+    }
+
+    @Test
+    fun recoveryScamAdvanceFeeProducesDangerous() {
+        val result = AudioTranscriptEvidence.analyze(
+            "Sunt avocatul firmei de recuperare fonduri. Va putem recupera banii pierduti in investitii, " +
+                "dar trebuie sa platiti o taxa in avans prin transfer pentru dosar."
+        )
+
+        assertEquals("CONV_RECOVERY_SCAM", result.arcFamily)
+        assertEquals("recuperare_fonduri", result.claimedIdentity)
+        assertEquals(AudioEvidenceVerdict.DANGEROUS, result.verdict)
+    }
+
+    @Test
+    fun voiceCloneEmergencyWithSecretMoneyProducesDangerous() {
+        val result = AudioTranscriptEvidence.analyze(
+            "Mama, sunt eu. Am avut un accident si sunt retinut la politie. Am nevoie urgent de bani, " +
+                "trimite prin transfer acum si nu spune nimanui."
+        )
+
+        assertEquals("CONV_VOICE_CLONE_EMERGENCY_IMPERSONATION", result.arcFamily)
+        assertEquals("familie", result.claimedIdentity)
+        assertEquals(AudioEvidenceVerdict.DANGEROUS, result.verdict)
+    }
+
+    @Test
+    fun marketplaceReceiveMoneyCardDataProducesDangerous() {
+        val result = AudioTranscriptEvidence.analyze(
+            "Sunt cumparatorul de pe OLX. Ca sa primesti banii pentru produs, intra pe linkul de livrare " +
+                "si introdu datele cardului, inclusiv codul primit prin SMS."
+        )
+
+        assertEquals("CONV_MARKETPLACE_RECEIVE_MONEY", result.arcFamily)
+        assertEquals("cumparator_marketplace", result.claimedIdentity)
+        assertEquals(AudioEvidenceVerdict.DANGEROUS, result.verdict)
+    }
+
+    @Test
     fun utilitiesCampaignWithoutHardAskStaysSuspect() {
         val result = AudioTranscriptEvidence.analyze(
             "Buna ziua, sunt de la furnizorul de energie. Aveti sold restant si urmeaza deconectarea. " +
@@ -108,5 +168,26 @@ class AudioTranscriptEvidenceCoreAtlasV2Test {
 
         assertFalse(result.verdict == AudioEvidenceVerdict.DANGEROUS)
         assertFalse(result.arcFamily == "CONV_UTILITIES_DISCONNECTION_PAYMENT")
+    }
+
+    @Test
+    fun officialPolicyNegativeControlsAreNeverDangerous() {
+        val controls = listOf(
+            "Buna ziua, este un apel automat de confirmare a unei tranzactii. Daca ati facut dumneavoastra plata, confirmati. Daca nu o recunoasteti, inchideti si sunati la numarul din aplicatie.",
+            "Va sunam de la banca pentru a va anunta o tranzactie neobisnuita. Nu va cerem niciun cod sau parola. Va rugam sa verificati tranzactia in aplicatie.",
+            "Buna ziua, coletul dumneavoastra ajunge azi. Plata ramburs se face la curier sau la easybox. Nu va trimitem linkuri de plata prin SMS.",
+            "Aveti un colet de livrat maine. Pentru confirmare avem nevoie doar de nume. Verificati statusul in aplicatia FAN Courier.",
+            "Va reamintim ca aveti o factura de plata. O puteti achita in aplicatia oficiala, la ghiseu sau la ATM. Nu va cerem datele cardului la telefon.",
+            "Buna ziua, factura lunii este disponibila in MyElectrica. Va rugam sa o achitati din aplicatie sau de pe site-ul oficial.",
+            "Va sunam pentru a confirma o programare de instalare. Folosim numele si codul dumneavoastra de abonat. Nu va cerem parole sau coduri.",
+            "Acesta este un mesaj informativ. Daca primiti apeluri care va cer bani sau date bancare in numele Politiei, inchideti si sunati la 112."
+        )
+
+        val dangerous = controls.mapIndexedNotNull { index, transcript ->
+            val result = AudioTranscriptEvidence.analyze(transcript)
+            if (result.verdict == AudioEvidenceVerdict.DANGEROUS) "control_$index:${result.arcFamily}:${result.reasonCodes}" else null
+        }
+
+        assertTrue("Official-policy safe controls became dangerous: $dangerous", dangerous.isEmpty())
     }
 }

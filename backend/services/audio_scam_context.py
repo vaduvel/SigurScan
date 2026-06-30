@@ -8,8 +8,10 @@ echoing or storing the user's transcript.
 
 from __future__ import annotations
 
+import json
 import re
 import unicodedata
+from pathlib import Path
 from typing import Any, Dict, List
 
 
@@ -186,6 +188,45 @@ _FAMILIES: List[Dict[str, Any]] = [
 ]
 
 
+def _load_audio_atlas_v2(fallback: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    path = Path(__file__).resolve().parents[1] / "data" / "audio_scam_atlas_v2.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return fallback
+
+    families: List[Dict[str, Any]] = []
+    for item in payload.get("families", []):
+        family_id = str(item.get("id") or "").strip()
+        if not family_id:
+            continue
+        identity_tokens = [str(value) for value in item.get("identity_tokens_ro", [])]
+        core_signals = [str(value) for value in item.get("core_signals_ro", [])]
+        garbled_tokens = [str(value) for value in item.get("garbled_asr_tokens", [])]
+        hard_asks = [str(value) for value in item.get("hard_asks", [])]
+        behavioral_markers = [str(value) for value in item.get("behavioral_markers", [])]
+        aliases = [str(value) for value in item.get("aliases", [])]
+        families.append(
+            {
+                "id": family_id,
+                "aliases": aliases,
+                "title": str(item.get("title_ro") or family_id),
+                "signals": [
+                    "claimed_identity_matches_family",
+                    "script_matches_core_scam_pattern",
+                    *[f"behavior:{value}" for value in behavioral_markers[:4]],
+                    *[f"hard_ask:{value}" for value in hard_asks[:4]],
+                ],
+                "danger_levers": hard_asks + behavioral_markers,
+                "keywords": identity_tokens + core_signals + garbled_tokens + hard_asks + behavioral_markers + aliases,
+            }
+        )
+    return families or fallback
+
+
+_FAMILIES = _load_audio_atlas_v2(_FAMILIES)
+
+
 def _normalize(value: str) -> str:
     text = unicodedata.normalize("NFD", str(value or "").lower())
     text = "".join(ch for ch in text if unicodedata.category(ch) != "Mn")
@@ -194,7 +235,7 @@ def _normalize(value: str) -> str:
 
 def _score_family(text: str, family: Dict[str, Any], hinted_family: str | None) -> int:
     score = 0
-    if hinted_family and hinted_family == family.get("id"):
+    if hinted_family and (hinted_family == family.get("id") or hinted_family in set(family.get("aliases", []))):
         score += 8
     for keyword in family.get("keywords", []):
         if _normalize(keyword) in text:

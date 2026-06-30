@@ -26,6 +26,11 @@ object AudioTranscriptEvidence {
             "CONV_PRIZE_RELEASE_FEE" -> 0.87
             "CONV_TELECOM_OPERATOR_ACCOUNT_TAKEOVER" -> 0.86
             "CONV_DELIVERY_CUSTOMS_RELEASE_FEE" -> 0.86
+            "CONV_REFUND_OVERPAYMENT_REVERSAL" -> 0.89
+            "CONV_JOB_TASK_ADVANCE_PAYMENT" -> 0.89
+            "CONV_RECOVERY_SCAM" -> 0.91
+            "CONV_VOICE_CLONE_EMERGENCY_IMPERSONATION" -> 0.91
+            "CONV_MARKETPLACE_RECEIVE_MONEY" -> 0.90
             else -> 0.0
         }
 
@@ -43,7 +48,45 @@ object AudioTranscriptEvidence {
 
     private fun detectSensitiveAsks(text: String): List<String> {
         val compact = text.replace(" ", "")
+        val directInstruction = containsAny(
+            text,
+            "cititi mi",
+            "comunicati",
+            "spuneti mi",
+            "dictati",
+            "introduceti",
+            "apasati",
+            "confirmati acum",
+            "transfera",
+            "transferati",
+            "trimite",
+            "trimiteti",
+            "depune",
+            "depuneti",
+            "platiti acum",
+            "achitati acum"
+        )
+        val protectiveNoAsk = !directInstruction && containsAny(
+            text,
+            "nu va cerem",
+            "nu cerem",
+            "nu va trimitem",
+            "nu trimitem",
+            "nu va solicitam",
+            "nu solicitam",
+            "inchideti si sunati",
+            "inchide si suna",
+            "daca primiti apeluri",
+            "daca primiti un apel",
+            "verificati tranzactia in aplicatie",
+            "verificati in aplicatie",
+            "verificati statusul in aplicatia",
+            "aplicatia oficiala",
+            "site ul oficial",
+            "numarul din aplicatie"
+        )
         val asksForCode = Regex("""\bcod(?:ul)?\b""").containsMatchIn(text) &&
+            !protectiveNoAsk &&
             containsAny(
                 text,
                 "confirmare",
@@ -58,10 +101,10 @@ object AudioTranscriptEvidence {
                 "pe linie"
             )
         return buildSet {
-            if (containsAny(text, "otp", "cod sms", "cod de verificare", "codul primit") || asksForCode) add("otp")
-            if (containsAny(text, "cvv", "cvc", "datele cardului", "numarul cardului")) add("card")
-            if (containsAny(text, "parola", "password", "credentiale", "datele de acces", "date de acces")) add("password")
-            if (Regex("""\bpin\b""").containsMatchIn(text)) add("pin")
+            if (!protectiveNoAsk && (containsAny(text, "otp", "cod sms", "cod de verificare", "codul primit") || asksForCode)) add("otp")
+            if (!protectiveNoAsk && containsAny(text, "cvv", "cvc", "datele cardului", "numarul cardului")) add("card")
+            if (!protectiveNoAsk && containsAny(text, "parola", "password", "credentiale", "datele de acces", "date de acces")) add("password")
+            if (!protectiveNoAsk && Regex("""\bpin\b""").containsMatchIn(text)) add("pin")
             if (containsAny(text, "crypto", "cripto", "bitcoin", "atm crypto", "portofel cripto")) add("crypto")
             if (
                 containsAny(
@@ -82,7 +125,7 @@ object AudioTranscriptEvidence {
             ) {
                 add("remote")
             }
-            if (
+            if (!protectiveNoAsk &&
                 containsAny(
                     text,
                     "buletin",
@@ -97,7 +140,7 @@ object AudioTranscriptEvidence {
             ) {
                 add("id_document")
             }
-            if (
+            if (!protectiveNoAsk &&
                 containsAny(
                     text,
                     "transfer",
@@ -127,7 +170,7 @@ object AudioTranscriptEvidence {
                     "imprumuta",
                     "lei cash",
                     "euro cash"
-                ) || containsAny(compact, "multibani", "mutibani", "mutibanii", "conttemporar", "sumaDisponibila".lowercase())
+                ) || (!protectiveNoAsk && containsAny(compact, "multibani", "mutibani", "mutibanii", "conttemporar", "sumaDisponibila".lowercase()))
             ) {
                 add("transfer")
             }
@@ -180,6 +223,9 @@ object AudioTranscriptEvidence {
         val hasAuthority = containsAny(text, "politie", "politist", "inspector", "procuror", "anaf")
         val hasFamily = containsAny(text, "nepot", "nepoata", "fiul tau", "fiica ta", "mama", "tata", "unchiule")
         val hasEmergency = containsAny(text, "accident", "spital", "urgente", "am fost jefuit", "sunt la politie")
+        val hasVoiceCloneEmergency = containsAny(text, "sunt eu", "vocea mea", "safe word", "cuvant de siguranta") &&
+            (hasFamily || containsAny(text, "retinut", "retinuta", "inchisoare", "arest", "nu spune nimanui")) &&
+            (hasEmergency || containsAny(text, "urgent", "urgenta", "nu spune nimanui", "te rog acum"))
         val hasInvestment = containsAny(
             text,
             "investitie",
@@ -415,8 +461,105 @@ object AudioTranscriptEvidence {
             "urmarire penala",
             "neregula fiscala"
         )
+        val hasRefundOverpayment = containsAny(
+            text,
+            "rambursat prea mult",
+            "rambursare prea mare",
+            "v am dat prea mult",
+            "v am virat o suma in plus",
+            "returnati diferenta",
+            "trimite inapoi diferenta",
+            "departamentul de plati",
+            "eroare de rambursare",
+            "supraplata"
+        )
+        val hasRecoveryScam = containsAny(
+            text,
+            "recuperare fonduri",
+            "recuperare bani",
+            "recuperam banii",
+            "firma de recuperare",
+            "taxa in avans",
+            "despagubire",
+            "despagubiri",
+            "garantam recuperarea",
+            "banii pierduti",
+            "avocatul firmei de recuperare"
+        )
+        val hasTaskJob = containsAny(
+            text,
+            "task uri",
+            "task-uri",
+            "tasc",
+            "platforma de recrutare",
+            "recrutare",
+            "castigati bani",
+            "castigi bani",
+            "debloca task",
+            "task urile mai bine platite",
+            "deblochezi task uri",
+            "depuneti o suma",
+            "fake earnings",
+            "comision"
+        )
+        val hasMarketplaceReceiveMoney = containsAny(
+            text,
+            "olx",
+            "olex",
+            "marketplace",
+            "cumparator",
+            "cumparatorul",
+            "primesti banii",
+            "sa primesti banii",
+            "linkul de livrare",
+            "link de livrare",
+            "introdu datele cardului",
+            "datele cardului ca sa primesti"
+        )
 
         return when {
+            hasMarketplaceReceiveMoney &&
+                (
+                    "card" in sensitiveAsks ||
+                        "otp" in sensitiveAsks ||
+                        containsAny(text, "link", "livrare", "datele cardului")
+                    ) ->
+                "CONV_MARKETPLACE_RECEIVE_MONEY"
+
+            hasRecoveryScam &&
+                (
+                    "transfer" in sensitiveAsks ||
+                        "card" in sensitiveAsks ||
+                        containsAny(text, "taxa", "avans", "platiti")
+                    ) ->
+                "CONV_RECOVERY_SCAM"
+
+            hasRefundOverpayment &&
+                (
+                    "transfer" in sensitiveAsks ||
+                        "gift_card" in sensitiveAsks ||
+                        "remote" in sensitiveAsks ||
+                        containsAny(text, "returnati", "diferenta", "inapoi")
+                    ) ->
+                "CONV_REFUND_OVERPAYMENT_REVERSAL"
+
+            hasTaskJob &&
+                (
+                    "transfer" in sensitiveAsks ||
+                        "crypto" in sensitiveAsks ||
+                        containsAny(text, "depune", "depuneti", "suma", "top up", "debloca")
+                    ) ->
+                "CONV_JOB_TASK_ADVANCE_PAYMENT"
+
+            hasVoiceCloneEmergency &&
+                (
+                    "transfer" in sensitiveAsks ||
+                        "gift_card" in sensitiveAsks ||
+                        "crypto" in sensitiveAsks ||
+                        hasSecrecy
+                    ) ->
+                "CONV_VOICE_CLONE_EMERGENCY_IMPERSONATION"
+
             containsAny(text, "cont sigur", "cont de siguranta") ||
                 containsAny(compact, "contsigur", "consigur", "condsigur") ||
                 (hasBank && "transfer" in sensitiveAsks && containsAny(text, "fonduri", "fondurile", "cont temporar", "siguranta")) ||
@@ -508,6 +651,7 @@ object AudioTranscriptEvidence {
 
     private fun detectClaimedIdentity(text: String, arcFamily: String?): String? {
         return when {
+            arcFamily == "CONV_VOICE_CLONE_EMERGENCY_IMPERSONATION" -> "familie"
             containsAny(text, "politie", "politist", "inspector", "procuror", "anaf") -> "autoritate"
             containsAny(
                 text,
@@ -540,6 +684,10 @@ object AudioTranscriptEvidence {
             arcFamily == "CONV_UTILITIES_DISCONNECTION_PAYMENT" -> "furnizor_utilitati"
             arcFamily == "CONV_DELIVERY_CUSTOMS_RELEASE_FEE" -> "curier"
             arcFamily == "CONV_PRIZE_RELEASE_FEE" -> "organizator_premii"
+            arcFamily == "CONV_REFUND_OVERPAYMENT_REVERSAL" -> "suport_refund"
+            arcFamily == "CONV_JOB_TASK_ADVANCE_PAYMENT" -> "recrutor_task"
+            arcFamily == "CONV_RECOVERY_SCAM" -> "recuperare_fonduri"
+            arcFamily == "CONV_MARKETPLACE_RECEIVE_MONEY" -> "cumparator_marketplace"
             else -> null
         }
     }
