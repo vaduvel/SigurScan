@@ -403,7 +403,7 @@ internal fun ScannerViewModel.buildAssessmentFromBackendScanResponse(
         scanId = response.scanId,
         family = when {
             response.riskLevel == "critical" || response.riskLevel == "high" -> response.detectedFamily ?: "Scam detectat"
-            response.riskLevel == "low" -> "Destinație verificată"
+            response.riskLevel == "low" -> response.detectedFamily ?: "Destinație verificată"
             else -> response.detectedFamily ?: "Analiză în curs"
         },
         riskScore = response.riskScore,
@@ -706,7 +706,7 @@ internal fun ScannerViewModel.buildDegradedAssessmentFromBackendScanResponse(
         scanId = response.scanId,
         family = when {
             response.riskLevel == "critical" || response.riskLevel == "high" -> response.detectedFamily ?: "Scam detectat"
-            response.riskLevel == "low" -> "Destinație verificată"
+            response.riskLevel == "low" -> response.detectedFamily ?: "Destinație verificată"
             else -> response.detectedFamily ?: "Analiză finalizată"
         },
         riskScore = response.riskScore,

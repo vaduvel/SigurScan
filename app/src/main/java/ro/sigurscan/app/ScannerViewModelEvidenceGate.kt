@@ -121,10 +121,11 @@ internal fun ScannerViewModel.withGate(
     rawInput: String,
     mergedThreatIntel: List<ThreatIntelSourceResult> = self.threatIntel
 ): OfflineAssessment {
+    val invoiceContext = GateResultPresentation.isInvoiceFamily(self.family)
     val gateReason = GateResultPresentation.reasonText(gateResult, snapshot)
-    val gateActions = GateResultPresentation.recommendedActions(gateResult)
+    val gateActions = GateResultPresentation.recommendedActions(gateResult, invoiceContext)
     return self.copy(
-        family = GateResultPresentation.familyLabel(gateResult.action, self.family),
+        family = if (invoiceContext) self.family else GateResultPresentation.familyLabel(gateResult.action, self.family),
         riskScore = GateResultPresentation.legacyRiskScore(gateResult.action),
         riskLevel = GateResultPresentation.legacyRiskLevel(gateResult.action),
         reasons = (listOf(gateReason) + self.reasons).map { it.trim() }.filter { it.isNotBlank() }.distinct(),
@@ -132,7 +133,7 @@ internal fun ScannerViewModel.withGate(
         keyDangers = when (gateResult.action) {
             GateAction.DO_NOT_CONTINUE,
             GateAction.NO_ENTER_DATA,
-            GateAction.NO_REPLY -> (listOf(GateResultPresentation.supportText(gateResult)) + self.keyDangers)
+            GateAction.NO_REPLY -> (listOf(GateResultPresentation.supportText(gateResult, invoiceContext)) + self.keyDangers)
             else -> self.keyDangers
         }.map { it.trim() }.filter { it.isNotBlank() }.distinct(),
         originalText = redactedAuditSummary(rawInput, snapshot),
