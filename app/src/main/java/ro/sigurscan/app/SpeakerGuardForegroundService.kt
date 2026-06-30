@@ -156,7 +156,7 @@ class SpeakerGuardForegroundService : Service() {
 
     private fun foregroundNotification(decision: RadarCallDecision): Notification {
         val prompt = speakerGuardCallPrompt(decision)
-        val intent = speakerGuardDeepLinkIntent(this)
+        val intent = SpeakerGuardCallPromptActivity.intentForPrompt(this, decision)
         val pendingIntent = PendingIntent.getActivity(
             this,
             FOREGROUND_REQUEST_CODE,
