@@ -22,7 +22,8 @@ object GateResultPresentation {
                 "LOCAL_QR_EXTRACTION_INCOMPLETE",
                 "LOCAL_IMAGE_OCR_INCOMPLETE",
                 "LOCAL_FILE_UNSUPPORTED",
-                "LOCAL_OFFER_EXTRACTION_INCOMPLETE"
+                "LOCAL_OFFER_EXTRACTION_INCOMPLETE",
+                "LOCAL_AUDIO_TRANSCRIPTION_UNAVAILABLE"
             )
 
     fun userHeadline(result: GateResult): String =
@@ -152,6 +153,7 @@ object GateResultPresentation {
             "LOCAL_IMAGE_OCR_INCOMPLETE" in codes -> "Nu am putut extrage text verificabil din imagine."
             "LOCAL_FILE_UNSUPPORTED" in codes -> "Fișierul nu este într-un format pe care îl putem analiza complet acum."
             "LOCAL_OFFER_EXTRACTION_INCOMPLETE" in codes -> "Nu am putut extrage conținut verificabil din ofertă."
+            "LOCAL_AUDIO_TRANSCRIPTION_UNAVAILABLE" in codes -> "Nu am putut transcrie suficient audio pentru un verdict de risc."
             "WEAK_OR_EXPLANATORY_EVIDENCE_ONLY" in codes -> "Am gasit doar semnale slabe, precum marketing, CTA, tracking sau explicatii."
             "BRAND_OR_AUTHORITY_CLAIM_NEEDS_VERIFICATION" in codes -> "Mesajul mentioneaza un brand sau o autoritate si trebuie verificat pe canalul oficial."
             isVerificationUnavailable(result) -> "Nu am putut contacta serviciul de verificare. Reîncearcă scanarea când conexiunea este stabilă."

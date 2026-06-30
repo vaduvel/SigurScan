@@ -37,4 +37,33 @@ class LocalExtractionPresentationTest {
         assertFalse(copy.contains("scanarea nu este completa"))
         assertFalse(copy.contains("scanarea nu este completă"))
     }
+
+    @Test
+    fun localAudioTranscriptionUnavailableIsNeutralNeverificatNotSuspect() {
+        val result = GateResult(
+            action = GateAction.UNVERIFIED,
+            finality = GateFinality.FINAL,
+            reasonCodes = listOf("LOCAL_AUDIO_TRANSCRIPTION_UNAVAILABLE"),
+            decisiveSignalIds = emptyList(),
+            unknownReason = "LOCAL_AUDIO_TRANSCRIPTION_UNAVAILABLE"
+        )
+        val copy = listOf(
+            GateResultPresentation.familyLabel(result, "fallback"),
+            GateResultPresentation.legacyRiskLevel(result),
+            GateResultPresentation.userHeadline(result),
+            GateResultPresentation.supportText(result),
+            GateResultPresentation.reasonText(result, null),
+            GateResultPresentation.primaryAction(result)
+        )
+            .plus(GateResultPresentation.recommendedActions(result))
+            .joinToString(" ")
+            .lowercase()
+
+        assertTrue(GateResultPresentation.familyLabel(result, "fallback") == "Neverificat")
+        assertTrue(GateResultPresentation.legacyRiskLevel(result) == "info")
+        assertTrue(GateResultPresentation.legacyRiskScore(result) == 0)
+        assertTrue(copy.contains("audio") || copy.contains("transcriere"))
+        assertFalse(copy.contains("suspect"))
+        assertFalse(copy.contains("periculos"))
+    }
 }

@@ -5,7 +5,7 @@
   "asr_engine": "whisper.cpp tiny-q8",
   "chunk_seconds": 3,
   "tiny_transcript": "Un\u0103siva, v\u0103sun de la Banca e Urogarant, departamentul de suport technique. Un\u0103siva, v",
-  "expected_min_verdict": "SUSPECT",
+  "expected_min_verdict": "DANGEROUS",
   "expected_family": "CONV_TECH_SUPPORT_REMOTE_ACCESS",
   "ground_truth": "scam",
   "notes": "Captured from Nokia C22 tiny-q8 output; intentionally garbled and partial."
