@@ -55,7 +55,10 @@ def _twilio_signature(url: str, params: Mapping[str, str], token: str) -> str:
 def _verify_twilio_signature(request: Request, params: Mapping[str, str]) -> None:
     token = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
     if not token:
-        return
+        allow_unsigned = os.getenv("TWILIO_ALLOW_UNSIGNED_WEBHOOKS", "").strip().lower()
+        if allow_unsigned in {"1", "true", "yes", "on"}:
+            return
+        raise HTTPException(status_code=403, detail="Twilio signature verification is not configured.")
     received = request.headers.get("X-Twilio-Signature", "").strip()
     if not received:
         raise HTTPException(status_code=403, detail="Missing Twilio signature.")

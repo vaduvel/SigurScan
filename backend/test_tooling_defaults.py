@@ -139,12 +139,15 @@ def test_cloud_run_deploy_wires_twilio_protected_call_config():
     script = (ROOT_DIR / "tools" / "deploy_cloud_run_backend.sh").read_text(encoding="utf-8")
 
     assert 'TWILIO_AUTH_TOKEN_SECRET="${TWILIO_AUTH_TOKEN_SECRET:-}"' in script
+    assert 'TWILIO_ALLOW_UNSIGNED_WEBHOOKS="${TWILIO_ALLOW_UNSIGNED_WEBHOOKS:-false}"' in script
     assert 'TWILIO_PUBLIC_BASE_URL="${TWILIO_PUBLIC_BASE_URL:-}"' in script
     assert 'TWILIO_PROTECTED_CALL_FORWARD_TO="${TWILIO_PROTECTED_CALL_FORWARD_TO:-}"' in script
+    assert "TWILIO_ALLOW_UNSIGNED_WEBHOOKS=$TWILIO_ALLOW_UNSIGNED_WEBHOOKS" in script
     assert "TWILIO_PUBLIC_BASE_URL=$TWILIO_PUBLIC_BASE_URL" in script
     assert "TWILIO_PROTECTED_CALL_FORWARD_TO=$TWILIO_PROTECTED_CALL_FORWARD_TO" in script
     assert "TWILIO_AUTH_TOKEN=$TWILIO_AUTH_TOKEN_SECRET" in script
     assert "TWILIO_AUTH_TOKEN=twilio-auth-token:latest" not in script
+    assert "TWILIO_ALLOW_UNSIGNED_WEBHOOKS=true" not in script
 
 
 def test_cloud_run_deploy_fails_closed_on_rate_limit_backend_errors():
@@ -159,6 +162,15 @@ def test_env_example_documents_paid_intel_budget_guards():
 
     assert "OPENAPI_RO_MONTHLY_BUDGET=100" in env_example
     assert "HUNTER_IO_MONTHLY_BUDGET=50" in env_example
+
+
+def test_env_example_documents_twilio_protected_call_guardrails():
+    env_example = (ROOT_DIR / "backend" / ".env.example").read_text(encoding="utf-8")
+
+    assert "TWILIO_AUTH_TOKEN=" in env_example
+    assert "TWILIO_ALLOW_UNSIGNED_WEBHOOKS=false" in env_example
+    assert "TWILIO_PUBLIC_BASE_URL=" in env_example
+    assert "TWILIO_PROTECTED_CALL_FORWARD_TO=" in env_example
 
 
 def test_cloud_run_deploy_enables_asf_investor_alerts_provider():

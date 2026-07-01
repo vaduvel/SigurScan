@@ -7,6 +7,7 @@ from routers import twilio_voice
 
 
 def test_twilio_incoming_returns_realtime_transcription_twiml(monkeypatch):
+    monkeypatch.setenv("TWILIO_ALLOW_UNSIGNED_WEBHOOKS", "true")
     monkeypatch.setenv("TWILIO_PUBLIC_BASE_URL", "https://sigurscan.example")
     client = TestClient(app_main.app)
 
@@ -27,6 +28,8 @@ def test_twilio_incoming_returns_realtime_transcription_twiml(monkeypatch):
 
 
 def test_twilio_transcription_updates_session_without_exposing_transcript(monkeypatch):
+    monkeypatch.setenv("TWILIO_ALLOW_UNSIGNED_WEBHOOKS", "true")
+
     async def fake_review(request):
         assert request.transcript_redacted
         assert "123456" not in request.transcript_redacted
@@ -90,3 +93,17 @@ def test_twilio_webhook_rejects_missing_signature_when_auth_token_configured(mon
 
     assert response.status_code == 403
     assert "twilio signature" in response.json()["detail"].lower()
+
+
+def test_twilio_webhook_rejects_unsigned_requests_when_auth_token_missing(monkeypatch):
+    monkeypatch.delenv("TWILIO_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("TWILIO_ALLOW_UNSIGNED_WEBHOOKS", raising=False)
+    client = TestClient(app_main.app)
+
+    response = client.post(
+        "/v1/voice/twilio/transcription",
+        data={"CallSid": "CA444", "TranscriptionEvent": "transcription-started"},
+    )
+
+    assert response.status_code == 403
+    assert "not configured" in response.json()["detail"].lower()
