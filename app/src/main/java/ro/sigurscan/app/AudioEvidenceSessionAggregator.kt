@@ -25,8 +25,22 @@ class AudioEvidenceSessionAggregator {
 
         val aggregated = aggregate()
         strongest = listOfNotNull(strongest, evidence, aggregated)
-            .maxWith(compareBy<AudioEvidenceResult> { AUDIO_VERDICT_RANK[it.verdict] ?: 0 })
+            .maxWith(
+                compareBy<AudioEvidenceResult> { AUDIO_VERDICT_RANK[it.verdict] ?: 0 }
+                    .thenBy { decisiveReasonRank(it) }
+                    .thenBy { it.reasonCodes.size }
+            )
         return strongest ?: aggregated
+    }
+
+    private fun decisiveReasonRank(result: AudioEvidenceResult): Int {
+        return when {
+            "sensitive_wrong_channel" in result.reasonCodes -> 4
+            "identity_spoof" in result.reasonCodes -> 3
+            "critical_campaign_identity" in result.reasonCodes -> 2
+            "campaign_match_only" in result.reasonCodes -> 1
+            else -> 0
+        }
     }
 
     private fun aggregate(): AudioEvidenceResult {

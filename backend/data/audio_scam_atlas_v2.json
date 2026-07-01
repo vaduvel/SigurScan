@@ -1,0 +1,793 @@
+{
+  "version": "2026-06-30",
+  "families": [
+    {
+      "id": "CONV_BANK_SAFE_ACCOUNT",
+      "aliases": [],
+      "title_ro": "Banca antifrauda / cont sigur",
+      "identity_tokens_ro": [
+        "banca",
+        "bnr",
+        "politie",
+        "departamentul antifrauda",
+        "departamentul de securitate",
+        "consilier bancar"
+      ],
+      "core_signals_ro": [
+        "cont sigur",
+        "cont de siguranta",
+        "muta banii",
+        "transfer de siguranta",
+        "tranzactie suspecta",
+        "nu inchide"
+      ],
+      "garbled_asr_tokens": [
+        "bunca",
+        "panca",
+        "bunci",
+        "consigur",
+        "antifrouda"
+      ],
+      "hard_asks": [
+        "otp",
+        "card",
+        "pin",
+        "remote_access",
+        "safe_account_transfer"
+      ],
+      "behavioral_markers": [
+        "urgency",
+        "secrecy",
+        "do_not_hang_up",
+        "fear"
+      ],
+      "sources": [
+        {
+          "url": "https://dnsc.ro/citeste/alerta-atacuri-de-tip-spoofing-phishing-vishing-asupra-utilizatorilor-din-romania",
+          "source_type": "public_institution"
+        },
+        {
+          "url": "https://www.mai.gov.ro/politia-romana-directoratul-national-de-securitate-cibernetica-si-asociatia-romana-a-bancilor-avertizeaza-asupra-riscului-de-frauda-de-tip-spoofing/",
+          "source_type": "public_institution"
+        },
+        {
+          "url": "https://www.bnr.ro/24948-avertisment-cu-privire-la-campanii-de-dezinformare-si-tentative-de-frauda-in-numele-bnr",
+          "source_type": "public_institution"
+        }
+      ]
+    },
+    {
+      "id": "CONV_AUTHORITY_IMPERSONATION_LEGAL_THREAT",
+      "aliases": [
+        "CONV_AUTHORITY_LEGAL_THREAT"
+      ],
+      "title_ro": "Autoritate / amenintare juridica",
+      "identity_tokens_ro": [
+        "politia",
+        "diicot",
+        "procuror",
+        "anaf",
+        "bnr",
+        "inspector",
+        "dosar penal",
+        "mandat"
+      ],
+      "core_signals_ro": [
+        "credit pe numele tau",
+        "ancheta",
+        "cont sigur",
+        "transfer catre bnr",
+        "nu spune nimanui"
+      ],
+      "garbled_asr_tokens": [
+        "politzia",
+        "diicod",
+        "anaff",
+        "procuror"
+      ],
+      "hard_asks": [
+        "money_transfer",
+        "banking_data",
+        "remote_access",
+        "otp"
+      ],
+      "behavioral_markers": [
+        "fear",
+        "authority_framing",
+        "secrecy",
+        "channel_switch",
+        "urgency"
+      ],
+      "sources": [
+        {
+          "url": "https://www.mai.gov.ro/77949-2/",
+          "source_type": "public_institution"
+        },
+        {
+          "url": "https://www.mai.gov.ro/politia-romana-directoratul-national-de-securitate-cibernetica-si-asociatia-romana-a-bancilor-avertizeaza-asupra-riscului-de-frauda-de-tip-spoofing/",
+          "source_type": "public_institution"
+        },
+        {
+          "url": "https://static.anaf.ro/static/3/Iasi/20260417124520_com_387_17-04-2026_avertizare_vishing.pdf",
+          "source_type": "public_institution"
+        }
+      ]
+    },
+    {
+      "id": "CONV_BANK_FRAUDULENT_CREDIT",
+      "aliases": [],
+      "title_ro": "Credit fraudulos / cont compromis",
+      "identity_tokens_ro": [
+        "banca",
+        "credit line",
+        "creditline",
+        "acreditline",
+        "crediline",
+        "departamentul antifrauda"
+      ],
+      "core_signals_ro": [
+        "credit pe numele tau",
+        "cerere de credit",
+        "credit online",
+        "credit aprobat",
+        "cod de anulare"
+      ],
+      "garbled_asr_tokens": [
+        "acreditline",
+        "crediline",
+        "buncii",
+        "panca"
+      ],
+      "hard_asks": [
+        "otp",
+        "card",
+        "banking_data"
+      ],
+      "behavioral_markers": [
+        "fear",
+        "urgency",
+        "account_takeover"
+      ],
+      "sources": [
+        {
+          "url": "https://dnsc.ro/citeste/alerta-atacuri-de-tip-spoofing-phishing-vishing-asupra-utilizatorilor-din-romania",
+          "source_type": "public_institution"
+        },
+        {
+          "url": "https://www.romania-actualitati.ro/stiri/romania/nou-scenariu-folosit-de-infractori-pentru-frauda-de-tip-transfer-de-bani-catre-bnr-id226399.html",
+          "source_type": "public_institution"
+        }
+      ]
+    },
+    {
+      "id": "CONV_BANK_ANTI_FRAUD_CALL",
+      "aliases": [],
+      "title_ro": "Apel pretins de la banca / anti-frauda",
+      "identity_tokens_ro": [
+        "banca",
+        "banci",
+        "departamentul anti frauda",
+        "departamentul antifrauda",
+        "departamentul de securitate",
+        "suport bancar"
+      ],
+      "core_signals_ro": [
+        "tranzactie suspecta",
+        "incercare de logare",
+        "cont compromis",
+        "cod de anulare",
+        "cat suntem pe linie"
+      ],
+      "garbled_asr_tokens": [
+        "bunci",
+        "buncii",
+        "bansin",
+        "bansii",
+        "panca",
+        "anti fraude",
+        "antifrouda"
+      ],
+      "hard_asks": [
+        "otp",
+        "card",
+        "pin",
+        "banking_data",
+        "safe_account_transfer"
+      ],
+      "behavioral_markers": [
+        "financial_authority",
+        "fear",
+        "partial_transcript",
+        "do_not_hang_up"
+      ],
+      "sources": [
+        {
+          "url": "https://ing.ro/ing-in-romania/informatii-utile/securitate",
+          "source_type": "official"
+        },
+        {
+          "url": "https://www.bancatransilvania.ro/siguranta-online",
+          "source_type": "official"
+        },
+        {
+          "url": "https://www.cec.ro/securitatea-tranzactiilor",
+          "source_type": "official"
+        }
+      ]
+    },
+    {
+      "id": "CONV_TECH_SUPPORT_REMOTE_ACCESS",
+      "aliases": [],
+      "title_ro": "Suport tehnic / remote access",
+      "identity_tokens_ro": [
+        "microsoft",
+        "apple",
+        "suport tehnic",
+        "departament tehnic",
+        "virus",
+        "suport bancar"
+      ],
+      "core_signals_ro": [
+        "computerul este infectat",
+        "acces de la distanta",
+        "anydesk",
+        "teamviewer",
+        "aplicatie de suport"
+      ],
+      "garbled_asr_tokens": [
+        "enidesk",
+        "tim viewer",
+        "maicrosoft",
+        "support technic",
+        "suport technique"
+      ],
+      "hard_asks": [
+        "remote_access",
+        "banking_data",
+        "gift_card"
+      ],
+      "behavioral_markers": [
+        "urgency",
+        "fear",
+        "do_not_hang_up",
+        "coaching"
+      ],
+      "sources": [
+        {
+          "url": "https://consumer.ftc.gov/articles/how-spot-avoid-and-report-tech-support-scams",
+          "source_type": "official"
+        }
+      ]
+    },
+    {
+      "id": "CONV_TRUSTED_CONTACT_MONEY_URGENCY",
+      "aliases": [],
+      "title_ro": "Contact cunoscut cere bani urgent",
+      "identity_tokens_ro": [
+        "coleg",
+        "colega",
+        "prieten",
+        "prietena",
+        "sef",
+        "sefa",
+        "vecin",
+        "cunostinta"
+      ],
+      "core_signals_ro": [
+        "am nevoie urgent de bani",
+        "trimite bani",
+        "imprumut",
+        "nu spune nimanui",
+        "ramane intre noi"
+      ],
+      "garbled_asr_tokens": [
+        "urgenda",
+        "trimiti",
+        "nu zice"
+      ],
+      "hard_asks": [
+        "transfer",
+        "cash"
+      ],
+      "behavioral_markers": [
+        "trusted_contact",
+        "urgency",
+        "secrecy",
+        "money_transfer"
+      ],
+      "sources": [
+        {
+          "url": "https://dnsc.ro/citeste/alerta-atacuri-de-tip-spoofing-phishing-vishing-asupra-utilizatorilor-din-romania",
+          "source_type": "public_institution"
+        }
+      ]
+    },
+    {
+      "id": "CONV_FAMILY_EMERGENCY",
+      "aliases": [],
+      "title_ro": "Urgenta de familie / accident",
+      "identity_tokens_ro": [
+        "mama",
+        "tata",
+        "nepot",
+        "nepoata",
+        "fiul tau",
+        "fiica ta"
+      ],
+      "core_signals_ro": [
+        "accident",
+        "spital",
+        "urgenta",
+        "am nevoie de bani",
+        "sunt la politie"
+      ],
+      "garbled_asr_tokens": [
+        "accidnt",
+        "urgentza"
+      ],
+      "hard_asks": [
+        "transfer",
+        "cash",
+        "gift_card"
+      ],
+      "behavioral_markers": [
+        "family",
+        "panic",
+        "urgent_money_transfer"
+      ],
+      "sources": [
+        {
+          "url": "https://www.fbi.gov/investigate/cyber/alerts/2025/senior-us-officials-continue-to-be-impersonated-in-malicious-messaging-campaign",
+          "source_type": "official"
+        },
+        {
+          "url": "https://www.ic3.gov/PSA/2025/PSA250515",
+          "source_type": "official"
+        }
+      ]
+    },
+    {
+      "id": "CONV_INVESTMENT_REMOTE_ACCESS",
+      "aliases": [],
+      "title_ro": "Investitii / recuperare bani cu acces remote",
+      "identity_tokens_ro": [
+        "broker",
+        "consultant",
+        "investitie",
+        "portofel cripto"
+      ],
+      "core_signals_ro": [
+        "profit garantat",
+        "randament garantat",
+        "recuperare bani",
+        "instaleaza anydesk",
+        "teamviewer"
+      ],
+      "garbled_asr_tokens": [
+        "profit garantat",
+        "cripto"
+      ],
+      "hard_asks": [
+        "crypto",
+        "remote_access",
+        "transfer"
+      ],
+      "behavioral_markers": [
+        "greed",
+        "remote_access",
+        "urgency"
+      ],
+      "sources": [
+        {
+          "url": "https://asfromania.ro/ro/a/3267/asf-avertizeaza-asupra-unor-noi-tentative-de-frauda-financiara-in-numele-institutiei",
+          "source_type": "public_institution"
+        },
+        {
+          "url": "https://www.asfromania.ro/ro/a/3326/atentie-la-escrocheriile-de-tip-,,grup-de-investitii%22--pe-whatsapp-si-telegram",
+          "source_type": "public_institution"
+        }
+      ]
+    },
+    {
+      "id": "CONV_REFUND_OVERPAYMENT_REVERSAL",
+      "aliases": [
+        "CONV_REFUND_OVERPAYMENT"
+      ],
+      "title_ro": "Refund / supraplata",
+      "identity_tokens_ro": [
+        "rambursare",
+        "magazin",
+        "suport",
+        "departament plati"
+      ],
+      "core_signals_ro": [
+        "v am dat prea mult",
+        "rambursat prea mult",
+        "returnati diferenta",
+        "trimiteti inapoi",
+        "supraplata"
+      ],
+      "garbled_asr_tokens": [
+        "rambursarea",
+        "diferentza"
+      ],
+      "hard_asks": [
+        "transfer",
+        "gift_card",
+        "remote_access"
+      ],
+      "behavioral_markers": [
+        "urgency",
+        "coaching"
+      ],
+      "sources": [
+        {
+          "url": "https://consumer.ftc.gov/articles/refund-and-recovery-scams",
+          "source_type": "official"
+        }
+      ]
+    },
+    {
+      "id": "CONV_VOICE_CLONE_EMERGENCY_IMPERSONATION",
+      "aliases": [],
+      "title_ro": "Voce clonata / ruda in pericol",
+      "identity_tokens_ro": [
+        "sunt eu",
+        "mama",
+        "tata",
+        "nepot",
+        "nepoata",
+        "accident",
+        "retinut",
+        "inchisoare"
+      ],
+      "core_signals_ro": [
+        "am nevoie urgent de bani",
+        "nu spune nimanui",
+        "te rog acum",
+        "trimite bani"
+      ],
+      "garbled_asr_tokens": [
+        "accidnt",
+        "retsinut"
+      ],
+      "hard_asks": [
+        "transfer",
+        "cash",
+        "gift_card",
+        "crypto"
+      ],
+      "behavioral_markers": [
+        "emergency",
+        "secrecy",
+        "urgency",
+        "refuses_spontaneous_question"
+      ],
+      "sources": [
+        {
+          "url": "https://www.fbi.gov/investigate/cyber/alerts/2025/senior-us-officials-continue-to-be-impersonated-in-malicious-messaging-campaign",
+          "source_type": "official"
+        },
+        {
+          "url": "https://www.ic3.gov/PSA/2025/PSA250515",
+          "source_type": "official"
+        }
+      ]
+    },
+    {
+      "id": "CONV_DELIVERY_CUSTOMS_RELEASE_FEE",
+      "aliases": [
+        "CONV_COURIER_CUSTOMS_FEE"
+      ],
+      "title_ro": "Curier / taxa vamala",
+      "identity_tokens_ro": [
+        "colet",
+        "curier",
+        "posta romana",
+        "vama",
+        "taxa de livrare",
+        "redirectionare"
+      ],
+      "core_signals_ro": [
+        "coletul nu poate fi livrat",
+        "achitati o taxa",
+        "accesati linkul",
+        "datele cardului"
+      ],
+      "garbled_asr_tokens": [
+        "colett",
+        "vamma",
+        "fama"
+      ],
+      "hard_asks": [
+        "card_data",
+        "payment_by_sms_link"
+      ],
+      "behavioral_markers": [
+        "urgency",
+        "small_fee_pretext"
+      ],
+      "sources": [
+        {
+          "url": "https://www.posta-romana.ro/a1941/stiri/o-noua-tentativa-de-phishing-prin-sms-in-numele-postei-romane.html",
+          "source_type": "public_institution"
+        },
+        {
+          "url": "https://www.fcc.gov/how-identify-and-avoid-package-delivery-scams",
+          "source_type": "official"
+        },
+        {
+          "url": "https://www.fancourier.ro/en/smishing-alert/",
+          "source_type": "official"
+        }
+      ]
+    },
+    {
+      "id": "CONV_TELECOM_OPERATOR_ACCOUNT_TAKEOVER",
+      "aliases": [
+        "CONV_TELECOM_SIM_SWAP"
+      ],
+      "title_ro": "Telecom / SIM swap",
+      "identity_tokens_ro": [
+        "operator",
+        "orange",
+        "vodafone",
+        "digi",
+        "telekom",
+        "sim",
+        "cartela"
+      ],
+      "core_signals_ro": [
+        "reactivam sim ul",
+        "inlocuim sim ul",
+        "dictati codul",
+        "confirmati codul prin sms",
+        "portare"
+      ],
+      "garbled_asr_tokens": [
+        "sym",
+        "cartella",
+        "oparator"
+      ],
+      "hard_asks": [
+        "otp",
+        "personal_data"
+      ],
+      "behavioral_markers": [
+        "urgency",
+        "coaching"
+      ],
+      "sources": [
+        {
+          "url": "https://consumer.ftc.gov/consumer-alerts/2019/10/sim-swap-scams-how-protect-yourself",
+          "source_type": "official"
+        },
+        {
+          "url": "https://www.federalregister.gov/documents/2023/12/08/2023-26338/protecting-consumers-from-sim-swap-and-port-out-fraud",
+          "source_type": "official"
+        },
+        {
+          "url": "https://www.vodafone.ro/frauda/",
+          "source_type": "official"
+        }
+      ]
+    },
+    {
+      "id": "CONV_UTILITIES_DISCONNECTION_PAYMENT",
+      "aliases": [
+        "CONV_UTILITY_DISCONNECTION_PAYMENT"
+      ],
+      "title_ro": "Utilitate / deconectare",
+      "identity_tokens_ro": [
+        "furnizor",
+        "factura restanta",
+        "deconectare",
+        "energie",
+        "gaz",
+        "apa",
+        "electrica",
+        "ppc"
+      ],
+      "core_signals_ro": [
+        "veti fi deconectat",
+        "plata acum",
+        "accesati linkul",
+        "sold restant",
+        "neplata"
+      ],
+      "garbled_asr_tokens": [
+        "deconectarea",
+        "facturra"
+      ],
+      "hard_asks": [
+        "card_data",
+        "payment_by_sms_link",
+        "transfer"
+      ],
+      "behavioral_markers": [
+        "disconnection_threat",
+        "urgency"
+      ],
+      "sources": [
+        {
+          "url": "https://www.electricafurnizare.ro/cms/comunicate-de-presa/2026/electrica-furnizare-anunta-existenta-unei-tentative-de-phishing-prin-intermediul-careia-clientii-sunt-notificati-cu-privire-la-emiterea-unor-facturi-si-indemnati-sa-faca-plata-acestora-prin-accesarea/",
+          "source_type": "official"
+        },
+        {
+          "url": "https://www.ppcenergy.ro/servicii-digitale/activare-factura-sms/",
+          "source_type": "official"
+        },
+        {
+          "url": "https://www.hidroelectrica.ro/press-release/1d738954-4c1b-1ad9-c046-4d0d6001e187",
+          "source_type": "official"
+        }
+      ]
+    },
+    {
+      "id": "CONV_PRIZE_RELEASE_FEE",
+      "aliases": [],
+      "title_ro": "Premiu / taxa de eliberare",
+      "identity_tokens_ro": [
+        "ati castigat",
+        "premiu",
+        "tombola",
+        "concurs",
+        "loterie"
+      ],
+      "core_signals_ro": [
+        "achitati o taxa",
+        "furnizati date",
+        "eliberare premiu",
+        "taxa de procesare"
+      ],
+      "garbled_asr_tokens": [
+        "premioo",
+        "tombbola"
+      ],
+      "hard_asks": [
+        "fee_payment",
+        "personal_data",
+        "card_data"
+      ],
+      "behavioral_markers": [
+        "unexpected_prize",
+        "urgency"
+      ],
+      "sources": [
+        {
+          "url": "https://mobile.telekom.ro/informare-practici-frauduloase/",
+          "source_type": "official"
+        },
+        {
+          "url": "https://consumer.ftc.gov/articles/how-recognize-and-report-spam-text-messages",
+          "source_type": "official"
+        }
+      ]
+    },
+    {
+      "id": "CONV_RECOVERY_SCAM",
+      "aliases": [],
+      "title_ro": "Recovery scam / re-victimizare",
+      "identity_tokens_ro": [
+        "recuperare",
+        "despagubire",
+        "firma de recuperare",
+        "avocat"
+      ],
+      "core_signals_ro": [
+        "recuperam banii pierduti",
+        "plateste o taxa in avans",
+        "garantam recuperarea",
+        "banii pierduti"
+      ],
+      "garbled_asr_tokens": [
+        "recuperarea",
+        "despagupire"
+      ],
+      "hard_asks": [
+        "advance_fee",
+        "transfer",
+        "card_data"
+      ],
+      "behavioral_markers": [
+        "targets_prior_victim",
+        "urgency",
+        "authority_framing"
+      ],
+      "sources": [
+        {
+          "url": "https://consumer.ftc.gov/articles/refund-and-recovery-scams",
+          "source_type": "official"
+        },
+        {
+          "url": "https://asfromania.ro/ro/a/3267/asf-avertizeaza-asupra-unor-noi-tentative-de-frauda-financiara-in-numele-institutiei",
+          "source_type": "public_institution"
+        }
+      ]
+    },
+    {
+      "id": "CONV_JOB_TASK_ADVANCE_PAYMENT",
+      "aliases": [],
+      "title_ro": "Job / task cu top-up",
+      "identity_tokens_ro": [
+        "job",
+        "task",
+        "comision",
+        "castiguri",
+        "recrutare"
+      ],
+      "core_signals_ro": [
+        "task uri simple",
+        "depune o suma",
+        "deblochezi task uri",
+        "continuam pe whatsapp"
+      ],
+      "garbled_asr_tokens": [
+        "tasc",
+        "comisiom"
+      ],
+      "hard_asks": [
+        "deposit",
+        "crypto",
+        "transfer"
+      ],
+      "behavioral_markers": [
+        "easy_money",
+        "channel_switch",
+        "urgency",
+        "fake_earnings_dashboard"
+      ],
+      "sources": [
+        {
+          "url": "https://consumer.ftc.gov/consumer-alerts/2024/11/task-scams-create-illusion-making-money",
+          "source_type": "official"
+        },
+        {
+          "url": "https://www.ftc.gov/news-events/news/press-releases/2024/12/new-ftc-data-show-skyrocketing-consumer-reports-about-game-online-job-scams",
+          "source_type": "official"
+        }
+      ]
+    },
+    {
+      "id": "CONV_MARKETPLACE_RECEIVE_MONEY",
+      "aliases": [],
+      "title_ro": "Marketplace / primeste bani",
+      "identity_tokens_ro": [
+        "olx",
+        "marketplace",
+        "cumparator",
+        "livrare",
+        "primesti banii"
+      ],
+      "core_signals_ro": [
+        "intra pe link sa primesti banii",
+        "introdu datele cardului",
+        "link de livrare",
+        "livrare cu plata"
+      ],
+      "garbled_asr_tokens": [
+        "olex",
+        "cumparatoru"
+      ],
+      "hard_asks": [
+        "card_data",
+        "otp",
+        "payment_by_link"
+      ],
+      "behavioral_markers": [
+        "off_platform",
+        "urgency"
+      ],
+      "sources": [
+        {
+          "url": "https://www.juridice.ro/715243/alpha-bank-romania-recomandari-pentru-evitarea-tentativelor-de-frauda-online.html",
+          "source_type": "public_institution"
+        },
+        {
+          "url": "https://dnsc.ro/citeste/alerta-atacuri-de-tip-spoofing-phishing-vishing-asupra-utilizatorilor-din-romania",
+          "source_type": "public_institution"
+        }
+      ]
+    }
+  ]
+}

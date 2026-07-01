@@ -8,10 +8,13 @@ internal const val SIGURSCAN_PLAY_INTEGRITY_HEADER = "X-Play-Integrity-Token"
 internal const val SIGURSCAN_CLIENT_INSTANCE_HEADER = "X-SigurScan-Client-Instance"
 internal const val SIGURSCAN_USER_AGENT = "SigurScan/1.0 Android OkHttp"
 private val SIGURSCAN_INTEGRITY_GUARDED_PREFIXES =
-    listOf("/v1/scan/", "/v1/extract/", "/v1/sandbox/urlscan")
+    listOf("/v1/scan/", "/v1/extract/", "/v1/sandbox/urlscan", "/v1/audio/semantic-review")
 
 internal fun normalizedApiKey(raw: String?): String? =
-    raw?.trim()?.takeIf { it.isNotEmpty() }
+    raw
+        ?.split(',', '\n', '\r')
+        ?.map { it.trim() }
+        ?.firstOrNull { it.isNotEmpty() }
 
 internal fun shouldAttachPlayIntegrityToken(request: okhttp3.Request): Boolean =
     request.method == "POST" &&

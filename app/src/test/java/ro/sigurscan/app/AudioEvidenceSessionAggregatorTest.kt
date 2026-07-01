@@ -24,6 +24,28 @@ class AudioEvidenceSessionAggregatorTest {
     }
 
     @Test
+    fun bankAntiFraudIntroThenMoneyRequestEscalatesWithoutRetainingTranscript() {
+        val aggregator = AudioEvidenceSessionAggregator()
+
+        aggregator.absorb(
+            AudioTranscriptEvidence.analyze(
+                "Bu nezioa, văsun din partea bănsin, departamentul anti-fraude."
+            )
+        )
+        val aggregated = aggregator.absorb(
+            AudioTranscriptEvidence.analyze(
+                "Trebuie sa mutati fondurile acum intr-un cont temporar de siguranta."
+            )
+        )
+
+        assertEquals(AudioEvidenceVerdict.DANGEROUS, aggregated.verdict)
+        assertTrue(aggregated.reasonCodes.contains("identity_spoof"))
+        assertTrue(aggregated.transcriptRedacted)
+        assertFalse(aggregator.toString().contains("fondurile"))
+        assertFalse(aggregator.toString().contains("anti-fraude"))
+    }
+
+    @Test
     fun ordinaryFragmentsStayUnverifiedOrSuspectButNeverDangerous() {
         val aggregator = AudioEvidenceSessionAggregator()
 

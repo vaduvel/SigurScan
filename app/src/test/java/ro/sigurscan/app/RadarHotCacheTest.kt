@@ -88,20 +88,26 @@ class RadarHotCacheTest {
         val serviceSource = java.io.File("src/main/java/ro/sigurscan/app/SigurScanCallScreeningService.kt").readText()
         val notifierSource = java.io.File("src/main/java/ro/sigurscan/app/SpeakerGuardCallPromptNotifier.kt").takeIf { it.exists() }?.readText().orEmpty()
         val foregroundServiceSource = java.io.File("src/main/java/ro/sigurscan/app/SpeakerGuardForegroundService.kt").takeIf { it.exists() }?.readText().orEmpty()
+        val promptActivitySource = java.io.File("src/main/java/ro/sigurscan/app/SpeakerGuardCallPromptActivity.kt").takeIf { it.exists() }?.readText().orEmpty()
 
         assertTrue(
             "CallScreeningService must hand call-time Speaker Guard prompts to a foreground service so the app-closed case is covered.",
             serviceSource.contains("SpeakerGuardForegroundService.startForCallPrompt(applicationContext, decision)")
         )
         assertTrue(
-            "The call-time prompt must deep-link to Speaker Guard with autostart, not to a generic Radar page.",
-            notifierSource.contains("sigurscan://speaker-guard") &&
-                notifierSource.contains("autostart=1") &&
-                notifierSource.contains("source=call_screening")
+            "The call-time prompt Activity must deep-link to Speaker Guard with autostart only after explicit consent.",
+            promptActivitySource.contains("sigurscan://speaker-guard") &&
+                promptActivitySource.contains("autostart=1") &&
+                promptActivitySource.contains("source=call_prompt_activity")
         )
         assertTrue(
             "The call-time prompt should be allowed to surface as a full-screen/high-priority call prompt when the app is closed.",
             notifierSource.contains(".setFullScreenIntent(pendingIntent, true)")
+        )
+        assertTrue(
+            "The full-screen prompt must open a dedicated call prompt Activity, not the main Radar screen that can sit under the dialer banner.",
+            notifierSource.contains("SpeakerGuardCallPromptActivity.intentForPrompt(context, decision)") &&
+                foregroundServiceSource.contains("SpeakerGuardCallPromptActivity.intentForPrompt(this, decision)")
         )
         assertTrue(
             "The prompt must be gated behind the reviewed local ASR feature flag.",
@@ -175,6 +181,24 @@ class RadarHotCacheTest {
         )
 
         assertTrue(SpeakerGuardCallPromptPolicy.shouldOffer(decision))
+    }
+
+    @Test
+    fun speakerGuardPromptPolicyDoesNotOfferStaleCallAuditAfterCallWindow() {
+        val freshAudit = RadarScreeningAudit.fromDecision(
+            RadarCallDecision(
+                action = RadarCallAction.ALLOW,
+                reason = "radar_cache_missing_or_expired",
+                isKnownContact = false
+            ),
+            checkedAtEpochMillis = 1_000L
+        )
+        val staleAudit = freshAudit.copy(
+            checkedAtEpochMillis = 1_000L - SpeakerGuardCallPromptPolicy.PROMPT_TTL_MS - 1L
+        )
+
+        assertTrue(SpeakerGuardCallPromptPolicy.shouldOffer(freshAudit, nowMillis = 1_000L))
+        assertFalse(SpeakerGuardCallPromptPolicy.shouldOffer(staleAudit, nowMillis = 1_000L))
     }
 
     @Test

@@ -21,8 +21,6 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.google.mlkit.vision.barcode.BarcodeScanning
@@ -47,8 +45,6 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Request
 import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
 import java.io.File
 import java.io.ByteArrayOutputStream
 import java.io.FileOutputStream
@@ -214,8 +210,8 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         )
     )
     
-    internal val prefs: SharedPreferences by lazy { createSecurePrefs(application) }
-    private val clientInstanceId: String by lazy { loadOrCreateClientInstanceId() }
+    internal val prefs: SharedPreferences by lazy { SigurScanClientIdentity.securePrefs(application) }
+    private val clientInstanceId: String by lazy { SigurScanClientIdentity.loadOrCreateClientInstanceId(application) }
     internal val gson = Gson()
     internal val recognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
     internal val barcodeScanner by lazy { BarcodeScanning.getClient() }
@@ -245,7 +241,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         if (BuildConfig.SIGURSCAN_ENABLE_PLAY_INTEGRITY) {
             PlayIntegrityTokenProvider.fromContext(
                 application,
-                configuredBackendBaseUrl(),
+                configuredSigurScanBackendBaseUrl(),
                 BuildConfig.SIGURSCAN_API_KEY,
                 clientInstanceId
             )
@@ -260,32 +256,14 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         writeTimeoutSeconds: Long,
         connectTimeoutSeconds: Long
     ): SigurScanApi {
-        val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.NONE
-        }
-        val client = OkHttpClient.Builder()
-            .callTimeout(callTimeoutSeconds, TimeUnit.SECONDS)
-            .readTimeout(readTimeoutSeconds, TimeUnit.SECONDS)
-            .writeTimeout(writeTimeoutSeconds, TimeUnit.SECONDS)
-            .connectTimeout(connectTimeoutSeconds, TimeUnit.SECONDS)
-            .addInterceptor(
-                ApiKeyInterceptor(
-                    rawApiKey = BuildConfig.SIGURSCAN_API_KEY,
-                    clientInstanceId = clientInstanceId,
-                    integrityTokenProvider = { playIntegrityTokenProvider.currentToken() }
-                )
-            )
-            .addInterceptor(logging)
-            .build()
-
-        val backendBaseUrl = configuredBackendBaseUrl()
-
-        return Retrofit.Builder()
-            .baseUrl(backendBaseUrl)
-            .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(SigurScanApi::class.java)
+        return buildSigurScanApiClient(
+            callTimeoutSeconds = callTimeoutSeconds,
+            readTimeoutSeconds = readTimeoutSeconds,
+            writeTimeoutSeconds = writeTimeoutSeconds,
+            connectTimeoutSeconds = connectTimeoutSeconds,
+            clientInstanceId = clientInstanceId,
+            integrityTokenProvider = { playIntegrityTokenProvider.currentToken() }
+        )
     }
     internal val api: SigurScanApi by lazy {
         buildApiClient(
@@ -318,16 +296,6 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
             writeTimeoutSeconds = 45,
             connectTimeoutSeconds = 20
         )
-    }
-
-    private fun configuredBackendBaseUrl(): String {
-        val configured = BuildConfig.SIGURSCAN_BACKEND_BASE_URL.trim()
-        val allowed = configured.takeIf {
-            it.startsWith("https://", ignoreCase = true) ||
-                (BuildConfig.DEBUG && it.startsWith("http://", ignoreCase = true))
-        }
-        return (allowed ?: "https://offline.sigurscan.invalid/")
-            .let { if (it.endsWith("/")) it else "$it/" }
     }
 
     init {
@@ -430,35 +398,6 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
 
     private val URL_REGEX = Pattern.compile("(?:https?://|www\\.)[\\w\\-.~:/?#\\[\\]@!$&'()*+,;=%]+", Pattern.CASE_INSENSITIVE)
 
-
-    private fun createSecurePrefs(application: Application): SharedPreferences {
-        val encryptedPrefs = runCatching {
-            val masterKey = MasterKey.Builder(application)
-                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                .build()
-
-            EncryptedSharedPreferences.create(
-                application,
-                "sigurscan_prefs",
-                masterKey,
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            )
-        }.getOrNull()
-
-        return encryptedPrefs ?: application.getSharedPreferences("sigurscan_prefs", Context.MODE_PRIVATE)
-    }
-
-    private fun loadOrCreateClientInstanceId(): String {
-        val existing = prefs.getString("client_instance_id", null)
-            ?.trim()
-            ?.takeIf { it.length in 8..128 }
-        if (existing != null) return existing
-
-        val generated = UUID.randomUUID().toString()
-        prefs.edit().putString("client_instance_id", generated).apply()
-        return generated
-    }
 
     internal fun normalizeCandidateUrl(raw: String?): String? {
         if (raw == null) return null
@@ -610,7 +549,6 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     }
 
     override fun onCleared() {
-        SpeakerGuardForegroundService.stopCapture(getApplication())
         speakerGuardServiceUpdatesJob?.cancel()
         speakerGuardServiceUpdatesJob = null
         super.onCleared()

@@ -993,6 +993,8 @@ class ScannerViewModelTest {
 
         assertTrue("Manifest must expose user-initiated audio shares.", manifestSource.contains("""android:mimeType="audio/*""""))
         assertTrue("Audio shares should be labeled distinctly in the pending-file UI.", activitySource.contains("Audio partajat"))
+        assertTrue("Audio shares need a dedicated fidelity card, not the generic HTML/PDF/image copy.", activitySource.contains("SharedContentFidelity.AUDIO_FILE"))
+        assertTrue("Audio fidelity card should describe local audio transcription.", activitySource.contains("Transcriem local audio-ul pe telefon"))
         assertTrue("Audio MIME/extensions need a dedicated classifier result, not generic unsupported.", classifierSource.contains("FileImportKind.AUDIO"))
         assertTrue(
             "Audio files must not be sent through PDF/image extraction.",
@@ -1008,8 +1010,38 @@ class ScannerViewModelTest {
         )
         assertTrue(
             "Audio share pipeline should use explicit audio telemetry.",
-            fileFlow.contains("""inputKind = "import_audio_file"""") &&
-                fileFlow.contains("""channel = "audio_share"""")
+            viewModelSource.contains("""stagedEvidenceInputKind = "import_audio_file"""") &&
+                viewModelSource.contains("""stagedEvidenceChannel = "audio_share"""")
+        )
+        assertTrue(
+            "Audio MIME must set audio-specific shared-content fidelity and channel before scan.",
+            viewModelSource.contains("SharedContentFidelity.AUDIO_FILE") &&
+                viewModelSource.contains("""stagedEvidenceInputKind = if (mime.startsWith("audio/")) "import_audio_file"""") &&
+                viewModelSource.contains("""stagedEvidenceChannel = if (mime.startsWith("audio/")) "audio_share"""")
+        )
+    }
+
+    @Test
+    fun audioShareUnavailableFallbackUsesNeutralNeverificatNotEvidenceRiskGate() {
+        val viewModelSource = File("src/main/java/ro/sigurscan/app/ScannerViewModelSharedIntake.kt").readText()
+        val start = viewModelSource.indexOf("internal fun ScannerViewModel.publishAudioShareRequiresTranscript(")
+        val end = viewModelSource.indexOf("\ninternal fun ", start + 1).let { next ->
+            if (next >= 0) next else viewModelSource.length
+        }
+        assertTrue("publishAudioShareRequiresTranscript must exist.", start >= 0 && end > start)
+
+        val functionBody = viewModelSource.substring(start, end)
+        assertTrue(
+            "Audio fallback must use the neutral local-unverified presenter, not a risk verdict.",
+            functionBody.contains("localUnverifiedAssessment(")
+        )
+        assertFalse(
+            "Audio fallback must not call applyEvidenceGate; decode/ASR unavailable is not a fraud signal.",
+            functionBody.contains("applyEvidenceGate(")
+        )
+        assertTrue(
+            "Audio fallback needs a stable reason code for neutral Neverificat presentation.",
+            functionBody.contains("LOCAL_AUDIO_TRANSCRIPTION_UNAVAILABLE")
         )
     }
 

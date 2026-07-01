@@ -75,20 +75,64 @@ class SpeakerGuardPresentationTest {
     }
 
     @Test
-    fun stoppedUnverifiedListeningDoesNotRemainAsBigPendingVerdict() {
+    fun stoppedUnverifiedListeningShowsFinalNeverificatVerdict() {
         val snapshot = SpeakerGuardSnapshot(
             active = false,
             phase = SpeakerGuardPhase.STOPPED,
             latestVerdict = AudioEvidenceVerdict.UNVERIFIED,
-            status = "Urechea este oprită."
+            latestReasonCode = "call_ended_no_clear_audio",
+            status = "Apelul s-a încheiat. Nu am prins suficientă voce clară."
         )
 
         val presentation = speakerGuardPresentation(snapshot, evidence = null, nowMillis = 10_000L)
 
+        assertEquals("Urechea este oprită", presentation.title)
         assertEquals("Oprit", presentation.listeningLabel)
-        assertEquals("Ascult conversația", presentation.verdictTitle)
-        assertEquals("Pune apelul pe difuzor și lasă analiza locală pornită.", presentation.primaryAction)
+        assertEquals("Neverificat", presentation.verdictTitle)
+        assertEquals("Nu am prins suficient audio clar. Verifică pe canal oficial înainte să dai bani sau date.", presentation.primaryAction)
         assertFalse(presentation.showHangUpCta)
+    }
+
+    @Test
+    fun stoppedCallEndedWithoutAudioExplainsNoFragmentWasAnalyzed() {
+        val snapshot = SpeakerGuardSnapshot(
+            active = false,
+            phase = SpeakerGuardPhase.STOPPED,
+            chunksAnalyzed = 0,
+            chunksDropped = 0,
+            latestVerdict = AudioEvidenceVerdict.UNVERIFIED,
+            latestReasonCode = "call_ended_no_capture",
+            status = "Apelul s-a încheiat. Nu am putut confirma captura audio."
+        )
+
+        val presentation = speakerGuardPresentation(snapshot, evidence = null, nowMillis = 10_000L)
+
+        assertEquals("Neverificat", presentation.verdictTitle)
+        assertTrue(presentation.diagnosticLine!!.contains("nu am analizat fragmente audio clare"))
+        assertTrue(presentation.diagnosticLine.contains("captură neconfirmată"))
+    }
+
+    @Test
+    fun stoppedCallWithAndroidSilencedRecordingExplainsSystemBlockedMicrophone() {
+        val snapshot = SpeakerGuardSnapshot(
+            active = false,
+            phase = SpeakerGuardPhase.STOPPED,
+            chunksAnalyzed = 0,
+            chunksDropped = 0,
+            latestVerdict = AudioEvidenceVerdict.UNVERIFIED,
+            latestReasonCode = "call_ended_recording_silenced",
+            status = "Apelul s-a încheiat. Android a blocat microfonul în timpul apelului."
+        )
+
+        val presentation = speakerGuardPresentation(snapshot, evidence = null, nowMillis = 10_000L)
+
+        assertEquals("Neverificat", presentation.verdictTitle)
+        assertEquals(
+            "Android nu ne-a lăsat să ascultăm apelul live pe acest telefon. Nu da bani sau date; verifică pe canal oficial.",
+            presentation.primaryAction
+        )
+        assertTrue(presentation.diagnosticLine!!.contains("nu am analizat fragmente audio clare"))
+        assertTrue(presentation.diagnosticLine.contains("microfon blocat de Android în apel"))
     }
 
     @Test

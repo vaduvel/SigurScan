@@ -8,13 +8,16 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,18 +25,18 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-import java.util.concurrent.TimeUnit
 
 object SpeakerGuardForegroundServiceEvents {
-    private val _updates = MutableSharedFlow<SpeakerGuardUpdate>(extraBufferCapacity = 64)
+    private val _updates = MutableSharedFlow<SpeakerGuardUpdate>(replay = 1, extraBufferCapacity = 64)
     val updates: SharedFlow<SpeakerGuardUpdate> = _updates.asSharedFlow()
 
     fun publish(update: SpeakerGuardUpdate) {
         _updates.tryEmit(update)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun clear() {
+        _updates.resetReplayCache()
     }
 }
 
@@ -41,6 +44,23 @@ class SpeakerGuardForegroundService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var captureSession: SpeakerGuardSession? = null
+    private var callAudioModeWatcher: Runnable? = null
+    private var latestCaptureUpdate: SpeakerGuardUpdate? = null
+    private val clientInstanceId: String by lazy {
+        SigurScanClientIdentity.loadOrCreateClientInstanceId(applicationContext)
+    }
+    private val playIntegrityTokenProvider: PlayIntegrityTokenProvider by lazy {
+        if (BuildConfig.SIGURSCAN_ENABLE_PLAY_INTEGRITY) {
+            PlayIntegrityTokenProvider.fromContext(
+                applicationContext,
+                configuredSigurScanBackendBaseUrl(),
+                BuildConfig.SIGURSCAN_API_KEY,
+                clientInstanceId
+            )
+        } else {
+            PlayIntegrityTokenProvider.disabled()
+        }
+    }
     private val audioSemanticApi: SigurScanApi by lazy { buildAudioSemanticApi() }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -80,6 +100,8 @@ class SpeakerGuardForegroundService : Service() {
 
     private fun handleStartCapture(intent: Intent, startId: Int): Int {
         val modelPath = intent.getStringExtra(EXTRA_MODEL_PATH).orEmpty()
+        Log.i(TAG, "start_capture_requested modelPathPresent=${modelPath.isNotBlank()}")
+        latestCaptureUpdate = null
         if (modelPath.isBlank()) {
             SpeakerGuardForegroundServiceEvents.publish(
                 SpeakerGuardUpdate(
@@ -103,12 +125,14 @@ class SpeakerGuardForegroundService : Service() {
         )
         captureSession = session
         session.start(serviceScope, modelPath) { update ->
+            latestCaptureUpdate = update
             SpeakerGuardForegroundServiceEvents.publish(update)
             if (!update.active && update.phase != SpeakerGuardPhase.PROCESSING) {
                 stopCaptureSession()
                 stopSelf(startId)
             }
         }
+        startCallAudioModeWatcher(startId)
         return START_STICKY
     }
 
@@ -140,7 +164,7 @@ class SpeakerGuardForegroundService : Service() {
 
     private fun foregroundNotification(decision: RadarCallDecision): Notification {
         val prompt = speakerGuardCallPrompt(decision)
-        val intent = speakerGuardDeepLinkIntent(this)
+        val intent = SpeakerGuardCallPromptActivity.intentForPrompt(this, decision)
         val pendingIntent = PendingIntent.getActivity(
             this,
             FOREGROUND_REQUEST_CODE,
@@ -182,6 +206,7 @@ class SpeakerGuardForegroundService : Service() {
     }
 
     private fun stopCaptureSession(removeForeground: Boolean = true) {
+        stopCallAudioModeWatcher()
         captureSession?.stop()
         captureSession = null
         if (removeForeground) {
@@ -189,38 +214,71 @@ class SpeakerGuardForegroundService : Service() {
         }
     }
 
-    private fun buildAudioSemanticApi(): SigurScanApi {
-        val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.NONE
+    private fun startCallAudioModeWatcher(startId: Int) {
+        stopCallAudioModeWatcher()
+        val audioManager = getSystemService(AudioManager::class.java) ?: return
+        val tracker = SpeakerGuardCallAudioModeTracker()
+        val watcher = object : Runnable {
+            override fun run() {
+                val mode = runCatching { audioManager.mode }.getOrDefault(AudioManager.MODE_NORMAL)
+                if (tracker.shouldStopForMode(mode)) {
+                    Log.i(TAG, "call_audio_mode_ended mode=$mode")
+                    SpeakerGuardForegroundServiceEvents.publish(callEndedUpdate())
+                    stopCaptureSession()
+                    stopSelf(startId)
+                    return
+                }
+                handler.postDelayed(this, CALL_AUDIO_MODE_POLL_MS)
+            }
         }
-        val client = OkHttpClient.Builder()
-            .callTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS)
-            .writeTimeout(15, TimeUnit.SECONDS)
-            .connectTimeout(8, TimeUnit.SECONDS)
-            .addInterceptor(ApiKeyInterceptor(rawApiKey = BuildConfig.SIGURSCAN_API_KEY))
-            .addInterceptor(logging)
-            .build()
-
-        return Retrofit.Builder()
-            .baseUrl(configuredBackendBaseUrl())
-            .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(SigurScanApi::class.java)
+        callAudioModeWatcher = watcher
+        handler.post(watcher)
     }
 
-    private fun configuredBackendBaseUrl(): String {
-        val configured = BuildConfig.SIGURSCAN_BACKEND_BASE_URL.trim()
-        val allowed = configured.takeIf {
-            it.startsWith("https://", ignoreCase = true) ||
-                (BuildConfig.DEBUG && it.startsWith("http://", ignoreCase = true))
+    private fun callEndedUpdate(): SpeakerGuardUpdate {
+        val latest = latestCaptureUpdate
+        val reasonCode = when {
+            latest == null -> "call_ended_no_capture"
+            latest.reasonCode == "recording_silenced_by_android" -> "call_ended_recording_silenced"
+            latest.chunksAnalyzed == 0 && latest.result == null -> "call_ended_no_clear_audio"
+            else -> latest.result?.reasonCode ?: latest.reasonCode ?: "call_ended"
         }
-        return (allowed ?: "https://offline.sigurscan.invalid/")
-            .let { if (it.endsWith("/")) it else "$it/" }
+        val status = when (reasonCode) {
+            "call_ended_no_capture" -> "Apelul s-a încheiat. Nu am putut confirma captura audio."
+            "call_ended_recording_silenced" -> "Apelul s-a încheiat. Android a blocat microfonul în timpul apelului."
+            "call_ended_no_clear_audio" -> "Apelul s-a încheiat. Nu am prins suficientă voce clară."
+            else -> "Apelul s-a încheiat. Urechea s-a oprit."
+        }
+        return SpeakerGuardUpdate(
+            phase = SpeakerGuardPhase.STOPPED,
+            active = false,
+            chunksAnalyzed = latest?.chunksAnalyzed ?: 0,
+            chunksDropped = latest?.chunksDropped ?: 0,
+            result = latest?.result,
+            latencyMs = latest?.latencyMs,
+            reasonCode = reasonCode,
+            status = status
+        )
+    }
+
+    private fun stopCallAudioModeWatcher() {
+        callAudioModeWatcher?.let { handler.removeCallbacks(it) }
+        callAudioModeWatcher = null
+    }
+
+    private fun buildAudioSemanticApi(): SigurScanApi {
+        return buildSigurScanApiClient(
+            callTimeoutSeconds = 15,
+            readTimeoutSeconds = 15,
+            writeTimeoutSeconds = 15,
+            connectTimeoutSeconds = 8,
+            clientInstanceId = clientInstanceId,
+            integrityTokenProvider = { playIntegrityTokenProvider.currentToken() }
+        )
     }
 
     companion object {
+        private const val TAG = "SpeakerGuardService"
         private const val ACTION_SHOW_CALL_PROMPT = "ro.sigurscan.app.action.SHOW_SPEAKER_GUARD_CALL_PROMPT"
         private const val ACTION_START_CAPTURE = "ro.sigurscan.app.action.START_SPEAKER_GUARD_CAPTURE"
         private const val ACTION_STOP_CAPTURE = "ro.sigurscan.app.action.STOP_SPEAKER_GUARD_CAPTURE"
@@ -239,6 +297,7 @@ class SpeakerGuardForegroundService : Service() {
         private const val FOREGROUND_REQUEST_CODE = 4731
         private const val CAPTURE_REQUEST_CODE = 4732
         private const val PROMPT_SERVICE_WINDOW_MS = 12_000L
+        private const val CALL_AUDIO_MODE_POLL_MS = 1_000L
         private const val DEEP_LINK = "sigurscan://speaker-guard?autostart=1&source=call_screening"
 
         fun startForCallPrompt(context: Context, decision: RadarCallDecision) {

@@ -566,21 +566,25 @@ internal fun SharedContentFidelityCard(fidelity: SharedContentFidelity, sourceLa
         SharedContentFidelity.FULL_HTML -> SigurColors.Safe
         SharedContentFidelity.PLAIN_TEXT_ONLY -> SigurColors.Suspect
         SharedContentFidelity.FILE_OR_EMAIL -> SigurColors.Brand
+        SharedContentFidelity.AUDIO_FILE -> SigurColors.Brand
     }
     val background = when (fidelity) {
         SharedContentFidelity.FULL_HTML -> SigurColors.SafeLight
         SharedContentFidelity.PLAIN_TEXT_ONLY -> SigurColors.SuspectLight
         SharedContentFidelity.FILE_OR_EMAIL -> SigurColors.BrandTint
+        SharedContentFidelity.AUDIO_FILE -> SigurColors.BrandTint
     }
     val border = when (fidelity) {
         SharedContentFidelity.FULL_HTML -> SigurColors.SafeBorder
         SharedContentFidelity.PLAIN_TEXT_ONLY -> SigurColors.SuspectBorder
         SharedContentFidelity.FILE_OR_EMAIL -> SigurColors.Brand.copy(alpha = 0.30f)
+        SharedContentFidelity.AUDIO_FILE -> SigurColors.Brand.copy(alpha = 0.30f)
     }
     val icon = when (fidelity) {
         SharedContentFidelity.FULL_HTML -> Icons.Default.MarkEmailRead
         SharedContentFidelity.PLAIN_TEXT_ONLY -> Icons.Default.Visibility
         SharedContentFidelity.FILE_OR_EMAIL -> Icons.Default.AttachFile
+        SharedContentFidelity.AUDIO_FILE -> Icons.Default.GraphicEq
     }
 
     Card(

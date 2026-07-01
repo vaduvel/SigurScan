@@ -58,8 +58,23 @@ data class RadarScreeningAudit(
 }
 
 object SpeakerGuardCallPromptPolicy {
+    const val PROMPT_TTL_MS = 60_000L
+
     fun shouldOffer(decision: RadarCallDecision): Boolean {
         return !decision.isKnownContact
+    }
+
+    fun shouldOffer(audit: RadarScreeningAudit, nowMillis: Long = System.currentTimeMillis()): Boolean {
+        val ageMillis = nowMillis - audit.checkedAtEpochMillis
+        if (audit.checkedAtEpochMillis <= 0L || ageMillis < 0L || ageMillis > PROMPT_TTL_MS) return false
+        return shouldOffer(
+            RadarCallDecision(
+                action = audit.action,
+                reason = audit.reason,
+                family = audit.family,
+                isKnownContact = audit.isKnownContact
+            )
+        )
     }
 }
 

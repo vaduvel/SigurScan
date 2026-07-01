@@ -37,9 +37,19 @@ data class AudioEvidenceResult(
 )
 
 object AudioEvidenceEngine {
-    private val hardSensitive = setOf("card", "otp", "password", "pin", "crypto", "remote", "id_document")
+    private val hardSensitive = setOf("card", "otp", "password", "pin", "crypto", "remote", "id_document", "gift_card")
     private val valueSensitive = setOf("transfer")
-    private val hardPriority = listOf("card", "otp", "password", "pin", "crypto", "remote", "id_document")
+    private val hardPriority = listOf("card", "otp", "password", "pin", "crypto", "remote", "id_document", "gift_card")
+    private val criticalIdentityCampaigns = setOf(
+        "CONV_BANK_SAFE_ACCOUNT",
+        "CONV_BANK_FRAUDULENT_CREDIT",
+        "CONV_BANK_ANTI_FRAUD_CALL",
+        "CONV_TECH_SUPPORT_REMOTE_ACCESS",
+        "CONV_AUTHORITY_IMPERSONATION_LEGAL_THREAT",
+        "CONV_RECOVERY_SCAM",
+        "CONV_VOICE_CLONE_EMERGENCY_IMPERSONATION",
+        "CONV_MARKETPLACE_RECEIVE_MONEY"
+    )
 
     fun evaluate(input: AudioEvidenceInput): AudioEvidenceResult {
         val sensitive = primarySensitive(input.sensitiveAsks)
@@ -54,7 +64,10 @@ object AudioEvidenceEngine {
             sensitive in hardSensitive ->
                 AudioEvidenceVerdict.DANGEROUS to listOf("sensitive_wrong_channel")
 
-            campaignHigh && sttOnly ->
+            campaignHigh && identityStatus == "lookalike" && input.arcFamily in criticalIdentityCampaigns ->
+                AudioEvidenceVerdict.DANGEROUS to listOf("critical_campaign_identity")
+
+            campaignHigh ->
                 AudioEvidenceVerdict.SUSPECT to listOf("campaign_match_only")
 
             sensitive in valueSensitive ->
