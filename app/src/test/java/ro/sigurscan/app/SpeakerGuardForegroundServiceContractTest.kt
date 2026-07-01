@@ -251,6 +251,10 @@ class SpeakerGuardForegroundServiceContractTest {
             viewModelAudioSource.contains("finalStoppedUnverifiedVerdict") &&
                 viewModelAudioSource.contains("AudioEvidenceVerdict.UNVERIFIED")
         )
+        assertTrue(
+            "Android-silenced live calls must keep their specific final reason instead of falling back to unclear voice.",
+            viewModelAudioSource.contains("call_ended_recording_silenced")
+        )
     }
 
     @Test

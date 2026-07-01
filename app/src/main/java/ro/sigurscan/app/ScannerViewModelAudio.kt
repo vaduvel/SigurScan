@@ -200,7 +200,12 @@ internal fun ScannerViewModel.applySpeakerGuardUpdate(update: SpeakerGuardUpdate
         update.phase != SpeakerGuardPhase.PROCESSING &&
         evidence == null &&
         speakerGuardSnapshot.latestVerdict == null &&
-        update.reasonCode in setOf("call_ended", "call_ended_no_capture", "call_ended_no_clear_audio")
+        update.reasonCode in setOf(
+            "call_ended",
+            "call_ended_no_capture",
+            "call_ended_no_clear_audio",
+            "call_ended_recording_silenced"
+        )
     ) {
         AudioEvidenceVerdict.UNVERIFIED
     } else {
