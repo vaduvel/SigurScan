@@ -35,18 +35,15 @@ fun speakerGuardPresentation(
     nowMillis: Long = System.currentTimeMillis()
 ): SpeakerGuardPresentation {
     val rawVerdict = evidence?.verdict ?: snapshot.latestVerdict
-    val verdict = when {
-        !snapshot.active && rawVerdict == AudioEvidenceVerdict.UNVERIFIED -> null
-        else -> rawVerdict
-    }
+    val verdict = rawVerdict
     return SpeakerGuardPresentation(
         title = if (snapshot.active) "Urechea ascultă" else "Urechea este oprită",
         listeningLabel = if (snapshot.active) "Ascult pe difuzor" else "Oprit",
         elapsedLabel = elapsedLabel(snapshot.startedAtEpochMillis, nowMillis),
         privacyLine = "Analizez pe telefonul tău. Nimic nu pleacă de pe el.",
         status = snapshot.status,
-        verdictTitle = verdictTitle(verdict),
-        primaryAction = primaryAction(verdict),
+        verdictTitle = verdictTitle(verdict, snapshot.active),
+        primaryAction = primaryAction(verdict, snapshot.active),
         showHangUpCta = verdict == AudioEvidenceVerdict.DANGEROUS,
         diagnosticLine = diagnosticLine(snapshot),
         reasons = reasonsFor(evidence, snapshot)
@@ -70,29 +67,36 @@ private fun elapsedLabel(startedAtEpochMillis: Long?, nowMillis: Long): String {
     return String.format(Locale.US, "%d:%02d", totalSeconds / 60L, totalSeconds % 60L)
 }
 
-private fun verdictTitle(verdict: AudioEvidenceVerdict?): String {
+private fun verdictTitle(verdict: AudioEvidenceVerdict?, active: Boolean): String {
     return when (verdict) {
         AudioEvidenceVerdict.DANGEROUS -> "Pare o țeapă"
         AudioEvidenceVerdict.SUSPECT -> "Pare suspect"
-        AudioEvidenceVerdict.UNVERIFIED -> "Încă verific"
+        AudioEvidenceVerdict.UNVERIFIED -> if (active) "Încă verific" else "Neverificat"
         null -> "Ascult conversația"
     }
 }
 
-private fun primaryAction(verdict: AudioEvidenceVerdict?): String {
+private fun primaryAction(verdict: AudioEvidenceVerdict?, active: Boolean): String {
     return when (verdict) {
         AudioEvidenceVerdict.DANGEROUS -> "Închide apelul. Nu da date și nu transfera bani."
         AudioEvidenceVerdict.SUSPECT -> "Nu da date sau bani până nu verifici pe canal oficial."
-        AudioEvidenceVerdict.UNVERIFIED -> "Continuă doar dacă ești sigur. Nu oferi date sensibile."
+        AudioEvidenceVerdict.UNVERIFIED -> if (active) {
+            "Continuă doar dacă ești sigur. Nu oferi date sensibile."
+        } else {
+            "Nu am prins suficient audio clar. Verifică pe canal oficial înainte să dai bani sau date."
+        }
         null -> "Pune apelul pe difuzor și lasă analiza locală pornită."
     }
 }
 
 private fun diagnosticLine(snapshot: SpeakerGuardSnapshot): String? {
-    if (!snapshot.active && snapshot.chunksAnalyzed == 0 && snapshot.chunksDropped == 0) return null
     val parts = mutableListOf<String>()
     if (snapshot.chunksAnalyzed == 0) {
-        parts += "Aștept primul fragment audio clar"
+        parts += if (snapshot.active) {
+            "Aștept primul fragment audio clar"
+        } else {
+            "nu am analizat fragmente audio clare"
+        }
     } else {
         parts += "Am analizat ${snapshot.chunksAnalyzed} ${fragmentLabel(snapshot.chunksAnalyzed)} local"
     }
@@ -111,6 +115,9 @@ private fun fragmentLabel(count: Int): String {
 
 private fun reasonLabel(reasonCode: String?): String? {
     return when (reasonCode) {
+        "call_ended" -> "apel încheiat"
+        "call_ended_no_capture" -> "captură neconfirmată"
+        "call_ended_no_clear_audio" -> "fără voce clară înainte de închidere"
         "empty_transcript" -> "voce neclară"
         "unsupported_audio_format" -> "format audio neacceptat"
         "whisper_native_unavailable" -> "motor audio indisponibil"

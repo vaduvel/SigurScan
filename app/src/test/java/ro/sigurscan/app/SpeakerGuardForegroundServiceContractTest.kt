@@ -225,9 +225,31 @@ class SpeakerGuardForegroundServiceContractTest {
         )
         assertTrue(
             "The watcher must stop the microphone foreground service on confirmed call end.",
-            serviceSource.contains("reasonCode = \"call_ended\"") &&
+            serviceSource.contains("callEndedUpdate()") &&
                 serviceSource.contains("stopCaptureSession()") &&
                 serviceSource.contains("stopSelf(startId)")
+        )
+    }
+
+    @Test
+    fun callEndedUpdatePreservesLastCaptureStateOrExplainsMissingCapture() {
+        val serviceSource = File("src/main/java/ro/sigurscan/app/SpeakerGuardForegroundService.kt").readText()
+        val viewModelAudioSource = File("src/main/java/ro/sigurscan/app/ScannerViewModelAudio.kt").readText()
+
+        assertTrue(
+            "Call-end stop must preserve the latest capture update so UI does not lose analyzed chunks/verdict.",
+            serviceSource.contains("latestCaptureUpdate") &&
+                serviceSource.contains("callEndedUpdate(") &&
+                serviceSource.contains("latestCaptureUpdate = update")
+        )
+        assertTrue(
+            "If no capture update ever arrived, call end must explain that capture was not confirmed.",
+            serviceSource.contains("call_ended_no_capture")
+        )
+        assertTrue(
+            "If call ends without evidence, ViewModel must still expose a final UNVERIFIED verdict.",
+            viewModelAudioSource.contains("finalStoppedUnverifiedVerdict") &&
+                viewModelAudioSource.contains("AudioEvidenceVerdict.UNVERIFIED")
         )
     }
 

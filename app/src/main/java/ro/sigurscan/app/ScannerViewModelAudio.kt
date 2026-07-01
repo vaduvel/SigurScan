@@ -195,6 +195,17 @@ internal fun ScannerViewModel.applySpeakerGuardUpdate(update: SpeakerGuardUpdate
     if (evidence != null) {
         audioEvidenceResult = evidence
     }
+    val finalStoppedUnverifiedVerdict = if (
+        !update.active &&
+        update.phase != SpeakerGuardPhase.PROCESSING &&
+        evidence == null &&
+        speakerGuardSnapshot.latestVerdict == null &&
+        update.reasonCode in setOf("call_ended", "call_ended_no_capture", "call_ended_no_clear_audio")
+    ) {
+        AudioEvidenceVerdict.UNVERIFIED
+    } else {
+        null
+    }
     val startedAt = when {
         update.active && speakerGuardSnapshot.startedAtEpochMillis == null -> System.currentTimeMillis()
         update.active -> speakerGuardSnapshot.startedAtEpochMillis
@@ -205,8 +216,8 @@ internal fun ScannerViewModel.applySpeakerGuardUpdate(update: SpeakerGuardUpdate
         phase = update.phase,
         chunksAnalyzed = update.chunksAnalyzed,
         chunksDropped = update.chunksDropped,
-        latestVerdict = evidence?.verdict ?: speakerGuardSnapshot.latestVerdict,
-        latestReasonCode = update.reasonCode ?: update.result?.reasonCode,
+        latestVerdict = evidence?.verdict ?: speakerGuardSnapshot.latestVerdict ?: finalStoppedUnverifiedVerdict,
+        latestReasonCode = update.reasonCode ?: update.result?.reasonCode ?: speakerGuardSnapshot.latestReasonCode,
         latestArcFamily = evidence?.arcFamily ?: speakerGuardSnapshot.latestArcFamily,
         latestLatencyMs = update.latencyMs ?: speakerGuardSnapshot.latestLatencyMs,
         startedAtEpochMillis = startedAt,

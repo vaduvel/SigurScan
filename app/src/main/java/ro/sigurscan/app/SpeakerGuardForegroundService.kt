@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -44,6 +45,7 @@ class SpeakerGuardForegroundService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var captureSession: SpeakerGuardSession? = null
     private var callAudioModeWatcher: Runnable? = null
+    private var latestCaptureUpdate: SpeakerGuardUpdate? = null
     private val clientInstanceId: String by lazy {
         SigurScanClientIdentity.loadOrCreateClientInstanceId(applicationContext)
     }
@@ -98,6 +100,8 @@ class SpeakerGuardForegroundService : Service() {
 
     private fun handleStartCapture(intent: Intent, startId: Int): Int {
         val modelPath = intent.getStringExtra(EXTRA_MODEL_PATH).orEmpty()
+        Log.i(TAG, "start_capture_requested modelPathPresent=${modelPath.isNotBlank()}")
+        latestCaptureUpdate = null
         if (modelPath.isBlank()) {
             SpeakerGuardForegroundServiceEvents.publish(
                 SpeakerGuardUpdate(
@@ -121,6 +125,7 @@ class SpeakerGuardForegroundService : Service() {
         )
         captureSession = session
         session.start(serviceScope, modelPath) { update ->
+            latestCaptureUpdate = update
             SpeakerGuardForegroundServiceEvents.publish(update)
             if (!update.active && update.phase != SpeakerGuardPhase.PROCESSING) {
                 stopCaptureSession()
@@ -217,14 +222,8 @@ class SpeakerGuardForegroundService : Service() {
             override fun run() {
                 val mode = runCatching { audioManager.mode }.getOrDefault(AudioManager.MODE_NORMAL)
                 if (tracker.shouldStopForMode(mode)) {
-                    SpeakerGuardForegroundServiceEvents.publish(
-                        SpeakerGuardUpdate(
-                            phase = SpeakerGuardPhase.STOPPED,
-                            active = false,
-                            reasonCode = "call_ended",
-                            status = "Apelul s-a încheiat. Urechea s-a oprit."
-                        )
-                    )
+                    Log.i(TAG, "call_audio_mode_ended mode=$mode")
+                    SpeakerGuardForegroundServiceEvents.publish(callEndedUpdate())
                     stopCaptureSession()
                     stopSelf(startId)
                     return
@@ -234,6 +233,30 @@ class SpeakerGuardForegroundService : Service() {
         }
         callAudioModeWatcher = watcher
         handler.post(watcher)
+    }
+
+    private fun callEndedUpdate(): SpeakerGuardUpdate {
+        val latest = latestCaptureUpdate
+        val reasonCode = when {
+            latest == null -> "call_ended_no_capture"
+            latest.chunksAnalyzed == 0 && latest.result == null -> "call_ended_no_clear_audio"
+            else -> latest.result?.reasonCode ?: latest.reasonCode ?: "call_ended"
+        }
+        val status = when (reasonCode) {
+            "call_ended_no_capture" -> "Apelul s-a încheiat. Nu am putut confirma captura audio."
+            "call_ended_no_clear_audio" -> "Apelul s-a încheiat. Nu am prins suficientă voce clară."
+            else -> "Apelul s-a încheiat. Urechea s-a oprit."
+        }
+        return SpeakerGuardUpdate(
+            phase = SpeakerGuardPhase.STOPPED,
+            active = false,
+            chunksAnalyzed = latest?.chunksAnalyzed ?: 0,
+            chunksDropped = latest?.chunksDropped ?: 0,
+            result = latest?.result,
+            latencyMs = latest?.latencyMs,
+            reasonCode = reasonCode,
+            status = status
+        )
     }
 
     private fun stopCallAudioModeWatcher() {
@@ -253,6 +276,7 @@ class SpeakerGuardForegroundService : Service() {
     }
 
     companion object {
+        private const val TAG = "SpeakerGuardService"
         private const val ACTION_SHOW_CALL_PROMPT = "ro.sigurscan.app.action.SHOW_SPEAKER_GUARD_CALL_PROMPT"
         private const val ACTION_START_CAPTURE = "ro.sigurscan.app.action.START_SPEAKER_GUARD_CAPTURE"
         private const val ACTION_STOP_CAPTURE = "ro.sigurscan.app.action.STOP_SPEAKER_GUARD_CAPTURE"
