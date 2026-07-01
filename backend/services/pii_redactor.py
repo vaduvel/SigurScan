@@ -32,7 +32,18 @@ CNP_REGEX = re.compile(
 
 # One-Time Passwords / Verification codes:
 # Usually a 4-8 digit code near keywords like "cod", "verification", "verificare", "OTP", "activare", "autorizare"
-OTP_KEYWORDS = ["cod", "otp", "verificare", "verification", "activare", "autorizare", "confirmare", "security", "securitate"]
+OTP_KEYWORDS = [
+    "cod",
+    "codul",
+    "otp",
+    "verificare",
+    "verification",
+    "activare",
+    "autorizare",
+    "confirmare",
+    "security",
+    "securitate",
+]
 OTP_REGEX = re.compile(
     rf'\b(?:{"|".join(OTP_KEYWORDS)})\b.*?\b(\d{{4,8}}|\d{{3}}[- ]\d{{3,4}})\b',
     re.IGNORECASE
