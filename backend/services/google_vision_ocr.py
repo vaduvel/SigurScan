@@ -26,6 +26,13 @@ def extract_text_with_vision(image_bytes: bytes) -> str:
     if not GOOGLE_CLOUD_VISION_API_KEY:
         raise RuntimeError("Lipsește GOOGLE_CLOUD_VISION_API_KEY.")
 
+    # Cost guard (#82): stop paid OCR calls once the monthly budget is spent.
+    # Same failure path callers already handle for a missing key/timeouts.
+    from services.paid_provider_budgets import consume_google_vision
+
+    if not consume_google_vision():
+        raise RuntimeError("Google Vision monthly budget exhausted.")
+
     image_b64 = base64.b64encode(image_bytes).decode("utf-8")
     host = _get_vision_host()
     endpoint = f"https://{host}/v1/images:annotate?key={GOOGLE_CLOUD_VISION_API_KEY}"
@@ -85,6 +92,12 @@ def extract_text_from_pdf_with_vision(pdf_bytes: bytes) -> str:
     """Extract text from PDF bytes using Google Cloud Vision DOCUMENT_TEXT_DETECTION."""
     if not GOOGLE_CLOUD_VISION_API_KEY:
         raise RuntimeError("Lipsește GOOGLE_CLOUD_VISION_API_KEY.")
+
+    # Cost guard (#82): same paid Vision quota as the image OCR path.
+    from services.paid_provider_budgets import consume_google_vision
+
+    if not consume_google_vision():
+        raise RuntimeError("Google Vision monthly budget exhausted.")
 
     pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
     host = _get_vision_host()

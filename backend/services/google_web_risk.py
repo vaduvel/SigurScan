@@ -57,7 +57,14 @@ def check_urls_against_web_risk(urls: List[str]) -> Dict[str, Dict[str, str]]:
 
     results: Dict[str, Dict[str, str]] = {}
     threat_types = _threat_types()
+    # Cost guard (#82): each lookup is a paid API call. On budget exhaustion we
+    # stop; missing provider data is treated conservatively by the verdict gate
+    # (blocks SAFE), so this can never make a scam look safe.
+    from services.paid_provider_budgets import consume_web_risk
+
     for url in unique_urls:
+        if not consume_web_risk():
+            break
         params = [("uri", url), ("key", api_key)]
         params.extend(("threatTypes", threat_type) for threat_type in threat_types)
         try:
