@@ -313,6 +313,14 @@ def _remember_preview_cache_entry(
     _trim_preview_cache(cache, max_entries)
 
 
+def _screenshot_uuid_from_path(path: str) -> str:
+    # Path shape: /v1/sandbox/urlscan/{uuid}/screenshot
+    parts = [part for part in str(path or "").split("/") if part]
+    if len(parts) >= 5 and parts[-1] == "screenshot":
+        return parts[-2]
+    return ""
+
+
 def _normalize_screenshot_proxy_url(raw_url: Any) -> str:
     value = str(raw_url or "").strip()
     if not value:
@@ -326,11 +334,19 @@ def _normalize_screenshot_proxy_url(raw_url: Any) -> str:
         if _SCREENSHOT_PROXY_PATH_RE.match(parsed.path) and (
             host in _LEGACY_SCREENSHOT_PROXY_HOSTS or host == public_host
         ):
-            return f"{SIGURSCAN_PUBLIC_API_BASE_URL}{parsed.path}"
+            # #80: the rebuild drops any query string, so mint a fresh access
+            # token for the normalized proxy URL (cache entries stay usable).
+            return _with_screenshot_token(
+                f"{SIGURSCAN_PUBLIC_API_BASE_URL}{parsed.path}",
+                _screenshot_uuid_from_path(parsed.path),
+            )
         return value
 
     if value.startswith("/") and _SCREENSHOT_PROXY_PATH_RE.match(value):
-        return f"{SIGURSCAN_PUBLIC_API_BASE_URL}{value}"
+        return _with_screenshot_token(
+            f"{SIGURSCAN_PUBLIC_API_BASE_URL}{value}",
+            _screenshot_uuid_from_path(value),
+        )
 
     return value
 
