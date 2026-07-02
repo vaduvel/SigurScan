@@ -23,6 +23,6 @@ async def get_urlscan_result(uuid: str, request: Request):
 
 
 @router.get("/v1/sandbox/urlscan/{uuid}/screenshot", name="urlscan_screenshot")
-async def urlscan_screenshot(uuid: str):
-    return await urlscan_screenshot_handler(uuid)
+async def urlscan_screenshot(uuid: str, request: Request):
+    return await urlscan_screenshot_handler(uuid, request)
 

@@ -124,11 +124,36 @@ async def get_urlscan_result(uuid: str, request: Request):
     return _summarize_urlscan_payload(payload, safe_uuid, request)
 
 
-async def urlscan_screenshot(uuid: str):
+def _require_screenshot_access(request: Request, uuid: str) -> None:
+    """#80: the header-less GET proxy requires a signed, expiring token
+    (minted by the backend into every screenshot URL it returns) or, as an
+    ops/testing fallback, a valid API key header."""
+    from core.screenshot_token import (
+        enforcement_enabled,
+        secret_configured,
+        verify_screenshot_token,
+    )
+
+    if not enforcement_enabled() or not secret_configured():
+        return
+    token = request.query_params.get("st")
+    if token and verify_screenshot_token(uuid, token):
+        return
+
+    from config import ADMIN_API_KEYS, ALLOWED_API_KEYS
+
+    api_key = (request.headers.get("X-API-KEY") or "").strip()
+    if api_key and (api_key in ALLOWED_API_KEYS or api_key in ADMIN_API_KEYS):
+        return
+    raise HTTPException(status_code=401, detail="Missing or invalid screenshot token.")
+
+
+async def urlscan_screenshot(uuid: str, request: Request):
     _require_urlscan_key()
     safe_uuid = re.sub(r"[^A-Za-z0-9._-]", "", uuid or "")
     if not safe_uuid:
         raise HTTPException(status_code=400, detail="uuid invalid.")
+    _require_screenshot_access(request, safe_uuid)
 
     def fetch_screenshot():
         return requests.get(
