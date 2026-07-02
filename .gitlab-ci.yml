@@ -1,0 +1,60 @@
+# GitLab CI - migrated from .github/workflows/backend-ci.yml
+
+stages:
+  - test
+  - build
+
+workflow:
+  rules:
+    # Run on merge requests, and on pushes to main / codex/** / feature/** (parity with GitHub Actions triggers)
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH =~ /^codex\//
+    - if: $CI_COMMIT_BRANCH =~ /^feature\//
+
+backend-tests:
+  stage: test
+  image: python:3.12
+  timeout: 30 minutes
+  variables:
+    PYTHONUNBUFFERED: "1"
+    PRIVACY_SAFE_MODE: "false"
+    ENABLE_CLOUD_AI_EXPLANATION: "false"
+    ENABLE_MISTRAL_SHADOW_ADJUDICATION: "false"
+    INVOICE_CACHE_HMAC_KEY: "ci-test-hmac-key"
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  cache:
+    key: backend-pip
+    paths:
+      - .cache/pip
+  before_script:
+    # Guard tracked local secrets (same as GitHub Actions step)
+    - python tools/guard_no_tracked_secrets.py
+    - cd backend
+    - python -m pip install --upgrade pip
+    - python -m pip install -r requirements.lock
+    - python -m pip install pytest pytest-asyncio
+  script:
+    - python -m pytest -q
+
+# Builds the backend Docker image and verifies the FastAPI app actually
+# imports inside the container. This catches the known deploy blocker where
+# the Dockerfile does not COPY config.py, core/ and runtime_state.py
+# (see HANDOFF_TO_CLAUDE_CODE.md, Section 3).
+docker-boot-check:
+  stage: build
+  image: docker:27
+  services:
+    - docker:27-dind
+  timeout: 20 minutes
+  variables:
+    INVOICE_CACHE_HMAC_KEY: "ci-test-hmac-key"
+  script:
+    - docker build -t sigurscan-backend:ci backend
+    - docker run --rm
+      -e INVOICE_CACHE_HMAC_KEY="$INVOICE_CACHE_HMAC_KEY"
+      -e PRIVACY_SAFE_MODE="false"
+      -e ENABLE_CLOUD_AI_EXPLANATION="false"
+      -e ENABLE_MISTRAL_SHADOW_ADJUDICATION="false"
+      sigurscan-backend:ci
+      python -c "import app; print('container boot import OK')"
