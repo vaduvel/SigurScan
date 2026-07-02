@@ -93,6 +93,12 @@ def extract_text_from_pdf_with_vision(pdf_bytes: bytes) -> str:
     if not GOOGLE_CLOUD_VISION_API_KEY:
         raise RuntimeError("Lipsește GOOGLE_CLOUD_VISION_API_KEY.")
 
+    # Cost guard (#82): same paid Vision quota as the image OCR path.
+    from services.paid_provider_budgets import consume_google_vision
+
+    if not consume_google_vision():
+        raise RuntimeError("Google Vision monthly budget exhausted.")
+
     pdf_b64 = base64.b64encode(pdf_bytes).decode("utf-8")
     host = _get_vision_host()
     endpoint = f"https://{host}/v1/files:annotate?key={GOOGLE_CLOUD_VISION_API_KEY}"

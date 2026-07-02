@@ -123,12 +123,17 @@ def maybe_run_shadow_adjudication(
         raw_shadow = _CACHE[evidence_hash]
         cache_hit = True
     else:
-        try:
-            raw_shadow = _call_mistral(evidence)
-            if isinstance(evidence_hash, str) and raw_shadow:
-                _CACHE[evidence_hash] = raw_shadow
-        except Exception as exc:
-            fallback_reason = f"mistral_error:{type(exc).__name__}"
+        from services.paid_provider_budgets import consume_mistral
+
+        if not consume_mistral():
+            fallback_reason = "mistral_budget_exhausted"
+        else:
+            try:
+                raw_shadow = _call_mistral(evidence)
+                if isinstance(evidence_hash, str) and raw_shadow:
+                    _CACHE[evidence_hash] = raw_shadow
+            except Exception as exc:
+                fallback_reason = f"mistral_error:{type(exc).__name__}"
 
     if raw_shadow is not None:
         shadow = validate_and_guard(raw_shadow, evidence)

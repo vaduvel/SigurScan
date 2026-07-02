@@ -43,3 +43,48 @@ def test_budgets_are_tracked_per_provider(monkeypatch):
     # Vision exhausted must not exhaust Mistral.
     assert consume_google_vision() is False
     assert consume_mistral() is True
+
+
+def test_pdf_vision_ocr_respects_budget(monkeypatch):
+    """PDF OCR shares the same paid Vision quota as image OCR (#82 follow-up)."""
+    from services import google_vision_ocr
+
+    monkeypatch.setenv("GOOGLE_VISION_MONTHLY_BUDGET", "0")
+    monkeypatch.setattr(google_vision_ocr, "GOOGLE_CLOUD_VISION_API_KEY", "fake-key")
+
+    def _fail_if_called(*_args, **_kwargs):
+        raise AssertionError("Vision API must not be called once budget is exhausted.")
+
+    monkeypatch.setattr(google_vision_ocr.requests, "post", _fail_if_called)
+
+    try:
+        google_vision_ocr.extract_text_from_pdf_with_vision(b"%PDF-1.4 fake")
+        assert False, "expected RuntimeError on exhausted budget"
+    except RuntimeError as exc:
+        assert "budget" in str(exc).lower()
+
+
+def test_shadow_adjudication_respects_mistral_budget(monkeypatch):
+    """Shadow adjudicator shares the Mistral budget with the explainer (#82 follow-up)."""
+    from services import mistral_shadow_adjudicator as shadow
+
+    monkeypatch.setattr(shadow, "SHADOW_ENABLED", True)
+    monkeypatch.setattr(shadow, "MISTRAL_API_KEY", "fake-key")
+    monkeypatch.setenv("MISTRAL_MONTHLY_BUDGET", "0")
+    shadow._CACHE.clear()
+
+    def _fail_if_called(*_args, **_kwargs):
+        raise AssertionError("Mistral must not be called once budget is exhausted.")
+
+    monkeypatch.setattr(shadow, "_call_mistral", _fail_if_called)
+    monkeypatch.setattr(shadow, "log_scan_event", lambda event: None)
+
+    event = shadow.maybe_run_shadow_adjudication(
+        scan_id="scan-1",
+        input_type="text",
+        source_channel="share",
+        evidence={"gate": {"user_risk_label": "SUSPECT"}, "evidence_hash": "sha256:abc"},
+    )
+
+    assert event["evidence"]["fallback_reason"] == "mistral_budget_exhausted"
+    assert event["evidence"]["valid"] is False
