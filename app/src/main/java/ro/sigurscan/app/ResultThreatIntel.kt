@@ -284,38 +284,29 @@ fun EvidenceSection(screenshotUrl: String?, serverInfo: String?, finalUrl: Strin
                 border = BorderStroke(1.dp, SigurColors.GlassBorder),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp),
+                    .height(if (screenshotModel == null) 96.dp else 220.dp),
                 colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundSurface)
             ) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     if (screenshotModel == null) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            if (previewPending) {
-                                CircularProgressIndicator(color = SigurColors.Brand, modifier = Modifier.size(30.dp))
-                            } else if (screenshotUrl == null) {
-                                Icon(Icons.Default.Visibility, contentDescription = null, tint = SigurColors.TextMuted, modifier = Modifier.size(30.dp))
+                        // Compact placeholder: the domain is already shown in "Te duce către"
+                        // above, so this only needs to say whether the image itself is coming.
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (previewPending || screenshotUrl != null) {
+                                CircularProgressIndicator(color = SigurColors.Brand, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
                             } else {
-                                CircularProgressIndicator(color = SigurColors.Brand, modifier = Modifier.size(30.dp))
+                                Icon(Icons.Default.Visibility, contentDescription = null, tint = SigurColors.TextMuted, modifier = Modifier.size(18.dp))
                             }
-                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = if (previewPending || screenshotUrl != null) {
                                     "Se generează captura paginii finale..."
                                 } else {
                                     "Preview indisponibil momentan"
                                 },
-                                color = SigurColors.TextPrimary,
-                                fontSize = 10.sp
+                                color = SigurColors.TextSecondary,
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(start = 10.dp)
                             )
-                            finalUrl?.let {
-                                Text(
-                                    text = "Destinație verificată: ${it.take(72)}",
-                                    color = SigurColors.TextMuted,
-                                    fontSize = 9.sp,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                                )
-                            }
                         }
 	                    } else {
 	                        val localBitmap = remember(screenshotModel) {
@@ -355,29 +346,35 @@ fun EvidenceSection(screenshotUrl: String?, serverInfo: String?, finalUrl: Strin
 	                        }
 	                    }
 
-                    // Overlay for info
-                    Surface(
-                        color = SigurColors.TextPrimary.copy(alpha = 0.72f),
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                    ) {
-                        Text(
-                            text = publicServerInfo(serverInfo),
-                            color = SigurColors.TextInverse,
-                            fontSize = 11.sp,
-                            modifier = Modifier.padding(8.dp),
-                            textAlign = TextAlign.Center
-                        )
+                    // Info overlay only makes sense captioning an actual screenshot — showing
+                    // it over the empty placeholder just repeats the "don't continue" messaging
+                    // already given above (verdict header, GateEvidenceSummary).
+                    if (screenshotModel != null) {
+                        Surface(
+                            color = SigurColors.TextPrimary.copy(alpha = 0.72f),
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                        ) {
+                            Text(
+                                text = publicServerInfo(serverInfo),
+                                color = SigurColors.TextInverse,
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(8.dp),
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
             }
-            Text(
-                "Aceasta este o imagine izolată a paginii finale, nu site-ul real. Nu interacționezi cu pagina.",
-                color = SigurColors.TextSecondary,
-                fontSize = 10.sp,
-                modifier = Modifier.padding(top = 4.dp, start = 4.dp)
-            )
+            if (screenshotModel != null) {
+                Text(
+                    "Aceasta este o imagine izolată a paginii finale, nu site-ul real. Nu interacționezi cu pagina.",
+                    color = SigurColors.TextSecondary,
+                    fontSize = 10.sp,
+                    modifier = Modifier.padding(top = 4.dp, start = 4.dp)
+                )
+            }
         }
     }
 }

@@ -231,11 +231,22 @@ fun ResultCard(
                 OfferAnalysisSection(assessment.offerAnalysis)
             }
 
-            if (assessment.keyDangers.isNotEmpty() && hasRiskVerdict) {
-                ResultSection(title = "Riscuri principale", items = assessment.keyDangers.take(3), icon = Icons.Default.Warning, accent = riskUi.color)
+            val keyDangersDeduped = assessment.keyDangers.filter {
+                !it.trim().equals(decision.supportText.trim(), ignoreCase = true)
+            }
+            if (keyDangersDeduped.isNotEmpty() && hasRiskVerdict) {
+                ResultSection(title = "Riscuri principale", items = keyDangersDeduped.take(3), icon = Icons.Default.Warning, accent = riskUi.color)
             }
 
-            ResultSection(title = "Ce să faci acum", items = nextActions, icon = Icons.Default.CheckCircle, accent = riskUi.color)
+            // The gate's primaryAction is already shown prominently in GateEvidenceSummary
+            // above; don't repeat it verbatim as the first "next action" bullet too.
+            val gatePrimaryAction = assessment.gateResult?.let { GateResultPresentation.primaryAction(it) }
+            val nextActionsDeduped = if (gatePrimaryAction != null) {
+                nextActions.filterIndexed { index, action -> index != 0 || !action.trim().equals(gatePrimaryAction.trim(), ignoreCase = true) }
+            } else {
+                nextActions
+            }
+            ResultSection(title = "Ce să faci acum", items = nextActionsDeduped, icon = Icons.Default.CheckCircle, accent = riskUi.color)
 
             assessment.actionPlan?.let { plan ->
                 ActionPlanSection(plan)
@@ -383,10 +394,15 @@ internal fun GateEvidenceSummary(assessment: OfflineAssessment, riskUi: RiskDisp
         ?.startsWith("file://", ignoreCase = true) == true &&
         sandboxScreenshotModel(assessment.screenshotUrl) != null
     val hasUrlEvidence = GateResultPresentation.hasUrlEvidence(snapshot)
+    // Must match EvidenceSection's own "still generating" condition below — otherwise this
+    // chip can say "Preview în curs" while the preview card itself says "indisponibil".
+    val serverSuggestsPreviewGenerating = assessment.screenshotUrl == null &&
+        assessment.serverInfo?.contains("genere", ignoreCase = true) == true
     val finalWithPreviewPending = !inProgress &&
         hasUrlEvidence &&
         snapshot?.completeness == EvidenceCompleteness.PARTIAL_ONLINE &&
-        !hasLocalPreview
+        !hasLocalPreview &&
+        serverSuggestsPreviewGenerating
     val chips = listOfNotNull(
         if (inProgress) "Scanare în curs" else "Verdict final",
         if (assessment.cacheStatus != null) "Verificat anterior" else null,
@@ -397,6 +413,7 @@ internal fun GateEvidenceSummary(assessment: OfflineAssessment, riskUi: RiskDisp
                     finalWithPreviewPending -> "Preview în curs"
                     hasUrlEvidence && !inProgress && hasLocalPreview -> "Preview disponibil"
                     !hasUrlEvidence -> "Verificări parțiale"
+                    !inProgress -> "Preview indisponibil"
                     else -> "Se verifică linkul"
                 }
                 EvidenceCompleteness.LOCAL_ONLY -> "Mai trebuie informații"
