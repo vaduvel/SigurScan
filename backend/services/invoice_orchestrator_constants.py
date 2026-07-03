@@ -11,6 +11,7 @@ import re
 _DIACRITICS = str.maketrans("ăâîșşțţ", "aaisstt")
 _COMPANY_MARKERS = re.compile(
     r"\b(s\.?\s?r\.?\s?l|s\.?\s?a|s\.?\s?c|p\.?\s?f\.?\s?a|i\.?\s?i|s\.?\s?n\.?\s?c|"
+    r"s\.?\s?c\.?\s?s|s\.?\s?c\.?\s?a|i\.?\s?f\.?\s?n|i\.?\s?f|r\.?\s?a|"
     r"societate|societatea|asociat|fundat|regia|intreprindere|cooperativa|cabinet|"
     r"sucursala|gmbh|ltd|llc|inc|s\.?p\.?a)\b",
     re.IGNORECASE,
@@ -29,7 +30,31 @@ _PRESSURE_RE = re.compile(
     r"evita(?:ti)?\s+(?:suspendarea|deconectarea|debransarea|penalizarile|blocarea))",
     re.IGNORECASE,
 )
-_NAME_STOPWORDS = {"sc", "srl", "sa", "pfa", "ii", "snc", "de", "si"}
+_NAME_STOPWORDS = {
+    "sc",
+    "srl",
+    "srld",
+    "sa",
+    "pfa",
+    "ii",
+    "if",
+    "ifn",
+    "snc",
+    "scs",
+    "sca",
+    "ra",
+    "de",
+    "si",
+    "buna",
+    "ziua",
+    "salut",
+    "hello",
+    "echipa",
+    "departament",
+    "departamentul",
+    "cu",
+    "stima",
+}
 _GENERIC_BENEFICIARY_TERMS = {
     "beneficiar",
     "cont",
@@ -49,6 +74,7 @@ B2B_HIGH_RISK_FLAGS = {
     "FAKE_EFACTURA_RECONCILIATION_PAYMENT",
     "FRAGMENTED_IBAN_PAYMENT_TARGET",
     "UNDISCLOSED_INTERMEDIARY_BENEFICIARY",
+    "BENEFICIARY_COMPANY_MISMATCH",
     "DOCUMENT_LAYER_IBAN_CONFLICT",
     "CEO_CONFIDENTIAL_PAYMENT",
     "PHISHING_LINK_IN_INVOICE_EMAIL",

@@ -224,7 +224,20 @@ def _beneficiary_company_mismatch(beneficiary: Optional[str], issuer: Optional[s
     issuer_tokens = _name_tokens(issuer or "")
     if not beneficiary_tokens or not issuer_tokens:
         return False
-    return not bool(beneficiary_tokens & issuer_tokens)
+    return beneficiary_tokens != issuer_tokens
+
+
+def _payment_destination_confirms_current_invoice(payment_destination: Optional[dict]) -> bool:
+    if not payment_destination:
+        return False
+    return bool(
+        payment_destination.get("matched")
+        and payment_destination.get("can_contribute_to_safe") is True
+        and (
+            payment_destination.get("brand_matches") is True
+            or payment_destination.get("cui_matches") is True
+        )
+    )
 
 
 def _anaf_identity_matches_invoice(anaf: Optional[dict], issuer: Optional[str]) -> bool:
@@ -656,13 +669,17 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
     except Exception:
         pass
 
+    company_beneficiary_mismatch = _beneficiary_company_mismatch(
+        getattr(fields, "payment_beneficiary", None),
+        fields.emitent,
+    )
     if _beneficiary_mismatch(getattr(fields, "payment_beneficiary", None), fields.emitent):
         fraud_flags.append("BENEFICIARY_PERSON_MISMATCH")
         warnings.append(
             "Beneficiarul plății pare o persoană fizică, nu firma emitentă. "
             "Confirmă direct cu furnizorul înainte de plată."
         )
-    elif _beneficiary_company_mismatch(getattr(fields, "payment_beneficiary", None), fields.emitent):
+    elif company_beneficiary_mismatch:
         if re.search(
             r"\b(?:nu\s+este\s+necesar\s+act|f[ăa]r[ăa]\s+act|fara\s+act|act\s+adi[țt]ional|"
             r"intermediar|procesator|mandatar|cesiune|pl[ăa]ti[țt]i\s+c[ăa]tre)\b",
@@ -722,6 +739,16 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
                     )
         except Exception:
             payment_destination = None
+    if (
+        company_beneficiary_mismatch
+        and "UNDISCLOSED_INTERMEDIARY_BENEFICIARY" not in fraud_flags
+        and not _payment_destination_confirms_current_invoice(payment_destination)
+    ):
+        fraud_flags.append("BENEFICIARY_COMPANY_MISMATCH")
+        warnings.append(
+            "Beneficiarul plății este o altă companie decât emitentul facturii și nu avem confirmare oficială "
+            "pentru această destinație."
+        )
     if _weak_inactive_fallback_has_official_payment_match(anaf_check, payment_destination):
         warnings = [
             warning

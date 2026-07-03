@@ -1,7 +1,11 @@
 import pytest
 
 from services.anaf_cui import CuiResult
-from services.invoice_orchestrator import evaluate_invoice_verdict, scan_invoice
+from services.invoice_orchestrator import (
+    _beneficiary_company_mismatch,
+    evaluate_invoice_verdict,
+    scan_invoice,
+)
 
 
 MGH_TEXT = """
@@ -318,6 +322,76 @@ Total plata: 100.00 RON
         conflict["code"] != "BRAND_IMPERSONATION_PAYMENT_DESTINATION_MISMATCH"
         for conflict in truth["hard_conflicts"]
     )
+    assert evaluated["gate"]["label"] != "DANGEROUS"
+
+
+@pytest.mark.parametrize(
+    ("issuer", "beneficiary", "expected"),
+    [
+        ("ALFA DISTRIB SRL", "ALFA DISTRIB", False),
+        ("Electrica S.A.", "Electrica", False),
+        ("Electrica SA", "Global Electrica Trading SRL", True),
+        ("Electrică S.A.", "Electrica", False),
+        ("Bună ziua,", "S.C. CONTABIL S.R.L", False),
+        ("Echipa Contabil SRL", "S.C. CONTABIL S.R.L", False),
+    ],
+)
+def test_invoice_truth_company_beneficiary_uses_core_entity_tokens(issuer, beneficiary, expected):
+    assert _beneficiary_company_mismatch(beneficiary, issuer) is expected
+
+
+@pytest.mark.asyncio
+async def test_invoice_truth_company_beneficiary_mismatch_is_dangerous(monkeypatch):
+    text = """
+Factura servicii 7788
+Furnizor: ELECTRICA SA
+CUI: RO28909028
+Beneficiar plata: GLOBAL ELECTRICA TRADING SRL
+IBAN: RO06BRDE0000789012345678
+Total plata: 824.75 RON
+"""
+
+    async def fake_check_cui(cui: str):
+        assert cui == "28909028"
+        return _cui_result(name="ELECTRICA FURNIZARE S.A.")
+
+    monkeypatch.setattr("services.invoice_orchestrator.check_cui", fake_check_cui)
+
+    result = await scan_invoice(text)
+    evaluated = evaluate_invoice_verdict(result, result.raw_text, source_channel="email")
+    truth = evaluated["invoice_truth"]
+
+    assert "BENEFICIARY_COMPANY_MISMATCH" in result.fraud_flags
+    assert truth["verdict"] == "NU_PLATI"
+    assert truth["primary_reason_code"] == "BENEFICIARY_COMPANY_MISMATCH"
+    assert any(conflict["code"] == "BENEFICIARY_COMPANY_MISMATCH" for conflict in truth["hard_conflicts"])
+    assert evaluated["gate"]["label"] == "DANGEROUS"
+    assert evaluated["gate"]["reason_codes"] == ["BENEFICIARY_COMPANY_MISMATCH"]
+
+
+@pytest.mark.asyncio
+async def test_invoice_truth_company_beneficiary_legal_suffix_only_is_not_dangerous(monkeypatch):
+    text = """
+Factura servicii 7789
+Furnizor: ELECTRICA S.A.
+CUI: RO28909028
+Beneficiar plata: Electrica
+IBAN: RO06BRDE0000789012345678
+Total plata: 824.75 RON
+"""
+
+    async def fake_check_cui(cui: str):
+        assert cui == "28909028"
+        return _cui_result(name="ELECTRICA FURNIZARE S.A.")
+
+    monkeypatch.setattr("services.invoice_orchestrator.check_cui", fake_check_cui)
+
+    result = await scan_invoice(text)
+    evaluated = evaluate_invoice_verdict(result, result.raw_text, source_channel="email")
+    truth = evaluated["invoice_truth"]
+
+    assert "BENEFICIARY_COMPANY_MISMATCH" not in result.fraud_flags
+    assert truth["primary_reason_code"] != "BENEFICIARY_COMPANY_MISMATCH"
     assert evaluated["gate"]["label"] != "DANGEROUS"
 
 

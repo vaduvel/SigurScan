@@ -27,6 +27,7 @@ HARD_CONFLICT_FLAGS = {
     "BEC_REPLY_TO_ACCOUNT_CHANGE": "BEC_ACCOUNT_CHANGE_COMBO",
     "BEC_EXCLUSIVE_NEW_IBAN_WITH_OLD_DETAILS_SUPPRESSION": "BEC_ACCOUNT_CHANGE_COMBO",
     "BEC_INVOICE_THREAD_IBAN_CHANGE": "BEC_ACCOUNT_CHANGE_COMBO",
+    "BENEFICIARY_COMPANY_MISMATCH": "BENEFICIARY_COMPANY_MISMATCH",
     "UNDISCLOSED_INTERMEDIARY_BENEFICIARY": "UNDISCLOSED_PAYMENT_INTERMEDIARY",
     "TAX_AUTHORITY_SENSITIVE_DATA_REQUEST": "SENSITIVE_CAPTURE_ON_WRONG_CHANNEL",
     "COURIER_OTP_OR_WHATSAPP_CODE_REQUEST": "SENSITIVE_CAPTURE_ON_WRONG_CHANNEL",
@@ -104,7 +105,8 @@ def evaluate_invoice_truth_v4(
         destination_state=destination_state,
         payment_destination=payment_destination,
     ):
-        hard_conflicts.append(
+        hard_conflicts.insert(
+            0,
             _conflict(
                 "BRAND_IMPERSONATION_PAYMENT_DESTINATION_MISMATCH",
                 "Brand declarat cu CUI contrazis și destinație de plată neconfirmată",
@@ -429,6 +431,7 @@ def _hard_conflict_label(code: str) -> str:
         "CLAIMED_PUBLIC_AUTHORITY_PAYMENT_CONTRADICTION": "Pretext e-Factura/SPV cu plată neconfirmată",
         "HIGH_RISK_B2B_PAYMENT_PATTERN": "Tipar B2B cunoscut de fraudă la plată",
         "BEC_ACCOUNT_CHANGE_COMBO": "Schimbare de cont cu semnale de deturnare plată",
+        "BENEFICIARY_COMPANY_MISMATCH": "Beneficiar companie diferită de emitent, neconfirmat",
         "UNDISCLOSED_PAYMENT_INTERMEDIARY": "Beneficiar intermediar neconfirmat pentru plata facturii",
         "PAYMENT_CONTROL_BYPASS": "Instrucțiune de plată care ocolește verificarea normală",
         "BRAND_IMPERSONATION_PAYMENT_DESTINATION_MISMATCH": "Brand declarat cu CUI contrazis și destinație de plată neconfirmată",
