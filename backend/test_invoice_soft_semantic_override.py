@@ -66,6 +66,25 @@ def test_invoice_verify_blocks_safe_when_required_proof_is_missing():
     assert out["reason_codes"] == ["ISSUER_NOT_FOUND"]
 
 
+def test_changed_iban_or_channel_never_becomes_unverified_when_generic_gate_is_clean():
+    base = {"label": "SAFE", "risk_level": "low", "risk_score": 5, "reason_codes": ["generic_clean"]}
+    truth = {
+        "verdict": "VERIFY_BEFORE_PAYING",
+        "primary_reason_code": "CHANGED_IBAN_OR_CHANNEL",
+        "proofs": {
+            "issuer_identity": {"state": "CONFIRMED"},
+            "payment_destination": {"state": "UNCONFIRMED_VALID"},
+            "channel_change": {"state": "CHANGED"},
+        },
+        "fraud_flags": ["ACCOUNT_CHANGE_LANGUAGE", "PAYMENT_PRESSURE"],
+    }
+
+    out = gate_from_invoice_truth(truth, base)
+
+    assert out["label"] == "DANGEROUS"
+    assert out["reason_codes"] == ["CHANGED_IBAN_OR_CHANNEL"]
+
+
 def test_invoice_verify_preserves_safe_when_core_proofs_are_confirmed():
     base = {"label": "SAFE", "risk_level": "low", "risk_score": 5, "reason_codes": ["generic_clean"]}
     truth = {

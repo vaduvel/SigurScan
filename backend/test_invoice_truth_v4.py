@@ -140,7 +140,7 @@ async def test_invoice_truth_inactive_company_is_verify_not_danger_without_hard_
 
 
 @pytest.mark.asyncio
-async def test_invoice_truth_channel_changed_copy_is_not_calm_not_fraud():
+async def test_invoice_truth_channel_changed_copy_escalates_to_dangerous():
     text = """
 Factura furnizor real cu CUI valid.
 Va rugam ignorati contul vechi din contract si platiti astazi in noul IBAN
@@ -159,7 +159,47 @@ Plata este urgenta si confidentiala.
     assert "nu pare fraudă" not in truth["display"]["message"].lower()
     assert "canal" in truth["display"]["message"].lower() or "cont" in truth["display"]["message"].lower()
     assert truth["next_action"]["type"] == "CALL_SUPPLIER_KNOWN_NUMBER"
+    assert evaluated["gate"]["label"] == "DANGEROUS"
+    assert evaluated["gate"]["reason_codes"] == ["CHANGED_IBAN_OR_CHANNEL"]
+
+
+@pytest.mark.asyncio
+async def test_invoice_truth_negated_account_change_is_not_channel_changed():
+    text = """
+Buna ziua,
+
+Va transmitem factura nr. 5566/16.06.2026 pentru serviciul Microsoft 365 Business Standard.
+
+Total: 1.200 RON cu TVA
+IBAN: RO55TREZ0000000000000001
+
+Factura este emisa lunar pe aceleasi date. Nu am schimbat contul bancar.
+"""
+
+    result = await scan_invoice(text)
+    evaluated = evaluate_invoice_verdict(result, result.raw_text, source_channel="android_native")
+    truth = evaluated["invoice_truth"]
+
+    assert "ACCOUNT_CHANGE_LANGUAGE" not in result.fraud_flags
+    assert truth["primary_reason_code"] != "CHANGED_IBAN_OR_CHANNEL"
     assert evaluated["gate"]["label"] != "DANGEROUS"
+
+
+@pytest.mark.asyncio
+async def test_invoice_truth_affirmative_account_change_survives_negation_lure():
+    text = """
+Factura furnizor real cu CUI valid.
+Contul s-a schimbat, platiti astazi in noul IBAN RO49AAAA1B31007593840000.
+Nu mai folositi aceleasi date vechi.
+"""
+
+    result = await scan_invoice(text)
+    evaluated = evaluate_invoice_verdict(result, result.raw_text, source_channel="email")
+
+    assert "ACCOUNT_CHANGE_LANGUAGE" in result.fraud_flags
+    assert "PAYMENT_PRESSURE" in result.fraud_flags
+    assert evaluated["gate"]["label"] == "DANGEROUS"
+    assert evaluated["gate"]["reason_codes"] == ["CHANGED_IBAN_OR_CHANNEL"]
 
 
 @pytest.mark.asyncio

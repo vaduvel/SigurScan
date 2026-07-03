@@ -68,6 +68,10 @@ _DECISIVE_GENERIC_DANGEROUS_PREFIXES = (
     "webrisk_malicious",
 )
 
+_DANGEROUS_VERIFY_REASON_CODES = {
+    "CHANGED_IBAN_OR_CHANNEL",
+}
+
 
 def evaluate_invoice_truth_v4(
     result: Any,
@@ -224,6 +228,7 @@ def evaluate_invoice_truth_v4(
         "verified_items": verified_items,
         "unconfirmed_items": unconfirmed_items,
         "hard_conflicts": hard_conflicts,
+        "fraud_flags": fraud_flags,
         "proofs": {
             "issuer_identity": {"state": issuer_state, "source": anaf.get("source") or "company_registry"},
             "invoice_obligation": {"state": obligation_state, "source": _obligation_source(source_channel, official_document_check)},
@@ -249,6 +254,7 @@ def gate_from_invoice_truth(truth: Dict[str, Any], fallback_gate: Optional[Dict[
     fallback_gate = dict(fallback_gate or {})
     verdict = str(truth.get("verdict") or "")
     fallback_label = str(fallback_gate.get("label") or "").upper()
+    primary_reason = str(truth.get("primary_reason_code") or "")
     if (
         fallback_label == "DANGEROUS"
         and verdict != "DATE_CONFIRMATE"
@@ -274,6 +280,16 @@ def gate_from_invoice_truth(truth: Dict[str, Any], fallback_gate: Optional[Dict[
             "risk_score": min(int(fallback_gate.get("risk_score") or 10), 10),
             "reason_codes": ["invoice_truth_confirmed"],
             "confidence": 92,
+            "is_final": True,
+        }
+    if verdict == "VERIFY_BEFORE_PAYING" and _verify_reason_is_dangerous(truth):
+        return {
+            **fallback_gate,
+            "label": "DANGEROUS",
+            "risk_level": "high",
+            "risk_score": max(90, int(fallback_gate.get("risk_score") or 0)),
+            "reason_codes": [primary_reason],
+            "confidence": 95,
             "is_final": True,
         }
     if verdict == "VERIFY_BEFORE_PAYING" and fallback_label == "SAFE" and _verify_truth_blocks_safe(truth):
@@ -305,6 +321,21 @@ def gate_from_invoice_truth(truth: Dict[str, Any], fallback_gate: Optional[Dict[
         "confidence": 82,
         "is_final": True,
     }
+
+
+def _verify_reason_is_dangerous(truth: Dict[str, Any]) -> bool:
+    primary_reason = str(truth.get("primary_reason_code") or "")
+    if primary_reason not in _DANGEROUS_VERIFY_REASON_CODES:
+        return False
+    proofs = truth.get("proofs") if isinstance(truth.get("proofs"), dict) else {}
+    payment_destination = proofs.get("payment_destination") if isinstance(proofs.get("payment_destination"), dict) else {}
+    destination_state = str(payment_destination.get("state") or "")
+    flags = {str(flag or "") for flag in (truth.get("fraud_flags") or []) if str(flag or "")}
+    return (
+        destination_state == "UNCONFIRMED_VALID"
+        and "ACCOUNT_CHANGE_LANGUAGE" in flags
+        and "PAYMENT_PRESSURE" in flags
+    )
 
 
 def _item(code: str, label: str) -> Dict[str, str]:

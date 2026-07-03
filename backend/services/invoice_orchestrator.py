@@ -105,6 +105,28 @@ def _txt_norm(text: str) -> str:
     return (text or "").lower().translate(_DIACRITICS)
 
 
+_NEGATED_ACCOUNT_CHANGE_RE = re.compile(
+    r"\b(?:"
+    r"nu\s+(?:am\s+)?(?:schimbat|modificat|actualizat)\s+(?:contul|banca|iban(?:ul)?|datele\s+bancare)"
+    r"|(?:contul|iban(?:ul)?|datele\s+bancare)\s+(?:ramane|raman|a\s+ramas|au\s+ramas|sunt)\s+neschimbat(?:e)?"
+    r"|acelasi\s+(?:cont|iban)"
+    r"|nu\s+(?:este|e)\s+(?:un\s+)?(?:cont|iban)?\s*nou"
+    r")\b",
+    re.IGNORECASE,
+)
+_CLAUSE_SPLIT_RE = re.compile(r"[\n\r.!?;,]+")
+
+
+def _has_account_change_language(normalized_text: str) -> bool:
+    if not _ACCOUNT_CHANGE_RE.search(normalized_text):
+        return False
+    clauses = [clause.strip() for clause in _CLAUSE_SPLIT_RE.split(normalized_text) if clause.strip()]
+    for clause in clauses or [normalized_text]:
+        if _ACCOUNT_CHANGE_RE.search(clause) and not _NEGATED_ACCOUNT_CHANGE_RE.search(clause):
+            return True
+    return False
+
+
 def _foreign_ibans(all_ibans: list[str]) -> list[str]:
     output: list[str] = []
     for raw in all_ibans or []:
@@ -282,7 +304,7 @@ def _should_allow_paid_company_registry(
         preliminary_flags.add("FOREIGN_IBAN")
     if len(set(candidate_ibans)) >= 2:
         preliminary_flags.add("MULTIPLE_IBANS")
-    if _ACCOUNT_CHANGE_RE.search(normalized_text):
+    if _has_account_change_language(normalized_text):
         preliminary_flags.add("ACCOUNT_CHANGE_LANGUAGE")
 
     textual_flags, _ = _detect_textual_b2b_flags(text, claimed_vendor=fields.emitent)
@@ -707,7 +729,7 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
             if "is inactive" not in str(warning).lower() and "inactiv" not in str(warning).lower()
         ]
 
-    if _ACCOUNT_CHANGE_RE.search(normalized_text):
+    if _has_account_change_language(normalized_text):
         fraud_flags.append("ACCOUNT_CHANGE_LANGUAGE")
         warnings.append("Textul anunță cont bancar/IBAN schimbat; confirmă pe un canal separat.")
     if _PRESSURE_RE.search(normalized_text):
