@@ -143,7 +143,7 @@ fun BottomNavigationBar(activeTab: String, onTabClick: (String) -> Unit) {
                 .fillMaxWidth()
                 .height(64.dp)
                 .align(Alignment.BottomCenter)
-                .shadow(6.dp, RoundedCornerShape(26.dp), ambientColor = SigurColors.BrandDeep.copy(alpha = 0.16f), spotColor = SigurColors.BrandDeep.copy(alpha = 0.16f))
+                .shadow(3.dp, RoundedCornerShape(26.dp))
                 .clip(RoundedCornerShape(26.dp))
                 .background(navGradient)
                 .padding(horizontal = 6.dp),
@@ -195,7 +195,7 @@ fun BottomNavigationBar(activeTab: String, onTabClick: (String) -> Unit) {
                 Box(
                     modifier = Modifier
                         .size(54.dp)
-                        .shadow(4.dp, CircleShape, ambientColor = SigurColors.BrandDeep.copy(alpha = 0.30f), spotColor = SigurColors.BrandDeep.copy(alpha = 0.30f))
+                        .shadow(3.dp, CircleShape)
                         .clip(CircleShape)
                         .background(Color.White),
                     contentAlignment = Alignment.Center
