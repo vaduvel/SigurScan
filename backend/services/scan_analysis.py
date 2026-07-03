@@ -138,7 +138,13 @@ from services.reputation_enrich import (
     _reputation_lookup_urls_from_resolved_entries,
     _sanitize_external_intel_results,
 )
-from services.provider_gate import _apply_provider_gate_verdict, _maybe_add_dns_reputation, _project_provider_gate_verdict, _identity_data_request_token
+from services.provider_gate import (
+    _apply_provider_gate_verdict,
+    _identity_data_request_token,
+    _looks_like_official_kyc_portal_upload,
+    _maybe_add_dns_reputation,
+    _project_provider_gate_verdict,
+)
 from services.scam_atlas import BRAND_ID_TO_DISPLAY_NAME, BRAND_REGISTRY, BRAND_WARNING_RULES
 from services.tier1_classifier import LEGIT_LABELS as TIER1_LEGIT_LABELS
 from services.gemini_explainer import generate_ai_explanation, generate_fallback_explanation
@@ -1896,6 +1902,7 @@ def _request_sensitivity_from_signals(
             "courier_refundable_deposit_link",
             "package_release_token_fee",
             "migrated_account_new_iban",
+            "investment_onboarding_document_funding",
         }:
             return "transfer"
         if matched_family in {"bank_data_collection", "external_card_cvv_otp_collection"}:
@@ -1963,6 +1970,8 @@ def _request_sensitivity_from_signals(
         direct_sensitive_request or (sensitive_url_path and not official_destination)
     ):
         return "password"
+    if _looks_like_official_kyc_portal_upload(normalized):
+        return "none"
     if re.search(r"\b(copie\s+(?:ci|act)|ci\s+fa[țt][ăa][-\s]?verso|selfie|act(?:ul)?\s+(?:de\s+)?identitate|buletin)\b", normalized):
         return "id_document"
     identity_data_token = _identity_data_request_token(normalized)
@@ -2340,6 +2349,15 @@ def _local_high_risk_semantic_review(raw_text: str) -> Optional[Dict[str, Any]]:
             r"(?=.{0,220}\b(?:broker|profit|randament|investi[țt]ii?)\b)"
             r"(?=.{0,220}\b(?:garanteaz[ăa]|garantat)\b)"
             r"(?=.{0,220}\b(?:depunere|depun[ei]|trimite|cont\s+de\s+activare)\b)",
+        ),
+        (
+            "semantic:investment_onboarding_document_funding",
+            "investment_onboarding_document_funding",
+            r"(?=.{0,520}\b(?:cont(?:ul)?\s+de\s+investi[țt]ii|platform[ăa]\s+(?:de\s+)?(?:investi[țt]ii|trading)|tranzac[țt]ionare|trading|broker)\b)"
+            r"(?=.{0,520}\b(?:document(?:ul)?\s+de\s+identitate|act(?:ul)?\s+de\s+identitate|buletin|carte(?:a)?\s+de\s+identitate|\bci\b)\b)"
+            r"(?=.{0,520}\b(?:extras(?:ul)?\s+de\s+cont|statement|dovad[ăa]\s+(?:bancar[ăa]|de\s+cont))\b)"
+            r"(?=.{0,520}\b(?:face[țt]i\s+alimentarea\s+contului|alimenta(?:rea|[țt]i)\s+contului|depun(?:ere|e[țt]i|eti)|depozit(?:ul|are)|funding)\b)"
+            r"(?=.{0,620}\b(?:sesiun(?:e|i)\s+de\s+tranzac[țt]ionare|tranzac[țt]ionare.{0,80}(?:[îi]mpreun[ăa]|impreuna)|facem\s+[îi]mpreun[ăa]|v[ăa]\s+ghid[ăa]m)\b)",
         ),
         (
             "semantic:recovery_audit_fee_before_refund",
@@ -5068,5 +5086,3 @@ async def _run_offer_web_claim_enrichment(job: Dict[str, Any]) -> Dict[str, Any]
     job["analysis"] = analysis
     orchestrated_engine._emit_orchestrated_telemetry("orchestrated_offer_web_claim", job, claim_status=claim.get("status"))
     return orchestrated_engine._persist_orchestrated_job(job)
-
-

@@ -1415,6 +1415,19 @@ def _local_high_risk_semantic_review(raw_text: str) -> Optional[Dict[str, Any]]:
             r"(?=.{0,220}\b(?:depunere|depun[ei]|trimite|cont\s+de\s+activare)\b)",
         ),
         (
+            # Pig-butchering/investment onboarding: the first concrete ask can be
+            # framed as "KYC" (ID + bank statement), then immediately moves to
+            # funding the investment account and guided trading. Plain regulated
+            # KYC in an official portal is guarded separately below.
+            "semantic:investment_onboarding_document_funding",
+            "investment_onboarding_document_funding",
+            r"(?=.{0,520}\b(?:cont(?:ul)?\s+de\s+investi[țt]ii|platform[ăa]\s+(?:de\s+)?(?:investi[țt]ii|trading)|tranzac[țt]ionare|trading|broker)\b)"
+            r"(?=.{0,520}\b(?:document(?:ul)?\s+de\s+identitate|act(?:ul)?\s+de\s+identitate|buletin|carte(?:a)?\s+de\s+identitate|\bci\b)\b)"
+            r"(?=.{0,520}\b(?:extras(?:ul)?\s+de\s+cont|statement|dovad[ăa]\s+(?:bancar[ăa]|de\s+cont))\b)"
+            r"(?=.{0,520}\b(?:face[țt]i\s+alimentarea\s+contului|alimenta(?:rea|[țt]i)\s+contului|depun(?:ere|e[țt]i|eti)|depozit(?:ul|are)|funding)\b)"
+            r"(?=.{0,620}\b(?:sesiun(?:e|i)\s+de\s+tranzac[țt]ionare|tranzac[țt]ionare.{0,80}(?:[îi]mpreun[ăa]|impreuna)|facem\s+[îi]mpreun[ăa]|v[ăa]\s+ghid[ăa]m)\b)",
+        ),
+        (
             "semantic:recovery_audit_fee_before_refund",
             "recovery_audit_fee_before_refund",
             r"(?=.{0,240}\b(?:fondurile\s+pierdute|recuper(?:are|[ăa]m|ezi)|rambursare|blockchain|traseul)\b)"
@@ -2645,6 +2658,38 @@ def _identity_data_request_token(normalized: str) -> Optional[str]:
     return "cnp" if _IDENTITY_DATA_CNP_RE.search(match.group(0)) else "id_document"
 
 
+def _looks_like_official_kyc_portal_upload(normalized: str) -> bool:
+    """Calm regulated KYC uploads that stay inside an official secure portal."""
+    text = _normalise_obfuscated_text(normalized or "").lower()
+    if not text:
+        return False
+    has_kyc_context = bool(re.search(
+        r"\b(?:kyc|cerin[țt]elor\s+legale|conform\s+(?:cerin[țt]elor\s+)?legale|"
+        r"deschiderea\s+contului\s+de\s+brokeraj|contului\s+de\s+brokeraj|"
+        r"formularul\s+oficial)\b",
+        text,
+    ))
+    has_official_portal = bool(re.search(
+        r"\b(?:portal(?:ul)?\s+(?:oficial\s+)?securizat|portal(?:ul)?\s+oficial|"
+        r"platform[ăa]\s+oficial[ăa]|formularul\s+oficial)\b",
+        text,
+    ))
+    has_identity_document = bool(re.search(
+        r"\b(?:act(?:ul)?\s+de\s+identitate|document(?:ul)?\s+de\s+identitate|"
+        r"buletin|carte(?:a)?\s+de\s+identitate|\bci\b|extras(?:ul)?\s+de\s+cont)\b",
+        text,
+    ))
+    scam_cues = bool(re.search(
+        r"\b(?:profit\s+garantat|randament\s+garantat|anydesk|teamviewer|rustdesk|"
+        r"control\s+la\s+distan[țt][ăa]|sesiun(?:e|i)\s+de\s+tranzac[țt]ionare|"
+        r"facem\s+[îi]mpreun[ăa]|v[ăa]\s+ghid[ăa]m|face[țt]i\s+alimentarea\s+contului|"
+        r"alimenta(?:rea|[țt]i)\s+contului|depune[țt]i|depuneti|depunere|"
+        r"depozit(?:ul|are)|funding)\b",
+        text,
+    ))
+    return has_kyc_context and has_official_portal and has_identity_document and not scam_cues
+
+
 def _request_sensitivity_from_signals_impl(
     *,
     raw_text: str,
@@ -2706,6 +2751,7 @@ def _request_sensitivity_from_signals_impl(
             "institution_fee_to_account",
             "advance_fee_unlock",
             "money_mule_transit",
+            "investment_onboarding_document_funding",
         }:
             return "transfer"
         if matched_family == "account_inventory_harvest":
@@ -2775,6 +2821,8 @@ def _request_sensitivity_from_signals_impl(
         direct_sensitive_request or (sensitive_url_path and not official_destination)
     ):
         return "password"
+    if _looks_like_official_kyc_portal_upload(normalized):
+        return "none"
     if re.search(r"\b(copie\s+(?:ci|act)|ci\s+fa[țt][ăa][-\s]?verso|selfie|act(?:ul)?\s+(?:de\s+)?identitate|buletin)\b", normalized):
         return "id_document"
     identity_data_token = _identity_data_request_token(normalized)

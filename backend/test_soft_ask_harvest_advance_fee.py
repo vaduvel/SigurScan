@@ -71,3 +71,13 @@ def test_legit_broker_kyc_onboarding_does_not_escalate():
     assert _verdict("Pentru deschiderea contului de brokeraj, conform cerintelor legale KYC, va "
                     "rugam completati formularul oficial cu banca din care veti alimenta contul. "
                     "Documentele se incarca doar in portalul nostru securizat.", channel="email") == "UNVERIFIED"
+
+
+def test_legit_broker_kyc_id_statement_in_official_portal_does_not_escalate():
+    # FP boundary for RO-SCAM-2026-018: ID + bank statement alone are normal KYC
+    # when the message explicitly stays inside an official secured portal and does
+    # not guide the user through trades or ask for a first deposit.
+    assert _verdict("Pentru deschiderea contului de brokeraj, conform cerintelor legale KYC, "
+                    "incarcati actul de identitate si extrasul de cont in portalul oficial "
+                    "securizat. Nu efectuati nicio plata in afara platformei oficiale.",
+                    channel="email") == "UNVERIFIED"

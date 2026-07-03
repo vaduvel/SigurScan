@@ -52,7 +52,9 @@ MODE = {
     "RO-SCAM-2025-006": "NON_MESSAGE",     # degraded fragment w/ arrows; clean ANAF-portal msg already fires
     # RO-SCAM-2025-010 ("unde ai conturi/solduri") fixed by account_inventory_harvest -> HARD_FLOOR.
     "RO-SCAM-2026-017": "KNOWN_GAP",       # citat_exact pig-butchering opener (real msg, no concrete ask) -> honest gap like PIG-001, not NON_MESSAGE
-    "RO-SCAM-2026-018": "KNOWN_GAP",       # investment onboarding (ID+statement+deposit); FP-risky to force
+    # Investment onboarding with concrete ID + statement + funding ask is now
+    # actionable; pure grooming/openers remain KNOWN_GAP.
+    "RO-SCAM-2026-018": "HARD_FLOOR",
     # RO-SCAM-2026-019 (advance-fee "insurance to withdraw") fixed by advance_fee_unlock -> HARD_FLOOR.
     "RO-SCAM-2026-003": "INDICATOR_ONLY",
     "RO-SCAM-2026-004": "INDICATOR_ONLY",
@@ -108,6 +110,8 @@ def test_hard_floor_recall_holds(case):
     # so these must be hard DANGEROUS, never merely SUSPECT.
     if case.get("protected"):
         assert actual == "DANGEROUS", f"{case['case_id']} protected cluster must be DANGEROUS -> {actual}"
+    if case["case_id"] == "RO-SCAM-2026-018":
+        assert actual == "DANGEROUS", f"{case['case_id']} investment onboarding ask must be DANGEROUS -> {actual}"
 
 
 @pytest.mark.parametrize("case", _GAP, ids=lambda c: c["case_id"])
