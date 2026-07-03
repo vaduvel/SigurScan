@@ -201,6 +201,67 @@ private fun educationLessons(): List<LessonContent> = listOf(
         )
     )
 
+/** "Urechea — apel pe difuzor" card (v2 · 11): describe + toggle the speaker guard. */
+@Composable
+private fun UrecheaCardV2(active: Boolean, onToggle: (Boolean) -> Unit) {
+    val accent = Color(0xFF7C3AED)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(SigurColors.BackgroundCard)
+            .border(1.dp, SigurColors.GlassBorder, RoundedCornerShape(18.dp))
+            .padding(horizontal = 16.dp, vertical = 15.dp)
+    ) {
+        Row(verticalAlignment = Alignment.Top) {
+            Box(
+                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(13.dp)).background(accent.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center
+            ) { Icon(Icons.Default.Hearing, contentDescription = null, tint = accent, modifier = Modifier.size(23.dp)) }
+            Spacer(modifier = Modifier.width(13.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Urechea — apel pe difuzor", color = SigurColors.TextPrimary, fontSize = 15.5.sp, fontWeight = FontWeight.ExtraBold)
+                Text(
+                    "Ascultă convorbirea pusă pe difuzor și te avertizează dacă pare o țeapă.",
+                    color = SigurColors.TextMuted,
+                    fontSize = 12.5.sp,
+                    lineHeight = 17.sp,
+                    modifier = Modifier.padding(top = 3.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Switch(
+                checked = active,
+                onCheckedChange = onToggle,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = SigurColors.Safe,
+                    uncheckedThumbColor = Color.White,
+                    uncheckedTrackColor = Color(0xFFCBD2DD),
+                    uncheckedBorderColor = Color.Transparent
+                )
+            )
+        }
+        Row(modifier = Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(if (active) SigurColors.Safe else SigurColors.TextMuted))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(if (active) "Activ" else "Oprit", color = if (active) SigurColors.Safe else SigurColors.TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        }
+        Text(
+            "Pornește doar la cererea ta. Analiza se face pe telefon — nimic nu pleacă fără permisiune.",
+            color = SigurColors.TextMuted,
+            fontSize = 12.sp,
+            lineHeight = 17.sp,
+            modifier = Modifier
+                .padding(top = 9.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(SigurColors.BackgroundSurface)
+                .padding(horizontal = 11.dp, vertical = 9.dp)
+        )
+    }
+}
+
 @Composable
 fun EducationTab(viewModel: ScannerViewModel) {
     val context = LocalContext.current
@@ -287,6 +348,25 @@ fun EducationTab(viewModel: ScannerViewModel) {
             },
             onReportPhoneInputChange = { viewModel.radarReportPhoneInput = it },
             onReportPhone = { viewModel.reportRadarPhoneNumber() }
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Urechea — apel pe difuzor (v2 · 11): always-visible entry card wired to
+        // the real speaker guard. Deep on-device ASR still needs the audio build flag.
+        UrecheaCardV2(
+            active = viewModel.speakerGuardSnapshot.active,
+            onToggle = { turnOn ->
+                if (turnOn) {
+                    viewModel.acceptSpeakerGuardConsent()
+                    if (!hasMicrophonePermission) {
+                        microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    } else {
+                        viewModel.startSpeakerGuard()
+                    }
+                } else {
+                    viewModel.stopSpeakerGuard()
+                }
+            }
         )
         Spacer(modifier = Modifier.height(12.dp))
 
