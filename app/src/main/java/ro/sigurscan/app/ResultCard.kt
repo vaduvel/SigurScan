@@ -211,12 +211,11 @@ fun ResultCard(
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
 
-            // Once the verdict is final, this box's text duplicates the reasons already
-            // listed in the verdict card above — it only earns its place while the scan
-            // is still running (live "Așteaptă verdictul final." status).
-            if (assessment.gateResult?.let { GateResultPresentation.isScanInProgress(it) } == true) {
-                GateEvidenceSummary(assessment, riskUi)
-            }
+            // GateEvidenceSummary used to render here. Removed entirely: its "in progress"
+            // state duplicated the verdict header's own progress row (isCheckingFurther in
+            // VerdictCardV2's extraHeaderContent — same asyncExpected/PROVISIONAL condition,
+            // just worded differently), and its "final" state duplicated the reasons already
+            // listed in the verdict card above.
 
             EvidenceSection(assessment.screenshotUrl, assessment.serverInfo, assessment.finalUrl)
 
@@ -236,15 +235,7 @@ fun ResultCard(
                 ResultSection(title = "Riscuri principale", items = keyDangersDeduped.take(3), icon = Icons.Default.Warning, accent = riskUi.color)
             }
 
-            // The gate's primaryAction is already shown prominently in GateEvidenceSummary
-            // above; don't repeat it verbatim as the first "next action" bullet too.
-            val gatePrimaryAction = assessment.gateResult?.let { GateResultPresentation.primaryAction(it) }
-            val nextActionsDeduped = if (gatePrimaryAction != null) {
-                nextActions.filterIndexed { index, action -> index != 0 || !action.trim().equals(gatePrimaryAction.trim(), ignoreCase = true) }
-            } else {
-                nextActions
-            }
-            ResultSection(title = "Ce să faci acum", items = nextActionsDeduped, icon = Icons.Default.CheckCircle, accent = riskUi.color)
+            ResultSection(title = "Ce să faci acum", items = nextActions, icon = Icons.Default.CheckCircle, accent = riskUi.color)
 
             assessment.actionPlan?.let { plan ->
                 ActionPlanSection(plan)
@@ -378,6 +369,12 @@ fun ResultCard(
             }
 
             if (assessment.cacheStatus != null) {
+                Text(
+                    text = "Verificat anterior — poți rula o verificare nouă acum.",
+                    color = SigurColors.TextMuted,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
                 ro.sigurscan.app.ui.v2.components.SecondaryButtonV2(
                     label = "Rescanează acum",
                     icon = Icons.Default.Refresh,
@@ -396,80 +393,5 @@ fun ResultCard(
     }
 }
 
-@Composable
-internal fun GateEvidenceSummary(assessment: OfflineAssessment, riskUi: RiskDisplayState) {
-    val gateResult = assessment.gateResult ?: return
-    val snapshot = assessment.evidenceSnapshot
-    val inProgress = GateResultPresentation.isScanInProgress(gateResult)
-    val hasLocalPreview = assessment.screenshotUrl
-        ?.trim()
-        ?.startsWith("file://", ignoreCase = true) == true &&
-        sandboxScreenshotModel(assessment.screenshotUrl) != null
-    val hasUrlEvidence = GateResultPresentation.hasUrlEvidence(snapshot)
-    // Must match EvidenceSection's own "still generating" condition below — otherwise this
-    // chip can say "Preview în curs" while the preview card itself says "indisponibil".
-    val serverSuggestsPreviewGenerating = assessment.screenshotUrl == null &&
-        assessment.serverInfo?.contains("genere", ignoreCase = true) == true
-    val finalWithPreviewPending = !inProgress &&
-        hasUrlEvidence &&
-        snapshot?.completeness == EvidenceCompleteness.PARTIAL_ONLINE &&
-        !hasLocalPreview &&
-        serverSuggestsPreviewGenerating
-    // "Verdict final" and the preview-completeness chip only carry real information while the
-    // scan is still running (live status). Once it's final, the big verdict card above already
-    // says so, and EvidenceSection right below already states the preview status — repeating
-    // both here as pills was pure noise stacked on top of what the user just read.
-    val chips = listOfNotNull(
-        "Scanare în curs".takeIf { inProgress },
-        if (assessment.cacheStatus != null) "Verificat anterior" else null,
-        snapshot?.completeness?.let {
-            when (it) {
-                EvidenceCompleteness.FULL -> "Verificări complete".takeIf { inProgress }
-                EvidenceCompleteness.PARTIAL_ONLINE -> when {
-                    finalWithPreviewPending -> "Preview în curs"
-                    hasUrlEvidence && inProgress -> "Se verifică linkul"
-                    !hasUrlEvidence && inProgress -> "Verificări parțiale"
-                    else -> null
-                }
-                EvidenceCompleteness.LOCAL_ONLY -> "Mai trebuie informații".takeIf { inProgress }
-            }
-        }
-    ).distinct()
-
-    Card(
-        colors = CardDefaults.cardColors(containerColor = riskUi.color.copy(alpha = 0.08f)),
-        border = BorderStroke(1.dp, riskUi.color.copy(alpha = 0.22f)),
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = GateResultPresentation.primaryAction(gateResult),
-                color = SigurColors.TextPrimary,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                lineHeight = 18.sp
-            )
-            if (chips.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    chips.take(3).forEach { chip ->
-                        Surface(
-                            color = SigurColors.BackgroundCard,
-                            border = BorderStroke(1.dp, riskUi.color.copy(alpha = 0.18f)),
-                            shape = RoundedCornerShape(999.dp)
-                        ) {
-                            Text(
-                                text = chip,
-                                color = SigurColors.TextSecondary,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
+// GateEvidenceSummary removed (see comment at its former call site in ResultCard above) —
+// fully redundant with the verdict header's own progress state and reasons list.

@@ -348,7 +348,7 @@ fun EvidenceSection(screenshotUrl: String?, serverInfo: String?, finalUrl: Strin
 
                     // Info overlay only makes sense captioning an actual screenshot — showing
                     // it over the empty placeholder just repeats the "don't continue" messaging
-                    // already given above (verdict header, GateEvidenceSummary).
+                    // already given by the verdict header above.
                     if (screenshotModel != null) {
                         Surface(
                             color = SigurColors.TextPrimary.copy(alpha = 0.72f),

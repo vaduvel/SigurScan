@@ -646,7 +646,8 @@ class ScannerViewModelTest {
         )
         assertTrue(
             "Cached results must be labelled as previously verified, not as a new live scan.",
-            activitySource.contains("if (assessment.cacheStatus != null) \"Verificat anterior\" else null")
+            activitySource.contains("if (assessment.cacheStatus != null) {") &&
+                activitySource.contains("Verificat anterior")
         )
     }
 
