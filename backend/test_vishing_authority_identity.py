@@ -46,6 +46,16 @@ def test_existing_act_de_identitate_still_maps():
     assert _sens(pg_sensitivity, "Trimiteti o poza cu actul de identitate.") == "id_document"
 
 
+def test_official_kyc_portal_identity_upload_stays_none_both_paths():
+    text = (
+        "Pentru deschiderea contului de brokeraj, conform cerintelor legale KYC, "
+        "incarcati actul de identitate si extrasul de cont in portalul oficial "
+        "securizat. Nu efectuati nicio plata in afara platformei oficiale."
+    )
+    assert _sens(pg_sensitivity, text) == "none"
+    assert _sens(sa_sensitivity, text) == "none"
+
+
 def test_benign_identity_mentions_stay_none_both_paths():
     benign = [
         "Nu transmitem niciodata date personale prin telefon.",
