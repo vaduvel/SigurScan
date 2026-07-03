@@ -476,6 +476,11 @@ fun ScanInputCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // v2: button disabled + "Scrie sau lipește ceva" until there is input to scan.
+            val hasScanInput = viewModel.text.isNotBlank() ||
+                viewModel.pendingSharedInput != null ||
+                viewModel.pendingSharedFiles.isNotEmpty()
+            val btnContent = if (hasScanInput) SigurColors.BrandDeep else Color.White.copy(alpha = 0.78f)
             Button(
                 onClick = {
                     when {
@@ -488,20 +493,38 @@ fun ScanInputCard(
                     }
                 },
                 modifier = Modifier.fillMaxWidth().height(48.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    disabledContainerColor = Color.White.copy(alpha = 0.20f)
+                ),
                 shape = RoundedCornerShape(100),
                 contentPadding = PaddingValues(14.dp),
-                enabled = !viewModel.loading
+                enabled = hasScanInput && !viewModel.loading
             ) {
-                Icon(Icons.Default.Bolt, contentDescription = null, tint = SigurColors.BrandDeep, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Bolt, contentDescription = null, tint = btnContent, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Scanează acum", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = SigurColors.BrandDeep)
+                Text(
+                    if (hasScanInput) "Scanează acum" else "Scrie sau lipește ceva",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = btnContent
+                )
             }
 
         }
     }
 
-    Spacer(modifier = Modifier.height(12.dp))
+    Spacer(modifier = Modifier.height(14.dp))
+
+    Text(
+        "Sau alege tipul de scanare",
+        color = SigurColors.TextPrimary,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.ExtraBold,
+        modifier = Modifier.padding(start = 4.dp)
+    )
+
+    Spacer(modifier = Modifier.height(10.dp))
 
     Card(
         colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
@@ -535,7 +558,7 @@ fun ScanInputCard(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 GridButton(
                     title = "Scanează Cod QR",
-                    desc = "Scanare live direct din cameră",
+                    desc = "Scanare live din cameră",
                     icon = Icons.Default.QrCodeScanner,
                     color = SigurColors.Safe,
                     onClick = onScanQr,

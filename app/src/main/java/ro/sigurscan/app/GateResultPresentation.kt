@@ -150,10 +150,10 @@ object GateResultPresentation {
             "WEAK_OR_EXPLANATORY_EVIDENCE_ONLY" in codes -> "Am gasit doar semnale slabe, precum marketing, CTA, tracking sau explicatii."
             "BRAND_OR_AUTHORITY_CLAIM_NEEDS_VERIFICATION" in codes -> "Mesajul mentioneaza un brand sau o autoritate si trebuie verificat pe canalul oficial."
             isVerificationUnavailable(result) -> "Nu am putut contacta serviciul de verificare. Reîncearcă scanarea când conexiunea este stabilă."
-            "PROVIDER_REVIEW_REQUIRED" in codes && result.unknownReason == "PROVIDERS_PENDING_FOR_TARGET" -> "Se scaneaza linkul. Revenim cu verdictul dupa verificare."
-            "PROVIDER_REVIEW_REQUIRED" in codes && result.unknownReason == "PROVIDERS_NOT_RUN_FOR_TARGET" -> "Se scaneaza linkul. Revenim cu verdictul dupa verificare."
+            "PROVIDER_REVIEW_REQUIRED" in codes && result.unknownReason == "PROVIDERS_PENDING_FOR_TARGET" -> "Se scanează linkul. Revenim cu verdictul după verificare."
+            "PROVIDER_REVIEW_REQUIRED" in codes && result.unknownReason == "PROVIDERS_NOT_RUN_FOR_TARGET" -> "Se scanează linkul. Revenim cu verdictul după verificare."
             "PROVIDER_REVIEW_REQUIRED" in codes && result.unknownReason == "FINAL_URL_NOT_RESOLVED" -> "Urmarim destinatia finala a linkului inainte sa dam verdict."
-            "PROVIDER_REVIEW_REQUIRED" in codes && result.unknownReason == "PILLARS_NOT_RUN" -> "Se scaneaza linkul. Revenim cu verdictul dupa verificare."
+            "PROVIDER_REVIEW_REQUIRED" in codes && result.unknownReason == "PILLARS_NOT_RUN" -> "Se scanează linkul. Revenim cu verdictul după verificare."
             result.action == GateAction.UNVERIFIED -> supportText(result)
             result.action == GateAction.INSUFFICIENT_EVIDENCE && result.unknownReason == "WEBMAIL_SHELL_ONLY" -> "Am primit doar shell-ul webmail, nu corpul complet al mesajului."
             result.action == GateAction.INSUFFICIENT_EVIDENCE && result.unknownReason == "OCR_LOW_CONFIDENCE" -> "OCR-ul nu a extras suficient text verificabil."
