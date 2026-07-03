@@ -42,6 +42,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -73,6 +74,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import coil.compose.SubcomposeAsyncImage
 import ro.sigurscan.app.ui.theme.SigurScanTheme
 import ro.sigurscan.app.ui.theme.SigurColors
+import ro.sigurscan.app.ui.v2.components.AppHeaderV2
 import org.json.JSONArray
 import org.json.JSONObject
 import android.webkit.WebResourceRequest
@@ -95,134 +97,138 @@ import kotlin.math.pow
 @Composable
 fun TriageTab(viewModel: ScannerViewModel) {
     val context = LocalContext.current
-    var selectedCategory by remember { mutableStateOf("card") }
-
-    val guides = mapOf(
-        "card" to Triple("Compromitere date card", Icons.Outlined.CreditCard, SigurColors.Dangerous),
-        "whatsapp" to Triple("Cont WhatsApp compromis", Icons.Outlined.Smartphone, SigurColors.Safe),
-        "anydesk" to Triple("Aplicație control distanță", Icons.Outlined.Download, SigurColors.Brand),
-        "personal" to Triple("Date personale trimise", Icons.Outlined.AccountBox, SigurColors.Suspect)
+    val dangerHero = androidx.compose.ui.graphics.Brush.linearGradient(
+        colors = listOf(Color(0xFFF0594B), Color(0xFFD32C1F))
     )
 
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 120.dp)) {
-        Text("Centrul de Urgență", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = SigurColors.TextPrimary)
-        Spacer(modifier = Modifier.height(16.dp))
+        AppHeaderV2()
 
-        Card(
-            colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
-            shape = DSCardShape,
-            border = DSCardBorder,
-            modifier = Modifier.fillMaxWidth()
+        // Red emergency hero + inner "Sună la 1911" call card (v2 · Urgență)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(22.dp))
+                .background(dangerHero)
+                .padding(18.dp)
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Icon(Icons.Default.Warning, contentDescription = null, tint = SigurColors.Dangerous, modifier = Modifier.size(28.dp))
-                Text("Ghiduri Interactive Anti-Fraudă", color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
-                Text("Alegeți mai jos scenariul potrivit pentru a genera un plan de măsuri.", color = SigurColors.TextSecondary, fontSize = 13.sp)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            guides.forEach { (key, value) ->
-                val isSelected = selectedCategory == key
-                Card(
-                    modifier = Modifier.weight(1f).clickable { selectedCategory = key },
-                    colors = CardDefaults.cardColors(containerColor = if (isSelected) value.third.copy(alpha = 0.15f) else SigurColors.BackgroundCard),
-                    shape = DSCardShape,
-                    border = BorderStroke(1.dp, if (isSelected) value.third else SigurColors.GlassBorder)
-                ) {
-                    Column(modifier = Modifier.padding(8.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(value.second, contentDescription = null, tint = if (isSelected) value.third else SigurColors.TextMuted, modifier = Modifier.size(20.dp))
-                        Text(value.first.split(" ")[0], color = if (isSelected) SigurColors.TextPrimary else SigurColors.TextMuted, fontSize = 10.sp, textAlign = TextAlign.Center)
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        TriageDetail(
-            category = selectedCategory,
-            viewModel = viewModel
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Card(
-            colors = CardDefaults.cardColors(containerColor = SigurColors.BrandTint),
-            shape = DSCardShape,
-            border = BorderStroke(1.dp, SigurColors.Brand.copy(alpha = 0.15f))
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Phone, contentDescription = null, tint = SigurColors.Brand)
-                    Text("Asistență Telefonică (DNSC)", color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 8.dp))
+                    Icon(Icons.Default.Emergency, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(9.dp))
+                    Text(
+                        "Ai pățit ceva? Acționează acum",
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        lineHeight = 24.sp
+                    )
                 }
-                Text("Dacă ați fost victima unei fraude, contactați DNSC la numărul unic gratuit: 1911", color = SigurColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(vertical = 12.dp))
-                Button(
-                    onClick = {
-                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:1911"))
-                        context.startActivity(intent)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = DSPillShape,
-                    colors = ButtonDefaults.buttonColors(containerColor = SigurColors.Brand)
-                ) {
-                    Text("Sunați la 1911")
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun TriageDetail(category: String, viewModel: ScannerViewModel) {
-    val steps = when(category) {
-        "card" -> listOf(
-            "Blocați imediat cardul din aplicația bancară" to "Folosiți opțiunea de înghețare (Freeze/Block) a cardului.",
-            "Sunați la asistența clienți a băncii dvs." to "Raportați tranzacțiile neautorizate rapid.",
-            "Depuneți plângere la Poliție și DNSC (1911)" to "Salvați screenshot-uri cu mesajul și site-ul clonat."
-        )
-        "whatsapp" -> listOf(
-            "Verificați dispozitivele conectate" to "În WhatsApp: Setări -> Dispozitive asociate. Deconectați tot.",
-            "Activați verificarea în doi pași" to "Configurați un cod PIN personal în Setări -> Cont.",
-            "Avertizați-vă contactele de urgență" to "Anunțați-i că cineva ar putea cere bani în numele dvs."
-        )
-        "anydesk" -> listOf(
-            "Deconectați telefonul de la internet" to "Activați Modul Avion imediat.",
-            "Dezinstalați aplicația suspectă" to "Ștergeți AnyDesk, TeamViewer sau fișierele .APK.",
-            "Schimbați parolele bancare" to "Faceți acest lucru de pe un alt dispozitiv sigur."
-        )
-        else -> listOf(
-            "Alertați DNSC la numărul 1911" to "Raportați incidentul pe site-ul dnsc.ro.",
-            "Monitorizați încercările de credite" to "Verificați Biroul de Credit periodic.",
-            "Înlocuiți actul de identitate" to "Dacă poza buletinului a ajuns la atacatori, declarați-l pierdut."
-        )
-    }
-
-    Card(
-        colors = CardDefaults.cardColors(containerColor = SigurColors.BackgroundCard),
-        shape = DSCardShape,
-        border = DSCardBorder
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            steps.forEachIndexed { index, (title, detail) ->
-                val checked = viewModel.isTriageStepDone(category, index)
+                Text(
+                    "Dacă ai dat bani, date de card sau parole, contează fiecare minut.",
+                    color = Color.White.copy(alpha = 0.92f),
+                    fontSize = 13.5.sp,
+                    lineHeight = 19.sp,
+                    modifier = Modifier.padding(top = 7.dp)
+                )
                 Row(
                     modifier = Modifier
-                        .padding(vertical = 8.dp)
-                        .clickable { viewModel.setTriageStep(category, index, !checked) }
+                        .fillMaxWidth()
+                        .padding(top = 15.dp)
+                        .clip(RoundedCornerShape(15.dp))
+                        .background(Color.White)
+                        .clickable { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:1911"))) }
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = if (checked) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
-                        contentDescription = null,
-                        tint = if (checked) SigurColors.Safe else SigurColors.TextMuted
-                    )
+                    Box(
+                        modifier = Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(SigurColors.Dangerous.copy(alpha = 0.13f)),
+                        contentAlignment = Alignment.Center
+                    ) { Icon(Icons.Default.Call, contentDescription = null, tint = SigurColors.Dangerous, modifier = Modifier.size(23.dp)) }
                     Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(title, color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp, textDecoration = if (checked) TextDecoration.LineThrough else null)
-                        Text(detail, color = SigurColors.TextSecondary, fontSize = 12.sp)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Sună la 1911", color = SigurColors.TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                        Text("Linia DNSC pentru fraude online", color = SigurColors.TextMuted, fontSize = 12.sp)
+                    }
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = SigurColors.Dangerous, modifier = Modifier.size(22.dp))
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Raportează oficial → DNSC
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(SigurColors.BackgroundCard)
+                .border(1.dp, SigurColors.GlassBorder, RoundedCornerShape(14.dp))
+                .clickable { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.dnsc.ro"))) }
+                .padding(horizontal = 15.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF2563EB).copy(alpha = 0.13f)),
+                contentAlignment = Alignment.Center
+            ) { Icon(Icons.Default.Gavel, contentDescription = null, tint = Color(0xFF2563EB), modifier = Modifier.size(21.dp)) }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Raportează oficial", color = SigurColors.TextPrimary, fontSize = 14.5.sp, fontWeight = FontWeight.ExtraBold)
+                Text("Trimite cazul la DNSC și, dacă e nevoie, la poliție — completăm noi datele.", color = SigurColors.TextMuted, fontSize = 12.sp, lineHeight = 17.sp)
+            }
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = SigurColors.TextMuted, modifier = Modifier.size(22.dp))
+        }
+
+        Spacer(modifier = Modifier.height(11.dp))
+
+        // Plan de acțiune — numbered steps, tap to mark done (tracked in viewModel)
+        val planSteps = listOf(
+            Triple("Blochează cardul", "Sună banca sau blochează din aplicație, dacă ai dat datele cardului.", 0),
+            Triple("Schimbă parolele", "Începe cu emailul și banca, dacă ai introdus parole.", 1),
+            Triple("Păstrează dovezile", "Fă capturi cu mesajul, linkul și orice plată.", 2)
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(SigurColors.BackgroundCard)
+                .border(1.dp, SigurColors.GlassBorder, RoundedCornerShape(18.dp))
+                .padding(16.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Checklist, contentDescription = null, tint = SigurColors.Pending, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Plan de acțiune", color = SigurColors.TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+            }
+            planSteps.forEach { (title, desc, idx) ->
+                val done = viewModel.isTriageStepDone("urgent", idx)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .clickable { viewModel.setTriageStep("urgent", idx, !done) },
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Box(
+                        modifier = Modifier.size(30.dp).clip(CircleShape).background(
+                            if (done) SigurColors.Safe.copy(alpha = 0.16f) else SigurColors.Pending.copy(alpha = 0.13f)
+                        ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (done) Icon(Icons.Default.Check, contentDescription = null, tint = SigurColors.Safe, modifier = Modifier.size(17.dp))
+                        else Text("${idx + 1}", color = Color(0xFF475569), fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            title,
+                            color = SigurColors.TextPrimary,
+                            fontSize = 14.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            textDecoration = if (done) TextDecoration.LineThrough else null
+                        )
+                        Text(desc, color = SigurColors.TextMuted, fontSize = 12.5.sp, lineHeight = 17.sp)
                     }
                 }
             }

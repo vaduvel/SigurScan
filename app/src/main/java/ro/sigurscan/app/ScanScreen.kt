@@ -73,6 +73,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import coil.compose.SubcomposeAsyncImage
 import ro.sigurscan.app.ui.theme.SigurScanTheme
 import ro.sigurscan.app.ui.theme.SigurColors
+import ro.sigurscan.app.ui.v2.components.AppHeaderV2
 import org.json.JSONArray
 import org.json.JSONObject
 import android.webkit.WebResourceRequest
@@ -126,7 +127,7 @@ fun ScanTab(
             .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 120.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Header()
+        AppHeaderV2()
 
         Spacer(modifier = Modifier.height(14.dp))
 

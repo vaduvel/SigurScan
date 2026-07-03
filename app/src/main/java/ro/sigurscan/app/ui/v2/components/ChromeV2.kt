@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -42,28 +43,18 @@ import ro.sigurscan.app.R
 import ro.sigurscan.app.ui.v2.theme.SigurTokensV2
 import ro.sigurscan.app.ui.v2.theme.TypeV2
 
-/** App header — icon + "SigurScan" + tagline, used at the top of every scrollable screen. */
+/** App header — SigurScan shield logo + wordmark + tagline (v2, top of every screen). */
 @Composable
 fun AppHeaderV2(modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    // Launcher icon is an adaptive-icon (mipmap-anydpi-v26 XML), which
-    // painterResource() cannot decode — rasterize it via the drawable API instead.
-    val iconBitmap = remember {
-        ContextCompat.getDrawable(context, R.mipmap.ic_launcher)
-            ?.toBitmap(width = 128, height = 128)
-            ?.asImageBitmap()
-    }
     Row(
         modifier = modifier.fillMaxWidth().padding(top = 6.dp, bottom = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (iconBitmap != null) {
-            Image(
-                bitmap = iconBitmap,
-                contentDescription = null,
-                modifier = Modifier.size(42.dp).clip(RoundedCornerShape(10.dp)),
-            )
-        }
+        Image(
+            painter = painterResource(R.drawable.ic_sigurscan_logo),
+            contentDescription = null,
+            modifier = Modifier.size(40.dp),
+        )
         Column(modifier = Modifier.padding(start = 12.dp)) {
             Text("SigurScan", style = TypeV2.SectionTitle.copy(fontSize = 22.sp), color = SigurTokensV2.Ink)
             Text("Verifici doar ce alegi tu", style = TypeV2.Caption, color = SigurTokensV2.Muted)
@@ -85,6 +76,7 @@ fun BottomNavBarV2(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 10.dp)
             .height(90.dp),
     ) {
         Row(
