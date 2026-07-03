@@ -215,13 +215,6 @@ fun ResultCard(
 
             EvidenceSection(assessment.screenshotUrl, assessment.serverInfo, assessment.finalUrl)
 
-            Text(
-                text = "Clasificare: ${assessment.family}",
-                color = SigurColors.TextMuted,
-                fontSize = 11.sp,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-
             assessment.offerEvidence?.let { offer ->
                 OfferEvidenceSection(offer)
                 Spacer(modifier = Modifier.height(12.dp))
@@ -290,6 +283,20 @@ fun ResultCard(
                 }
 
                 if (showTechnicalDetails) {
+                    // Technical/internal classification — moved out of the main reading flow
+                    // since it duplicated the verdict word itself when no specific scam family
+                    // was matched (e.g. "Clasificare: Periculos" next to a "PERICULOS" badge).
+                    assessment.family
+                        .takeIf { it.isNotBlank() && !it.equals(riskUi.label, ignoreCase = true) }
+                        ?.let { family ->
+                            Text(
+                                text = "Clasificare: $family",
+                                color = SigurColors.TextMuted,
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                        }
+
                     SincerityPillarsSection(assessment)
 
                     if (assessment.threatIntel.isNotEmpty()) {

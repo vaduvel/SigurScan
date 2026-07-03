@@ -23,11 +23,24 @@ object GateResultPresentation {
                 "LOCAL_OFFER_EXTRACTION_INCOMPLETE"
             )
 
+    /**
+     * Action-oriented headline, distinct from the verdict badge above it
+     * (which already says "Sigur"/"Suspect"/"Periculos"/"Neverificat") — the
+     * headline's job is to say what to DO, not repeat what the badge already
+     * said. See DS §"Componente" verdict card copy for the reference wording.
+     */
     fun userHeadline(result: GateResult): String =
         when {
             isScanInProgress(result) -> "Se verifică..."
             isFinalUnverified(result) || isVerificationUnavailable(result) -> "Neverificat"
-            else -> result.userLabel
+            else -> when (result.action) {
+                GateAction.DO_NOT_CONTINUE -> "Nu continua"
+                GateAction.NO_ENTER_DATA -> "Nu introduce date"
+                GateAction.NO_REPLY -> "Nu răspunde"
+                GateAction.VERIFY_OFFICIAL, GateAction.INSUFFICIENT_EVIDENCE -> "Nu continua încă"
+                GateAction.CONTINUE_WITH_CAUTION -> "Poți continua"
+                GateAction.UNVERIFIED -> "Neverificat"
+            }
         }
 
     fun legacyRiskLevel(action: GateAction): String = when (action) {
