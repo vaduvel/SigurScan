@@ -105,8 +105,9 @@ fun InvoiceResultCard(
     val reasonCodes = result.verdictGate?.reasonCodes.orEmpty()
     val invoiceTruth = result.invoiceTruth
 
-    // FIX-10: one verdict in the app's vocabulary (Sigur / Neverificat / Suspect / Periculos),
-    // derived from the engine signals — not the uniform verdict_gate label.
+    // FIX-10: one verdict in the app's vocabulary (Sigur / Neverificat / Suspect / Periculos).
+    // Current responses render verdict_gate as the single source of truth; older responses fall
+    // back to the engine signal mapper.
     val presentation = if (isError) null else invoiceVerdictPresentation(invoiceVerdict(result))
     val tone = if (isError) DSChipTone.Danger else presentation?.tone ?: DSChipTone.Pending
     val verdictText = if (isError) "Eroare" else presentation?.headline ?: "Verifică"

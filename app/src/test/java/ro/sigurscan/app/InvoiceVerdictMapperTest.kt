@@ -10,9 +10,9 @@ import org.junit.Test
  * Golden test for FIX-10: invoice signals -> one of the app's four verdicts
  * (Sigur / Neverificat / Suspect / Periculos) — same vocabulary as every other scan.
  *
- * F1..F5 fixtures are REAL responses captured in-process from the production invoice
- * engine (origin/main ed1445d) on the gauntlet PDFs — not hand-authored. The two
- * synthetic boundary cases (atlas-confirmed Sigur, legit-cession Periculos boundary)
+ * F1..F5 fixtures are real responses captured in-process from the production invoice
+ * engine on the gauntlet PDFs. Their verdict_gate blocks are refreshed to the current
+ * backend contract after the backend-first severity fixes; the synthetic boundary cases
  * are contract-sanctioned.
  *
  * Display-layer only: never re-judges the engine, only transposes its signals.
@@ -31,6 +31,92 @@ class InvoiceVerdictMapperTest {
 
     private fun fromJson(json: String): InvoiceScanResponse =
         Gson().fromJson(json.trimIndent(), InvoiceScanResponse::class.java)
+
+    // ---- Backend gate is the source of truth; Android renders, it does not re-judge. ----
+
+    @Test
+    fun backendGateDangerousDrivesPericulosWithoutLocalHardSignals() {
+        val r = invoiceVerdict(
+            fromJson(
+                """
+                {
+                  "fields": {"emitent": "ALFA DISTRIB SRL", "payment_beneficiary": "ALFA DISTRIB SRL",
+                             "iban": "RO17BTRL0000456789012345"},
+                  "coherence": {"totals_match": true, "tva_rate_plausible": true, "dates_plausible": true, "all_ok": true},
+                  "invoice_truth": {"verdict": "VERIFY_BEFORE_PAYING", "safe_to_pay": false,
+                                    "primary_reason_code": "UNCONFIRMED_DESTINATION", "hard_conflicts": []},
+                  "verdict_gate": {"label": "DANGEROUS", "risk_level": "high", "risk_score": 92,
+                                   "reason_codes": ["backend_hard_conflict"]}
+                }
+                """
+            )
+        )
+
+        assertEquals(InvoiceVerdict.PERICULOS, r.verdict)
+    }
+
+    @Test
+    fun backendGateUnverifiedIsNotEscalatedByLegacyInvoiceTruthReason() {
+        val r = invoiceVerdict(
+            fromJson(
+                """
+                {
+                  "fields": {"emitent": "ALFA DISTRIB SRL", "payment_beneficiary": "ALFA DISTRIB SRL",
+                             "iban": "RO17BTRL0000456789012345"},
+                  "coherence": {"totals_match": true, "tva_rate_plausible": true, "dates_plausible": true, "all_ok": true},
+                  "invoice_truth": {"verdict": "VERIFY_BEFORE_PAYING", "safe_to_pay": false,
+                                    "primary_reason_code": "CHANGED_IBAN_OR_CHANNEL", "hard_conflicts": []},
+                  "verdict_gate": {"label": "UNVERIFIED", "risk_level": "unknown", "risk_score": 35,
+                                   "reason_codes": ["value_request_needs_verification"]}
+                }
+                """
+            )
+        )
+
+        assertEquals(InvoiceVerdict.NEVERIFICAT, r.verdict)
+    }
+
+    @Test
+    fun backendGateSuspectIsNotOverriddenByLegacySafeToPay() {
+        val r = invoiceVerdict(
+            fromJson(
+                """
+                {
+                  "fields": {"emitent": "ALFA DISTRIB SRL", "payment_beneficiary": "ALFA DISTRIB SRL",
+                             "iban": "RO17BTRL0000456789012345"},
+                  "coherence": {"totals_match": true, "tva_rate_plausible": true, "dates_plausible": true, "all_ok": true},
+                  "invoice_truth": {"verdict": "VERIFY_BEFORE_PAYING", "safe_to_pay": true,
+                                    "primary_reason_code": "DESTINATION_CONFIRMED", "hard_conflicts": []},
+                  "verdict_gate": {"label": "SUSPECT", "risk_level": "medium", "risk_score": 61,
+                                   "reason_codes": ["backend_requires_review"]}
+                }
+                """
+            )
+        )
+
+        assertEquals(InvoiceVerdict.SUSPECT, r.verdict)
+    }
+
+    @Test
+    fun backendGateSafeIsNotDowngradedByLegacyCoherenceSignals() {
+        val r = invoiceVerdict(
+            fromJson(
+                """
+                {
+                  "fields": {"emitent": "ALFA DISTRIB SRL", "payment_beneficiary": "ALFA DISTRIB SRL",
+                             "iban": "RO17BTRL0000456789012345"},
+                  "coherence": {"totals_match": false, "tva_rate_plausible": true, "dates_plausible": true, "all_ok": false},
+                  "invoice_truth": {"verdict": "VERIFY_BEFORE_PAYING", "safe_to_pay": false,
+                                    "primary_reason_code": "UNCONFIRMED_DESTINATION", "hard_conflicts": []},
+                  "verdict_gate": {"label": "SAFE", "risk_level": "low", "risk_score": 5,
+                                   "reason_codes": ["backend_safe"]}
+                }
+                """
+            )
+        )
+
+        assertEquals(InvoiceVerdict.SIGUR, r.verdict)
+    }
 
     // ---- Real captures, labeled by ground truth ----
 

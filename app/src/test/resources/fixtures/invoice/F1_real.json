@@ -167,13 +167,13 @@
     "evidence_hash": "sha256:e019de8ab1a2f148c1632917d9f240981a6c84e248dde1fd4bf410d3597c159a"
   },
   "verdict_gate": {
-    "label": "SUSPECT",
-    "risk_level": "medium",
-    "risk_score": 55,
+    "label": "UNVERIFIED",
+    "risk_level": "info",
+    "risk_score": 35,
     "reason_codes": [
-      "value_request_needs_verification"
+      "UNCONFIRMED_DESTINATION"
     ],
-    "confidence": 70,
+    "confidence": 82,
     "is_final": true
   },
   "invoice_truth": {

@@ -184,13 +184,13 @@
     "evidence_hash": "sha256:a0a195f03855db034a7aa555b1c2124826c5aa5bfa05396e8819da9ab16ee3c1"
   },
   "verdict_gate": {
-    "label": "SUSPECT",
-    "risk_level": "medium",
+    "label": "DANGEROUS",
+    "risk_level": "high",
     "risk_score": 90,
     "reason_codes": [
       "HIGH_RISK_PAYMENT_PATTERN_REQUIRES_VERIFICATION"
     ],
-    "confidence": 82,
+    "confidence": 95,
     "is_final": true
   },
   "invoice_truth": {

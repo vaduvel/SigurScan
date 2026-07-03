@@ -168,13 +168,13 @@
     "evidence_hash": "sha256:27c911c53bfbfb2e5b635deda31335c632ff14d5bb3fb988f4a07f821d77f1dd"
   },
   "verdict_gate": {
-    "label": "SUSPECT",
-    "risk_level": "medium",
-    "risk_score": 55,
+    "label": "DANGEROUS",
+    "risk_level": "high",
+    "risk_score": 90,
     "reason_codes": [
-      "value_request_needs_verification"
+      "CHANGED_IBAN_OR_CHANNEL"
     ],
-    "confidence": 70,
+    "confidence": 95,
     "is_final": true
   },
   "invoice_truth": {

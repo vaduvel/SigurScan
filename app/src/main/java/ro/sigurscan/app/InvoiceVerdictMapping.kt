@@ -9,9 +9,9 @@ import java.util.Locale
  * same four words as every other scan — Sigur / Neverificat / Suspect / Periculos —
  * so the verdict is consistent across the app.
  *
- * Display-layer only: this never re-judges the engine, it transposes the signals the
- * engine already produced (invoice_truth + fraud collapse + brand_match + coherence +
- * beneficiary) into the verdict + a single decision instruction.
+ * Display-layer only: this never re-judges the engine. Current backend responses are
+ * rendered from verdict_gate, the single source of truth. The invoice_truth/field-based
+ * logic below is retained only as a legacy fallback for old responses without a gate.
  *
  * Periculos keys on the engine's *collapsed* fraud signals (hard_conflicts +
  * primary_reason_code + impersonation_risk), not on a hardcoded subset of fraud_flags —
@@ -84,9 +84,27 @@ private fun ibanMissingOrInvalid(result: InvoiceScanResponse): Boolean {
     return result.iban?.valid == false
 }
 
+private fun verdictFromGate(gate: InvoiceVerdictGateResponse?): InvoiceVerdict? {
+    val label = gate?.label?.trim()?.uppercase(Locale.ROOT) ?: return null
+    return when (label) {
+        "SAFE", "SIGUR" -> InvoiceVerdict.SIGUR
+        "UNVERIFIED", "NEVERIFICAT" -> InvoiceVerdict.NEVERIFICAT
+        "SUSPECT" -> InvoiceVerdict.SUSPECT
+        "DANGEROUS", "PERICULOS", "NOT_SAFE", "NOT SAFE" -> InvoiceVerdict.PERICULOS
+        else -> InvoiceVerdict.NEVERIFICAT
+    }
+}
+
 fun invoiceVerdict(result: InvoiceScanResponse): InvoiceVerdictResult {
-    val truth = result.invoiceTruth
     val beneficiaryMismatch = invoiceBeneficiaryMismatch(result.fields)
+    verdictFromGate(result.verdictGate)?.let { gateVerdict ->
+        return InvoiceVerdictResult(
+            verdict = gateVerdict,
+            beneficiaryMismatch = gateVerdict == InvoiceVerdict.PERICULOS && beneficiaryMismatch,
+        )
+    }
+
+    val truth = result.invoiceTruth
 
     // 1) Periculos (hard) — fraud-grade triggers win over everything, even a confirmed safe_to_pay.
     val hardPericulos = (truth?.hardConflicts?.isNotEmpty() == true) ||
