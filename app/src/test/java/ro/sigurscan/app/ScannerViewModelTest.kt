@@ -1363,7 +1363,7 @@ class ScannerViewModelTest {
     @Test
     fun bottomNavigationKeepsTabsAboveSystemGestureArea() {
         val activitySource = uiPackageSource()
-        val bottomNavStart = activitySource.indexOf("fun BottomNavigationBar(activeTab: String, onTabClick: (String) -> Unit)")
+        val bottomNavStart = activitySource.indexOf("fun BottomNavigationBar(activeTab: String, onTabClick: (String) -> Unit")
         val bottomNavEnd = activitySource.indexOf("// ─────────────────────────────────────────────────────────────", bottomNavStart)
         assertTrue("BottomNavigationBar must exist.", bottomNavStart >= 0 && bottomNavEnd > bottomNavStart)
 

@@ -94,7 +94,7 @@ import kotlin.math.pow
 
 @Composable
 fun MoreTab(viewModel: ScannerViewModel) {
-    Column(modifier = Modifier.fillMaxSize().padding(20.dp).verticalScroll(rememberScrollState())) {
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 120.dp)) {
         Text("Mai Mult", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = SigurColors.TextPrimary)
         Spacer(modifier = Modifier.height(16.dp))
 

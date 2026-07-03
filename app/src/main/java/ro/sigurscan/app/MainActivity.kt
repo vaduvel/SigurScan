@@ -213,12 +213,16 @@ fun MainScreen(viewModel: ScannerViewModel) {
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = SigurColors.Canvas,
-        bottomBar = {
-            BottomNavigationBar(viewModel.currentTab) { viewModel.currentTab = it }
-        }
+        containerColor = SigurColors.Canvas
     ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
+        // Nav bar floats as an overlay so tab content scrolls UNDER it and stays
+        // visible around the pill (matches v2). Content gets only the top inset;
+        // bottom clearance for the floating pill is added inside each tab's scroll.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = innerPadding.calculateTopPadding())
+        ) {
             when (viewModel.currentTab) {
                 "scan" -> ScanTab(
                     viewModel, 
@@ -251,6 +255,12 @@ fun MainScreen(viewModel: ScannerViewModel) {
                     onScanOffer = { offerPickerLauncher.launch(arrayOf("image/*", "application/pdf", "text/*", "text/html", "message/rfc822")) }
                 )
             }
+
+            BottomNavigationBar(
+                activeTab = viewModel.currentTab,
+                onTabClick = { viewModel.currentTab = it },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
 
             if (showQrScanner) {
                 hasQrCameraPermission =

@@ -127,12 +127,12 @@ internal fun BottomNavItem(
 
 /** Floating pill nav bar — Radar / Protecție(education) / [Scanează FAB] / Urgență(triage) / Mai mult. */
 @Composable
-fun BottomNavigationBar(activeTab: String, onTabClick: (String) -> Unit) {
+fun BottomNavigationBar(activeTab: String, onTabClick: (String) -> Unit, modifier: Modifier = Modifier) {
     val navGradient = androidx.compose.ui.graphics.Brush.linearGradient(
         colors = listOf(Color(0xFF0FA877), Color(0xFF067A50))
     )
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 18.dp)
