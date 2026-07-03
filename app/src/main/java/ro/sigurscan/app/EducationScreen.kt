@@ -102,9 +102,7 @@ internal data class LessonContent(
     val correctIndex: Int
 )
 
-@Composable
-fun EducationTab(viewModel: ScannerViewModel) {
-    val lessons = listOf(
+private fun educationLessons(): List<LessonContent> = listOf(
         LessonContent(
             id = "lesson_phishing_sms",
             title = "Cum identifici un link din SMS",
@@ -203,8 +201,8 @@ fun EducationTab(viewModel: ScannerViewModel) {
         )
     )
 
-    var selectedLesson by remember { mutableStateOf(lessons.first()) }
-
+@Composable
+fun EducationTab(viewModel: ScannerViewModel) {
     val context = LocalContext.current
     var hasMicrophonePermission by remember {
         mutableStateOf(
@@ -359,15 +357,19 @@ fun EducationTab(viewModel: ScannerViewModel) {
                 viewModel.requestGuardianSecondOpinion(selectedCircleMember, shareLevel, consent)
             }
         )
+    }
+}
 
-        Spacer(modifier = Modifier.height(22.dp))
+/** Anti-fraud micro-lessons + quiz — its own section, shown under the "Mai mult" tab. */
+@Composable
+fun LessonsSection(viewModel: ScannerViewModel) {
+    val lessons = educationLessons()
+    var selectedLesson by remember { mutableStateOf(lessons.first()) }
 
-        // Learn-to-recognise lessons kept below the protection controls
-        Text("Învață să recunoști", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = SigurColors.TextPrimary, modifier = Modifier.padding(start = 4.dp))
-        Spacer(modifier = Modifier.height(6.dp))
+    Column(modifier = Modifier.fillMaxWidth()) {
         Text("Alege o lecție, vezi regula și apoi verifici cu un mini test.", color = SigurColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp))
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         lessons.forEach { lesson ->
             val isSelected = selectedLesson.id == lesson.id

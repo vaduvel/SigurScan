@@ -73,6 +73,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import coil.compose.SubcomposeAsyncImage
 import ro.sigurscan.app.ui.theme.SigurScanTheme
 import ro.sigurscan.app.ui.theme.SigurColors
+import ro.sigurscan.app.ui.v2.components.AppHeaderV2
 import org.json.JSONArray
 import org.json.JSONObject
 import android.webkit.WebResourceRequest
@@ -95,12 +96,17 @@ import kotlin.math.pow
 @Composable
 fun MoreTab(viewModel: ScannerViewModel) {
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 120.dp)) {
-        Text("Mai Mult", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = SigurColors.TextPrimary)
-        Spacer(modifier = Modifier.height(16.dp))
+        AppHeaderV2()
 
-                SecurityFamilySection(viewModel)
+        Text("Securitate și familie", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = SigurColors.TextPrimary, modifier = Modifier.padding(start = 4.dp, bottom = 10.dp))
+        SecurityFamilySection(viewModel)
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(22.dp))
+
+        Text("Educație anti-fraudă", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = SigurColors.TextPrimary, modifier = Modifier.padding(start = 4.dp, bottom = 10.dp))
+        LessonsSection(viewModel)
+
+        Spacer(modifier = Modifier.height(22.dp))
 
         if (BuildConfig.DEBUG) {
             ReportsTab(viewModel)
