@@ -87,6 +87,7 @@ def evaluate_invoice_truth_v4(
     payment_destination = getattr(result, "payment_destination", None) or {}
     official_document_check = getattr(result, "official_document_check", None) or {}
     beneficiary_name_check = getattr(result, "beneficiary_name_check", None)
+    brand_match = getattr(result, "brand_match", None)
     fraud_flags = list(getattr(result, "fraud_flags", []) or [])
     # The user's SANB / Verification-of-Payee answer, if they performed the guided
     # bank-app check. May be passed explicitly or carried on the scan result.
@@ -98,6 +99,17 @@ def evaluate_invoice_truth_v4(
 
     issuer_state = _issuer_state(anaf)
     destination_state = _payment_destination_state(payment_destination, official_document_check, sanb_attestation)
+    if _brand_impersonation_payment_destination_mismatch(
+        brand_match=brand_match,
+        destination_state=destination_state,
+        payment_destination=payment_destination,
+    ):
+        hard_conflicts.append(
+            _conflict(
+                "BRAND_IMPERSONATION_PAYMENT_DESTINATION_MISMATCH",
+                "Brand declarat cu CUI contrazis și destinație de plată neconfirmată",
+            )
+        )
     if _weak_inactive_fallback_has_official_payment_match(anaf, destination_state):
         issuer_state = "CONFIRMED"
     if issuer_state == "CONFIRMED":
@@ -419,8 +431,27 @@ def _hard_conflict_label(code: str) -> str:
         "BEC_ACCOUNT_CHANGE_COMBO": "Schimbare de cont cu semnale de deturnare plată",
         "UNDISCLOSED_PAYMENT_INTERMEDIARY": "Beneficiar intermediar neconfirmat pentru plata facturii",
         "PAYMENT_CONTROL_BYPASS": "Instrucțiune de plată care ocolește verificarea normală",
+        "BRAND_IMPERSONATION_PAYMENT_DESTINATION_MISMATCH": "Brand declarat cu CUI contrazis și destinație de plată neconfirmată",
     }
     return labels.get(code, code.replace("_", " ").lower())
+
+
+def _brand_impersonation_payment_destination_mismatch(
+    *,
+    brand_match: Any,
+    destination_state: str,
+    payment_destination: Dict[str, Any],
+) -> bool:
+    if not bool(getattr(brand_match, "impersonation_risk", False)):
+        return False
+    if getattr(brand_match, "cui_matches", None) is not False:
+        return False
+    if destination_state != "UNCONFIRMED_VALID":
+        return False
+    return bool(
+        payment_destination.get("matched") is False
+        and payment_destination.get("registry_has_brand_destinations") is True
+    )
 
 
 def _generic_dangerous_can_override_invoice(fallback_gate: Dict[str, Any]) -> bool:

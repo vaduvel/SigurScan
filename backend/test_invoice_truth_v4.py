@@ -247,6 +247,81 @@ Consultant nou promite acces la grant si cere avans mic de analiza; firma exista
 
 
 @pytest.mark.asyncio
+async def test_invoice_truth_brand_impersonation_payment_mismatch_is_dangerous(monkeypatch):
+    text = """
+Factura Electrica F 3311
+Furnizor: ELECTRICA FURNIZARE S.A.
+CUI: RO99887766
+Beneficiar plata: EF COLLECT SERVICES SRL
+IBAN: RO06BRDE0000789012345678
+Total plata: 1008.53 RON
+Plata urgenta in 48h pentru evitarea deconectarii.
+"""
+
+    async def fake_check_cui(cui: str):
+        assert cui == "99887766"
+        return _cui_result(name="", exists=False)
+
+    monkeypatch.setattr("services.invoice_orchestrator.check_cui", fake_check_cui)
+
+    result = await scan_invoice(text)
+    evaluated = evaluate_invoice_verdict(result, result.raw_text, source_channel="email")
+    truth = evaluated["invoice_truth"]
+
+    assert result.brand == "electrica"
+    assert result.brand_match is not None
+    assert result.brand_match.impersonation_risk is True
+    assert result.brand_match.cui_matches is False
+    assert result.payment_destination is not None
+    assert result.payment_destination["matched"] is False
+    assert result.payment_destination["registry_has_brand_destinations"] is True
+    assert "UNKNOWN_PAYMENT_DESTINATION" in result.fraud_flags
+    assert truth["verdict"] == "NU_PLATI"
+    assert truth["primary_reason_code"] == "BRAND_IMPERSONATION_PAYMENT_DESTINATION_MISMATCH"
+    assert any(
+        conflict["code"] == "BRAND_IMPERSONATION_PAYMENT_DESTINATION_MISMATCH"
+        for conflict in truth["hard_conflicts"]
+    )
+    assert evaluated["gate"]["label"] == "DANGEROUS"
+    assert evaluated["gate"]["reason_codes"] == ["BRAND_IMPERSONATION_PAYMENT_DESTINATION_MISMATCH"]
+
+
+@pytest.mark.asyncio
+async def test_invoice_truth_confirmed_brand_and_official_destination_is_not_brand_impersonation(monkeypatch):
+    text = """
+Factura Electrica F 3312
+Furnizor: Electrica S.A.
+CUI: RO28909028
+Beneficiar plata: Electrica
+IBAN: RO74INGB5001008197998990
+Total plata: 100.00 RON
+"""
+
+    async def fake_check_cui(cui: str):
+        assert cui == "28909028"
+        return _cui_result(name="ELECTRICA FURNIZARE S.A.")
+
+    monkeypatch.setattr("services.invoice_orchestrator.check_cui", fake_check_cui)
+
+    result = await scan_invoice(text)
+    evaluated = evaluate_invoice_verdict(result, result.raw_text, source_channel="official_portal")
+    truth = evaluated["invoice_truth"]
+
+    assert result.brand == "electrica"
+    assert result.brand_match is not None
+    assert result.brand_match.cui_matches is True
+    assert result.payment_destination is not None
+    assert result.payment_destination["matched"] is True
+    assert result.payment_destination["can_contribute_to_safe"] is True
+    assert truth["primary_reason_code"] != "BRAND_IMPERSONATION_PAYMENT_DESTINATION_MISMATCH"
+    assert all(
+        conflict["code"] != "BRAND_IMPERSONATION_PAYMENT_DESTINATION_MISMATCH"
+        for conflict in truth["hard_conflicts"]
+    )
+    assert evaluated["gate"]["label"] != "DANGEROUS"
+
+
+@pytest.mark.asyncio
 async def test_invoice_truth_weak_inactive_fallback_does_not_beat_official_payment_destination(monkeypatch):
     text = """
 Factura G 2001
