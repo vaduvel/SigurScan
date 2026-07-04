@@ -236,7 +236,7 @@ fun InvoiceResultCard(
             }
 
             invoiceTruth?.nextAction?.title?.takeIf { it.isNotBlank() }?.let { action ->
-                InvoiceNextStepCard(action = action, accent = supplierAccent)
+                InvoiceFieldRow("Următorul pas", action, tone)
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
@@ -446,41 +446,6 @@ internal fun invoiceSignalLabel(code: String): String = when (code) {
     "NEW_VENDOR_PUBLIC_PROCUREMENT_FEE" -> "Taxă achiziție publică/furnizor nou"
     "EFACTURA_OFFICIAL_DOCUMENT_MISMATCH" -> "Factura diferă de XML-ul oficial atașat"
     else -> code.replace('_', ' ').lowercase(Locale.getDefault()).replaceFirstChar { it.titlecase(Locale.getDefault()) }
-}
-
-/** Mockups 06-09: "Următorul pas" — tone-tinted callout (bank icon + title + guidance). */
-@Composable
-private fun InvoiceNextStepCard(action: String, accent: Color) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(accent.copy(alpha = 0.09f))
-            .padding(horizontal = 13.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        Icon(
-            Icons.Default.AccountBalance,
-            contentDescription = null,
-            tint = accent,
-            modifier = Modifier.size(18.dp)
-        )
-        Column(modifier = Modifier.padding(start = 9.dp)) {
-            Text(
-                "Următorul pas",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = SigurColors.TextPrimary
-            )
-            Text(
-                action,
-                fontSize = 13.5.sp,
-                color = SigurColors.TextSecondary,
-                lineHeight = 19.sp,
-                modifier = Modifier.padding(top = 3.dp)
-            )
-        }
-    }
 }
 
 /** Mockups 07-09: "Am verificat" — task_alt header + tone-colored bullet list of positive checks. */
