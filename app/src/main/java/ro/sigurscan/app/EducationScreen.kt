@@ -262,6 +262,203 @@ private fun UrecheaCardV2(active: Boolean, onToggle: (Boolean) -> Unit) {
     }
 }
 
+/** Expandable v2 entry card — mockup-style header (icon chip + title + desc + chevron
+ *  + optional status dot) that reveals the real controls on tap. */
+@Composable
+private fun ExpandableEntryCardV2(
+    icon: ImageVector,
+    accent: Color,
+    title: String,
+    desc: String,
+    statusLabel: String?,
+    statusColor: Color,
+    content: @Composable () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(SigurColors.BackgroundCard)
+            .border(1.dp, SigurColors.GlassBorder, RoundedCornerShape(18.dp))
+            .clickable { expanded = !expanded }
+            .padding(horizontal = 16.dp, vertical = 15.dp)
+    ) {
+        Row(verticalAlignment = Alignment.Top) {
+            Box(
+                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(13.dp)).background(accent.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center
+            ) { Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(23.dp)) }
+            Spacer(modifier = Modifier.width(13.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, color = SigurColors.TextPrimary, fontSize = 15.5.sp, fontWeight = FontWeight.ExtraBold)
+                Text(desc, color = SigurColors.TextMuted, fontSize = 12.5.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 3.dp))
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Icon(
+                if (expanded) Icons.Default.ExpandLess else Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = SigurColors.TextMuted,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        if (statusLabel != null) {
+            Row(modifier = Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(statusColor))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(statusLabel, color = statusColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        if (expanded) {
+            Spacer(modifier = Modifier.height(14.dp))
+            content()
+        }
+    }
+}
+
+/** "Cercul de siguranță" — v2 entry card wrapping the Circle pairing/ping controls. */
+@Composable
+private fun CircleSafetyCard(
+    members: List<FamilyMember>,
+    selectedMember: FamilyMember?,
+    onSelectedMember: (FamilyMember) -> Unit,
+    snapshot: CircleProtectionSnapshot,
+    circleLoading: Boolean,
+    circleStatus: String?,
+    onPair: () -> Unit,
+    onPing: () -> Unit,
+    onResolve: (String) -> Unit,
+    onRevoke: () -> Unit
+) {
+    val activeLink = snapshot.link?.active == true
+    val ping = snapshot.ping
+    var memberMenuExpanded by remember { mutableStateOf(false) }
+    ExpandableEntryCardV2(
+        icon = Icons.Default.Group,
+        accent = SigurColors.Brand,
+        title = "Cercul de siguranță",
+        desc = "Întreabă rapid o persoană de încredere: „chestia asta e reală?”.",
+        statusLabel = if (activeLink) "Activ pe acest telefon" else "${members.size} persoane de încredere",
+        statusColor = if (activeLink) SigurColors.Safe else SigurColors.TextMuted
+    ) {
+        if (members.isEmpty()) {
+            Text(
+                "Adaugă întâi o persoană de încredere în Mai mult › Securitate și Familie.",
+                color = SigurColors.TextSecondary, fontSize = 12.sp, lineHeight = 16.sp
+            )
+        } else {
+            Box {
+                Button(
+                    onClick = { memberMenuExpanded = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = SigurColors.BackgroundSurface),
+                    border = BorderStroke(1.dp, SigurColors.GlassBorder),
+                    shape = DSPillShape
+                ) {
+                    Icon(Icons.Default.Person, contentDescription = null, tint = SigurColors.TextPrimary, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(selectedMember?.name ?: "Alege persoana", color = SigurColors.TextPrimary, fontSize = 12.sp)
+                }
+                DropdownMenu(expanded = memberMenuExpanded, onDismissRequest = { memberMenuExpanded = false }) {
+                    members.forEach { member ->
+                        DropdownMenuItem(
+                            text = { Column { Text(member.name); Text(member.contact, fontSize = 11.sp, color = SigurColors.TextMuted) } },
+                            onClick = { onSelectedMember(member); memberMenuExpanded = false }
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = onPair, enabled = !circleLoading && selectedMember != null, modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = SigurColors.BrandTint), border = BorderStroke(1.dp, SigurColors.Brand), shape = DSPillShape
+                ) {
+                    Icon(Icons.Default.Link, contentDescription = null, tint = SigurColors.Brand, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp)); Text(if (circleLoading) "..." else "Leagă", color = SigurColors.Brand, fontSize = 11.sp)
+                }
+                Button(
+                    onClick = onPing, enabled = !circleLoading && activeLink, modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = SigurColors.SafeLight), border = BorderStroke(1.dp, SigurColors.SafeBorder), shape = DSPillShape
+                ) {
+                    Icon(Icons.Default.Send, contentDescription = null, tint = SigurColors.Safe, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp)); Text("Ping", color = SigurColors.Safe, fontSize = 11.sp)
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                Button(onClick = { onResolve("its_me") }, enabled = !circleLoading && ping != null, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = SigurColors.SafeLight), border = BorderStroke(1.dp, SigurColors.SafeBorder), shape = DSPillShape) { Text("Confirmă", color = SigurColors.Safe, fontSize = 11.sp) }
+                Button(onClick = { onResolve("not_me") }, enabled = !circleLoading && ping != null, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = SigurColors.DangerousLight), border = BorderStroke(1.dp, SigurColors.DangerousBorder), shape = DSPillShape) { Text("Respinge", color = SigurColors.Dangerous, fontSize = 11.sp) }
+                Button(onClick = { onResolve("timeout") }, enabled = !circleLoading && ping != null, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = SigurColors.SuspectLight), border = BorderStroke(1.dp, SigurColors.SuspectBorder), shape = DSPillShape) { Text("Timeout", color = SigurColors.Suspect, fontSize = 11.sp) }
+            }
+            circleStatus?.takeIf { it.isNotBlank() }?.let {
+                Spacer(modifier = Modifier.height(8.dp)); Text(it, color = SigurColors.TextSecondary, fontSize = 11.sp, lineHeight = 15.sp)
+            }
+            if (activeLink) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(onClick = onRevoke, enabled = !circleLoading, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = SigurColors.BackgroundSurface), border = BorderStroke(1.dp, SigurColors.GlassBorder), shape = DSPillShape) {
+                    Icon(Icons.Default.Delete, contentDescription = null, tint = SigurColors.TextMuted, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp)); Text("Revocă legătura", color = SigurColors.TextPrimary, fontSize = 11.sp)
+                }
+            }
+        }
+    }
+}
+
+/** "A doua opinie" — v2 entry card wrapping the Guardian second-opinion controls. */
+@Composable
+private fun SecondOpinionCard(
+    selectedMember: FamilyMember?,
+    hasAssessment: Boolean,
+    guardianLoading: Boolean,
+    guardianStatus: String?,
+    onGuardian: (String, Boolean) -> Unit
+) {
+    var guardianShareLevel by remember { mutableStateOf("metadata_only") }
+    var fullConsent by remember { mutableStateOf(false) }
+    ExpandableEntryCardV2(
+        icon = Icons.Default.Forum,
+        accent = Color(0xFF0891B2),
+        title = "A doua opinie",
+        desc = "Trimite un caz neclar și primești o verificare umană suplimentară.",
+        statusLabel = null,
+        statusColor = SigurColors.TextMuted
+    ) {
+        Text(
+            if (hasAssessment) "Trimite doar rezumat redactat al scanării curente." else "Poți cere o opinie metadata-only chiar fără scanare curentă.",
+            color = SigurColors.TextSecondary, fontSize = 12.sp, lineHeight = 16.sp
+        )
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp)) {
+            Checkbox(checked = guardianShareLevel == "redacted_excerpt", onCheckedChange = { checked -> guardianShareLevel = if (checked) "redacted_excerpt" else "metadata_only" })
+            Text("Include extras redactat", color = SigurColors.TextSecondary, fontSize = 12.sp)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = fullConsent, onCheckedChange = { fullConsent = it })
+            Text("Consimțământ explicit pentru full_with_consent", color = SigurColors.TextSecondary, fontSize = 12.sp)
+        }
+        guardianStatus?.takeIf { it.isNotBlank() }?.let {
+            Spacer(modifier = Modifier.height(8.dp)); Text(it, color = SigurColors.TextSecondary, fontSize = 11.sp, lineHeight = 15.sp)
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        Button(
+            onClick = { onGuardian(if (fullConsent) "full_with_consent" else guardianShareLevel, fullConsent) },
+            enabled = !guardianLoading && selectedMember != null,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = SigurColors.SafeLight),
+            border = BorderStroke(1.dp, SigurColors.SafeBorder),
+            shape = DSPillShape
+        ) {
+            Icon(Icons.Default.PrivacyTip, contentDescription = null, tint = SigurColors.Safe, modifier = Modifier.size(14.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(if (guardianLoading) "..." else "Cere opinie", color = SigurColors.Safe, fontSize = 12.sp)
+        }
+        if (selectedMember == null) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text("Alege întâi o persoană în „Cercul de siguranță”.", color = SigurColors.TextMuted, fontSize = 11.sp)
+        }
+    }
+}
+
 @Composable
 fun EducationTab(viewModel: ScannerViewModel) {
     val context = LocalContext.current
@@ -414,20 +611,25 @@ fun EducationTab(viewModel: ScannerViewModel) {
           }
         }
 
-        CircleGuardianCard(
+        CircleSafetyCard(
             members = viewModel.familyMembers,
             selectedMember = selectedCircleMember,
             onSelectedMember = { selectedCircleMemberId = it.id },
             snapshot = viewModel.circleSnapshot,
             circleLoading = viewModel.circleLoading,
             circleStatus = viewModel.circleStatus,
-            guardianLoading = viewModel.guardianLoading,
-            guardianStatus = viewModel.guardianStatus,
-            hasAssessment = viewModel.assessment != null,
             onPair = { viewModel.createCirclePair(selectedCircleMember) },
             onPing = { viewModel.createCirclePing() },
             onResolve = { viewModel.resolveCirclePing(it) },
-            onRevoke = { viewModel.revokeCirclePair() },
+            onRevoke = { viewModel.revokeCirclePair() }
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        SecondOpinionCard(
+            selectedMember = selectedCircleMember,
+            hasAssessment = viewModel.assessment != null,
+            guardianLoading = viewModel.guardianLoading,
+            guardianStatus = viewModel.guardianStatus,
             onGuardian = { shareLevel, consent ->
                 viewModel.requestGuardianSecondOpinion(selectedCircleMember, shareLevel, consent)
             }
