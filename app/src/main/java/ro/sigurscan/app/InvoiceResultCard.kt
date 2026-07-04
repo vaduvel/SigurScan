@@ -253,11 +253,15 @@ fun InvoiceResultCard(
             // the verdict + decision above is all a non-technical user needs.
             var detailsExpanded by remember { mutableStateOf(false) }
             Spacer(modifier = Modifier.height(8.dp))
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(SigurColors.BackgroundSurface)
+            ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
                     .clickable { detailsExpanded = !detailsExpanded }
                     .padding(horizontal = 13.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -285,6 +289,7 @@ fun InvoiceResultCard(
             }
 
             if (detailsExpanded) {
+            Column(modifier = Modifier.padding(horizontal = 13.dp).padding(bottom = 6.dp)) {
             result.fields?.let { f ->
                 val currency = f.currency ?: "RON"
                 val profileLabel = when (f.invoiceProfile) {
@@ -423,7 +428,9 @@ fun InvoiceResultCard(
                     Text("• $w", fontSize = 12.sp, color = SigurColors.TextSecondary, modifier = Modifier.padding(start = 8.dp, top = 4.dp))
                 }
             }
-            } // end Detalii tehnice (collapsible)
+            } // end inner padded rows
+            } // end if detailsExpanded
+            } // end Detalii tehnice card (gray fill)
 
             Spacer(modifier = Modifier.height(16.dp))
             Button(
