@@ -708,25 +708,28 @@ private fun speakerGuardTone(verdict: AudioEvidenceVerdict?): DSChipTone = when 
     null -> DSChipTone.Brand
 }
 
+// Urechea brand purple for the "listening, no verdict yet" state (v2 mockup 14).
+private val UrecheaPurple = Color(0xFF7C3AED)
+
 private fun speakerGuardAccent(verdict: AudioEvidenceVerdict?): Color = when (verdict) {
     AudioEvidenceVerdict.DANGEROUS -> SigurColors.Dangerous
     AudioEvidenceVerdict.SUSPECT -> SigurColors.Suspect
     AudioEvidenceVerdict.UNVERIFIED -> SigurColors.Pending
-    null -> SigurColors.Brand
+    null -> UrecheaPurple
 }
 
 private fun speakerGuardLight(verdict: AudioEvidenceVerdict?): Color = when (verdict) {
     AudioEvidenceVerdict.DANGEROUS -> SigurColors.DangerousLight
     AudioEvidenceVerdict.SUSPECT -> SigurColors.SuspectLight
     AudioEvidenceVerdict.UNVERIFIED -> SigurColors.PendingLight
-    null -> SigurColors.BrandTint
+    null -> UrecheaPurple.copy(alpha = 0.12f)
 }
 
 private fun speakerGuardBorder(verdict: AudioEvidenceVerdict?): Color = when (verdict) {
     AudioEvidenceVerdict.DANGEROUS -> SigurColors.DangerousBorder
     AudioEvidenceVerdict.SUSPECT -> SigurColors.SuspectBorder
     AudioEvidenceVerdict.UNVERIFIED -> SigurColors.BrandLight.copy(alpha = 0.35f)
-    null -> SigurColors.Brand.copy(alpha = 0.25f)
+    null -> UrecheaPurple.copy(alpha = 0.30f)
 }
 
 @Composable
