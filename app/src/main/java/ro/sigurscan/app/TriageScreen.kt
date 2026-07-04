@@ -169,9 +169,9 @@ fun TriageTab(viewModel: ScannerViewModel) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF2563EB).copy(alpha = 0.13f)),
+                modifier = Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)).background(SigurColors.Pending.copy(alpha = 0.13f)),
                 contentAlignment = Alignment.Center
-            ) { Icon(Icons.Default.Gavel, contentDescription = null, tint = Color(0xFF2563EB), modifier = Modifier.size(21.dp)) }
+            ) { Icon(Icons.Default.Gavel, contentDescription = null, tint = SigurColors.Pending, modifier = Modifier.size(21.dp)) }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text("Raportează oficial", color = SigurColors.TextPrimary, fontSize = 14.5.sp, fontWeight = FontWeight.ExtraBold)

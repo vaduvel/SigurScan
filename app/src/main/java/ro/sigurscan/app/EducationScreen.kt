@@ -418,7 +418,7 @@ private fun SecondOpinionCard(
     var fullConsent by remember { mutableStateOf(false) }
     ExpandableEntryCardV2(
         icon = Icons.Default.Forum,
-        accent = Color(0xFF0891B2),
+        accent = SigurColors.Pending,
         title = "A doua opinie",
         desc = "Trimite un caz neclar și primești o verificare umană suplimentară.",
         statusLabel = null,
