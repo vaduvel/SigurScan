@@ -562,9 +562,14 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
     line_ibans = _extract_ibans_from_fragments((ocr_text or "").splitlines(), require_valid=False)
     fragmented_text_ibans = [iban for iban in text_ibans if iban not in set(line_ibans)]
     link_ibans = _extract_ibans_from_fragments(all_links, require_valid=False)
-    printed_ibans = _unique_ibans(list(getattr(fields, "all_ibans", []) or []) + text_ibans, require_valid=False)
+    # Only structurally valid IBANs count as real payment targets. text_ibans /
+    # line_ibans stay unvalidated above purely for fragmentation *detection* — but
+    # what lands in fields.all_ibans (and therefore candidate_ibans, MULTIPLE_IBANS,
+    # and payment-destination matching) must pass mod-97, or OCR artifacts like a
+    # client code "CL006876853MARKETINGGROWTHHUBSRL" get treated as a foreign IBAN.
+    printed_ibans = _unique_ibans(list(getattr(fields, "all_ibans", []) or []) + text_ibans, require_valid=True)
     if printed_ibans or link_ibans:
-        fields.all_ibans = _unique_ibans(printed_ibans + link_ibans, require_valid=False)
+        fields.all_ibans = _unique_ibans(printed_ibans + link_ibans, require_valid=True)
         if not fields.iban:
             fields.iban = next((iban for iban in printed_ibans if iban.startswith("RO")), None) or next(
                 (iban for iban in link_ibans if iban.startswith("RO")),
@@ -695,7 +700,13 @@ async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> Invo
         fraud_flags.append("FOREIGN_IBAN")
         warnings.append("IBAN-ul de plată nu este românesc; verifică destinația pe un canal oficial.")
 
-    if fragmented_text_ibans and re.search(r"\b(?:iban|cont|plat[ăa]|plata|achit[ăa]|transfer)\b", normalized_text):
+    # Only raise fragmentation when a reassembled candidate is a *valid* IBAN split
+    # across lines — not when an OCR artifact (e.g. a client code) merely looks
+    # IBAN-ish in the whole-text pass but not line-by-line.
+    valid_fragmented_ibans = [
+        iban for iban in fragmented_text_ibans if validate_iban(iban).valid_structure
+    ]
+    if valid_fragmented_ibans and re.search(r"\b(?:iban|cont|plat[ăa]|plata|achit[ăa]|transfer)\b", normalized_text):
         fraud_flags.append("FRAGMENTED_IBAN_PAYMENT_TARGET")
         warnings.append("IBAN-ul de plată pare rupt pe mai multe rânduri; verifică atent înainte de plată.")
 

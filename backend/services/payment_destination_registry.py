@@ -596,7 +596,15 @@ def match_payment_destination(
     cui_matches = None
     if entry_cui and _norm_cui(cui):
         cui_matches = entry_cui == _norm_cui(cui)
-    if cui_matches is False:
+    # A CUI mismatch normally means the IBAN belongs to a different entity than the
+    # one claimed. But when this destination's own brand_id already matches the
+    # claimed brand AND it is a curated official destination (can_contribute_to_safe),
+    # the CUI divergence is a data gap — a stale/wrong seed CUI, a subsidiary, or an
+    # updated registration — not a "belongs elsewhere" fraud. Paying a curated-official
+    # IBAN sends money to the real brand regardless of the printed CUI, so keep the
+    # genuine brand match; the CUI gap still blocks auto-safe below (verify, not safe).
+    destination_is_official = bool(entry.get("can_contribute_to_safe"))
+    if cui_matches is False and not (brand_matches and destination_is_official):
         brand_matches = False
     same_identity_entries = [
         candidate
@@ -624,6 +632,10 @@ def match_payment_destination(
             # Exact registry CUI match proves the SAME legal entity, so it stands
             # in for a textual brand match (e.g. "Dante International SA" vs eMAG).
             and (brand_matches or cui_matches is True)
+            # A divergent printed CUI keeps a brand-matched official destination out
+            # of auto-safe: the payer verifies (SANB) instead of being told it is
+            # confirmed. No longer a hard conflict, just unconfirmed.
+            and cui_matches is not False
             and not has_conflicting_non_safe_context
         ),
         "client_distribution_allowed": entry["client_distribution_allowed"],

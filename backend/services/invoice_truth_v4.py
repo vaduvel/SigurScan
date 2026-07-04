@@ -532,12 +532,18 @@ def _payment_destination_state(
             return "OFFICIAL_DOCUMENT_MATCH"
     if payment_destination.get("matched") and payment_destination.get("can_contribute_to_safe") is True:
         return "OFFICIAL_REGISTRY_MATCH"
-    if payment_destination.get("cui_matches") is False or (
+    if (
+        payment_destination.get("cui_matches") is False
+        and payment_destination.get("brand_matches") is not True
+    ) or (
         payment_destination.get("brand_matches") is False
         and payment_destination.get("cui_matches") is not True
     ):
         # A textual brand mismatch is only a real mismatch when the CUI does not
-        # also confirm the same legal entity. cui_matches=True overrides it.
+        # also confirm the same legal entity (cui_matches=True overrides it), and —
+        # symmetrically — a CUI mismatch is only "belongs elsewhere" when the brand
+        # did not independently match. A brand-matched official destination with a
+        # divergent (possibly stale-seed) CUI falls through to verify/unconfirmed.
         return "MISMATCH"
     trust_tier = str(payment_destination.get("trust_tier") or "")
     if trust_tier == "missing":
