@@ -108,6 +108,19 @@ fun MoreTab(viewModel: ScannerViewModel) {
 
         Spacer(modifier = Modifier.height(22.dp))
 
+        Text("Registru amenințări (pe telefon)", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = SigurColors.TextPrimary, modifier = Modifier.padding(start = 4.dp, bottom = 10.dp))
+        BtrOnDeviceCard(
+            snapshot = viewModel.btrSyncSnapshot,
+            verdict = viewModel.inboxProvenanceVerdict,
+            loading = viewModel.btrSyncLoading,
+            status = viewModel.btrSyncStatus,
+            provenanceStatus = viewModel.inboxProvenanceStatus,
+            onSync = { viewModel.syncBtrManifests() },
+            onLocalCheck = { viewModel.runLocalInboxProvenanceCheck() }
+        )
+
+        Spacer(modifier = Modifier.height(22.dp))
+
         if (BuildConfig.DEBUG) {
             ReportsTab(viewModel)
 

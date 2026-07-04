@@ -370,7 +370,12 @@ fun EducationTab(viewModel: ScannerViewModel) {
         )
         Spacer(modifier = Modifier.height(12.dp))
 
+        // The detailed Urechea listening/verdict block only appears once listening is
+        // active — the always-visible UrecheaCardV2 above is the entry card, so we don't
+        // show two Urechea cards at rest. (Outer flag gate kept intact so the ASR surface
+        // stays hidden entirely when the audio build flag is off.)
         if (BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR) {
+          if (viewModel.speakerGuardSnapshot.active) {
             val speakerGuardPrompt = viewModel.radarScreeningAudit
                 ?.let {
                     RadarCallDecision(
@@ -406,18 +411,8 @@ fun EducationTab(viewModel: ScannerViewModel) {
                 onStopSpeakerGuard = { viewModel.stopSpeakerGuard() }
             )
             Spacer(modifier = Modifier.height(12.dp))
+          }
         }
-
-        BtrOnDeviceCard(
-            snapshot = viewModel.btrSyncSnapshot,
-            verdict = viewModel.inboxProvenanceVerdict,
-            loading = viewModel.btrSyncLoading,
-            status = viewModel.btrSyncStatus,
-            provenanceStatus = viewModel.inboxProvenanceStatus,
-            onSync = { viewModel.syncBtrManifests() },
-            onLocalCheck = { viewModel.runLocalInboxProvenanceCheck() }
-        )
-        Spacer(modifier = Modifier.height(12.dp))
 
         CircleGuardianCard(
             members = viewModel.familyMembers,
