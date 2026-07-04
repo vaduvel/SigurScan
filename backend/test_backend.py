@@ -12120,3 +12120,23 @@ def test_orchestrated_request_persists_email_auth_on_job(monkeypatch):
             )
         )
     assert job.get("email_auth") == auth
+
+
+def test_urlscan_preview_pending_times_out_at_read_boundary():
+    """The status payload must not report urlscan screenshot 'pending' forever.
+    After ORCHESTRATED_URLSCAN_PENDING_TIMEOUT_SECONDS it becomes 'unavailable'
+    so the client stops spinning and keeps the verdict (pages urlscan cannot
+    screenshot, e.g. bot-blocked official pages)."""
+    eng = app_main.orchestrated_engine
+    base_preview = {"status": "ready", "source": "urlscan", "report_url": "https://urlscan.io/result/x"}
+    urlscan = {"status": "finished", "screenshot_ready": False, "uuid": "u"}
+    stale = eng._normalize_orchestrated_preview_status(
+        {"created_at": int(time.time()) - 200, "urlscan": dict(urlscan)}, dict(base_preview)
+    )
+    fresh = eng._normalize_orchestrated_preview_status(
+        {"created_at": int(time.time()), "urlscan": dict(urlscan)}, dict(base_preview)
+    )
+    assert stale["status"] == "unavailable"
+    assert stale["reason"] == "urlscan_screenshot_timeout"
+    assert fresh["status"] == "pending"
+    assert fresh["reason"] == "urlscan_screenshot_pending"
