@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.PriorityHigh
@@ -217,7 +218,20 @@ private fun TechDetailsV2(rows: List<Pair<String, String>>, modifier: Modifier =
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Detalii tehnice", style = TypeV2.CardTitle.copy(fontSize = 14.sp), color = SigurTokensV2.Ink)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Rounded.DataObject,
+                    contentDescription = null,
+                    tint = SigurTokensV2.Muted,
+                    modifier = Modifier.size(18.dp),
+                )
+                Text(
+                    "Detalii tehnice",
+                    style = TypeV2.CardTitle.copy(fontSize = 14.sp),
+                    color = SigurTokensV2.Ink,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
             Icon(Icons.Rounded.ExpandMore, contentDescription = null, tint = SigurTokensV2.Muted)
         }
         if (expanded) {
