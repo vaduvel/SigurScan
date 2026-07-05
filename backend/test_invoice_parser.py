@@ -156,6 +156,32 @@ class TestParseInvoice:
         result = parse_invoice("Seria ABC Nr. 999\nTotal: 100 RON")
         assert result.nr_factura == "999"
 
+    def test_media_galaxy_ocr_layout_reads_invoice_number_and_bare_total(self):
+        text = """
+        ALTEX ROMANIA SRL
+        Cod fiscal: RO2864518
+        Cont IBAN: RO53BRDE450SV01797384500
+        Cont IBAN 2: RO67TREZ7005069XXX008077
+        MEDIA GALAXY
+        FACTURA
+        Serie şi nr.:
+        F314027126-08562
+        Dată factură: 03/07/2026
+        SMTA164BK - TELEFON GALAXY A16, 4GB, 128GB, BLACK
+        Tip plată: Cards Sibs ING Bank VISA
+        Total:
+        520.65
+        Semnătura
+        de primire
+        Total de
+        plată
+        """
+        result = parse_invoice(text)
+
+        assert result.nr_factura == "F314027126-08562"
+        assert result.data_emitere == "2026-07-03"
+        assert result.total == 520.65
+
     def test_anthropic_saas_invoice_without_ro_cui_or_iban(self):
         text = """
         Invoice

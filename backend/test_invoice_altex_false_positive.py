@@ -50,15 +50,13 @@ def _clean_invoice_state(monkeypatch):
 
 # Altex's real BRD official destination (T1_PUBLIC_OFFICIAL, can_contribute_to_safe).
 _ALTEX_BRD_IBAN = "RO53BRDE450SV01797384500"
-# Real Altex CUI from the photographed invoice + brand_registry; the seed has a
-# divergent value (13831166), which is exactly what used to poison the match.
+# Real Altex CUI from the photographed invoice + brand_registry.
 _ALTEX_REAL_CUI = "2864518"
 
 
-def test_official_destination_brand_match_survives_divergent_cui():
-    """A T1 official destination whose brand_id matches the claim must stay a brand
-    match when the printed CUI diverges from a stale seed CUI — not collapse into a
-    'belongs elsewhere' hard conflict. The CUI gap only blocks auto-safe."""
+def test_official_destination_brand_and_cui_match_can_contribute_to_safe():
+    """The T1 official Altex BRD destination must match the photographed invoice's
+    real CUI, so it can contribute to SAFE when the rest of the proof graph closes."""
     match = match_payment_destination(
         "RO53 BRDE 450S V017 9738 4500",
         claimed_brand="altex",
@@ -66,9 +64,8 @@ def test_official_destination_brand_match_survives_divergent_cui():
     )
     assert match["matched"] is True
     assert match["brand_matches"] is True
-    assert match["cui_matches"] is False
-    # Divergent CUI => verify (SANB), not auto-safe, and not a hard conflict.
-    assert match["can_contribute_to_safe"] is False
+    assert match["cui_matches"] is True
+    assert match["can_contribute_to_safe"] is True
 
 
 @pytest.mark.asyncio
@@ -125,3 +122,61 @@ async def test_altex_real_invoice_not_dangerous():
     assert result.brand == "altex"
     assert "PAYMENT_DESTINATION_BRAND_MISMATCH" not in result.fraud_flags
     assert verdict["gate"]["label"] != "DANGEROUS"
+
+
+@pytest.mark.asyncio
+async def test_altex_retail_card_paid_invoice_is_safe_when_core_proofs_close():
+    """A retail invoice already paid by card is not a pending bank transfer.
+
+    If issuer identity, document coherence, and the printed official IBAN all
+    verify, the user-facing verdict should be SAFE/Date confirmate, not a SANB
+    prompt about an already-settled card payment.
+    """
+    text = (
+        "ALTEX ROMANIA SRL\n"
+        "Cod fiscal: RO2864518\n"
+        "Cont IBAN: RO53BRDE450SV01797384500\n"
+        "Cont IBAN 2: RO67TREZ7005069XXX008077\n"
+        "FACTURA\n"
+        "Serie şi nr.:\n"
+        "F314027126-08562\n"
+        "Dată factură: 03/07/2026\n"
+        "TELEFON GALAXY A16, 4GB, 128GB, BLACK\n"
+        "Tip plată: Cards Sibs ING Bank VISA\n"
+        "Total:\n"
+        "520.65\n"
+    )
+    with patch("services.invoice_orchestrator.check_cui", new_callable=AsyncMock) as mock_cui:
+        mock_cui.return_value = _cui_ok()
+        result = await scan_invoice(text)
+
+    verdict = evaluate_invoice_verdict(result, result.raw_text, source_channel="android_native")
+
+    assert result.fields.total == 520.65
+    assert result.payment_destination["matched"] is True
+    assert result.payment_destination["cui_matches"] is True
+    assert result.payment_destination["can_contribute_to_safe"] is True
+    assert verdict["invoice_truth"]["verdict"] == "DATE_CONFIRMATE"
+    assert verdict["gate"]["label"] == "SAFE"
+
+
+@pytest.mark.asyncio
+async def test_card_paid_phrase_does_not_make_unknown_destination_safe():
+    text = (
+        "Furnizor: ALTEX ROMANIA SRL\n"
+        "Cod fiscal: RO2864518\n"
+        "IBAN: RO49AAAA1B31007593840000\n"
+        "Factura nr. F-1\n"
+        "Data factura: 03/07/2026\n"
+        "Tip plata: card VISA\n"
+        "Total: 520.65 RON\n"
+    )
+    with patch("services.invoice_orchestrator.check_cui", new_callable=AsyncMock) as mock_cui:
+        mock_cui.return_value = _cui_ok()
+        result = await scan_invoice(text)
+
+    verdict = evaluate_invoice_verdict(result, result.raw_text, source_channel="android_native")
+
+    assert result.payment_destination["matched"] is False
+    assert verdict["invoice_truth"]["verdict"] != "DATE_CONFIRMATE"
+    assert verdict["gate"]["label"] != "SAFE"

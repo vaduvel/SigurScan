@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+import re
 from typing import TYPE_CHECKING, List
 
 from services.invoice_parser import InvoiceFields
@@ -43,6 +44,17 @@ class ReadinessGateResult:
         return "suspect"
 
 
+_CARD_SETTLEMENT_RE = re.compile(
+    r"\btip\s+plat[ăa]\s*:\s*(?:card|cards|pos|sibs|visa|mastercard|maestro)\b"
+    r"|(?:pl[ăa]tit[ăa]?|achitat[ăa]?)\s+(?:cu|prin)\s+card\b",
+    re.IGNORECASE,
+)
+
+
+def _has_card_settlement_evidence(fields: InvoiceFields) -> bool:
+    return bool(_CARD_SETTLEMENT_RE.search(getattr(fields, "raw_text", "") or ""))
+
+
 def evaluate_readiness(fields: InvoiceFields, ocr_confidence: float | None = None) -> ReadinessGateResult:
     confidence = ocr_confidence if ocr_confidence is not None else _estimate_ocr_confidence(fields)
     items: List[ReadinessGateItem] = []
@@ -50,7 +62,8 @@ def evaluate_readiness(fields: InvoiceFields, ocr_confidence: float | None = Non
     has_cui = bool(fields.cui)
     has_iban = bool(fields.iban)
     has_total = fields.total is not None
-    has_dates = bool(fields.data_emitere) and bool(fields.scadenta)
+    card_settled = _has_card_settlement_evidence(fields)
+    has_dates = bool(fields.data_emitere) and (bool(fields.scadenta) or card_settled)
     is_international_invoice = fields.invoice_profile == "international"
 
     if is_international_invoice:

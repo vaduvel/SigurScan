@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, Iterable, Optional
+import re
 
 
 OFFICIAL_SOURCE_CHANNELS = {
@@ -72,6 +73,16 @@ _DECISIVE_GENERIC_DANGEROUS_PREFIXES = (
 _DANGEROUS_VERIFY_REASON_CODES = {
     "CHANGED_IBAN_OR_CHANNEL",
 }
+
+_CARD_SETTLEMENT_RE = re.compile(
+    r"\btip\s+plat[ăa]\s*:\s*(?:card|cards|pos|sibs|visa|mastercard|maestro)\b"
+    r"|(?:pl[ăa]tit[ăa]?|achitat[ăa]?)\s+(?:cu|prin)\s+card\b",
+    re.IGNORECASE,
+)
+
+
+def _has_card_settlement_evidence(fields: Any) -> bool:
+    return bool(_CARD_SETTLEMENT_RE.search(getattr(fields, "raw_text", "") or ""))
 
 
 def evaluate_invoice_truth_v4(
@@ -154,6 +165,20 @@ def evaluate_invoice_truth_v4(
         source_channel=source_channel,
         official_document_check=official_document_check,
     )
+    card_settlement_evidence = _has_card_settlement_evidence(fields)
+    destination_confirmed_states = {
+        "OFFICIAL_REGISTRY_MATCH",
+        "OFFICIAL_DOCUMENT_MATCH",
+        "LOCAL_APPROVED_MATCH",
+        "BANK_MATCH",
+    }
+    if (
+        obligation_state != "CONFIRMED"
+        and card_settlement_evidence
+        and issuer_state == "CONFIRMED"
+        and destination_state in destination_confirmed_states
+    ):
+        obligation_state = "CONFIRMED"
     if obligation_state == "CONFIRMED":
         verified_items.append(_item("INVOICE_OBLIGATION_CONFIRMED", "Factura este confirmată într-o sursă potrivită"))
     else:
@@ -199,7 +224,7 @@ def evaluate_invoice_truth_v4(
         safe_requirements_met = (
             issuer_state == "CONFIRMED"
             and obligation_state == "CONFIRMED"
-            and destination_state in {"OFFICIAL_REGISTRY_MATCH", "OFFICIAL_DOCUMENT_MATCH", "LOCAL_APPROVED_MATCH", "BANK_MATCH"}
+            and destination_state in destination_confirmed_states
             and channel_state in {"TRUSTED", "NEUTRAL"}
             and not any(item["code"] in {"INSUFFICIENT_DATA", "DOCUMENT_NOT_FULLY_COHERENT"} for item in unconfirmed_items)
         )
@@ -245,7 +270,14 @@ def evaluate_invoice_truth_v4(
         "fraud_flags": fraud_flags,
         "proofs": {
             "issuer_identity": {"state": issuer_state, "source": anaf.get("source") or "company_registry"},
-            "invoice_obligation": {"state": obligation_state, "source": _obligation_source(source_channel, official_document_check)},
+            "invoice_obligation": {
+                "state": obligation_state,
+                "source": _obligation_source(
+                    source_channel,
+                    official_document_check,
+                    card_settlement_evidence=card_settlement_evidence and obligation_state == "CONFIRMED",
+                ),
+            },
             "payment_destination": {
                 "state": destination_state,
                 "trust_tier": payment_destination.get("trust_tier"),
@@ -688,12 +720,19 @@ def _policy_profile(fields: Any, *, source_channel: Optional[str]) -> str:
     return "unknown_invoice"
 
 
-def _obligation_source(source_channel: Optional[str], official_document_check: Dict[str, Any]) -> str:
+def _obligation_source(
+    source_channel: Optional[str],
+    official_document_check: Dict[str, Any],
+    *,
+    card_settlement_evidence: bool = False,
+) -> str:
     source = str(source_channel or "").strip().lower()
     if source in OFFICIAL_SOURCE_CHANNELS:
         return source
     if official_document_check and official_document_check.get("provided"):
         return "user_provided_document_consistency_check"
+    if card_settlement_evidence:
+        return "card_payment_receipt"
     return "scanned_document_only"
 
 

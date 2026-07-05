@@ -76,6 +76,7 @@ AMOUNT_WITH_TVA_RATE = re.compile(
     r"(?:TVA|Tax).*?(" + _AMOUNT_NUM + r")\s*(?:RON|LEI|lei|Eur|EUR|USD|GBP|€|\$|£)", re.IGNORECASE
 )
 AMOUNT_FALLBACK = re.compile(r"(" + _AMOUNT_NUM + r")\s*(?:RON|LEI|lei|Eur|EUR|USD|GBP|€|\$|£)")
+BARE_AMOUNT_VALUE_PATTERN = re.compile(r"^\s*(" + _AMOUNT_NUM + r")\s*$", re.IGNORECASE)
 DATE_PATTERN = re.compile(
     r"\b(0[1-9]|[12]\d|3[01])[./](0[1-9]|1[0-2])[./](20\d{2})\b"
 )
@@ -267,6 +268,21 @@ def _extract_amount_values(line: str) -> list[float]:
     return values
 
 
+def _extract_bare_amount_values(line: str) -> list[float]:
+    """Extract a standalone amount when a previous label gives the context.
+
+    OCR often emits "Total:" and the value on the next line without currency.
+    Keep this helper separate from the general amount extractor so table row
+    quantities do not become money unless a caller is explicitly in label
+    lookahead mode.
+    """
+    match = BARE_AMOUNT_VALUE_PATTERN.match(line or "")
+    if not match:
+        return []
+    value = _parse_ro_amount(match.group(1))
+    return [value] if value is not None else []
+
+
 def _detect_currency(text: str) -> str | None:
     for match in CURRENCY_PATTERN.finditer(text):
         token = match.group(0)
@@ -334,6 +350,9 @@ def _parse_amounts(text: str) -> dict:
 def _next_amount_values(lines: list[str], index: int, lookahead: int = 3) -> list[float]:
     for next_line in lines[index + 1 : index + 1 + lookahead]:
         values = _extract_amount_values(next_line)
+        if values:
+            return values
+        values = _extract_bare_amount_values(next_line)
         if values:
             return values
     return []
@@ -514,6 +533,25 @@ def _extract_invoice_number(text: str) -> str | None:
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
             return match.group(1).strip().rstrip(".,")
+    label_re = re.compile(
+        r"^(?:"
+        r"serie\s*(?:(?:si|și|şi)\s*)?(?:nr\.?|num[aă]r)|"
+        r"nr\.?\s*factur[ăa]|num[aă]r\s*factur[ăa]|"
+        r"invoice\s*(?:number|no\.?|#)"
+        r")\s*[:#.]?\s*$",
+        re.IGNORECASE,
+    )
+    value_re = re.compile(r"^[A-Z0-9][A-Z0-9._/-]{2,}$", re.IGNORECASE)
+    lines = [line.strip() for line in (text or "").splitlines()]
+    for i, line in enumerate(lines[:-1]):
+        if not label_re.match(line):
+            continue
+        for next_line in lines[i + 1 : i + 4]:
+            candidate = next_line.strip().rstrip(".,")
+            if value_re.match(candidate):
+                return candidate
+            if candidate:
+                break
     return None
 
 
