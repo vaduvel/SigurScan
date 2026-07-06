@@ -7,7 +7,8 @@ import time
 from typing import Any, List, Optional, TYPE_CHECKING
 from dataclasses import dataclass, field, replace
 from services.invoice_parser import ANY_IBAN_PATTERN, parse_invoice, InvoiceFields
-from services.iban_validator import IBAN_LENGTH_BY_COUNTRY, normalize_iban, validate_iban, IbanResult
+from services.iban_lifecycle import detection_candidate_ibans, payment_target_ibans
+from services.iban_validator import validate_iban, IbanResult
 from services.invoice_coherence import CoherenceResult, check_coherence
 from services.invoice_readiness_gate import evaluate_readiness, ReadinessGateResult
 from services.brand_registry import detect_claimed_brand, match_brand, BrandMatchResult
@@ -136,28 +137,10 @@ def _foreign_ibans(all_ibans: list[str]) -> list[str]:
     return output
 
 
-def _unique_ibans(values: list[str], *, require_valid: bool = True) -> list[str]:
-    seen: set[str] = set()
-    output: list[str] = []
-    for raw in values or []:
-        normalized = normalize_iban(str(raw or ""))
-        if not normalized or normalized in seen:
-            continue
-        expected_len = IBAN_LENGTH_BY_COUNTRY.get(normalized[:2])
-        if expected_len and len(normalized) > expected_len:
-            normalized = normalized[:expected_len]
-            if normalized in seen:
-                continue
-        if normalized.startswith("RO") and len(normalized) >= 8 and not normalized[4:8].isalpha():
-            continue
-        if require_valid and not validate_iban(normalized).valid_structure:
-            continue
-        seen.add(normalized)
-        output.append(normalized)
-    return output
-
-
-def _extract_ibans_from_fragments(fragments: list[str], *, require_valid: bool = True) -> list[str]:
+def _iban_tokens_from_fragments(fragments: list[str]) -> list[str]:
+    """Raw IBAN-ish tokens matched from text fragments (regex only, no validity
+    filter). Structural validity is resolved by the iban_lifecycle selectors,
+    which decide between payment targets and detection candidates."""
     candidates: list[str] = []
     for fragment in fragments or []:
         text = str(fragment or "")
@@ -165,7 +148,18 @@ def _extract_ibans_from_fragments(fragments: list[str], *, require_valid: bool =
         for candidate_text in (text, normalized_spacing):
             for match in ANY_IBAN_PATTERN.finditer(candidate_text):
                 candidates.append(match.group(0))
-    return _unique_ibans(candidates, require_valid=require_valid)
+    return candidates
+
+
+# Back-compat shims: the require_valid boolean is superseded by the explicit,
+# typed iban_lifecycle selectors. Kept so any external callers/tests keep working.
+def _unique_ibans(values: list[str], *, require_valid: bool = True) -> list[str]:
+    return payment_target_ibans(values) if require_valid else detection_candidate_ibans(values)
+
+
+def _extract_ibans_from_fragments(fragments: list[str], *, require_valid: bool = True) -> list[str]:
+    tokens = _iban_tokens_from_fragments(fragments)
+    return payment_target_ibans(tokens) if require_valid else detection_candidate_ibans(tokens)
 
 
 def _has_fake_efactura_reconciliation_payment(normalized_text: str, *, has_payment_target: bool) -> bool:
@@ -558,18 +552,18 @@ def with_official_document_check(result: InvoiceScanResult, check: Optional[dict
 async def scan_invoice(ocr_text: str, links: Optional[list[str]] = None) -> InvoiceScanResult:
     fields = parse_invoice(ocr_text)
     all_links = links or []
-    text_ibans = _extract_ibans_from_fragments([ocr_text], require_valid=False)
-    line_ibans = _extract_ibans_from_fragments((ocr_text or "").splitlines(), require_valid=False)
+    text_ibans = detection_candidate_ibans(_iban_tokens_from_fragments([ocr_text]))
+    line_ibans = detection_candidate_ibans(_iban_tokens_from_fragments((ocr_text or "").splitlines()))
     fragmented_text_ibans = [iban for iban in text_ibans if iban not in set(line_ibans)]
-    link_ibans = _extract_ibans_from_fragments(all_links, require_valid=False)
+    link_ibans = detection_candidate_ibans(_iban_tokens_from_fragments(all_links))
     # Only structurally valid IBANs count as real payment targets. text_ibans /
     # line_ibans stay unvalidated above purely for fragmentation *detection* — but
     # what lands in fields.all_ibans (and therefore candidate_ibans, MULTIPLE_IBANS,
     # and payment-destination matching) must pass mod-97, or OCR artifacts like a
     # client code "CL006876853MARKETINGGROWTHHUBSRL" get treated as a foreign IBAN.
-    printed_ibans = _unique_ibans(list(getattr(fields, "all_ibans", []) or []) + text_ibans, require_valid=True)
+    printed_ibans = payment_target_ibans(list(getattr(fields, "all_ibans", []) or []) + text_ibans)
     if printed_ibans or link_ibans:
-        fields.all_ibans = _unique_ibans(printed_ibans + link_ibans, require_valid=True)
+        fields.all_ibans = payment_target_ibans(printed_ibans + link_ibans)
         if not fields.iban:
             fields.iban = next((iban for iban in printed_ibans if iban.startswith("RO")), None) or next(
                 (iban for iban in link_ibans if iban.startswith("RO")),
