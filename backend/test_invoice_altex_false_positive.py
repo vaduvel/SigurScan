@@ -7,9 +7,10 @@ PERICULOS 90/100 by three compounding backend bugs:
      artifact — the client code "CL006876853MARKETINGGROWTHHUBSRL" — was treated as a
      foreign (Chile) IBAN even though the parser's mod-97 check had rejected it.
   2. FRAGMENTED_IBAN_PAYMENT_TARGET fired on that garbage token.
-  3. The Altex payment-destination seed carries a divergent CUI, and
-     match_payment_destination collapsed a genuine brand match into brand_matches=False
+   3. The Altex payment-destination seed carried a divergent CUI (13831166 vs real 2864518),
+     and match_payment_destination collapsed a genuine brand match into brand_matches=False
      on any CUI mismatch -> PRIMARY_PAYMENT_DESTINATION_BELONGS_ELSEWHERE (hard conflict).
+     The seed CUI has since been corrected (PR #113), so cui_matches is now True.
 
 These tests pin the fixed behaviour.
 """
@@ -50,15 +51,14 @@ def _clean_invoice_state(monkeypatch):
 
 # Altex's real BRD official destination (T1_PUBLIC_OFFICIAL, can_contribute_to_safe).
 _ALTEX_BRD_IBAN = "RO53BRDE450SV01797384500"
-# Real Altex CUI from the photographed invoice + brand_registry; the seed has a
-# divergent value (13831166), which is exactly what used to poison the match.
+# Real Altex CUI from the photographed invoice + brand_registry; the seed previously
+# had a divergent value (13831166) which poisoned the match. Corrected in PR #113.
 _ALTEX_REAL_CUI = "2864518"
 
 
-def test_official_destination_brand_match_survives_divergent_cui():
-    """A T1 official destination whose brand_id matches the claim must stay a brand
-    match when the printed CUI diverges from a stale seed CUI — not collapse into a
-    'belongs elsewhere' hard conflict. The CUI gap only blocks auto-safe."""
+def test_official_destination_brand_match_with_corrected_cui():
+    """After the seed CUI fix (13831166 → 2864518), a T1 official destination whose
+    brand_id matches the claim AND the CUI now matches. Exact match → auto-safe OK."""
     match = match_payment_destination(
         "RO53 BRDE 450S V017 9738 4500",
         claimed_brand="altex",
@@ -66,9 +66,9 @@ def test_official_destination_brand_match_survives_divergent_cui():
     )
     assert match["matched"] is True
     assert match["brand_matches"] is True
-    assert match["cui_matches"] is False
-    # Divergent CUI => verify (SANB), not auto-safe, and not a hard conflict.
-    assert match["can_contribute_to_safe"] is False
+    assert match["cui_matches"] is True
+    # Seed CUI corrected => exact match, auto-safe possible.
+    assert match["can_contribute_to_safe"] is True
 
 
 @pytest.mark.asyncio
