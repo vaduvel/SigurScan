@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, Iterable, Optional
 
 
@@ -74,6 +75,26 @@ _DANGEROUS_VERIFY_REASON_CODES = {
 }
 
 
+def _bank_name_crosscheck_enabled() -> bool:
+    value = str(os.getenv("SIGURSCAN_ENABLE_BANK_NAME_CROSSCHECK", "1")).strip().lower()
+    return value not in {"0", "false", "no", "off", ""}
+
+
+def _bank_name_iban_mismatch(fields: Any) -> bool:
+    # F2 (bank_name_crosscheck): compara numele bancii tiparit pe factura cu
+    # banca dedusa din codul IBAN. Intoarce True DOAR pentru un MISMATCH
+    # confirmat (ambele banci cunoscute si diferite); orice ambiguitate => False,
+    # deci nu poate genera un fals "nu plati". Semnal soft, gestionat de apelant.
+    if fields is None or not _bank_name_crosscheck_enabled():
+        return False
+    try:
+        from services.bank_name_crosscheck import crosscheck_invoice_fields
+
+        return crosscheck_invoice_fields(fields).is_mismatch
+    except Exception:
+        return False
+
+
 def evaluate_invoice_truth_v4(
     result: Any,
     *,
@@ -109,19 +130,19 @@ def evaluate_invoice_truth_v4(
             0,
             _conflict(
                 "BRAND_IMPERSONATION_PAYMENT_DESTINATION_MISMATCH",
-                "Brand declarat cu CUI contrazis și destinație de plată neconfirmată",
+                "Brand declarat cu CUI contrazis si destinatie de plata neconfirmata",
             )
         )
     if _weak_inactive_fallback_has_official_payment_match(anaf, destination_state):
         issuer_state = "CONFIRMED"
     if issuer_state == "CONFIRMED":
-        verified_items.append(_item("ISSUER_CONFIRMED", "Firma este verificată"))
+        verified_items.append(_item("ISSUER_CONFIRMED", "Firma este verificata"))
     elif issuer_state == "INACTIVE":
-        unconfirmed_items.append(_item("ISSUER_INACTIVE", "Firma apare inactivă; verifică pe canalul oficial"))
+        unconfirmed_items.append(_item("ISSUER_INACTIVE", "Firma apare inactiva; verifica pe canalul oficial"))
     elif issuer_state == "CONTRADICTED":
-        unconfirmed_items.append(_item("ISSUER_NOT_CONFIRMED", "Firma nu a putut fi confirmată"))
+        unconfirmed_items.append(_item("ISSUER_NOT_CONFIRMED", "Firma nu a putut fi confirmata"))
     else:
-        unconfirmed_items.append(_item("ISSUER_NOT_FULLY_CONFIRMED", "Firma nu a putut fi confirmată complet"))
+        unconfirmed_items.append(_item("ISSUER_NOT_FULLY_CONFIRMED", "Firma nu a putut fi confirmata complet"))
 
     if iban_valid is not None:
         if getattr(iban_valid, "valid_structure", False):
@@ -130,23 +151,23 @@ def evaluate_invoice_truth_v4(
             unconfirmed_items.append(_item("IBAN_STRUCTURE_INVALID", "IBAN-ul nu are format valid"))
 
     if coherence is not None and getattr(coherence, "all_ok", False):
-        verified_items.append(_item("DOCUMENT_COHERENT", "Suma și datele facturii sunt coerente"))
+        verified_items.append(_item("DOCUMENT_COHERENT", "Suma si datele facturii sunt coerente"))
     elif coherence is not None:
         unconfirmed_items.append(_item("DOCUMENT_NOT_FULLY_COHERENT", "Datele facturii nu sunt complet coerente"))
 
     if destination_state in {"OFFICIAL_REGISTRY_MATCH", "OFFICIAL_DOCUMENT_MATCH", "LOCAL_APPROVED_MATCH", "BANK_MATCH"}:
-        verified_items.append(_item("PAYMENT_DESTINATION_CONFIRMED", "Contul de plată este confirmat"))
+        verified_items.append(_item("PAYMENT_DESTINATION_CONFIRMED", "Contul de plata este confirmat"))
     elif destination_state == "REPORTED_NEGATIVE":
-        hard_conflicts.append(_conflict("REPORTED_NEGATIVE_CORROBORATED", "IBAN raportat în fraude"))
+        hard_conflicts.append(_conflict("REPORTED_NEGATIVE_CORROBORATED", "IBAN raportat in fraude"))
     elif destination_state == "MISMATCH":
-        hard_conflicts.append(_conflict("PRIMARY_PAYMENT_DESTINATION_BELONGS_ELSEWHERE", "Contul de plată indică altă entitate"))
+        hard_conflicts.append(_conflict("PRIMARY_PAYMENT_DESTINATION_BELONGS_ELSEWHERE", "Contul de plata indica alta entitate"))
     elif destination_state == "INVALID_STRUCTURE":
-        unconfirmed_items.append(_item("PAYMENT_IBAN_INVALID", "Contul de plată nu are format valid"))
+        unconfirmed_items.append(_item("PAYMENT_IBAN_INVALID", "Contul de plata nu are format valid"))
     elif getattr(fields, "iban", None):
         unconfirmed_items.append(
             _item(
                 "PAYMENT_BENEFICIARY_UNCONFIRMED",
-                "Verifică numele beneficiarului afișat de bancă înainte să autorizezi plata",
+                "Verifica numele beneficiarului afisat de banca inainte sa autorizezi plata",
             )
         )
 
@@ -155,23 +176,37 @@ def evaluate_invoice_truth_v4(
         official_document_check=official_document_check,
     )
     if obligation_state == "CONFIRMED":
-        verified_items.append(_item("INVOICE_OBLIGATION_CONFIRMED", "Factura este confirmată într-o sursă potrivită"))
+        verified_items.append(_item("INVOICE_OBLIGATION_CONFIRMED", "Factura este confirmata intr-o sursa potrivita"))
     else:
-        unconfirmed_items.append(_item("INVOICE_OBLIGATION_UNCONFIRMED", "Nu putem confirma automat că datorezi această factură"))
+        unconfirmed_items.append(_item("INVOICE_OBLIGATION_UNCONFIRMED", "Nu putem confirma automat ca datorezi aceasta factura"))
 
     channel_state = _channel_state(source_channel, fraud_flags)
     if channel_state == "TRUSTED":
         verified_items.append(_item("CHANNEL_TRUSTED", "Factura vine dintr-un canal verificat"))
     elif channel_state == "CHANGED":
-        unconfirmed_items.append(_item("CHANNEL_OR_PAYMENT_CHANGED", "Canalul sau datele de plată par schimbate"))
+        unconfirmed_items.append(_item("CHANNEL_OR_PAYMENT_CHANGED", "Canalul sau datele de plata par schimbate"))
 
     if any(flag in TEXT_ONLY_PAYMENT_PATTERN_FLAGS for flag in fraud_flags):
         unconfirmed_items.append(
-            _item("HIGH_RISK_PAYMENT_PATTERN_REQUIRES_VERIFICATION", "Tiparul de plată trebuie verificat înainte de autorizare")
+            _item("HIGH_RISK_PAYMENT_PATTERN_REQUIRES_VERIFICATION", "Tiparul de plata trebuie verificat inainte de autorizare")
         )
 
     if readiness is not None and getattr(readiness, "blocks_safe_verdict", False):
         unconfirmed_items.append(_item("INSUFFICIENT_DATA", "Documentul nu are suficiente date citibile"))
+
+    # F2: numele bancii tiparit pe factura vs banca implicata de codul IBAN.
+    # Semnal soft (VERIFY): un MISMATCH confirmat blocheaza auto-SAFE si cere
+    # verificare, dar NU creeaza un hard-conflict, deci nu poate produce singur
+    # un verdict de PERICOL. Conservator prin constructie (vezi bank_name_crosscheck).
+    if _bank_name_iban_mismatch(fields):
+        if "IBAN_BANK_NAME_MISMATCH" not in fraud_flags:
+            fraud_flags.append("IBAN_BANK_NAME_MISMATCH")
+        unconfirmed_items.append(
+            _item(
+                "IBAN_BANK_NAME_MISMATCH",
+                "Banca tiparita pe factura nu corespunde bancii din IBAN; verifica inainte de plata",
+            )
+        )
 
     hard_conflicts = _dedupe_by_code(hard_conflicts)
     verified_items = _dedupe_by_code(verified_items)
@@ -183,16 +218,16 @@ def evaluate_invoice_truth_v4(
         safe_to_pay = False
         primary_reason = hard_conflicts[0]["code"]
         display = {
-            "title": "Nu plăti",
+            "title": "Nu plati",
             "message": (
-                "Am găsit o contradicție clară în datele facturii sau ale plății. "
-                "Contactează furnizorul pe canalul oficial."
+                "Am gasit o contradictie clara in datele facturii sau ale platii. "
+                "Contacteaza furnizorul pe canalul oficial."
             ),
             "tone": "danger",
         }
         next_action = {
             "type": "CONTACT_SUPPLIER_OFFICIAL_CHANNEL",
-            "title": "Contactează furnizorul pe canalul oficial",
+            "title": "Contacteaza furnizorul pe canalul oficial",
             "requires_authorization": False,
         }
     else:
@@ -201,7 +236,7 @@ def evaluate_invoice_truth_v4(
             and obligation_state == "CONFIRMED"
             and destination_state in {"OFFICIAL_REGISTRY_MATCH", "OFFICIAL_DOCUMENT_MATCH", "LOCAL_APPROVED_MATCH", "BANK_MATCH"}
             and channel_state in {"TRUSTED", "NEUTRAL"}
-            and not any(item["code"] in {"INSUFFICIENT_DATA", "DOCUMENT_NOT_FULLY_COHERENT"} for item in unconfirmed_items)
+            and not any(item["code"] in {"INSUFFICIENT_DATA", "DOCUMENT_NOT_FULLY_COHERENT", "IBAN_BANK_NAME_MISMATCH"} for item in unconfirmed_items)
         )
         if safe_requirements_met:
             verdict = "DATE_CONFIRMATE"
@@ -211,14 +246,14 @@ def evaluate_invoice_truth_v4(
             display = {
                 "title": "Date confirmate",
                 "message": (
-                    "Factura și datele de plată sunt confirmate. "
-                    "Verifică suma înainte de autorizare."
+                    "Factura si datele de plata sunt confirmate. "
+                    "Verifica suma inainte de autorizare."
                 ),
                 "tone": "safe",
             }
             next_action = {
                 "type": "REVIEW_AMOUNT_THEN_PAY",
-                "title": "Verifică suma înainte de plată",
+                "title": "Verifica suma inainte de plata",
                 "requires_authorization": False,
             }
             unconfirmed_items = []
@@ -408,33 +443,33 @@ def _hard_conflicts_from_flags(flags: list[str]) -> list[dict]:
         and "REPLY_TO_MISMATCH" in flags
         and ("ACCOUNT_CHANGE_LANGUAGE" in flags or "PAYMENT_PRESSURE" in flags)
     ):
-        conflicts.append(_conflict("BEC_ACCOUNT_CHANGE_COMBO", "IBAN nou, canal schimbat și presiune de plată"))
+        conflicts.append(_conflict("BEC_ACCOUNT_CHANGE_COMBO", "IBAN nou, canal schimbat si presiune de plata"))
     if (
         "ACCOUNT_CHANGE_LANGUAGE" in flags
         and ("IBAN_CHANGED_VS_HISTORY" in flags or "REPLY_TO_MISMATCH" in flags or "PAYMENT_DESTINATION_BRAND_MISMATCH" in flags)
     ):
-        conflicts.append(_conflict("BEC_ACCOUNT_CHANGE_COMBO", "Cont bancar schimbat pe canal sau istoric neobișnuit"))
+        conflicts.append(_conflict("BEC_ACCOUNT_CHANGE_COMBO", "Cont bancar schimbat pe canal sau istoric neobisnuit"))
     if "ACCOUNT_CHANGE_LANGUAGE" in flags and "FOREIGN_IBAN" in flags and "PAYMENT_PRESSURE" in flags:
-        conflicts.append(_conflict("BEC_ACCOUNT_CHANGE_COMBO", "Cont bancar schimbat, IBAN străin și presiune de plată"))
+        conflicts.append(_conflict("BEC_ACCOUNT_CHANGE_COMBO", "Cont bancar schimbat, IBAN strain si presiune de plata"))
     return conflicts
 
 
 def _hard_conflict_label(code: str) -> str:
     labels = {
-        "REPORTED_NEGATIVE_CORROBORATED": "IBAN raportat în fraude",
-        "VISIBLE_VS_QR_PAYMENT_HIJACK": "IBAN-ul din QR diferă de cel tipărit",
-        "VISIBLE_VS_TEXT_LAYER_PAYMENT_HIJACK": "Documentul conține instrucțiuni de plată contradictorii",
-        "OFFICIAL_DOCUMENT_FIELD_MISMATCH": "Documentul oficial contrazice factura scanată",
-        "PRIMARY_PAYMENT_DESTINATION_BELONGS_ELSEWHERE": "Contul de plată indică altă entitate",
-        "CONFIRMED_PERSONAL_PAYEE_INCOMPATIBLE_WITH_ISSUER": "Beneficiar persoană fizică pentru factură de firmă",
-        "SENSITIVE_CAPTURE_ON_WRONG_CHANNEL": "Factura cere date sensibile sau acces la distanță",
-        "CLAIMED_PUBLIC_AUTHORITY_PAYMENT_CONTRADICTION": "Pretext e-Factura/SPV cu plată neconfirmată",
-        "HIGH_RISK_B2B_PAYMENT_PATTERN": "Tipar B2B cunoscut de fraudă la plată",
-        "BEC_ACCOUNT_CHANGE_COMBO": "Schimbare de cont cu semnale de deturnare plată",
-        "BENEFICIARY_COMPANY_MISMATCH": "Beneficiar companie diferită de emitent, neconfirmat",
+        "REPORTED_NEGATIVE_CORROBORATED": "IBAN raportat in fraude",
+        "VISIBLE_VS_QR_PAYMENT_HIJACK": "IBAN-ul din QR difera de cel tiparit",
+        "VISIBLE_VS_TEXT_LAYER_PAYMENT_HIJACK": "Documentul contine instructiuni de plata contradictorii",
+        "OFFICIAL_DOCUMENT_FIELD_MISMATCH": "Documentul oficial contrazice factura scanata",
+        "PRIMARY_PAYMENT_DESTINATION_BELONGS_ELSEWHERE": "Contul de plata indica alta entitate",
+        "CONFIRMED_PERSONAL_PAYEE_INCOMPATIBLE_WITH_ISSUER": "Beneficiar persoana fizica pentru factura de firma",
+        "SENSITIVE_CAPTURE_ON_WRONG_CHANNEL": "Factura cere date sensibile sau acces la distanta",
+        "CLAIMED_PUBLIC_AUTHORITY_PAYMENT_CONTRADICTION": "Pretext e-Factura/SPV cu plata neconfirmata",
+        "HIGH_RISK_B2B_PAYMENT_PATTERN": "Tipar B2B cunoscut de frauda la plata",
+        "BEC_ACCOUNT_CHANGE_COMBO": "Schimbare de cont cu semnale de deturnare plata",
+        "BENEFICIARY_COMPANY_MISMATCH": "Beneficiar companie diferita de emitent, neconfirmat",
         "UNDISCLOSED_PAYMENT_INTERMEDIARY": "Beneficiar intermediar neconfirmat pentru plata facturii",
-        "PAYMENT_CONTROL_BYPASS": "Instrucțiune de plată care ocolește verificarea normală",
-        "BRAND_IMPERSONATION_PAYMENT_DESTINATION_MISMATCH": "Brand declarat cu CUI contrazis și destinație de plată neconfirmată",
+        "PAYMENT_CONTROL_BYPASS": "Instructiune de plata care ocoleste verificarea normala",
+        "BRAND_IMPERSONATION_PAYMENT_DESTINATION_MISMATCH": "Brand declarat cu CUI contrazis si destinatie de plata neconfirmata",
     }
     return labels.get(code, code.replace("_", " ").lower())
 
@@ -591,6 +626,8 @@ def _primary_missing_reason(
     codes = {item.get("code") for item in unconfirmed_items}
     if issuer_state == "INACTIVE":
         return "ISSUER_INACTIVE"
+    if "IBAN_BANK_NAME_MISMATCH" in codes:
+        return "IBAN_BANK_NAME_MISMATCH"
     if "CHANNEL_OR_PAYMENT_CHANGED" in codes:
         return "CHANGED_IBAN_OR_CHANNEL"
     if "HIGH_RISK_PAYMENT_PATTERN_REQUIRES_VERIFICATION" in codes:
@@ -609,47 +646,56 @@ def _primary_missing_reason(
 def _verify_before_paying_display(primary_reason: str) -> Dict[str, str]:
     if primary_reason == "CHANGED_IBAN_OR_CHANNEL":
         return {
-            "title": "Verifică plata",
+            "title": "Verifica plata",
             "message": (
-                "Am găsit semnale de cont sau canal schimbat. Nu autoriza plata "
-                "până nu confirmi direct cu furnizorul pe un număr sau o adresă "
-                "pe care o cunoști deja."
+                "Am gasit semnale de cont sau canal schimbat. Nu autoriza plata "
+                "pana nu confirmi direct cu furnizorul pe un numar sau o adresa "
+                "pe care o cunosti deja."
+            ),
+            "tone": "warning",
+        }
+    if primary_reason == "IBAN_BANK_NAME_MISMATCH":
+        return {
+            "title": "Verifica plata",
+            "message": (
+                "Banca scrisa pe factura nu corespunde bancii din IBAN-ul de plata. "
+                "Confirma contul direct cu furnizorul pe un canal cunoscut inainte sa autorizezi plata."
             ),
             "tone": "warning",
         }
     if primary_reason == "HIGH_RISK_PAYMENT_PATTERN_REQUIRES_VERIFICATION":
         return {
-            "title": "Verifică plata",
+            "title": "Verifica plata",
             "message": (
-                "Factura are un tipar de plată cu risc crescut. Verifică obligația, "
-                "contractul sau comanda pe canalul oficial înainte să autorizezi plata."
+                "Factura are un tipar de plata cu risc crescut. Verifica obligatia, "
+                "contractul sau comanda pe canalul oficial inainte sa autorizezi plata."
             ),
             "tone": "warning",
         }
     if primary_reason == "INSUFFICIENT_DATA":
         return {
-            "title": "Verifică documentul",
+            "title": "Verifica documentul",
             "message": (
-                "Nu putem citi suficiente date din factură pentru o verificare completă. "
-                "Încarcă documentul complet sau verifică factura în portalul furnizorului."
+                "Nu putem citi suficiente date din factura pentru o verificare completa. "
+                "Incarca documentul complet sau verifica factura in portalul furnizorului."
             ),
             "tone": "pending",
         }
     if primary_reason == "ISSUER_INACTIVE":
         return {
-            "title": "Verifică emitentul",
+            "title": "Verifica emitentul",
             "message": (
-                "Firma nu poate fi confirmată ca activă din verificările disponibile. "
-                "Confirmă factura direct cu furnizorul înainte de plată."
+                "Firma nu poate fi confirmata ca activa din verificarile disponibile. "
+                "Confirma factura direct cu furnizorul inainte de plata."
             ),
             "tone": "warning",
         }
     return {
-        "title": "Verifică înainte să plătești",
+        "title": "Verifica inainte sa platesti",
         "message": (
-            "Factura nu pare fraudă după verificările disponibile. "
-            "Înainte să plătești, verifică în aplicația bancară că numele "
-            "beneficiarului afișat corespunde furnizorului."
+            "Factura nu pare frauda dupa verificarile disponibile. "
+            "Inainte sa platesti, verifica in aplicatia bancara ca numele "
+            "beneficiarului afisat corespunde furnizorului."
         ),
         "tone": "pending",
     }
@@ -659,25 +705,25 @@ def _next_action(primary_reason: str, beneficiary_name_check: Optional[dict]) ->
     if primary_reason == "UNCONFIRMED_DESTINATION":
         return {
             "type": "VERIFY_BENEFICIARY_IN_BANK",
-            "title": "Verifică numele beneficiarului în aplicația băncii",
+            "title": "Verifica numele beneficiarului in aplicatia bancii",
             "requires_authorization": False,
             "available": bool(beneficiary_name_check),
         }
     if primary_reason == "UNEXPECTED_OBLIGATION":
         return {
             "type": "VERIFY_IN_SUPPLIER_PORTAL",
-            "title": "Verifică factura în portalul furnizorului",
+            "title": "Verifica factura in portalul furnizorului",
             "requires_authorization": False,
         }
-    if primary_reason in {"ISSUER_INACTIVE", "CHANGED_IBAN_OR_CHANNEL", "HIGH_RISK_PAYMENT_PATTERN_REQUIRES_VERIFICATION"}:
+    if primary_reason in {"ISSUER_INACTIVE", "CHANGED_IBAN_OR_CHANNEL", "IBAN_BANK_NAME_MISMATCH", "HIGH_RISK_PAYMENT_PATTERN_REQUIRES_VERIFICATION"}:
         return {
             "type": "CALL_SUPPLIER_KNOWN_NUMBER",
-            "title": "Sună furnizorul pe numărul cunoscut",
+            "title": "Suna furnizorul pe numarul cunoscut",
             "requires_authorization": False,
         }
     return {
         "type": "UPLOAD_COMPLETE_DOCUMENT",
-        "title": "Încarcă documentul complet sau verifică în portal",
+        "title": "Incarca documentul complet sau verifica in portal",
         "requires_authorization": False,
     }
 
