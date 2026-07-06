@@ -125,3 +125,23 @@ async def test_altex_real_invoice_not_dangerous():
     assert result.brand == "altex"
     assert "PAYMENT_DESTINATION_BRAND_MISMATCH" not in result.fraud_flags
     assert verdict["gate"]["label"] != "DANGEROUS"
+
+
+def test_official_destination_divergent_cui_blocks_auto_safe():
+    """Safety guard, independent of seed data: when the destination brand_id matches
+    the claim but the supplied CUI DIVERGES from the registry entry, the match must
+    NOT auto-contribute to SAFE. Preserves the coverage previously provided (as a side
+    effect) by the now-corrected Altex seed bug, using an explicit synthetic divergent
+    CUI so it no longer depends on wrong data being present."""
+    divergent_cui = "99999999"  # deliberately != Altex real CUI 2864518
+    assert divergent_cui != _ALTEX_REAL_CUI
+    match = match_payment_destination(
+        "RO53 BRDE 450S V017 9738 4500",
+        claimed_brand="altex",
+        cui=divergent_cui,
+    )
+    assert match["matched"] is True
+    assert match["brand_matches"] is True
+    # Divergent CUI must be detected and must block auto-safe.
+    assert match["cui_matches"] is False
+    assert match["can_contribute_to_safe"] is False
