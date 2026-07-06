@@ -1,0 +1,94 @@
+{
+  "version": "pdr-ro-audit-additions-2026.07.06",
+  "generated_at": "2026-07-06T00:00:00Z",
+  "source_file": "notion-ai-audit-session-2026-07-06",
+  "purpose": "Audit additions: two brands previously missing from the registry (Doctorul Animalelor, Euro Instal), with web-verified official IBANs and CUIs.",
+  "entries": [
+    {
+      "brand_id": "doctorul_animalelor",
+      "display_name": "Doctorul Animalelor",
+      "legal_name": "SELLA IMPEX COM SRL",
+      "cui": "2167162",
+      "category": "farmacie_veterinara_petshop_online",
+      "aliases": [
+        "Doctorul Animalelor",
+        "SELLA IMPEX COM SRL",
+        "doctorulanimalelor.ro"
+      ],
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_contact_page",
+          "scope": "plata_produse_comenzi_online",
+          "currency": "RON",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Banca Transilvania",
+          "source_refs": [
+            {
+              "url": "https://www.doctorulanimalelor.ro/contact",
+              "publisher": "SELLA IMPEX COM SRL",
+              "accessed_at": "2026-07-06",
+              "confidence": "high",
+              "source_excerpt": "SELLA IMPEX COM SRL; CUI RO2167162; IBAN RO51BTRLRONCRT0352530301 Banca Transilvania"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO51BTRLRONCRT0352530301",
+          "iban_masked_for_client": "RO51 BTRL **** **** **** 0301"
+        }
+      ],
+      "review_status": "active",
+      "research_agent": "notion-ai-audit-2026-07-06"
+    },
+    {
+      "brand_id": "euro_instal",
+      "display_name": "Euro Instal",
+      "legal_name": "POLTERGEIST SRL",
+      "cui": "11152462",
+      "category": "instalatii_sanitare_termice_retail",
+      "aliases": [
+        "Euro Instal",
+        "POLTERGEIST SRL",
+        "euro-instal.ro"
+      ],
+      "payment_destinations": [
+        {
+          "kind": "iban",
+          "trust_tier": "T1_PUBLIC_OFFICIAL",
+          "source_kind": "official_contact_page",
+          "scope": "plata_produse_comenzi_online",
+          "currency": "RON",
+          "confidence": "high",
+          "review_status": "active",
+          "client_distribution_allowed": false,
+          "hashing_required": true,
+          "match_policy": "exact_hmac_match_required",
+          "can_contribute_to_safe": true,
+          "bank_name": "Banca Transilvania",
+          "source_refs": [
+            {
+              "url": "https://www.euro-instal.ro/contact",
+              "publisher": "POLTERGEIST SRL",
+              "accessed_at": "2026-07-06",
+              "confidence": "high",
+              "source_excerpt": "POLTERGEIST SRL; CUI RO11152462; IBAN RO63BTRLRONCRT0411683401 Banca Transilvania"
+            }
+          ],
+          "iban_normalized_backend_seed_only": "RO63BTRLRONCRT0411683401",
+          "iban_masked_for_client": "RO63 BTRL **** **** **** 3401"
+        }
+      ],
+      "review_status": "active",
+      "research_agent": "notion-ai-audit-2026-07-06"
+    }
+  ],
+  "summary": {
+    "entries_added": 2,
+    "destinations_added": 2
+  }
+}
