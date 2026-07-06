@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from services.iban_validator import RO_BANK_CODES, validate_iban
-from services.ro_morphology import strip_diacritics
+from services.ro_morphology import contains_all, strip_diacritics
 from services.sanb_registry import lookup_sanb_participant
 
 # Canonical bank key -> alias phrases (lowercase, diacritic-free). Short/ambiguous
@@ -100,6 +100,12 @@ def detect_bank_key(text: Optional[str]) -> Optional[str]:
                 if re.search(rf"\b{re.escape(alias)}\b", prepared):
                     return key
             elif alias in prepared or f" {alias} " in padded:
+                return key
+            # P-MORPH: token-based fallback for multi-word aliases, robust to word
+            # order / spacing / light inflection via ro_morphology. Restricted to
+            # multi-word aliases so the short word-boundary aliases (brd/bcr/cec/
+            # ing) keep their stricter rule and matching is never loosened for them.
+            elif " " in alias and contains_all(prepared, alias, stem=True):
                 return key
     return None
 
