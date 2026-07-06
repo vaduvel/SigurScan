@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 from services.iban_validator import IbanResult
+from services.ro_morphology import contains_all, strip_diacritics
 
 # SOURCE OF TRUTH for invoice route brand matching.
 # This registry feeds invoice_orchestrator.match_brand() and is the only
@@ -424,7 +425,9 @@ class BrandMatchResult:
 
 
 def _norm_text(text: str) -> str:
-    return (text or "").lower().translate(str.maketrans("ăâîșşțţ", "aaisstt"))
+    # P-MORPH: folding complet de diacritice (majuscule/minuscule, â→a,
+    # î→i, ș/ş, ț/ţ) prin ro_morphology, in loc de translate partial.
+    return strip_diacritics(text or "").lower()
 
 
 def _looks_like_anaf_reference_not_issuer(text: str) -> bool:
@@ -440,11 +443,22 @@ def _looks_like_anaf_reference_not_issuer(text: str) -> bool:
     )
 
 
+def _alias_in_text(alias: str, text: str) -> bool:
+    # Calea stricta existenta (potrivirile curente nu regreseaza).
+    if re.search(rf"\b{re.escape(alias)}\b", text, re.IGNORECASE):
+        return True
+    # P-MORPH: potrivire pe token-uri, robusta la diacritice/inflexiune.
+    # contains_all cere ca fiecare token din alias sa apara ca token de
+    # sine statator -> ramane word-boundary safe si pentru alias scurte.
+    # stem=False intentionat: numele de brand nu se stemeaza.
+    return contains_all(text, alias, stem=False)
+
+
 def detect_claimed_brand(emitent: str | None, text: str, links: List[str]) -> str | None:
     if emitent:
         for brand_key, entry in BRAND_REGISTRY.items():
             for alias in entry.aliases:
-                if re.search(rf"\b{re.escape(alias)}\b", emitent, re.IGNORECASE):
+                if _alias_in_text(alias, emitent):
                     return brand_key
     if links:
         for brand_key, entry in BRAND_REGISTRY.items():
@@ -458,7 +472,7 @@ def detect_claimed_brand(emitent: str | None, text: str, links: List[str]) -> st
         if brand_key == "anaf" and _looks_like_anaf_reference_not_issuer(text):
             continue
         for alias in entry.aliases:
-            if re.search(rf"\b{re.escape(alias)}\b", header, re.IGNORECASE):
+            if _alias_in_text(alias, header):
                 return brand_key
     return None
 
