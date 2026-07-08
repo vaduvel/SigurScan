@@ -1,0 +1,52 @@
+name: ANAF CUI Verification
+
+# Cross-checks every CUI in the payment_destination_registry against the official
+# ANAF web service (source of truth for CUI + legal name + active status). This is
+# the anti-regression guard motivated by the Altex false-positive (wrong seed CUI).
+#
+# It runs on a schedule + manual dispatch, NOT on every push/PR: the check needs
+# outbound network to ANAF (rate-limited ~1 req/s, occasionally down), so gating
+# unrelated PRs on it would be flaky. The deterministic, network-free half of the
+# checker is covered by backend/test_anaf_cui_verification.py in the normal
+# Backend CI instead.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Every Monday 06:00 UTC.
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify registry CUIs against ANAF
+        working-directory: backend
+        run: |
+          python3 tools/verify_registry_cui_anaf.py \
+            --dir data/payment_destination_registry \
+            --out-json cui_verification_report.json \
+            --out-csv cui_discrepancies.csv \
+            --fail-on-discrepancy
+
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anaf-cui-verification-report
+          path: |
+            backend/cui_verification_report.json
+            backend/cui_discrepancies.csv
+          if-no-files-found: warn
