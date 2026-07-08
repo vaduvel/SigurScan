@@ -1,6 +1,7 @@
 import os
 import re
 import time
+import uuid
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
@@ -374,6 +375,50 @@ def save_reputation_edge(entry: Dict[str, Any]) -> None:
     if observed_at:
         row["observed_at"] = observed_at
     _post_json("reputation_edges", row, "return=minimal")
+
+
+# Stable namespace for deterministic reputation-edge ids (D6). Never change it:
+# the id is what makes an upsert idempotent, so the same logical edge always maps
+# to the same row.
+_REPUTATION_EDGE_NAMESPACE = uuid.UUID("6d36b0f2-0d6e-5e6a-9c4d-000000000006")
+
+
+def _reputation_edge_id(row: Dict[str, Any]) -> str:
+    key = "|".join([
+        row["source_type"], row["source_hash"],
+        row["target_type"], row["target_hash"],
+        row["relation"],
+    ])
+    return str(uuid.uuid5(_REPUTATION_EDGE_NAMESPACE, key))
+
+
+def upsert_reputation_edge(entry: Dict[str, Any]) -> None:
+    """Idempotent variant of save_reputation_edge (D6).
+
+    Derives a deterministic id from (source, target, relation) and upserts on the
+    primary key via PostgREST merge-duplicates, so persisting the same seller
+    edge across scans collapses to a single row instead of accumulating dupes.
+    """
+    if not isinstance(entry, dict):
+        return
+    relation = str(entry.get("relation") or "").strip().lower()
+    if relation not in _REPUTATION_EDGE_RELATIONS:
+        raise ValueError(f"invalid reputation edge relation: {relation}")
+    row = {
+        "source_type": _valid_reputation_target_type(entry.get("source_type")),
+        "source_hash": _valid_reputation_hash(entry.get("source_hash")),
+        "target_type": _valid_reputation_target_type(entry.get("target_type")),
+        "target_hash": _valid_reputation_hash(entry.get("target_hash")),
+        "relation": relation,
+        "source": str(entry.get("source") or "case_correlation").strip().lower() or "case_correlation",
+        "family": entry.get("family"),
+        "evidence_quality": str(entry.get("evidence_quality") or "medium").strip().lower() or "medium",
+    }
+    row["id"] = _reputation_edge_id(row)
+    observed_at = _ts_to_iso(entry.get("observed_at") or entry.get("timestamp"))
+    if observed_at:
+        row["observed_at"] = observed_at
+    _post_json("reputation_edges", row, "resolution=merge-duplicates,return=minimal")
 
 
 def save_reputation_allowlist(entry: Dict[str, Any]) -> None:
