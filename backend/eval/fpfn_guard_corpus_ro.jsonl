@@ -1,0 +1,37 @@
+{"_meta": {"version": "fpfn-guard-ro-2026.07.08", "purpose": "R7-rest FP/FN rate guard. Generic (SMS/text) path where offline eval == production (no CUI dependency). Hard invariants: benign never DANGEROUS (false-PERICOL), scam never SAFE (missed). Covers FP-risk classes for D6/P-MORPH-WIRE/D3.", "route": "generic_offline_provider_gate"}}
+{"id": "d6-01", "label": "BENIGN", "class": "d6_phone_iban", "channel": "text", "text": "Salut! Iti las IBAN-ul meu RO49 BTRL 0130 1202 3456 7800 pentru chirie, si numarul 0722 123 456 daca ai intrebari."}
+{"id": "d6-02", "label": "BENIGN", "class": "d6_phone_iban", "channel": "text", "text": "Am primit factura de la instalator, o platesc in contul RO12 INGB 0000 9999 1234 5678. Suna-l la 0733 222 111 daca vrei."}
+{"id": "d6-03", "label": "BENIGN", "class": "d6_phone_iban", "channel": "text", "text": "Pentru avans, transfer pe IBAN RO24 RNCB 0082 0044 1766 0001, iar la nevoie ma gasesti la 0745 111 222."}
+{"id": "d6-04", "label": "BENIGN", "class": "d6_phone_iban", "channel": "text", "text": "Contul asociatiei de proprietari: RO39 BRDE 4500 SV12 3456 7890. Administrator: 0722 987 654."}
+{"id": "pm-01", "label": "BENIGN", "class": "pmorph", "channel": "text", "text": "Transfera-mi te rog partea ta de cadou cand poti, nu-i graba."}
+{"id": "pm-02", "label": "BENIGN", "class": "pmorph", "channel": "text", "text": "Mi-am schimbat cardul, ti-l dau pe cel nou cand ne vedem la cafea."}
+{"id": "pm-03", "label": "BENIGN", "class": "pmorph", "channel": "text", "text": "Ti-am trimis codul de la interfon pe WhatsApp, e 4821, ne vedem sus."}
+{"id": "pm-04", "label": "BENIGN", "class": "pmorph", "channel": "text", "text": "Am facut o depunere la banca azi, cozile erau infernale."}
+{"id": "pm-05", "label": "BENIGN", "class": "pmorph", "channel": "text", "text": "Contul meu de Instagram e sigur acum, am pus verificare in doi pasi."}
+{"id": "d3-01", "label": "BENIGN", "class": "d3_call", "channel": "text", "text": "Te-a sunat cineva de la 0722 123 456? Cred ca e coletul de la Emag, il astept azi."}
+{"id": "d3-02", "label": "BENIGN", "class": "d3_call", "channel": "text", "text": "Suna-ma pe numarul nou 0740 555 666 diseara, povestim despre concediu."}
+{"id": "d3-03", "label": "BENIGN", "class": "d3_call", "channel": "text", "text": "Am pierdut un apel de la 0219 xx, cred ca era de la policlinica pentru programare."}
+{"id": "mk-01", "label": "BENIGN", "class": "marketing", "channel": "text", "text": "eMAG: oferta limitata weekendul acesta, pana la -50%. Vezi produsele pe emag.ro/promo."}
+{"id": "mk-02", "label": "BENIGN", "class": "marketing", "channel": "text", "text": "Altex: cod reducere 10% valabil azi. Detalii: altex.ro/voucher."}
+{"id": "of-01", "label": "BENIGN", "class": "official", "channel": "text", "text": "BT: tranzactie aprobata 149.99 lei la Kaufland. Detalii in aplicatia BT Pay."}
+{"id": "of-02", "label": "BENIGN", "class": "official", "channel": "text", "text": "Orange: factura ta pe luna curenta e disponibila in contul tau My Orange."}
+{"id": "of-03", "label": "BENIGN", "class": "official", "channel": "text", "text": "Netflix: planul tau s-a reinnoit. Gestioneaza abonamentul pe netflix.com/account."}
+{"id": "lg-01", "label": "BENIGN", "class": "logistics", "channel": "text", "text": "Sameday: coletul AWB 712334 este in livrare azi. Urmareste in aplicatie."}
+{"id": "lg-02", "label": "BENIGN", "class": "logistics", "channel": "text", "text": "FAN Courier: coletul tau te asteapta la locker. PIN ridicare: 4821."}
+{"id": "ps-01", "label": "BENIGN", "class": "personal", "channel": "text", "text": "Ne vedem maine la 10, adu si documentele de la notar te rog."}
+{"id": "ps-02", "label": "BENIGN", "class": "personal", "channel": "text", "text": "Multumesc pentru transfer, am primit banii pentru bilete. Pe curand!"}
+{"id": "ps-03", "label": "BENIGN", "class": "personal", "channel": "text", "text": "Poti sa imi dai adresa exacta si un numar de contact pentru curier?"}
+{"id": "sc-01", "label": "SCAM", "class": "otp_credential", "channel": "text", "text": "URGENT! Contul tau e blocat. Transfera banii intr-un cont sigur si spune-mi codul OTP primit prin SMS acum."}
+{"id": "sc-02", "label": "SCAM", "class": "courier_card", "channel": "text", "text": "FAN: achita taxa de livrare 4.99 RON, introdu cardul aici: fancourier-plata.top/pay"}
+{"id": "sc-03", "label": "SCAM", "class": "investment", "channel": "text", "text": "Instaleaza AnyDesk ca sa te ajute consultantul de investitii, profit garantat 20% pe luna."}
+{"id": "sc-04", "label": "SCAM", "class": "prize_card", "channel": "text", "text": "Ai castigat un iPhone! Confirma datele cardului si CVV pentru livrare pe premii-azi.top."}
+{"id": "sc-05", "label": "SCAM", "class": "bank_phish", "channel": "text", "text": "BCR: cont suspendat. Reactiveaza-l imediat introducand datele cardului pe bcr-verificare.top/login"}
+{"id": "sc-06", "label": "SCAM", "class": "anaf_refund", "channel": "text", "text": "ANAF: aveti o rambursare de impozit. Introduceti datele cardului pentru a primi banii."}
+{"id": "sc-07", "label": "SCAM", "class": "safe_account", "channel": "text", "text": "Sunt de la banca. Contul tau e compromis, muta urgent toti banii in contul sigur pe care ti-l dictez."}
+{"id": "sc-08", "label": "SCAM", "class": "delivery_fee", "channel": "text", "text": "Coletul tau e retinut la vama. Achita 3.50 RON taxa aici si introdu cardul: vama-colet.top"}
+{"id": "sc-09", "label": "SCAM", "class": "crypto", "channel": "text", "text": "Dubleaza-ti investitia in 24h! Trimite crypto la adresa asta si primesti profit garantat."}
+{"id": "sc-10", "label": "SCAM", "class": "sim_swap", "channel": "text", "text": "Operatorul tau: pentru a evita suspendarea SIM, trimite codul primit acum si datele personale."}
+{"id": "sc-11", "label": "SCAM", "class": "family_emergency", "channel": "text", "text": "Mama, mi-am spart telefonul, asta e numarul nou. Am nevoie urgent de bani, transfera pe IBAN-ul asta."}
+{"id": "sc-12", "label": "SCAM", "class": "remote_access", "channel": "text", "text": "Suport Microsoft: aveti un virus. Instalati TeamViewer si dati-ne acces sa reparam contul bancar."}
+{"id": "sc-13", "label": "SCAM", "class": "otp_credential", "channel": "text", "text": "Verificare cont: raspunde cu codul de 6 cifre primit prin SMS ca sa confirmam ca esti tu."}
+{"id": "sc-14", "label": "SCAM", "class": "upfront_fee", "channel": "text", "text": "Felicitari, credit aprobat! Achita taxa de deblocare de 250 lei in avans si primesti banii azi."}

@@ -1,0 +1,55 @@
+name: FP/FN Guard
+
+# R7-rest: FP/FN rate tracking for the verdict path. Runs the committed
+# generic-path corpus through the offline provider gate, fails on a false-PERICOL
+# / missed-scam regression, and uploads the FP/FN report as an artifact.
+#
+# Fully offline + deterministic (no live providers, no network), so it is safe to
+# gate every PR. The same assertions also run in Backend CI via
+# test_fpfn_guard.py; this job additionally publishes the rate report.
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "codex/**"
+      - "work/**"
+      - "feature/**"
+
+permissions:
+  contents: read
+
+jobs:
+  fpfn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      INVOICE_CACHE_HMAC_KEY: "ci-fpfn-guard-key"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.lock
+
+      - name: Run FP/FN guard
+        working-directory: backend
+        run: python eval/fpfn_guard.py
+
+      - name: Upload FP/FN report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fpfn-guard-report
+          path: build/reports/fpfn_guard.json
+          if-no-files-found: warn
