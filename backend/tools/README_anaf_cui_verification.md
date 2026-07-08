@@ -38,9 +38,20 @@ Status codes:
 - `INACTIVE_OR_RADIATED` — entity flagged inactive/radiat by ANAF.
 - `NAME_MISMATCH` — ANAF denumire differs from the registry `legal_name`.
 
+## CI wiring (R4)
+- **Scheduled real check:** `.github/workflows/anaf-cui-verify.yml` runs this tool
+  weekly (+ manual dispatch) with `--fail-on-discrepancy`, uploading the report as
+  an artifact. It is off the PR/push path on purpose — the ANAF call needs network
+  and is rate-limited, so gating unrelated PRs on it would be flaky.
+- **Deterministic guard (normal CI):** `backend/test_anaf_cui_verification.py`
+  exercises the checker logic offline (mocked ANAF), including the "broken CUI ⇒
+  non-zero exit" gate, so the tool itself can't regress silently.
+- `--fail-on-discrepancy` makes the tool exit `1` when any entry is not `OK`.
+
 ## ANAF API
-`POST https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva`
-body `[{"cui": <int>, "data": "YYYY-MM-DD"}]`, max 100 CUIs/request, ~1 req/s.
+`POST https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva` (the VAT-payer
+service; **not** `v9/persoana`). Body `[{"cui": <int>, "data": "YYYY-MM-DD"}]`,
+max 100 CUIs/request, ~1 req/s. Public, no auth/token.
 
 ## Notes / next steps
 - Read-only. It does NOT write back to the registry.

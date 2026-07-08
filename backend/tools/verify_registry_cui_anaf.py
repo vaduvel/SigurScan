@@ -83,13 +83,19 @@ def names_match(registry_name: str, anaf_name: str) -> bool:
 
 
 def iter_entries(payload: Any) -> Iterable[dict[str, Any]]:
-    """Yield registry entry dicts across the known file shapes."""
+    """Yield registry entry dicts across the known file shapes.
+
+    Mirrors services.payment_destination_registry, which reads BOTH the
+    ``entries`` and the ``brands`` arrays. A few seed files (e.g. batch15 OSIM)
+    use ``brands``; reading only ``entries`` would silently skip those CUIs.
+    """
     if isinstance(payload, dict):
-        entries = payload.get("entries")
-        if isinstance(entries, list):
-            for e in entries:
-                if isinstance(e, dict):
-                    yield e
+        for key in ("entries", "brands"):
+            values = payload.get(key)
+            if isinstance(values, list):
+                for e in values:
+                    if isinstance(e, dict):
+                        yield e
 
 
 def collect_registry_cuis(directory: Path) -> list[dict[str, Any]]:
@@ -174,6 +180,35 @@ def _anaf_name(rec: dict[str, Any]) -> str:
     return str(dg.get("denumire") or "")
 
 
+STATUS_OK = "OK"
+STATUS_CUI_NOT_FOUND = "CUI_NOT_FOUND_IN_ANAF"
+STATUS_INACTIVE = "INACTIVE_OR_RADIATED"
+STATUS_NAME_MISMATCH = "NAME_MISMATCH"
+
+
+def classify_row(row: dict[str, Any], rec: dict[str, Any] | None) -> dict[str, Any]:
+    """Compare one registry row against its ANAF record (or None if not found).
+
+    Pure and network-free so it can be unit-tested offline. Returns the row
+    augmented with ``anaf_name``, ``status`` and ``detail``.
+    """
+    status = STATUS_OK
+    detail = ""
+    anaf_name = ""
+    if rec is None:
+        status = STATUS_CUI_NOT_FOUND
+        detail = "CUI not returned by ANAF (possibly invalid, radiat, or typo)."
+    else:
+        anaf_name = _anaf_name(rec)
+        if _is_inactive(rec):
+            status = STATUS_INACTIVE
+            detail = f"ANAF marks entity inactive/radiat. ANAF name: {anaf_name}"
+        elif not names_match(row.get("legal_name") or row.get("display_name") or "", anaf_name):
+            status = STATUS_NAME_MISMATCH
+            detail = f"Registry '{row.get('legal_name')}' vs ANAF '{anaf_name}'"
+    return {**row, "anaf_name": anaf_name, "status": status, "detail": detail}
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dir", type=Path, default=Path("backend/data/payment_destination_registry"))
@@ -182,6 +217,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out-csv", type=Path, default=Path("cui_discrepancies.csv"))
     ap.add_argument("--offline-extract-only", action="store_true",
                     help="Only extract CUIs from the registry; do not call ANAF.")
+    ap.add_argument("--fail-on-discrepancy", action="store_true",
+                    help="Exit non-zero (1) if any entry is not OK. For CI gating.")
     args = ap.parse_args(argv)
 
     if not args.dir.is_dir():
@@ -202,28 +239,8 @@ def main(argv: list[str] | None = None) -> int:
 
     anaf = query_anaf(unique_cuis, args.as_of)
 
-    results = []
-    discrepancies = []
-    for r in rows:
-        rec = anaf.get(r["cui"])
-        status = "OK"
-        detail = ""
-        anaf_name = ""
-        if rec is None:
-            status = "CUI_NOT_FOUND_IN_ANAF"
-            detail = "CUI not returned by ANAF (possibly invalid, radiat, or typo)."
-        else:
-            anaf_name = _anaf_name(rec)
-            if _is_inactive(rec):
-                status = "INACTIVE_OR_RADIATED"
-                detail = f"ANAF marks entity inactive/radiat. ANAF name: {anaf_name}"
-            elif not names_match(r["legal_name"] or r["display_name"] or "", anaf_name):
-                status = "NAME_MISMATCH"
-                detail = f"Registry '{r['legal_name']}' vs ANAF '{anaf_name}'"
-        row = {**r, "anaf_name": anaf_name, "status": status, "detail": detail}
-        results.append(row)
-        if status != "OK":
-            discrepancies.append(row)
+    results = [classify_row(r, anaf.get(r["cui"])) for r in rows]
+    discrepancies = [x for x in results if x["status"] != STATUS_OK]
 
     summary = {
         "as_of": args.as_of,
@@ -248,6 +265,10 @@ def main(argv: list[str] | None = None) -> int:
             w.writerow({k: x.get(k, "") for k in w.fieldnames})
 
     print(json.dumps(summary, ensure_ascii=False, indent=2))
+    if args.fail_on_discrepancy and discrepancies:
+        print(f"FAIL: {len(discrepancies)} registry CUI discrepancies vs ANAF "
+              f"(see {args.out_csv}).", file=sys.stderr)
+        return 1
     return 0
 
 
