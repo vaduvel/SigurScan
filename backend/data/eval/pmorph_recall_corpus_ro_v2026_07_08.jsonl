@@ -1,0 +1,48 @@
+{"_meta": {"version": "pmorph-recall-corpus-ro-2026.07.08", "purpose": "Measured-recall gate for RO semantic scam-intent detection (P-MORPH). Frozen currently_detected flags = ScamAtlasEngine.check_sensitive_requests+check_language_manipulation at commit time; test_pmorph_recall_gate.py guards against regression and tracks the morphology backlog.", "detector": "services.scam_atlas.ScamAtlasEngine.check_sensitive_requests + check_language_manipulation"}}
+{"category": "OTP_CODE_REQUEST", "text": "Spune-mi codul OTP primit prin SMS ca sa confirm.", "currently_detected": true}
+{"category": "OTP_CODE_REQUEST", "text": "Comunica codul de verificare trimis pe telefon.", "currently_detected": true}
+{"category": "OTP_CODE_REQUEST", "text": "Dicteaza-mi codul din SMS pentru autentificare.", "currently_detected": false}
+{"category": "OTP_CODE_REQUEST", "text": "Trimite-mi te rog codul de confirmare acum.", "currently_detected": true}
+{"category": "OTP_CODE_REQUEST", "text": "Confirmă codul OTP ca să deblocăm contul.", "currently_detected": true}
+{"category": "OTP_CODE_REQUEST", "text": "Cititi-mi codul de securitate primit prin mesaj.", "currently_detected": false}
+{"category": "CARD_CREDENTIAL_REQUEST", "text": "Introdu numarul cardului si CVV pentru livrare.", "currently_detected": true}
+{"category": "CARD_CREDENTIAL_REQUEST", "text": "Completeaza datele cardului tau ca sa primesti banii.", "currently_detected": true}
+{"category": "CARD_CREDENTIAL_REQUEST", "text": "Spune-mi codul PIN de la card urgent.", "currently_detected": true}
+{"category": "CARD_CREDENTIAL_REQUEST", "text": "Trimite CVC-ul si data expirarii cardului.", "currently_detected": true}
+{"category": "CARD_CREDENTIAL_REQUEST", "text": "Validează cardul introducând CVV-ul aici.", "currently_detected": true}
+{"category": "CARD_CREDENTIAL_REQUEST", "text": "Confirmă parola și codul de securitate al cardului.", "currently_detected": true}
+{"category": "SAFE_ACCOUNT_TRANSFER", "text": "Transfera banii intr-un cont sigur si nu spune nimanui.", "currently_detected": true}
+{"category": "SAFE_ACCOUNT_TRANSFER", "text": "Muta suma in contul sigur indicat de noi.", "currently_detected": false}
+{"category": "SAFE_ACCOUNT_TRANSFER", "text": "Trimite banii prin transfer bancar imediat.", "currently_detected": false}
+{"category": "SAFE_ACCOUNT_TRANSFER", "text": "Fa o depunere initiala ca sa activezi contul.", "currently_detected": true}
+{"category": "SAFE_ACCOUNT_TRANSFER", "text": "Trimite depunere initiala de 500 lei pentru profit.", "currently_detected": true}
+{"category": "SAFE_ACCOUNT_TRANSFER", "text": "Transferă toți banii în contul sigur al băncii.", "currently_detected": false}
+{"category": "REMOTE_ACCESS_APP", "text": "Instaleaza AnyDesk ca sa te ajute consultantul de investitii.", "currently_detected": true}
+{"category": "REMOTE_ACCESS_APP", "text": "Descarca TeamViewer si da-mi accesul, sunt de la banca.", "currently_detected": true}
+{"category": "REMOTE_ACCESS_APP", "text": "Instalează RustDesk ca suportul tehnic să preia controlul.", "currently_detected": false}
+{"category": "REMOTE_ACCESS_APP", "text": "Pune AnyDesk pe telefon ca brokerul sa vada contul.", "currently_detected": false}
+{"category": "UPFRONT_FEE_PAYMENT", "text": "Trebuie sa platesti o taxa in avans pentru eliberare.", "currently_detected": true}
+{"category": "UPFRONT_FEE_PAYMENT", "text": "Achita taxa de procesare inainte sa primesti premiul.", "currently_detected": true}
+{"category": "UPFRONT_FEE_PAYMENT", "text": "Plateste comisionul acum ca sa deblocam transferul.", "currently_detected": true}
+{"category": "UPFRONT_FEE_PAYMENT", "text": "Plătește taxa de deblocare a fondurilor tale.", "currently_detected": true}
+{"category": "UPFRONT_FEE_PAYMENT", "text": "Achită un avans pentru a confirma comanda.", "currently_detected": true}
+{"category": "REWARD_PROFIT_LURE", "text": "Ai castigat un premiu, revendica rambursarea taxelor.", "currently_detected": true}
+{"category": "REWARD_PROFIT_LURE", "text": "Profit garantat de 20% pe luna la investitia ta.", "currently_detected": true}
+{"category": "REWARD_PROFIT_LURE", "text": "Câștig sigur și rapid dacă investești acum.", "currently_detected": true}
+{"category": "REWARD_PROFIT_LURE", "text": "Ai o rambursare de impozit disponibila, revendic-o.", "currently_detected": true}
+{"category": "REWARD_PROFIT_LURE", "text": "Investeste si primesti profit garantat saptamanal.", "currently_detected": true}
+{"category": "URGENCY_PRESSURE", "text": "Actioneaza urgent, contul tau va fi blocat in 24 ore.", "currently_detected": true}
+{"category": "URGENCY_PRESSURE", "text": "Imediat! Cardul tau a fost suspendat.", "currently_detected": true}
+{"category": "URGENCY_PRESSURE", "text": "Cont blocat, confirmă datele acum ca să eviți suspendarea.", "currently_detected": true}
+{"category": "URGENCY_PRESSURE", "text": "Urgenta: acces suspendat daca nu confirmi identitatea.", "currently_detected": true}
+{"category": "DELIVERY_CUSTOMS_FEE", "text": "Coletul tau are o taxa vamala neachitata, plateste acum.", "currently_detected": true}
+{"category": "DELIVERY_CUSTOMS_FEE", "text": "Pachetul asteapta la vama, achita taxa de livrare.", "currently_detected": true}
+{"category": "DELIVERY_CUSTOMS_FEE", "text": "Colet blocat: taxe vamale de plata pentru livrare.", "currently_detected": true}
+{"category": "DELIVERY_CUSTOMS_FEE", "text": "Coletul nu poate fi livrat pana nu achiti taxa.", "currently_detected": true}
+{"category": "SIM_SWAP_ESIM", "text": "Cerere de schimbare SIM neautorizata pe numarul tau.", "currently_detected": true}
+{"category": "SIM_SWAP_ESIM", "text": "Schimbam SIM-ul tau, trimite codurile de acces.", "currently_detected": true}
+{"category": "SIM_SWAP_ESIM", "text": "Actualizare SIM necesara, confirma datele de operator.", "currently_detected": false}
+{"category": "SIM_SWAP_ESIM", "text": "Solicitare swap SIM: trimite codul primit de la operator.", "currently_detected": false}
+{"category": "WHATSAPP_CODE", "text": "Trimite-mi codul de pe WhatsApp ca sa confirm.", "currently_detected": false}
+{"category": "WHATSAPP_CODE", "text": "Am nevoie de codul OTP de WhatsApp acum.", "currently_detected": true}
+{"category": "WHATSAPP_CODE", "text": "Spune codul primit pe WhatsApp pentru verificare.", "currently_detected": false}
