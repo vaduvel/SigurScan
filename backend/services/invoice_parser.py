@@ -28,6 +28,14 @@ BENEFICIAR_PATTERN = re.compile(
     r"[^\S\n]*[:\-]?[^\S\n]*([^\n\r,;]+)",
     re.IGNORECASE,
 )
+# Numele băncii tipărit pe factură ("Banca: BRD", "Banca Transilvania",
+# "Bank name: ..."). Folosit de bank_name_crosscheck pentru a compara banca
+# afișată cu banca implicată de codul IBAN.
+BANK_LABEL_PATTERN = re.compile(
+    r"\b(?:banc[ăa](?:\s+(?:beneficiar(?:ului)?|emitent(?:ului)?))?|bank(?:\s+name)?)\b"
+    r"\s*[:\-]?\s*([^\n\r,;]+)",
+    re.IGNORECASE,
+)
 MONTHS = {
     "january": "01",
     "jan": "01",
@@ -136,6 +144,7 @@ class InvoiceFields:
     qr_payloads: List[str] = field(default_factory=list)
     lines: List[dict] = field(default_factory=list)
     raw_text: str = ""
+    printed_bank_name: str | None = None
 
 
 def _normalize_cui(raw: str) -> str:
@@ -208,6 +217,23 @@ def _extract_payment_beneficiary(text: str) -> str | None:
         return None
     lower = candidate.lower()
     if lower in {"iban", "cont", "cont bancar", "cui", "cif", "factura"}:
+        return None
+    return candidate
+
+
+def _extract_printed_bank_name(text: str) -> str | None:
+    match = BANK_LABEL_PATTERN.search(text or "")
+    if not match:
+        return None
+    candidate = match.group(1)
+    candidate = IBAN_PATTERN.sub("", candidate)
+    candidate = ANY_IBAN_PATTERN.sub("", candidate)
+    candidate = candidate.strip(" \t\r\n.:-")
+    if len(candidate) < 2:
+        return None
+    if not re.search(r"[A-Za-zĂÂÎȘŞȚŢăâîșşțţ]{2,}", candidate):
+        return None
+    if candidate.lower() in {"iban", "cont", "cont bancar", "swift", "cod"}:
         return None
     return candidate
 
@@ -546,6 +572,7 @@ def parse_invoice(
     if not iban:
         iban = next((candidate for candidate in all_ibans if candidate.startswith("RO")), None)
     payment_beneficiary = _extract_payment_beneficiary(text)
+    printed_bank_name = _extract_printed_bank_name(text)
 
     # Emitent
     emit_match = EMITENT_LABEL.search(text)
@@ -594,4 +621,5 @@ def parse_invoice(
         links=pdf_links or [],
         qr_payloads=qr_payloads or [],
         raw_text=text,
+        printed_bank_name=printed_bank_name,
     )

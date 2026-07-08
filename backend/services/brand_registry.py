@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 from services.iban_validator import IbanResult
+from services.ro_morphology import contains_all, strip_diacritics
 
 # SOURCE OF TRUTH for invoice route brand matching.
 # This registry feeds invoice_orchestrator.match_brand() and is the only
@@ -421,10 +422,16 @@ class BrandMatchResult:
     iban_matches: bool | None
     cui_matches: bool | None
     impersonation_risk: bool
+    # True when the brand was matched strictly (word boundary / exact domain);
+    # False when it was matched only via the fuzzy P-MORPH token fallback. A
+    # fuzzy match adds recall but must never drive a hard PERICOL verdict.
+    claimed_brand_match_strict: bool = True
 
 
 def _norm_text(text: str) -> str:
-    return (text or "").lower().translate(str.maketrans("ăâîșşțţ", "aaisstt"))
+    # P-MORPH: folding complet de diacritice (majuscule/minuscule, â→a,
+    # î→i, ș/ş, ț/ţ) prin ro_morphology, in loc de translate partial.
+    return strip_diacritics(text or "").lower()
 
 
 def _looks_like_anaf_reference_not_issuer(text: str) -> bool:
@@ -440,27 +447,72 @@ def _looks_like_anaf_reference_not_issuer(text: str) -> bool:
     )
 
 
-def detect_claimed_brand(emitent: str | None, text: str, links: List[str]) -> str | None:
-    if emitent:
-        for brand_key, entry in BRAND_REGISTRY.items():
-            for alias in entry.aliases:
-                if re.search(rf"\b{re.escape(alias)}\b", emitent, re.IGNORECASE):
-                    return brand_key
-    if links:
-        for brand_key, entry in BRAND_REGISTRY.items():
-            link_lower = " ".join(link.lower() for link in links)
-            for domain in entry.domains:
-                if domain in link_lower:
-                    return brand_key
-    header_lines = text.split("\n")[:3]
-    header = " ".join(header_lines)
+def _strict_alias_brand(hay: str, *, anaf_ref_text: str | None = None) -> str | None:
+    # Word-boundary alias match: reproduce exact comportamentul pre-P-MORPH.
     for brand_key, entry in BRAND_REGISTRY.items():
-        if brand_key == "anaf" and _looks_like_anaf_reference_not_issuer(text):
+        if brand_key == "anaf" and anaf_ref_text is not None and _looks_like_anaf_reference_not_issuer(anaf_ref_text):
             continue
         for alias in entry.aliases:
-            if re.search(rf"\b{re.escape(alias)}\b", header, re.IGNORECASE):
+            if re.search(rf"\b{re.escape(alias)}\b", hay, re.IGNORECASE):
                 return brand_key
     return None
+
+
+def _fuzzy_alias_brand(hay: str, *, anaf_ref_text: str | None = None) -> str | None:
+    # P-MORPH: potrivire pe token-uri (robusta la diacritice/inflexiune/ordine).
+    # stem=False intentionat: numele de brand nu se stemeaza. Adauga recall, dar
+    # apelantul o marcheaza ca ne-stricta -> nu poate escalada la PERICOL.
+    for brand_key, entry in BRAND_REGISTRY.items():
+        if brand_key == "anaf" and anaf_ref_text is not None and _looks_like_anaf_reference_not_issuer(anaf_ref_text):
+            continue
+        for alias in entry.aliases:
+            if contains_all(hay, alias, stem=False):
+                return brand_key
+    return None
+
+
+def _detect_claimed_brand_detailed(
+    emitent: str | None, text: str, links: List[str]
+) -> tuple[str | None, bool]:
+    """Return ``(brand_key, matched_strictly)``.
+
+    Strict matches (word boundary on emitent/header, or an exact payment-link
+    domain) take priority over the fuzzy P-MORPH token fallback, so a fuzzy match
+    can never shadow a strict brand attribution. The strict pass reproduces the
+    pre-P-MORPH detection order exactly; the fuzzy pass is a last resort that only
+    adds recall and is flagged non-strict for the caller.
+    """
+    header = " ".join(text.split("\n")[:3])
+
+    # Pass 1 — strict, in the original source priority (emitent, link, header).
+    if emitent:
+        brand = _strict_alias_brand(emitent)
+        if brand:
+            return brand, True
+    if links:
+        link_lower = " ".join(link.lower() for link in links)
+        for brand_key, entry in BRAND_REGISTRY.items():
+            for domain in entry.domains:
+                if domain in link_lower:
+                    return brand_key, True
+    brand = _strict_alias_brand(header, anaf_ref_text=text)
+    if brand:
+        return brand, True
+
+    # Pass 2 — fuzzy fallback (recall only; flagged non-strict, never PERICOL).
+    if emitent:
+        brand = _fuzzy_alias_brand(emitent)
+        if brand:
+            return brand, False
+    brand = _fuzzy_alias_brand(header, anaf_ref_text=text)
+    if brand:
+        return brand, False
+
+    return None, False
+
+
+def detect_claimed_brand(emitent: str | None, text: str, links: List[str]) -> str | None:
+    return _detect_claimed_brand_detailed(emitent, text, links)[0]
 
 
 def _domain_belongs_to_brand(link: str, domains: List[str]) -> bool:
@@ -494,7 +546,7 @@ def match_brand(
     validated_iban: IbanResult | None,
     iban_raw: str | None,
 ) -> BrandMatchResult:
-    claimed_brand = detect_claimed_brand(emitent, text, links)
+    claimed_brand, claimed_brand_match_strict = _detect_claimed_brand_detailed(emitent, text, links)
     if not claimed_brand:
         return BrandMatchResult(
             claimed_brand=None, domain_matches=None, iban_matches=None,
@@ -505,6 +557,7 @@ def match_brand(
         return BrandMatchResult(
             claimed_brand=claimed_brand, domain_matches=None, iban_matches=None,
             cui_matches=None, impersonation_risk=False,
+            claimed_brand_match_strict=claimed_brand_match_strict,
         )
     domain_matches = _any_link_matches(links, entry.domains)
     cui_matches: bool | None = None
@@ -526,6 +579,7 @@ def match_brand(
         iban_matches=iban_matches,
         cui_matches=cui_matches,
         impersonation_risk=impersonation_risk,
+        claimed_brand_match_strict=claimed_brand_match_strict,
     )
 
 

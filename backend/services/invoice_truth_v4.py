@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, Iterable, Optional
 
 
@@ -72,6 +73,26 @@ _DECISIVE_GENERIC_DANGEROUS_PREFIXES = (
 _DANGEROUS_VERIFY_REASON_CODES = {
     "CHANGED_IBAN_OR_CHANNEL",
 }
+
+
+def _bank_name_crosscheck_enabled() -> bool:
+    value = str(os.getenv("SIGURSCAN_ENABLE_BANK_NAME_CROSSCHECK", "1")).strip().lower()
+    return value not in {"0", "false", "no", "off", ""}
+
+
+def _bank_name_iban_mismatch(fields: Any) -> bool:
+    # F2 (bank_name_crosscheck): compara numele bancii tiparit pe factura cu
+    # banca dedusa din codul IBAN. Intoarce True DOAR pentru un MISMATCH
+    # confirmat (ambele banci cunoscute si diferite); orice ambiguitate => False,
+    # deci nu poate genera un fals "nu plati". Semnal soft, gestionat de apelant.
+    if fields is None or not _bank_name_crosscheck_enabled():
+        return False
+    try:
+        from services.bank_name_crosscheck import crosscheck_invoice_fields
+
+        return crosscheck_invoice_fields(fields).is_mismatch
+    except Exception:
+        return False
 
 
 def evaluate_invoice_truth_v4(
@@ -173,6 +194,20 @@ def evaluate_invoice_truth_v4(
     if readiness is not None and getattr(readiness, "blocks_safe_verdict", False):
         unconfirmed_items.append(_item("INSUFFICIENT_DATA", "Documentul nu are suficiente date citibile"))
 
+    # F2: numele bancii tiparit pe factura vs banca implicata de codul IBAN.
+    # Semnal soft (VERIFY): un MISMATCH confirmat blocheaza auto-SAFE si cere
+    # verificare, dar NU creeaza un hard-conflict, deci nu poate produce singur
+    # un verdict de PERICOL. Conservator prin constructie (vezi bank_name_crosscheck).
+    if _bank_name_iban_mismatch(fields):
+        if "IBAN_BANK_NAME_MISMATCH" not in fraud_flags:
+            fraud_flags.append("IBAN_BANK_NAME_MISMATCH")
+        unconfirmed_items.append(
+            _item(
+                "IBAN_BANK_NAME_MISMATCH",
+                "Banca tipărită pe factură nu corespunde băncii din IBAN; verifică înainte de plată",
+            )
+        )
+
     hard_conflicts = _dedupe_by_code(hard_conflicts)
     verified_items = _dedupe_by_code(verified_items)
     unconfirmed_items = _dedupe_by_code(unconfirmed_items)
@@ -201,7 +236,7 @@ def evaluate_invoice_truth_v4(
             and obligation_state == "CONFIRMED"
             and destination_state in {"OFFICIAL_REGISTRY_MATCH", "OFFICIAL_DOCUMENT_MATCH", "LOCAL_APPROVED_MATCH", "BANK_MATCH"}
             and channel_state in {"TRUSTED", "NEUTRAL"}
-            and not any(item["code"] in {"INSUFFICIENT_DATA", "DOCUMENT_NOT_FULLY_COHERENT"} for item in unconfirmed_items)
+            and not any(item["code"] in {"INSUFFICIENT_DATA", "DOCUMENT_NOT_FULLY_COHERENT", "IBAN_BANK_NAME_MISMATCH"} for item in unconfirmed_items)
         )
         if safe_requirements_met:
             verdict = "DATE_CONFIRMATE"
@@ -449,7 +484,22 @@ def _brand_impersonation_payment_destination_mismatch(
         return False
     if getattr(brand_match, "cui_matches", None) is not False:
         return False
-    if destination_state != "UNCONFIRMED_VALID":
+    # Doar o potrivire STRICTA de brand (word-boundary / domeniu exact) poate
+    # escalada la PERICOL. O potrivire fuzzy P-MORPH (tokeni ne-adiacenti dintr-un
+    # alias multi-cuvant) poate atribui gresit un brand mare unui emitent legit
+    # fara legatura -> ar produce un fals "nu plati". Un match fuzzy da cel mult
+    # un semnal soft in amonte, niciodata un hard-conflict aici.
+    if not bool(getattr(brand_match, "claimed_brand_match_strict", True)):
+        return False
+    # #6 SANB-masking hardening: un raspuns de tip "match" al utilizatorului
+    # (SANB / Verification-of-Payee) promoveaza destinatia la BANK_MATCH. Fara
+    # BANK_MATCH aici, semnalul de impersonare-brand cu CUI contrazis ar fi fost
+    # anulat in tacere de un cont-mula cu nume plauzibil confirmat de utilizator.
+    # Ramanem conservatori: IBAN-ul trebuie sa NU fie printre destinatiile
+    # oficiale cunoscute ale brandului (matched is False) si sa avem efectiv
+    # destinatii pe fisa brandului, deci un IBAN legitim proaspat adaugat nu e
+    # afectat.
+    if destination_state not in {"UNCONFIRMED_VALID", "BANK_MATCH"}:
         return False
     return bool(
         payment_destination.get("matched") is False
@@ -583,6 +633,8 @@ def _primary_missing_reason(
     codes = {item.get("code") for item in unconfirmed_items}
     if issuer_state == "INACTIVE":
         return "ISSUER_INACTIVE"
+    if "IBAN_BANK_NAME_MISMATCH" in codes:
+        return "IBAN_BANK_NAME_MISMATCH"
     if "CHANNEL_OR_PAYMENT_CHANGED" in codes:
         return "CHANGED_IBAN_OR_CHANNEL"
     if "HIGH_RISK_PAYMENT_PATTERN_REQUIRES_VERIFICATION" in codes:
@@ -606,6 +658,15 @@ def _verify_before_paying_display(primary_reason: str) -> Dict[str, str]:
                 "Am găsit semnale de cont sau canal schimbat. Nu autoriza plata "
                 "până nu confirmi direct cu furnizorul pe un număr sau o adresă "
                 "pe care o cunoști deja."
+            ),
+            "tone": "warning",
+        }
+    if primary_reason == "IBAN_BANK_NAME_MISMATCH":
+        return {
+            "title": "Verifică plata",
+            "message": (
+                "Banca scrisă pe factură nu corespunde băncii din IBAN-ul de plată. "
+                "Confirmă contul direct cu furnizorul pe un canal cunoscut înainte să autorizezi plata."
             ),
             "tone": "warning",
         }
@@ -661,7 +722,7 @@ def _next_action(primary_reason: str, beneficiary_name_check: Optional[dict]) ->
             "title": "Verifică factura în portalul furnizorului",
             "requires_authorization": False,
         }
-    if primary_reason in {"ISSUER_INACTIVE", "CHANGED_IBAN_OR_CHANNEL", "HIGH_RISK_PAYMENT_PATTERN_REQUIRES_VERIFICATION"}:
+    if primary_reason in {"ISSUER_INACTIVE", "CHANGED_IBAN_OR_CHANNEL", "IBAN_BANK_NAME_MISMATCH", "HIGH_RISK_PAYMENT_PATTERN_REQUIRES_VERIFICATION"}:
         return {
             "type": "CALL_SUPPLIER_KNOWN_NUMBER",
             "title": "Sună furnizorul pe numărul cunoscut",
