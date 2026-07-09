@@ -210,6 +210,15 @@ async def btr_sync(client_version: Optional[str] = None):
     return btr_sync_payload(brand_truth_registry, client_version=client_version)
 
 
+@router.get("/v1/rules/sync")
+async def rules_sync(client_version: Optional[str] = None):
+    """P-RULES Felia 2 — device/backend pull al manifestului de reguli semantice
+    (delta version-gated, BTR-style). Doar reguli, zero conținut de mesaj."""
+    from services.rules_manifest import rules_sync_payload
+
+    return rules_sync_payload(client_version=client_version)
+
+
 # ─── PR-8 — Jurist Dinamic Lvl 2 (M6): plan de acțiune post-incident ─────────
 
 
