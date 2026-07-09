@@ -218,3 +218,31 @@ KNOWN_DEEPLINK_PROVIDERS = {
     "smart.link",
     "sng.link",
 }
+
+
+# ── P-RULES Felia 4 (backend) — source the semantic pattern groups from the
+# versioned rules manifest instead of the literals above, when RULES_MANIFEST is
+# enabled (default OFF). The manifest is proven byte-for-byte identical to these
+# literals (test_rules_manifest 0-diff gate), so enabling it is behavior-preserving
+# -- it only makes the manifest the source of truth, so rules can update without a
+# code change. Order is preserved (REMOTE_ACCESS_PATTERNS[0]/[1] indexing stays
+# valid). Read at import time (feature-flag at process start). Best-effort: any
+# failure falls back to the literals above.
+def _apply_rules_manifest_override() -> None:
+    try:
+        from services import rules_manifest
+    except Exception:
+        return
+    if not rules_manifest.is_enabled():
+        return
+    try:
+        groups = rules_manifest.load_pattern_groups()
+    except Exception:
+        return
+    g = globals()
+    for name, patterns in groups.items():
+        if isinstance(g.get(name), tuple):
+            g[name] = tuple(patterns)
+
+
+_apply_rules_manifest_override()
