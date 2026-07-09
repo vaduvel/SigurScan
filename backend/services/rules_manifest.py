@@ -19,7 +19,7 @@ import os
 import re
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 
 _BACKEND_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST_PATH = _BACKEND_DIR / "data" / "rules" / "scam_rules_manifest_v1.json"
@@ -69,3 +69,22 @@ def load_pattern_groups() -> Dict[str, List[re.Pattern]]:
             compiled.append(re.compile(entry["pattern"], _compile_flags(entry.get("flags"))))
         groups[name] = compiled
     return groups
+
+
+def rules_sync_payload(client_version: Optional[str] = None) -> Dict[str, Any]:
+    """P-RULES Felia 2 — device/backend pull of the semantic-rules manifest.
+
+    Mirrors btr_sync_payload: version-gated. If the caller's version matches the
+    current one -> no-op (changed=False). Otherwise returns the full manifest so
+    a consumer can rebuild its rules. Read-only, no message content, just rules.
+    """
+    raw = _load_raw(str(_manifest_path()))
+    current = str(raw.get("version") or "")
+    if client_version and client_version == current:
+        return {"changed": False, "version": current, "manifest": None, "count": 0}
+    return {
+        "changed": True,
+        "version": current,
+        "manifest": raw,
+        "count": sum(len(v or []) for v in (raw.get("groups") or {}).values()),
+    }
