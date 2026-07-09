@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 from typing import Any, Dict, List
 
@@ -27,6 +28,20 @@ from services.verdict_gate_constants import (
     PUBLIC_URL_TEXT_INPUT_TYPES,
     KNOWN_SHORTENER_DOMAINS,
 )
+
+# Live incident 2026-07-09: Mistral's SE extractor hallucinated intent=impersonation
+# on a benign "here's the intercom code" message (~1-in-5 on identical repeated
+# calls, despite temperature=0). _normalize_model_social_engineering_signal merges
+# local+model via max()/OR/union, so a single model-only fabrication survives into
+# the merged signal this gate reads. Require local corroboration before letting the
+# AI-only impersonation_with_authority_ask promotion (see _is_actionable_social_engineering)
+# reach DANGEROUS. Kill switch: default ON since it only *removes* an escalation path.
+SE_GATE_IMPERSONATION_REQUIRES_LOCAL_CORROBORATION = os.getenv(
+    "SE_GATE_IMPERSONATION_REQUIRES_LOCAL_CORROBORATION", "true"
+).strip().lower() in {"1", "true", "yes", "on"}
+# Matches the existing build-up branch's confidence bar (below) for "meaningful" SE
+# confidence, so this guard doesn't invent a new, uncalibrated threshold.
+SE_LOCAL_CORROBORATION_MIN_CONFIDENCE = 0.68
 
 
 def _section(bundle: Dict[str, Any], name: str) -> Dict[str, Any]:
@@ -185,7 +200,17 @@ def _str_list(value: Any) -> List[str]:
     return [_norm(item) for item in value if _norm(item)]
 
 
-def _is_actionable_social_engineering(social_engineering: Dict[str, Any]) -> bool:
+def _local_corroborates_social_engineering(local_signal: Dict[str, Any]) -> bool:
+    local_intent = _norm(local_signal.get("intent"))
+    if local_intent in {"", "unknown", "none"}:
+        return False
+    return _float(local_signal.get("confidence")) >= SE_LOCAL_CORROBORATION_MIN_CONFIDENCE
+
+
+def _is_actionable_social_engineering(
+    social_engineering: Dict[str, Any],
+    local_signal: Dict[str, Any] | None = None,
+) -> bool:
     if _norm(social_engineering.get("status")) != "done":
         return False
     intent = _norm(social_engineering.get("intent"))
@@ -195,11 +220,24 @@ def _is_actionable_social_engineering(social_engineering: Dict[str, Any]) -> boo
     # MAKES a concrete ask (fake Police/ANAF demanding data) falls into a dead zone
     # with no escalation. Promote that specific shape onto the actionable branch.
     # The build-up branch (impersonation + no ask) is untouched.
+    #
+    # This promotion is AI-sourced alone (Mistral supplies intent/ask/levers, merged
+    # via max()/OR/union with the local signal -- see SE_GATE_IMPERSONATION_REQUIRES_
+    # LOCAL_CORROBORATION above). Require the local extractor to independently agree
+    # before this specific shape can reach DANGEROUS, so a solo model hallucination
+    # can't alone do it; a real fake-Police/ANAF case where local also flags
+    # something still escalates normally.
     impersonation_with_authority_ask = (
         intent == "impersonation"
         and _bool(social_engineering.get("ask_present"))
         and bool(levers & {"authority", "fear"})
     )
+    if (
+        impersonation_with_authority_ask
+        and SE_GATE_IMPERSONATION_REQUIRES_LOCAL_CORROBORATION
+        and not _local_corroborates_social_engineering(local_signal or {})
+    ):
+        impersonation_with_authority_ask = False
     if intent not in DANGEROUS_SOCIAL_ENGINEERING_INTENTS and not impersonation_with_authority_ask:
         return False
     if not _bool(social_engineering.get("ask_present")):
@@ -479,6 +517,7 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
     request = _section(bundle, "request")
     semantic = _section(bundle, "semantic_review")
     social_engineering = _section(bundle, "social_engineering")
+    social_engineering_local = _section(_section(bundle, "_se_signals_raw"), "local")
     provenance = _section(bundle, "provenance")
     campaign = _section(bundle, "campaign_match")
     community = _section(bundle, "community")
@@ -616,7 +655,7 @@ def verdict(bundle: Dict[str, Any]) -> Dict[str, Any]:
     # structured signal; this deterministic gate decides severity. Safety
     # education was handled above and positive provenance can still constrain
     # non-actionable build-up.
-    if _is_actionable_social_engineering(social_engineering) and not has_provenance and not informational_attachment:
+    if _is_actionable_social_engineering(social_engineering, social_engineering_local) and not has_provenance and not informational_attachment:
         return _result("DANGEROUS", ["social_engineering_high_confidence_intent"], confidence=88)
 
     if _is_social_engineering_build_up(social_engineering) and not has_provenance:
