@@ -1,0 +1,234 @@
+{
+  "version": "scam-rules-manifest-2026.07.08-v1",
+  "generated_from": "services.scam_atlas_patterns (behavior-preserving seed)",
+  "groups": {
+    "SENSITIVE_CREDENTIAL_PATTERNS": [
+      {
+        "pattern": "\\b(?:cvc|cvv|otp|pin)\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\b(?:cod(?:ul)?\\s+(?:de|al)?\\s*(?:verificare|confirmare|activare|acces))\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\b(?:parol(?:a|ele|ile)|parola ta|parolele)\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      }
+    ],
+    "SENSITIVE_WHATSAPP_PATTERNS": [
+      {
+        "pattern": "\\bwhatsapp\\b.*\\b(?:cod|otp)\\b|\\b(?:cod|otp)\\b.*\\bwhatsapp\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      }
+    ],
+    "SENSITIVE_PAYMENT_PATTERNS": [
+      {
+        "pattern": "\\btransfer[a-z]*\\b.*\\b(?:bani|sum[aă]|ron|eur|usd)\\b|\\btrimite[a-z]*\\s+bani\\b|\\bpl[aă]te[a-z]*\\s+(?:taxa|comisionul|livrare|factur|abonament|restanta)\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\bcont\\s+sigur\\b|\\btrimite(?:ti|ti)?\\s+bani\\b|\\bpl[aă]t[a-z]*\\s+(?:sum[aă]|taxa)\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\btrimite\\s+transfer\\s+bancar\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\btrimite\\s+depunere\\s+(?:initiala|inițial[ăa]?|bani|initial|sum[aă])\\b|\\bdepunere\\s+(?:bani|initiala|inițial[ăa]?|sum[aă])\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\btrimite\\s+confirmare\\b|\\btrimite\\s+.+\\s+confirmare\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      }
+    ],
+    "MALWARE_APK_PATTERNS": [
+      {
+        "pattern": "\\binstal\\w*\\s+.*\\sapk\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\b(?:instaleaz[aăa]|instala\\-?zi|instalare)\\b\\s+(?:app|aplicat\\w+|aplicație|aplicatia|apk)\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\b(?:apk|app)\\s+.*\\b(?:fals|neoficial|suspect|scam)\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      }
+    ],
+    "SENSITIVE_QR_PATTERNS": [
+      {
+        "pattern": "\\b(?:qr|q\\s*r|cod\\s+qr)\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\b(?:scan\\w*|scanare|scan-at|scanat)\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\b(?:pl[aă]t[aă]|factur|abonament|parcare|reducer|taxa)\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      }
+    ],
+    "SENSITIVE_SEXTORTION_PATTERNS": [
+      {
+        "pattern": "\\b(?:camera|poze|video|imagini|fișiere|documente)\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\bplat[aă]\\b.*\\b(?:crypto|bani|suma|ron|eur)\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\b(?:ameninț|compromis|parole|acces)\\b(?:\\s+\\w+){0,8}\\b(?:plat[aă]|bani|taxa|sum[aă]|ron|eur)\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      }
+    ],
+    "SENSITIVE_SIM_SWAP_PATTERNS": [
+      {
+        "pattern": "\\bsim\\b.*\\b(?:swap|schimb|înlocui|actualizare)\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\b(?:date\\s+personale|coduri?|codurile?)\\b.*\\b(?:acces|cont|operator|telefon)\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\b(?:abonament|linie)\\b.*\\b(?:nu\\s+merge|nu\\s+funcționează|schimbat|probleme)\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\bschimb\\w*\\b.*\\bsim\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      }
+    ],
+    "OLX_CARD_PATTERNS": [
+      {
+        "pattern": "\\bprim\\w*\\s+bani\\w*\\s+direct\\s+pe\\s+card\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\bincaseaz[a-z]*\\b|\\bîncas[a-z]*\\b|\\bintroduce[a-z]*\\s+card[a-z]*\\s+pentru\\s+a\\s+primi\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      }
+    ],
+    "REMOTE_ACCESS_PATTERNS": [
+      {
+        "pattern": "\\b(anydesk|teamviewer|rustdesk)\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\b(?:instal|instale[az]i|instalare|instala|instalez|instalați)\\b.*\\b(?:aplica(?:ție|t?ie)|app|software|program)\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      }
+    ],
+    "URGENCY_MANIPULATION_PATTERNS": [
+      {
+        "pattern": "\\burgent[a-z]*\\b|\\burgenta\\b|\\bimediat\\b|\\b24\\s*ore\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\bbloc[aă]t\\b|\\bsuspendat\\b|\\bexpir[aă]\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\b(?:suspend[ăa]\\w*|bloc(?:heaz[ăa]|at|are)|dezactiv(?:eat|are))\\w*\\b.{0,60}\\b(?:cont(?:ul)?|acces(?:ul)?|card(?:ul)?)\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\b(?:verific[ăa]\\w*|confirm[ăa]\\w*|reautoriz\\w+)\\b.{0,60}\\b(?:identitate|date|cont|acces)\\b.{0,60}\\b(?:suspend|bloc|dezactiv|restriction|expir)\\w*",
+        "flags": [
+          "IGNORECASE"
+        ]
+      }
+    ],
+    "MANIPULATION_REWARD_PATTERNS": [
+      {
+        "pattern": "\\bcâ[sș]tig[a-z]*\\b|\\bcastig[a-z]*\\b|\\bpremi[a-z]*\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\binvesti[a-z]*\\b|\\bprofit[a-z]*\\b|\\bgarantat[a-z]*\\b|\\bramburs[a-z]*\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      }
+    ],
+    "DELIVERY_MANIPULATION_PATTERNS": [
+      {
+        "pattern": "\\bcolet[a-z]*\\b.*\\b(?:taxa|vama|locker|awb|livr|ridic|adresa|expedi)\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      },
+      {
+        "pattern": "\\b(?:taxe|taxa|vam[a-z]*|locker)\\b.*\\b(?:colet|livrare|parcel|pachet)\\b",
+        "flags": [
+          "IGNORECASE"
+        ]
+      }
+    ]
+  }
+}

@@ -351,6 +351,24 @@ data class BtrSyncResponse(
     val count: Int = 0
 )
 
+// P-RULES Felia 3 — /v1/rules/sync (semantic rules manifest, version-gated).
+data class RulesManifestPatternDto(
+    val pattern: String,
+    val flags: List<String> = emptyList()
+)
+
+data class RulesManifestDto(
+    val version: String? = null,
+    val groups: Map<String, List<RulesManifestPatternDto>> = emptyMap()
+)
+
+data class RulesSyncResponse(
+    val changed: Boolean = false,
+    val version: String? = null,
+    val manifest: RulesManifestDto? = null,
+    val count: Int = 0
+)
+
 data class CirclePairRequest(
     @SerializedName("protected_id") val protectedId: String,
     @SerializedName("verifier_id") val verifierId: String,
@@ -676,6 +694,9 @@ interface SigurScanApi {
 
     @GET("v1/btr/sync")
     suspend fun getBtrSync(@Query("client_version") clientVersion: String? = null): BtrSyncResponse
+
+    @GET("v1/rules/sync")
+    suspend fun getRulesSync(@Query("client_version") clientVersion: String? = null): RulesSyncResponse
 
     @POST("v1/circle/pair")
     suspend fun createCirclePair(@Body request: CirclePairRequest): CircleLinkResponse
