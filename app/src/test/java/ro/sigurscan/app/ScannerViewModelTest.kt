@@ -894,7 +894,9 @@ class ScannerViewModelTest {
         )
         assertTrue(
             "Large invoice images must be normalized before upload so Cloud OCR does not receive raw multi-megabyte camera files.",
-            viewModelSource.contains("prepareInvoiceImageUpload(uri, context)") &&
+            viewModelSource.contains(
+                "prepareInvoiceImageUpload(uri, context, ScannerViewModel.MAX_IMAGE_UPLOAD_BYTES)"
+            ) &&
                 viewModelSource.contains("MAX_INVOICE_IMAGE_EDGE_PX") &&
                 viewModelSource.contains("image/jpeg")
         )
@@ -906,6 +908,28 @@ class ScannerViewModelTest {
             "Manifest must declare a FileProvider for camera output URIs.",
             manifestSource.contains("androidx.core.content.FileProvider") &&
                 manifestSource.contains("android.support.FILE_PROVIDER_PATHS")
+        )
+    }
+
+    @Test
+    fun invoiceImageNormalizationCannotFallBackAboveBackendImageLimit() {
+        val mediaSource = File("src/main/java/ro/sigurscan/app/ScannerViewModelMedia.kt").readText()
+        val documentSource = File("src/main/java/ro/sigurscan/app/ScannerViewModelDocumentScan.kt").readText()
+
+        assertTrue(
+            "Invoice normalization must use the backend's 10 MiB image limit, not the generic 25 MiB file limit.",
+            mediaSource.contains("maxBytes: Long = ScannerViewModel.MAX_IMAGE_UPLOAD_BYTES")
+        )
+        assertTrue(
+            "The bounds-only BitmapFactory pass returns null by design; only the stream may guard the bounds decode.",
+            mediaSource.contains("val boundsStream = context.contentResolver.openInputStream(uri) ?: return null") &&
+                mediaSource.contains("boundsStream.use { input ->")
+        )
+        assertTrue(
+            "Invoice uploads must pass the image-specific limit explicitly at the call site.",
+            documentSource.contains(
+                "prepareInvoiceImageUpload(uri, context, ScannerViewModel.MAX_IMAGE_UPLOAD_BYTES)"
+            )
         )
     }
 

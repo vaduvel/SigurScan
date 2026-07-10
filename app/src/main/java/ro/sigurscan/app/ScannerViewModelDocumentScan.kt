@@ -108,7 +108,11 @@ fun ScannerViewModel.scanInvoiceFromDocument(
             }
 
             loadingMsg = if (isPdf) "Scanăm factura PDF..." else "Optimizăm poza facturii..."
-            file = if (isPdf) uriToFile(uri, context, ScannerViewModel.MAX_UPLOAD_BYTES) else prepareInvoiceImageUpload(uri, context)
+            file = if (isPdf) {
+                uriToFile(uri, context, ScannerViewModel.MAX_UPLOAD_BYTES)
+            } else {
+                prepareInvoiceImageUpload(uri, context, ScannerViewModel.MAX_IMAGE_UPLOAD_BYTES)
+            }
             val mediaType = if (isPdf) "application/pdf" else "image/jpeg"
             val partName = if (isPdf) "pdf_file" else "image_file"
             val requestFile = file.asRequestBody(mediaType.toMediaTypeOrNull())

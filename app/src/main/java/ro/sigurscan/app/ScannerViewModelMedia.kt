@@ -84,7 +84,7 @@ internal fun ScannerViewModel.decodeHtmlForParser(input: String): String {
 internal fun ScannerViewModel.prepareInvoiceImageUpload(
     uri: Uri,
     context: Context,
-    maxBytes: Long = ScannerViewModel.MAX_UPLOAD_BYTES
+    maxBytes: Long = ScannerViewModel.MAX_IMAGE_UPLOAD_BYTES
 ): File {
     val sourceSize = queryContentSize(uri, context)
     val normalized = runCatching { normalizeInvoiceImageToJpeg(uri, context, maxBytes) }.getOrNull()
@@ -104,12 +104,13 @@ internal fun ScannerViewModel.prepareInvoiceImageUpload(
 internal fun ScannerViewModel.normalizeInvoiceImageToJpeg(
     uri: Uri,
     context: Context,
-    maxBytes: Long = ScannerViewModel.MAX_UPLOAD_BYTES
+    maxBytes: Long = ScannerViewModel.MAX_IMAGE_UPLOAD_BYTES
 ): File? {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    context.contentResolver.openInputStream(uri)?.use { input ->
+    val boundsStream = context.contentResolver.openInputStream(uri) ?: return null
+    boundsStream.use { input ->
         BitmapFactory.decodeStream(input, null, bounds)
-    } ?: return null
+    }
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
 
     val decodeOptions = BitmapFactory.Options().apply {
