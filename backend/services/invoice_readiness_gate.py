@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, List
@@ -8,6 +10,27 @@ from services.invoice_parser import InvoiceFields
 
 if TYPE_CHECKING:
     from services.offer_parser import OfferFields
+
+
+# Cherry-pick din #110 (Altex card-paid receipt), sub flag default OFF: o
+# chitanță/factură deja decontată cu cardul nu are scadență, deci "lipsă
+# scadență" nu trebuie să coboare readiness-ul pentru acele documente. Direcția
+# de risc e spre SAFE (relaxează o probă), deci rămâne stins până e măsurat pe
+# corpusul real de facturi (același criteriu ca INVOICE_ZONE_CUI).
+_CARD_SETTLEMENT_RE = re.compile(
+    r"\btip\s+plat[ăa]\s*:\s*(?:card|cards|pos|sibs|visa|mastercard|maestro)\b"
+    r"|(?:pl[ăa]tit[ăa]?|achitat[ăa]?)\s+(?:cu|prin)\s+card\b",
+    re.IGNORECASE,
+)
+
+
+def _card_settlement_proof_enabled() -> bool:
+    value = str(os.getenv("INVOICE_CARD_SETTLEMENT_PROOF", "0")).strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def _has_card_settlement_evidence(fields: InvoiceFields) -> bool:
+    return bool(_CARD_SETTLEMENT_RE.search(getattr(fields, "raw_text", "") or ""))
 
 
 class ReadinessState(str, Enum):
@@ -50,7 +73,8 @@ def evaluate_readiness(fields: InvoiceFields, ocr_confidence: float | None = Non
     has_cui = bool(fields.cui)
     has_iban = bool(fields.iban)
     has_total = fields.total is not None
-    has_dates = bool(fields.data_emitere) and bool(fields.scadenta)
+    card_settled = _card_settlement_proof_enabled() and _has_card_settlement_evidence(fields)
+    has_dates = bool(fields.data_emitere) and (bool(fields.scadenta) or card_settled)
     is_international_invoice = fields.invoice_profile == "international"
 
     if is_international_invoice:

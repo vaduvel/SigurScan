@@ -3,6 +3,11 @@ from __future__ import annotations
 import os
 from typing import Any, Dict, Iterable, Optional
 
+from services.invoice_readiness_gate import (
+    _card_settlement_proof_enabled,
+    _has_card_settlement_evidence,
+)
+
 
 OFFICIAL_SOURCE_CHANNELS = {
     "official_portal",
@@ -191,6 +196,20 @@ def evaluate_invoice_truth_v4(
         source_channel=source_channel,
         official_document_check=official_document_check,
     )
+    # Cherry-pick din #110 (Altex card-paid), sub INVOICE_CARD_SETTLEMENT_PROOF
+    # (default OFF): o chitanță deja decontată cu cardul nu mai e o obligație de
+    # plătit, deci "obligația neconfirmată" nu are sens pe ea. Promovarea cere
+    # ca AMBELE probe independente (emitent + destinație) să fie deja confirmate
+    # — dovada de settlement e text tipărit pe document, falsificabil ieftin,
+    # deci nu poate fi decât ultimul zăvor, niciodată proba principală.
+    if (
+        obligation_state != "CONFIRMED"
+        and _card_settlement_proof_enabled()
+        and _has_card_settlement_evidence(fields)
+        and issuer_state == "CONFIRMED"
+        and destination_state in {"OFFICIAL_REGISTRY_MATCH", "OFFICIAL_DOCUMENT_MATCH", "LOCAL_APPROVED_MATCH", "BANK_MATCH"}
+    ):
+        obligation_state = "CONFIRMED"
     if obligation_state == "CONFIRMED":
         verified_items.append(_item("INVOICE_OBLIGATION_CONFIRMED", "Factura este confirmată într-o sursă potrivită"))
     else:
