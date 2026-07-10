@@ -103,15 +103,15 @@ SENSITIVE_CREDENTIAL_PATTERNS = (
 )
 
 SENSITIVE_WHATSAPP_PATTERNS = (
-    re.compile(r"\bwhatsapp\b.*\b(?:cod|otp)\b|\b(?:cod|otp)\b.*\bwhatsapp\b", re.IGNORECASE),
+    re.compile(r"\bwhatsapp\b.*\b(?:cod(?:ul)?|otp)\b|\b(?:cod(?:ul)?|otp)\b.*\bwhatsapp\b", re.IGNORECASE),
 )
 
 SENSITIVE_PAYMENT_PATTERNS = (
     re.compile(
-        r"\btransfer[a-z]*\b.*\b(?:bani|sum[aă]|ron|eur|usd)\b|\btrimite[a-z]*\s+bani\b|\bpl[aă]te[a-z]*\s+(?:taxa|comisionul|livrare|factur|abonament|restanta)\b",
+        r"\btransfer[a-z]*\b.*\b(?:bani(?:i)?|sum[aă]|ron|eur|usd)\b|\btrimite[a-z]*\s+bani(?:i)?\b|\bpl[aă]te[a-z]*\s+(?:taxa|comisionul|livrare|factur|abonament|restanta)\b",
         re.IGNORECASE,
     ),
-    re.compile(r"\bcont\s+sigur\b|\btrimite(?:ti|ti)?\s+bani\b|\bpl[aă]t[a-z]*\s+(?:sum[aă]|taxa)\b", re.IGNORECASE),
+    re.compile(r"\bcont(?:ul)?\s+sigur\b|\btrimite(?:ti|ti)?\s+bani(?:i)?\b|\bpl[aă]t[a-z]*\s+(?:sum[aă]|taxa)\b", re.IGNORECASE),
     re.compile(r"\btrimite\s+transfer\s+bancar\b", re.IGNORECASE),
     re.compile(r"\btrimite\s+depunere\s+(?:initiala|inițial[ăa]?|bani|initial|sum[aă])\b|\bdepunere\s+(?:bani|initiala|inițial[ăa]?|sum[aă])\b", re.IGNORECASE),
     re.compile(r"\btrimite\s+confirmare\b|\btrimite\s+.+\s+confirmare\b", re.IGNORECASE),

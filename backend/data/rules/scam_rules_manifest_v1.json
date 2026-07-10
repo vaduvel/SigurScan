@@ -1,6 +1,6 @@
 {
-  "version": "scam-rules-manifest-2026.07.08-v1",
-  "generated_from": "services.scam_atlas_patterns (behavior-preserving seed)",
+  "version": "scam-rules-manifest-2026.07.10-v2",
+  "generated_from": "services.scam_atlas_patterns (P-MORPH #123 fold + widened inflections)",
   "groups": {
     "SENSITIVE_CREDENTIAL_PATTERNS": [
       {
@@ -24,7 +24,7 @@
     ],
     "SENSITIVE_WHATSAPP_PATTERNS": [
       {
-        "pattern": "\\bwhatsapp\\b.*\\b(?:cod|otp)\\b|\\b(?:cod|otp)\\b.*\\bwhatsapp\\b",
+        "pattern": "\\bwhatsapp\\b.*\\b(?:cod(?:ul)?|otp)\\b|\\b(?:cod(?:ul)?|otp)\\b.*\\bwhatsapp\\b",
         "flags": [
           "IGNORECASE"
         ]
@@ -32,13 +32,13 @@
     ],
     "SENSITIVE_PAYMENT_PATTERNS": [
       {
-        "pattern": "\\btransfer[a-z]*\\b.*\\b(?:bani|sum[aă]|ron|eur|usd)\\b|\\btrimite[a-z]*\\s+bani\\b|\\bpl[aă]te[a-z]*\\s+(?:taxa|comisionul|livrare|factur|abonament|restanta)\\b",
+        "pattern": "\\btransfer[a-z]*\\b.*\\b(?:bani(?:i)?|sum[aă]|ron|eur|usd)\\b|\\btrimite[a-z]*\\s+bani(?:i)?\\b|\\bpl[aă]te[a-z]*\\s+(?:taxa|comisionul|livrare|factur|abonament|restanta)\\b",
         "flags": [
           "IGNORECASE"
         ]
       },
       {
-        "pattern": "\\bcont\\s+sigur\\b|\\btrimite(?:ti|ti)?\\s+bani\\b|\\bpl[aă]t[a-z]*\\s+(?:sum[aă]|taxa)\\b",
+        "pattern": "\\bcont(?:ul)?\\s+sigur\\b|\\btrimite(?:ti|ti)?\\s+bani(?:i)?\\b|\\bpl[aă]t[a-z]*\\s+(?:sum[aă]|taxa)\\b",
         "flags": [
           "IGNORECASE"
         ]

@@ -553,6 +553,19 @@ from services.scam_atlas_patterns import (
     HIGH_RISK_TEXT_ONLY_ASK_MARKERS,
     KNOWN_DEEPLINK_PROVIDERS,
 )
+from services.ro_morphology import strip_diacritics as _strip_diacritics
+
+
+def _morph_fold(text: str) -> str:
+    # P-MORPH-WIRE: fold Romanian diacritics before the semantic keyword regexes
+    # so scam phrasings written with diacritics (e.g. "transferă", "plătește")
+    # match the same patterns as their ASCII forms. Diacritic folding only maps
+    # ă→a / ș→s / ț→t etc.; it never invents words, and the patterns already carry
+    # ASCII alternatives, so it can only add recall, not change which words exist.
+    # Escape hatch (default ON) for instant rollback without a revert.
+    if os.getenv("SCAM_ATLAS_MORPH_FOLD", "1").strip().lower() in {"0", "false", "no", "off"}:
+        return text or ""
+    return _strip_diacritics(text or "")
 
 
 # Local repo seed path for the Romania corpus. This replaces the old absolute path from the
@@ -1256,9 +1269,11 @@ class ScamAtlasEngine:
     def check_sensitive_requests(self, text: str) -> List[str]:
         """
         Detects requests for sensitive credentials/data in the text.
-        Handles Romanian inflections (e.g., card/cardul/cardurile, cod/codul/codurile).
+        Handles Romanian inflections (e.g., card/cardul/cardurile, cod/codul/codurile)
+        and diacritics via P-MORPH folding (transferă -> transfera).
         """
         signals = []
+        text = _morph_fold(text)
         lower_text = text.lower()
         
         # Credit Card CVC/OTP/PIN/Password (articulated or inflected)
@@ -1308,7 +1323,7 @@ class ScamAtlasEngine:
         # Remote access apps
         if REMOTE_ACCESS_PATTERNS[0].search(text) and (
             REMOTE_ACCESS_PATTERNS[1].search(text)
-            or re.search(r"\b(?:broker|consultant|investi[a-z]*|profit|banc[aă]|suport)\b", text, re.IGNORECASE)
+            or re.search(r"\b(?:broker[a-z]*|consultant[a-z]*|investi[a-z]*|profit|banc[aă]|suport[a-z]*)\b", text, re.IGNORECASE)
         ):
             signals.append("Instrucțiuni de instalare a unei aplicații de acces la distanță (e.g., AnyDesk)")
             
@@ -1345,9 +1360,11 @@ class ScamAtlasEngine:
 
     def check_language_manipulation(self, text: str) -> List[str]:
         """
-        Detects urgency, fear, greed, authority-abuse signals with Romanian inflections.
+        Detects urgency, fear, greed, authority-abuse signals with Romanian
+        inflections and diacritics via P-MORPH folding.
         """
         signals = []
+        text = _morph_fold(text)
         # Urgency (e.g., urgent, urgență, imediat, acum, bloca/blocat/blocare, suspendat, expira)
         if any(pattern.search(text) for pattern in URGENCY_MANIPULATION_PATTERNS):
             signals.append("Crearea unui sentiment artificial de urgență sau presiune psihologică")
