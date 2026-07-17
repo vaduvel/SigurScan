@@ -6,6 +6,7 @@ from services.extract_pipeline import (
     extract_email_for_orchestration as extract_email_for_orchestration_handler,
     extract_image_for_orchestration as extract_image_for_orchestration_handler,
     extract_pdf_for_orchestration as extract_pdf_for_orchestration_handler,
+    public_email_extraction_payload,
 )
 
 router = APIRouter()
@@ -36,8 +37,10 @@ async def extract_email_for_orchestration(
     html_content: str | None = Form(None),
     source_channel: str | None = Form("email"),
 ):
-    return await extract_email_for_orchestration_handler(
-        email_file=email_file,
-        html_content=html_content,
-        source_channel=source_channel,
+    return public_email_extraction_payload(
+        await extract_email_for_orchestration_handler(
+            email_file=email_file,
+            html_content=html_content,
+            source_channel=source_channel,
+        )
     )

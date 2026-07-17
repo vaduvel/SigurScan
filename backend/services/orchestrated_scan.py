@@ -23,6 +23,7 @@ from services.provider_gate import _apply_decision_contract_result, _apply_provi
 from services.reputation_enrich import _attach_reputation_lookup_hashes, _attach_reputation_lookup_urls, _has_bad_provider_verdict
 from services.external_url_privacy import prepare_external_url, prepare_external_urls, prepare_reputation_lookup_url
 from services.artifact_envelope import build_artifact_envelope
+from services.email_evidence_ledger import sanitize_email_evidence_ledger
 from services.threat_enrichment import build_threat_enrichment
 from services.scan_helpers import _invoice_payment_destination_for_client, _validate_text_input
 from services.url_reputation import reputation_url_hash_variants
@@ -88,6 +89,7 @@ from config import (
     ORCHESTRATED_REQUIRED_PILLAR_TIMEOUT_SECONDS,
     ORCHESTRATED_URLSCAN_PENDING_TIMEOUT_SECONDS,
     ORCHESTRATED_URLSCAN_SUBMIT_RESERVATION_TIMEOUT_SECONDS,
+    EMAIL_COMPOUND_EVIDENCE_ACTIVE,
     PRIVACY_SAFE_MODE,
     SIGURSCAN_PUBLIC_API_BASE_URL,
     _ORCHESTRATED_STAGE_RANK,
@@ -1333,6 +1335,13 @@ class OrchestratedScanEngine:
             cross_scan_knowledge = {}
         redacted_text = redact_pii(privacy_safe_text)
         artifact_metadata = artifact_metadata if isinstance(artifact_metadata, dict) else {}
+        if not isinstance(artifact_metadata.get("email_evidence_ledger"), dict):
+            roundtrip_ledger = sanitize_email_evidence_ledger(payload.email_evidence_ledger)
+            if isinstance(roundtrip_ledger, dict):
+                artifact_metadata["email_evidence_ledger"] = roundtrip_ledger
+                artifact_metadata["email_compound_active"] = bool(
+                    EMAIL_COMPOUND_EVIDENCE_ACTIVE and payload.email_compound_active
+                )
         artifact_envelope = build_artifact_envelope(
             artifact_type=str(artifact_metadata.get("artifact_type") or context["input_type"]),
             analysis_input_type=str(context["input_type"]),
@@ -1348,6 +1357,11 @@ class OrchestratedScanEngine:
                 artifact_metadata.get("email_auth")
                 if isinstance(artifact_metadata.get("email_auth"), dict)
                 else payload.email_auth
+            ),
+            compound_evidence=(
+                artifact_metadata.get("email_evidence_ledger")
+                if isinstance(artifact_metadata.get("email_evidence_ledger"), dict)
+                else None
             ),
             extraction_warning=(
                 "present" if artifact_metadata.get("extraction_warning") else None
@@ -1437,6 +1451,19 @@ class OrchestratedScanEngine:
                 "urlscan_timeout_count": 0,
             },
         }
+        email_ledger = artifact_metadata.get("email_evidence_ledger")
+        if isinstance(email_ledger, dict):
+            summary = email_ledger.get("summary") if isinstance(email_ledger.get("summary"), dict) else {}
+            coverage = email_ledger.get("coverage") if isinstance(email_ledger.get("coverage"), dict) else {}
+            job["email_evidence_ledger"] = email_ledger
+            job["email_compound_shadow"] = {
+                "active": bool(artifact_metadata.get("email_compound_active")),
+                "candidate_email_auth_present": bool(artifact_metadata.get("email_auth")),
+                "attachment_count": int(summary.get("attachment_count") or 0),
+                "candidate_url_count": int(summary.get("candidate_url_count") or 0),
+                "candidate_qr_count": int(summary.get("candidate_qr_count") or 0),
+                "coverage_status": str(coverage.get("status") or "unknown"),
+            }
         if context["input_type"] == "invoice":
             # Invoice verdicts depend on exact payment identifiers. Keep the
             # privacy-safe URL-substituted text only until the invoice fast lane
@@ -2741,6 +2768,13 @@ class OrchestratedScanEngine:
                 text=text,
                 html_content=html_content,
                 source_channel=source_channel or str(extraction.get("source_channel") or default_input_type),
+                email_auth=extraction.get("email_auth")
+                if isinstance(extraction.get("email_auth"), dict)
+                else None,
+                email_evidence_ledger=extraction.get("email_evidence_ledger")
+                if isinstance(extraction.get("email_evidence_ledger"), dict)
+                else None,
+                email_compound_active=bool(extraction.get("email_compound_active")),
             ),
             artifact_metadata={
                 "artifact_type": extraction.get("input_type") or default_input_type,
@@ -2752,6 +2786,10 @@ class OrchestratedScanEngine:
                 "email_auth": extraction.get("email_auth")
                 if isinstance(extraction.get("email_auth"), dict)
                 else None,
+                "email_evidence_ledger": extraction.get("email_evidence_ledger")
+                if isinstance(extraction.get("email_evidence_ledger"), dict)
+                else None,
+                "email_compound_active": bool(extraction.get("email_compound_active")),
                 "extraction_warning": extraction.get("warning"),
             },
         )
@@ -2763,6 +2801,23 @@ class OrchestratedScanEngine:
             "extracted_url_count": len(extraction.get("extracted_urls") or []),
             "has_html": bool(html_content),
             "warning": extraction.get("warning"),
+            "attachment_count": int(
+                (
+                    extraction.get("email_evidence_ledger", {}).get("summary", {})
+                    if isinstance(extraction.get("email_evidence_ledger"), dict)
+                    else {}
+                ).get("attachment_count")
+                or 0
+            ),
+            "compound_coverage": str(
+                (
+                    extraction.get("email_evidence_ledger", {}).get("coverage", {})
+                    if isinstance(extraction.get("email_evidence_ledger"), dict)
+                    else {}
+                ).get("status")
+                or "not_applicable"
+            ),
+            "compound_active": bool(extraction.get("email_compound_active")),
         }
         return response
 

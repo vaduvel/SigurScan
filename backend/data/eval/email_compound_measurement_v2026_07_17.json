@@ -1,0 +1,22 @@
+{
+  "schema": "sigurscan_email_compound_measurement_v1",
+  "mode": "privacy_safe_unlabeled_shadow",
+  "active_flag": false,
+  "source_set_case_counts": {
+    "nudaclick_e2e_fixtures_v1.zip": 8,
+    "nudaclick_e2e_fixtures_v2_realistic.zip": 143,
+    "sigurscan_novel_zero_day_holdout_ro_2026_06_18.zip": 9
+  },
+  "case_count": 160,
+  "measured_case_count": 160,
+  "error_count": 0,
+  "cases_with_attachments": 0,
+  "attachment_count": 0,
+  "new_attachment_url_count": 0,
+  "candidate_qr_count": 0,
+  "coverage": {
+    "complete": 160,
+    "partial": 0,
+    "unknown": 0
+  }
+}

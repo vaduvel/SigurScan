@@ -64,6 +64,7 @@ def build_artifact_envelope(
     hidden_url_visibility: bool = False,
     has_html: bool = False,
     email_auth: Optional[Mapping[str, Any]] = None,
+    compound_evidence: Optional[Mapping[str, Any]] = None,
     extraction_warning: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build the canonical, persistable artifact contract.
@@ -79,6 +80,11 @@ def build_artifact_envelope(
     normalized_analysis_type = str(analysis_input_type or "unknown").strip().lower() or "unknown"
     normalized_channel = str(source_channel or "unknown").strip().lower() or "unknown"
 
+    compound_evidence = compound_evidence if isinstance(compound_evidence, Mapping) else {}
+    compound_summary = compound_evidence.get("summary")
+    compound_summary = compound_summary if isinstance(compound_summary, Mapping) else {}
+    compound_coverage = compound_evidence.get("coverage")
+    compound_coverage = compound_coverage if isinstance(compound_coverage, Mapping) else {}
     envelope: Dict[str, Any] = {
         "schema": ARTIFACT_ENVELOPE_SCHEMA,
         "artifact_type": normalized_artifact_type,
@@ -105,6 +111,14 @@ def build_artifact_envelope(
             "hidden_url_visibility": bool(hidden_url_visibility),
         },
         "email_auth": _safe_email_auth_summary(email_auth),
+        "compound": {
+            "present": bool(compound_evidence),
+            "schema": str(compound_evidence.get("schema") or "") if compound_evidence else None,
+            "attachment_count": int(compound_summary.get("attachment_count") or 0),
+            "candidate_url_count": int(compound_summary.get("candidate_url_count") or 0),
+            "candidate_qr_count": int(compound_summary.get("candidate_qr_count") or 0),
+            "coverage_status": str(compound_coverage.get("status") or "not_applicable"),
+        },
         "extraction": {
             "status": "warning" if extraction_warning else "complete",
             "has_warning": bool(extraction_warning),

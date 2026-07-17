@@ -379,6 +379,48 @@ class ScannerViewModelTest {
     }
 
     @Test
+    fun emailExtractionRoundTripsCompoundEvidenceIntoOrchestration() {
+        val apiSource = File("src/main/java/ro/sigurscan/app/SigurScanApi.kt").readText()
+        val viewModelSource = viewModelSource()
+        val extractionFlowStart = viewModelSource.indexOf(
+            "internal suspend fun ScannerViewModel.runBackendOrchestratedScanFromExtraction"
+        )
+        val extractionFlowEnd = viewModelSource.indexOf(
+            "internal fun ScannerViewModel.providerStatesFromOrchestratedPillars",
+            extractionFlowStart
+        )
+        assertTrue(
+            "The Android extraction-to-orchestration flow must exist.",
+            extractionFlowStart >= 0 && extractionFlowEnd > extractionFlowStart
+        )
+
+        val extractionFlow = viewModelSource.substring(extractionFlowStart, extractionFlowEnd)
+        assertTrue(
+            "Android must pass the privacy-safe email evidence ledger returned by /extract/email into /scan/orchestrated.",
+            extractionFlow.contains("emailEvidenceLedger = response.emailEvidenceLedger")
+        )
+        assertTrue(
+            "Android must preserve whether compound attachment evidence was active for the extraction.",
+            extractionFlow.contains("emailCompoundActive = response.emailCompoundActive")
+        )
+        assertTrue(
+            "ExtractionResponse must deserialize the compound email contract.",
+            apiSource.contains("@SerializedName(\"email_evidence_ledger\") val emailEvidenceLedger: Map<String, Any>? = null") &&
+                apiSource.contains("@SerializedName(\"email_compound_active\") val emailCompoundActive: Boolean = false")
+        )
+
+        val ledger = mapOf<String, Any>("schema" to "sigurscan_email_evidence_ledger_v1")
+        val request = OrchestratedScanRequest(
+            inputType = "email",
+            text = "Mesaj redactat",
+            emailEvidenceLedger = ledger,
+            emailCompoundActive = true
+        )
+        assertEquals(ledger, request.emailEvidenceLedger)
+        assertTrue(request.emailCompoundActive)
+    }
+
+    @Test
     fun gateMappingPreservesFinalityInsteadOfCollapsingToActionOnly() {
         val source = File("src/main/java/ro/sigurscan/app/ScannerViewModelEvidenceGate.kt").readText()
         val start = source.indexOf("internal fun ScannerViewModel.withGate")

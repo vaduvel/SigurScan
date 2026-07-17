@@ -46,6 +46,10 @@ class OrchestratedScanRequest(BaseModel):
     # /v1/extract/email from the raw RFC822 headers. Threaded into the verdict so
     # email scans verify headers first, then body text, then links.
     email_auth: Optional[Dict[str, Any]] = None
+    # Privacy-safe, verdict-neutral ledger created by /v1/extract/email. It can
+    # round-trip through Android, but is sanitized again before persistence.
+    email_evidence_ledger: Optional[Dict[str, Any]] = None
+    email_compound_active: Optional[bool] = False
 
 
 class FeedbackRequest(BaseModel):

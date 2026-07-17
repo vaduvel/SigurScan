@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -203,6 +204,33 @@ def test_backend_ci_installs_pytest_before_running_backend_tests():
     assert "python -m pip install -r requirements.lock" in install_block
     assert "python -m pip install pytest pytest-asyncio" in install_block
     assert "python -m pytest -q" in workflow
+
+
+def test_email_compound_evidence_stays_off_in_ci_and_cloud_run_defaults():
+    workflow = (ROOT_DIR / ".github" / "workflows" / "backend-ci.yml").read_text(
+        encoding="utf-8"
+    )
+    deploy = (ROOT_DIR / "tools" / "deploy_cloud_run_backend.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert workflow.count('EMAIL_COMPOUND_EVIDENCE_ACTIVE: "false"') == 2
+    assert "EMAIL_COMPOUND_EVIDENCE_ACTIVE=false" in deploy
+
+
+def test_email_compound_measurement_is_shadow_only_and_aggregate_by_default():
+    report = json.loads(
+        (ROOT_DIR / "backend" / "data" / "eval" / "email_compound_measurement_v2026_07_17.json")
+        .read_text(encoding="utf-8")
+    )
+
+    assert report["active_flag"] is False
+    assert report["case_count"] == 160
+    assert report["measured_case_count"] == 160
+    assert report["error_count"] == 0
+    assert report["cases_with_attachments"] == 0
+    assert "rows" not in report
+    assert sum(report["source_set_case_counts"].values()) == report["case_count"]
 
 
 def test_backend_ci_guards_tracked_local_secrets_before_tests():

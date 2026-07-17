@@ -13,6 +13,8 @@ from config import (
     ALLOWED_IMAGE_MIME_TYPES,
     ALLOWED_PDF_EXTS,
     ALLOWED_PDF_MIME_TYPES,
+    EMAIL_COMPOUND_EVIDENCE_ACTIVE,
+    MAX_EMAIL_BYTES,
     MAX_IMAGE_BYTES,
     MAX_PDF_BYTES,
     MAX_TEXT_CHARS,
@@ -30,11 +32,28 @@ from core.url_intelligence import (
     extract_urls,
 )
 from services.google_vision_ocr import extract_text_from_pdf_with_vision, extract_text_with_vision
+from services.email_evidence_ledger import extract_email_compound_evidence
 from services.pii_redactor import redact_pii
 from services.scam_atlas import BRAND_REGISTRY as SCAM_ATLAS_BRAND_REGISTRY
 from services.scan_helpers import _is_allowed_image_bytes, _validate_file_upload, extract_text_for_scan
 
 logger = logging.getLogger("main")
+
+_PRIVATE_EMAIL_EXTRACTION_FIELDS = {
+    "email_compound_candidate_text",
+    "email_compound_candidate_urls",
+    "email_compound_candidate_qr_payloads",
+}
+
+
+def public_email_extraction_payload(extraction: Dict[str, Any]) -> Dict[str, Any]:
+    """Remove internal shadow evidence from the public extraction endpoint."""
+
+    return {
+        key: value
+        for key, value in (extraction or {}).items()
+        if key not in _PRIVATE_EMAIL_EXTRACTION_FIELDS
+    }
 
 
 async def extract_image_for_orchestration(
@@ -163,7 +182,7 @@ async def extract_email_for_orchestration(
 
     if email_file:
         content = await email_file.read()
-        if len(content) > MAX_TEXT_CHARS * 4:
+        if len(content) > MAX_EMAIL_BYTES:
             raise HTTPException(status_code=413, detail="Fișierul este prea mare.")
         try:
             parsed_message = message_from_bytes(content, policy=policy.default)
@@ -185,20 +204,8 @@ async def extract_email_for_orchestration(
 
     html_to_parse = _normalise_obfuscated_text(html_to_parse)
     email_context = _extract_email_auth_context(parsed_message, is_forwarded_guess=is_forwarded)
-    if not html_to_parse.strip():
-        return {
-            "input_type": "email",
-            "source_channel": source_channel,
-            "redacted_text": "",
-            "html_content": None,
-            "extracted_urls": [],
-            "buttons": [],
-            "email_auth": email_context,
-            "warning": "Corpul e-mailului este gol sau nu a putut fi citit.",
-        }
-
-    soup = BeautifulSoup(html_to_parse, "html.parser")
-    click_targets = _collect_click_targets_from_html(soup)
+    soup = BeautifulSoup(html_to_parse, "html.parser") if html_to_parse.strip() else None
+    click_targets = _collect_click_targets_from_html(soup) if soup is not None else []
     discovered_urls: List[str] = []
     buttons: List[Dict[str, Any]] = []
     cta_words = [
@@ -233,7 +240,7 @@ async def extract_email_for_orchestration(
             }
         )
 
-    visible_text = soup.get_text(separator=" ", strip=True)
+    visible_text = soup.get_text(separator=" ", strip=True) if soup is not None else ""
     for url in extract_urls(visible_text):
         if url not in discovered_urls:
             discovered_urls.append(url)
@@ -252,12 +259,40 @@ async def extract_email_for_orchestration(
         ]
         if part.strip()
     )
+    compound = extract_email_compound_evidence(
+        parsed_message,
+        body_text=visible_text,
+        body_html=html_to_parse or None,
+        body_urls=discovered_urls,
+        email_auth=email_context,
+    )
+    candidate_attachment_text = str(compound.get("attachment_text") or "").strip()
+    candidate_attachment_urls = [
+        str(url).strip()
+        for url in compound.get("attachment_urls") or []
+        if str(url).strip()
+    ]
+    candidate_attachment_qr = [
+        str(payload).strip()
+        for payload in compound.get("attachment_qr_payloads") or []
+        if str(payload).strip()
+    ]
+    if EMAIL_COMPOUND_EVIDENCE_ACTIVE:
+        content_for_analysis = "\n".join(
+            part for part in [content_for_analysis, candidate_attachment_text] if part.strip()
+        )
+        discovered_urls = _dedupe_preserve_order(discovered_urls + candidate_attachment_urls)
+
+    warning = None
+    if not html_to_parse.strip():
+        warning = "Corpul e-mailului este gol sau nu a putut fi citit."
     return {
         "input_type": "email",
         "source_channel": source_channel,
         "redacted_text": redact_pii(content_for_analysis),
-        "html_content": html_to_parse,
+        "html_content": html_to_parse or None,
         "extracted_urls": discovered_urls,
+        "qr_payloads": candidate_attachment_qr if EMAIL_COMPOUND_EVIDENCE_ACTIVE else [],
         "buttons": buttons,
         "email_auth": email_context,
         "subject": email_subject,
@@ -265,7 +300,16 @@ async def extract_email_for_orchestration(
         "reply_to": parsed_message.get("Reply-To") if parsed_message else None,
         "message_id": parsed_message.get("Message-ID") if parsed_message else None,
         "inferred_brand_hints": inferred_brand_hints,
-        "warning": None,
+        "warning": warning,
+        "email_compound_active": EMAIL_COMPOUND_EVIDENCE_ACTIVE,
+        "email_evidence_ledger": compound.get("ledger"),
+        "email_compound_candidate_text": candidate_attachment_text,
+        "email_compound_candidate_urls": candidate_attachment_urls,
+        "email_compound_candidate_qr_payloads": candidate_attachment_qr,
+        "hidden_url_visibility": bool(
+            EMAIL_COMPOUND_EVIDENCE_ACTIVE
+            and (candidate_attachment_urls or candidate_attachment_qr)
+        ),
     }
 
 

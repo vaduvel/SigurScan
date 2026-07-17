@@ -18,6 +18,9 @@ MAX_IMAGE_BYTES = 10 * 1024 * 1024
 MAX_PDF_BYTES = 12 * 1024 * 1024
 MAX_XML_BYTES = 2 * 1024 * 1024
 MAX_TEXT_CHARS = int(os.getenv("MAX_TEXT_CHARS", "12000"))
+# Preserve the existing email upload ceiling while giving the compound
+# evidence pipeline a dedicated, explicit limit.
+MAX_EMAIL_BYTES = int(os.getenv("MAX_EMAIL_BYTES", str(MAX_TEXT_CHARS * 4)))
 MAX_URLS_PER_SCAN = int(os.getenv("MAX_URLS_PER_SCAN", "15"))
 RISK_THRESHOLD = int(os.getenv("RISK_THRESHOLD", "50"))
 PRIVACY_SAFE_MODE = (
@@ -276,6 +279,11 @@ ENABLE_DEEP_REPUTATION_FALLBACK = os.getenv("ENABLE_DEEP_REPUTATION_FALLBACK", "
     "yes",
     "on",
 }
+EMAIL_COMPOUND_EVIDENCE_ACTIVE_DEFAULT = False
+EMAIL_COMPOUND_EVIDENCE_ACTIVE = os.getenv(
+    "EMAIL_COMPOUND_EVIDENCE_ACTIVE",
+    str(EMAIL_COMPOUND_EVIDENCE_ACTIVE_DEFAULT).lower(),
+).strip().lower() in {"1", "true", "yes", "on"}
 DOMAIN_SUSPICIOUS_AGE_DAYS = int(os.getenv("DOMAIN_SUSPICIOUS_AGE_DAYS", "30"))
 DOMAIN_ESTABLISHED_AGE_DAYS = int(os.getenv("DOMAIN_ESTABLISHED_AGE_DAYS", "365"))
 
