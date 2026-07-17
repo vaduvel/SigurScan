@@ -87,6 +87,7 @@ from config import (
     ORCHESTRATED_REFRESH_LOCK_TTL_SECONDS,
     ORCHESTRATED_REQUIRED_PILLAR_TIMEOUT_SECONDS,
     ORCHESTRATED_URLSCAN_SUBMIT_RESERVATION_TIMEOUT_SECONDS,
+    OFFER_THREAT_ENRICHMENT_SHADOW,
     PRIVACY_SAFE_MODE,
     SIGURSCAN_PUBLIC_API_BASE_URL,
     _ORCHESTRATED_STAGE_RANK,
@@ -2000,6 +2001,86 @@ class OrchestratedScanEngine:
         return job
 
 
+    def _observe_offer_threat_enrichment(
+        self,
+        job: Dict[str, Any],
+        urls: List[str],
+        bundle: Dict[str, Any],
+    ) -> None:
+        """Measure offer/provider parity without changing the active evidence bundle."""
+
+        try:
+            resolved_urls = self._timed_orchestrated_component(
+                job,
+                "offer_shadow.resolve_urls",
+                lambda: _safe_scan_url_list([str(url) for url in urls if str(url).strip()]),
+            )
+            extra_fields = job.get("extra_fields") if isinstance(job.get("extra_fields"), dict) else {}
+            resolved_urls = _attach_initial_url_privacy(
+                resolved_urls,
+                extra_fields.get("url_privacy"),
+            )
+            resolved_urls = _attach_reputation_lookup_urls(
+                resolved_urls,
+                extra_fields.get("reputation_lookup_urls"),
+            )
+            resolved_urls = _attach_reputation_lookup_hashes(
+                resolved_urls,
+                extra_fields.get("reputation_lookup_url_hashes_by_url"),
+            )
+            threat_intel = self._timed_orchestrated_component(
+                job,
+                "offer_shadow.reputation",
+                lambda: _gather_external_intel_safe(
+                    resolved_urls,
+                    include_phishing_database=True,
+                    include_urlhaus=True,
+                    persist_partial=False,
+                ),
+            )
+            provider_summary = self._timed_orchestrated_component(
+                job,
+                "offer_shadow.reputation_summary",
+                lambda: _external_intel_summary_from_threat_intel(threat_intel),
+            )
+            enrichment = build_threat_enrichment(
+                artifact_envelope=job.get("artifact_envelope")
+                if isinstance(job.get("artifact_envelope"), dict)
+                else {},
+                resolved_urls=resolved_urls,
+                provider_summary=provider_summary,
+            )
+            bundle_providers = bundle.get("providers") if isinstance(bundle.get("providers"), dict) else {}
+            bundle_verdict = str(bundle_providers.get("verdict") or "unknown").strip().lower()
+            bundle_complete = bool(bundle_providers.get("completeness", False))
+            threat_verdict = str(enrichment.get("provider_verdict") or "pending").strip().lower()
+            threat_complete = str(enrichment.get("status") or "pending").strip().lower() in {
+                "complete",
+                "not_required",
+            }
+
+            # Only the normalized, privacy-safe projection is persisted. Resolved
+            # URLs and provider payloads stay local to this shadow observation.
+            job["threat_enrichment"] = enrichment
+            job["offer_threat_enrichment_shadow"] = {
+                "schema": "sigurscan_offer_threat_shadow_v1",
+                "status": "complete",
+                "bundle_provider_verdict": bundle_verdict,
+                "bundle_provider_completeness": bundle_complete,
+                "threat_provider_verdict": threat_verdict,
+                "threat_enrichment_status": str(enrichment.get("status") or "pending"),
+                "provider_verdict_mismatch": bundle_verdict != threat_verdict,
+                "provider_completeness_mismatch": bundle_complete != threat_complete,
+            }
+        except Exception as exc:
+            # Shadow failures must never replace or fail the primary offer verdict.
+            job["offer_threat_enrichment_shadow"] = {
+                "schema": "sigurscan_offer_threat_shadow_v1",
+                "status": "error",
+                "error_type": type(exc).__name__,
+            }
+
+
     async def _run_orchestrated_offer_fast_lane(self, job: Dict[str, Any], request: Request) -> Dict[str, Any]:
         """Ruta ofertă: scan_offer (gate unic) → contract analysis. Ruta factură neatinsă."""
         from services.invoice_orchestrator import scan_offer
@@ -2067,6 +2148,9 @@ class OrchestratedScanEngine:
             family_name = "Necategorizat"
             warnings = ["Nu am putut analiza oferta."]
             offer_signals = []
+
+        if OFFER_THREAT_ENRICHMENT_SHADOW and urls:
+            self._observe_offer_threat_enrichment(job, urls, bundle)
 
         label = str(gate_result.get("label") or "UNVERIFIED").upper()
         reasons = {

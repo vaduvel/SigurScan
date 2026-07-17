@@ -276,6 +276,10 @@ ENABLE_DEEP_REPUTATION_FALLBACK = os.getenv("ENABLE_DEEP_REPUTATION_FALLBACK", "
     "yes",
     "on",
 }
+OFFER_THREAT_ENRICHMENT_SHADOW = os.getenv(
+    "OFFER_THREAT_ENRICHMENT_SHADOW",
+    "false",
+).strip().lower() in {"1", "true", "yes", "on"}
 DOMAIN_SUSPICIOUS_AGE_DAYS = int(os.getenv("DOMAIN_SUSPICIOUS_AGE_DAYS", "30"))
 DOMAIN_ESTABLISHED_AGE_DAYS = int(os.getenv("DOMAIN_ESTABLISHED_AGE_DAYS", "365"))
 

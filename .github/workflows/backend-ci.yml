@@ -21,6 +21,7 @@ jobs:
       PRIVACY_SAFE_MODE: "false"
       ENABLE_CLOUD_AI_EXPLANATION: "false"
       ENABLE_MISTRAL_SHADOW_ADJUDICATION: "false"
+      OFFER_THREAT_ENRICHMENT_SHADOW: "false"
       INVOICE_CACHE_HMAC_KEY: "ci-test-hmac-key"
     steps:
       - name: Checkout
@@ -57,6 +58,7 @@ jobs:
       PRIVACY_SAFE_MODE: "false"
       ENABLE_CLOUD_AI_EXPLANATION: "false"
       ENABLE_MISTRAL_SHADOW_ADJUDICATION: "false"
+      OFFER_THREAT_ENRICHMENT_SHADOW: "false"
       INVOICE_CACHE_HMAC_KEY: "ci-test-hmac-key"
     steps:
       - name: Checkout

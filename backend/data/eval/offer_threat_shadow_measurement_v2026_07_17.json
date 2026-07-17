@@ -1,0 +1,46 @@
+{
+  "schema": "sigurscan_offer_threat_shadow_measurement_v1",
+  "measured_at": "2026-07-17T19:18:33Z",
+  "base_commit": "3cd2da51a8a966225d9b12745d2abeefcd4b278c",
+  "mode": "offer_threat_enrichment_shadow_only",
+  "corpus": {
+    "expected_verdicts_embedded": false,
+    "active_malicious_url_count": 10,
+    "active_official_url_count": 10,
+    "malicious_source_counts": {
+      "phishtank_online_valid": 4,
+      "urlhaus_recent": 3,
+      "openphish": 2,
+      "phishing_database_active": 1
+    },
+    "source_refs": [
+      "https://data.phishtank.com/data/online-valid.csv",
+      "https://urlhaus.abuse.ch/downloads/csv_recent/",
+      "https://openphish.com/feed.txt",
+      "https://phish.co.za/latest/phishing-links-ACTIVE.txt",
+      "backend/data/brand_knowledge_pack.json"
+    ],
+    "privacy": "No active URL, hostname, path, query, or raw provider payload is stored in this report."
+  },
+  "results": {
+    "case_count": 20,
+    "off_vs_on_gate_label_changes": 0,
+    "active_gate_labels": {
+      "UNVERIFIED": 20
+    },
+    "shadow_provider_verdicts": {
+      "malicious": 9,
+      "pending": 11
+    },
+    "provider_verdict_mismatches": 20,
+    "provider_completeness_mismatches": 20,
+    "malicious_source_cases_confirmed_by_shadow": 9,
+    "malicious_source_cases_without_current_provider_confirmation": 1,
+    "official_source_cases_with_negative_threat_evidence": 0
+  },
+  "decision": {
+    "shadow_contract_safe_to_review": true,
+    "active_verdict_integration_authorized": false,
+    "reason": "The active offer bundle claims clean and complete without provider evidence. Shadow measurement proves the disparity, but verdict integration needs a separate guarded change and FP/FN corpus."
+  }
+}
