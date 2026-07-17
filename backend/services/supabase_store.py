@@ -842,6 +842,14 @@ def scan_job_from_record(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     payload = row.get("payload") if isinstance(row, dict) else None
     if not isinstance(payload, dict):
         return None
+    expires_ts = _iso_to_ts(row.get("expires_at"))
+    if expires_ts is None:
+        try:
+            expires_ts = int(payload.get("expires_at"))
+        except (TypeError, ValueError):
+            expires_ts = None
+    if expires_ts is not None and expires_ts <= int(time.time()):
+        return None
     job = dict(payload)
     return _attach_scan_job_storage_metadata(job, row)
 
@@ -852,7 +860,7 @@ def load_scan_job_record(scan_id: str) -> Optional[Dict[str, Any]]:
     rows = _get_json(
         "scan_jobs",
         {
-            "select": "payload,updated_at,revision,locked_until,active_step,lock_owner,lock_acquired_at",
+            "select": "payload,expires_at,updated_at,revision,locked_until,active_step,lock_owner,lock_acquired_at",
             "scan_id": f"eq.{scan_id}",
             "limit": "1",
         },
@@ -866,9 +874,8 @@ def load_scan_job(scan_id: str) -> Optional[Dict[str, Any]]:
     if not scan_id or not is_supabase_enabled():
         return None
     record = load_scan_job_record(scan_id)
-    job = scan_job_from_record(record) if isinstance(record, dict) else None
-    if isinstance(job, dict):
-        return job
+    if isinstance(record, dict):
+        return scan_job_from_record(record)
 
     # Backward-compatible fallback for projects where the CAS migration has not
     # been applied yet. Once the migration is live, load_scan_job_record handles
@@ -876,7 +883,7 @@ def load_scan_job(scan_id: str) -> Optional[Dict[str, Any]]:
     rows = _get_json(
         "scan_jobs",
         {
-            "select": "payload,updated_at",
+            "select": "payload,expires_at,updated_at",
             "scan_id": f"eq.{scan_id}",
             "limit": "1",
         },
@@ -910,11 +917,32 @@ def claim_scan_job(
         {
             "scan_id": f"eq.{scan_id}",
             "revision": f"eq.{expected_revision}",
+            "expires_at": f"gt.{now_iso}",
             "or": f"(locked_until.is.null,locked_until.lt.{now_iso})",
         },
         "return=representation",
     )
     return rows[0] if rows else None
+
+
+def cleanup_expired_scan_jobs(*, before_ts: Optional[int] = None) -> bool:
+    if not is_supabase_enabled():
+        return True
+    cutoff_iso = _ts_to_iso(before_ts if before_ts is not None else int(time.time()))
+    if not cutoff_iso:
+        return False
+    try:
+        requests.delete(
+            _table_url("scan_jobs"),
+            headers=_headers("return=minimal"),
+            params={"expires_at": f"lte.{cutoff_iso}"},
+            timeout=SUPABASE_TIMEOUT_SECONDS,
+        ).raise_for_status()
+        return True
+    except Exception as exc:
+        if not SUPABASE_SUPPRESS_LOGS:
+            _LOGGER.warning("Supabase cleanup_expired_scan_jobs failed", exc_info=exc)
+        return False
 
 
 # ─── PR-6 — Cercul: persistență durabilă (write-through, best-effort) ─────────

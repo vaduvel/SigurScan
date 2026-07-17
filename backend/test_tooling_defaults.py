@@ -177,10 +177,17 @@ def test_cloud_run_deploy_routes_traffic_to_latest_revision():
 def test_cloud_run_deploy_wires_orchestrated_cloud_tasks_worker():
     script = (ROOT_DIR / "tools" / "deploy_cloud_run_backend.sh").read_text(encoding="utf-8")
 
-    assert "ORCHESTRATED_CLOUD_TASKS_ENABLED=" in script
+    assert 'ORCHESTRATED_CLOUD_TASKS_ENABLED="${ORCHESTRATED_CLOUD_TASKS_ENABLED:-true}"' in script
     assert "CLOUD_TASKS_PROJECT=" in script
     assert "CLOUD_TASKS_LOCATION=" in script
     assert "CLOUD_TASKS_QUEUE=" in script
+    assert 'gcloud services enable cloudtasks.googleapis.com' in script
+    assert 'gcloud tasks queues describe "$CLOUD_TASKS_QUEUE"' in script
+    assert 'gcloud tasks queues create "$CLOUD_TASKS_QUEUE"' in script
+    assert 'gcloud tasks queues resume "$CLOUD_TASKS_QUEUE"' in script
+    assert 'roles/cloudtasks.enqueuer' in script
+    assert '--service-account "$CLOUD_RUN_SERVICE_ACCOUNT"' in script
+    assert script.index("gcloud services enable cloudtasks.googleapis.com") < script.index("gcloud builds submit")
     assert "SIGURSCAN_INTERNAL_WORKER_TOKEN=sigurscan-internal-worker-token:latest" in script
     assert ",INTERNAL_WORKER_TOKEN=" not in script
     assert " INTERNAL_WORKER_TOKEN=" not in script

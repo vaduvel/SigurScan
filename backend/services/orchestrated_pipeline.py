@@ -14,6 +14,7 @@ from services.orchestrated_scan import orchestrated_engine
 async def advance_orchestrated_scan_worker(scan_id: str, request: Request, max_steps: int = 1):
     _require_internal_worker_auth(request)
     orchestrated_engine._prune_orchestrated_jobs()
+    orchestrated_engine._cleanup_expired_orchestrated_jobs()
     step_budget = max(1, min(int(max_steps or 1), 3))
     steps = 0
     worker_state = "idle"

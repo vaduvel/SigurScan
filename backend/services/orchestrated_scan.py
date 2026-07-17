@@ -87,6 +87,7 @@ from config import (
     ORCHESTRATED_JOB_TTL_SECONDS,
     ORCHESTRATED_REFRESH_LOCK_TTL_SECONDS,
     ORCHESTRATED_REQUIRED_PILLAR_TIMEOUT_SECONDS,
+    ORCHESTRATED_SUPABASE_CLEANUP_INTERVAL_SECONDS,
     ORCHESTRATED_URLSCAN_SUBMIT_RESERVATION_TIMEOUT_SECONDS,
     EMAIL_COMPOUND_EVIDENCE_ACTIVE,
     OFFER_THREAT_ENRICHMENT_SHADOW,
@@ -141,7 +142,7 @@ class OrchestratedScanEngine:
     def __init__(self) -> None:
         self._ORCHESTRATED_SCAN_JOBS: Dict[str, Dict[str, Any]] = {}
         self._ORCHESTRATED_SCAN_LOCKS: Dict[str, asyncio.Lock] = {}
-        self._ORCHESTRATED_SCAN_LOCKS: Dict[str, asyncio.Lock] = {}
+        self._last_orchestrated_supabase_cleanup_at = 0.0
 
 
     def _orchestrated_metrics(self, job: Dict[str, Any]) -> Dict[str, Any]:
@@ -299,10 +300,18 @@ class OrchestratedScanEngine:
     def _load_orchestrated_job(self, scan_id: str) -> Optional[Dict[str, Any]]:
         job = supabase_store.load_scan_job(scan_id)
         if isinstance(job, dict):
+            if self._orchestrated_job_is_expired(job, use_created_at_fallback=False):
+                self._ORCHESTRATED_SCAN_JOBS.pop(scan_id, None)
+                self._ORCHESTRATED_SCAN_LOCKS.pop(scan_id, None)
+                return None
             self._ORCHESTRATED_SCAN_JOBS[scan_id] = job
             return job
         job = self._ORCHESTRATED_SCAN_JOBS.get(scan_id)
         if isinstance(job, dict):
+            if self._orchestrated_job_is_expired(job):
+                self._ORCHESTRATED_SCAN_JOBS.pop(scan_id, None)
+                self._ORCHESTRATED_SCAN_LOCKS.pop(scan_id, None)
+                return None
             return job
         return None
 
@@ -329,7 +338,7 @@ class OrchestratedScanEngine:
         if isinstance(claimed_job, dict):
             self._ORCHESTRATED_SCAN_JOBS[scan_id] = claimed_job
             return claimed_job
-        return job
+        return None
 
 
     def _prune_orchestrated_jobs(self) -> None:
@@ -337,11 +346,42 @@ class OrchestratedScanEngine:
         expired = [
             scan_id
             for scan_id, job in self._ORCHESTRATED_SCAN_JOBS.items()
-            if now - int(job.get("created_at", now)) > ORCHESTRATED_JOB_TTL_SECONDS
+            if self._orchestrated_job_is_expired(job, now=now)
         ]
         for scan_id in expired:
             self._ORCHESTRATED_SCAN_JOBS.pop(scan_id, None)
             self._ORCHESTRATED_SCAN_LOCKS.pop(scan_id, None)
+
+
+    def _orchestrated_job_is_expired(
+        self,
+        job: Dict[str, Any],
+        *,
+        now: Optional[int] = None,
+        use_created_at_fallback: bool = True,
+    ) -> bool:
+        if not isinstance(job, dict):
+            return True
+        current = int(time.time()) if now is None else int(now)
+        try:
+            expires_at = int(job.get("expires_at"))
+        except (TypeError, ValueError):
+            if not use_created_at_fallback:
+                return False
+            try:
+                expires_at = int(job.get("created_at")) + ORCHESTRATED_JOB_TTL_SECONDS
+            except (TypeError, ValueError):
+                return False
+        return expires_at <= current
+
+
+    def _cleanup_expired_orchestrated_jobs(self) -> bool:
+        now = time.time()
+        interval = max(0, int(ORCHESTRATED_SUPABASE_CLEANUP_INTERVAL_SECONDS))
+        if interval and now - self._last_orchestrated_supabase_cleanup_at < interval:
+            return False
+        self._last_orchestrated_supabase_cleanup_at = now
+        return supabase_store.cleanup_expired_scan_jobs(before_ts=int(now))
 
 
     def _orchestrated_stage_rank(self, stage: Any) -> int:
