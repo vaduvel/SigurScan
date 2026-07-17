@@ -3,7 +3,24 @@ package ro.sigurscan.app
 data class DecodedAudioFile(
     val pcm16Mono: ShortArray,
     val sampleRateHz: Int,
-    val durationMs: Long? = null
+    val durationMs: Long? = null,
+    val sourceDurationMs: Long? = durationMs,
+    val windows: List<DecodedAudioWindow> = emptyList(),
+    val plannedCoverage: AudioCoverageMetadata = AudioCoverageMetadata(
+        sourceDurationMs = sourceDurationMs,
+        plannedDurationMs = durationMs ?: 0L,
+        decodedDurationMs = durationMs ?: 0L,
+        sourceCoverageRatio = sourceDurationMs?.takeIf { it > 0L }?.let { source ->
+            ((durationMs ?: 0L).toDouble() / source.toDouble()).coerceIn(0.0, 1.0)
+        },
+        status = when {
+            sourceDurationMs == null -> AudioCoverageStatus.UNKNOWN
+            durationMs != null && durationMs >= sourceDurationMs -> AudioCoverageStatus.COMPLETE
+            else -> AudioCoverageStatus.PARTIAL
+        },
+        windowsPlanned = if (pcm16Mono.isNotEmpty()) 1 else 0,
+        windowsDecoded = if (pcm16Mono.isNotEmpty()) 1 else 0
+    )
 )
 
 data class AudioFileScanResult(
@@ -15,7 +32,8 @@ data class AudioFileScanResult(
     val reasonCode: String?,
     val transcriptForTelemetry: String,
     val redactedTranscriptForSemanticReview: String = "",
-    val rawAudioBytesRetained: Int = 0
+    val rawAudioBytesRetained: Int = 0,
+    val coverage: AudioCoverageMetadata = AudioCoverageMetadata()
 )
 
 class AudioFileScanPipeline(
@@ -25,40 +43,108 @@ class AudioFileScanPipeline(
         decodedAudio: DecodedAudioFile,
         modelPath: String
     ): AudioFileScanResult {
-        val asr = asrEngine.transcribe(
-            LocalAsrRequest(
-                pcm16Mono = decodedAudio.pcm16Mono,
-                sampleRateHz = decodedAudio.sampleRateHz,
-                language = "ro",
-                modelPath = modelPath
+        val decodedWindows = decodedAudio.effectiveWindows()
+        val voiceWindows = decodedWindows.filter { window ->
+            AudioVoiceActivityDetector.hasVoice(window.pcm16Mono, decodedAudio.sampleRateHz)
+        }
+        val vadFallbackUsed = decodedWindows.isNotEmpty() && voiceWindows.isEmpty()
+        val selectedWindows = if (voiceWindows.isNotEmpty()) voiceWindows else decodedWindows.take(1)
+        val transcripts = mutableListOf<AudioTranscriptWindow>()
+        var windowsFailed = 0
+        var firstFailureReason: String? = null
+        var rawAudioBytesRetained = 0
+        for (window in selectedWindows) {
+            val asr = asrEngine.transcribe(
+                LocalAsrRequest(
+                    pcm16Mono = window.pcm16Mono,
+                    sampleRateHz = decodedAudio.sampleRateHz,
+                    language = "ro",
+                    modelPath = modelPath
+                )
             )
+            rawAudioBytesRetained += asr.rawAudioBytesRetained
+            if (asr.success && asr.transcript.isNotBlank()) {
+                transcripts += AudioTranscriptWindow(window.startMs, window.endMs, asr.transcript)
+            } else {
+                windowsFailed += 1
+                if (firstFailureReason == null) firstFailureReason = asr.reasonCode
+            }
+        }
+
+        val redactedWindows = transcripts.map { window ->
+            window.copy(transcript = AudioTranscriptRedactor.redact(window.transcript))
+        }
+        val semanticSample = AudioSemanticContextSampler.sample(redactedWindows, MAX_SEMANTIC_CONTEXT_CHARS)
+        val baseCoverage = decodedAudio.plannedCoverage
+        val successfulWindowKeys = transcripts.map { it.startMs to it.endMs }.toSet()
+        val transcribedDuration = selectedWindows
+            .filter { (it.startMs to it.endMs) in successfulWindowKeys }
+            .sumOf { it.durationMs }
+        val transcribedSourceCoverageRatio = baseCoverage.sourceDurationMs
+            ?.takeIf { it > 0L }
+            ?.let { sourceDuration ->
+                (transcribedDuration.toDouble() / sourceDuration.toDouble()).coerceIn(0.0, 1.0)
+            }
+        val effectiveStatus = when {
+            baseCoverage.status == AudioCoverageStatus.UNKNOWN -> AudioCoverageStatus.UNKNOWN
+            windowsFailed > 0 ||
+                baseCoverage.windowsDecoded < baseCoverage.windowsPlanned ||
+                selectedWindows.size < decodedWindows.size -> AudioCoverageStatus.PARTIAL
+            else -> baseCoverage.status
+        }
+        val coverage = baseCoverage.copy(
+            transcribedDurationMs = transcribedDuration,
+            sourceCoverageRatio = transcribedSourceCoverageRatio ?: baseCoverage.sourceCoverageRatio,
+            status = effectiveStatus,
+            windowsSkippedByVad = (decodedWindows.size - selectedWindows.size).coerceAtLeast(0),
+            windowsTranscribed = transcripts.size,
+            windowsFailed = windowsFailed,
+            transcriptCharsTotal = semanticSample.totalChars,
+            transcriptCharsSent = semanticSample.sentChars,
+            transcriptTruncated = semanticSample.truncated,
+            vadFallbackUsed = vadFallbackUsed
         )
-        if (!asr.success) {
+
+        if (transcripts.isEmpty()) {
             return AudioFileScanResult(
                 success = false,
                 evidence = AudioEvidenceEngine.evaluate(AudioEvidenceInput()),
-                reasonCode = asr.reasonCode,
+                reasonCode = firstFailureReason
+                    ?: if (selectedWindows.isEmpty()) "audio_decode_empty_pcm" else "empty_transcript",
                 transcriptForTelemetry = "",
                 redactedTranscriptForSemanticReview = "",
-                rawAudioBytesRetained = asr.rawAudioBytesRetained
+                rawAudioBytesRetained = rawAudioBytesRetained,
+                coverage = coverage
             )
         }
-        val redactedTranscript = AudioTranscriptRedactor.redact(asr.transcript)
+        val combinedTranscript = transcripts.joinToString(" ") { it.transcript }
         return AudioFileScanResult(
             success = true,
-            evidence = asr.evidence ?: AudioTranscriptEvidence.analyze(asr.transcript),
+            evidence = AudioTranscriptEvidence.analyze(combinedTranscript),
             reasonCode = null,
             transcriptForTelemetry = "[redactat]",
-            redactedTranscriptForSemanticReview = redactedTranscript,
-            rawAudioBytesRetained = asr.rawAudioBytesRetained
+            redactedTranscriptForSemanticReview = semanticSample.text,
+            rawAudioBytesRetained = rawAudioBytesRetained,
+            coverage = coverage
         )
+    }
+
+    private fun DecodedAudioFile.effectiveWindows(): List<DecodedAudioWindow> {
+        if (windows.isNotEmpty()) return windows
+        if (pcm16Mono.isEmpty()) return emptyList()
+        val effectiveDuration = durationMs ?: ((pcm16Mono.size * 1_000L) / sampleRateHz.coerceAtLeast(1))
+        return listOf(DecodedAudioWindow(pcm16Mono, 0L, effectiveDuration))
+    }
+
+    private companion object {
+        const val MAX_SEMANTIC_CONTEXT_CHARS = 2_500
     }
 }
 
 internal fun AudioFileScanResult.toOfflineAssessment(fileName: String): OfflineAssessment {
     val evidence = evidence
     val verdict = evidence?.verdict ?: AudioEvidenceVerdict.UNVERIFIED
-    val reasonCodes = evidence?.reasonCodes.orEmpty().ifEmpty {
+    val reasonCodes = (evidence?.reasonCodes.orEmpty() + coverage.reasonCodes).distinct().ifEmpty {
         listOf(reasonCode ?: "audio_asr_unavailable")
     }
     val family = evidence?.arcFamily ?: when (verdict) {
@@ -98,11 +184,23 @@ internal fun AudioFileScanResult.toOfflineAssessment(fileName: String): OfflineA
             "Poți lipi transcriptul manual dacă transcrierea audio nu a fost clară."
         )
     }
+    val coverageReason = when (coverage.status) {
+        AudioCoverageStatus.COMPLETE -> "Am verificat toată înregistrarea disponibilă."
+        AudioCoverageStatus.PARTIAL -> {
+            val percent = coverage.sourceCoverageRatio?.let { (it * 100).toInt().coerceIn(1, 99) }
+            if (percent != null) {
+                "Am verificat fragmente distribuite în toată înregistrarea ($percent% din durată)."
+            } else {
+                "Am verificat fragmente distribuite în înregistrare; acoperirea este parțială."
+            }
+        }
+        AudioCoverageStatus.UNKNOWN -> "Durata completă nu a putut fi confirmată; verdictul folosește partea analizată."
+    }
     return OfflineAssessment(
         family = family,
         riskScore = riskScore,
         riskLevel = riskLevel,
-        reasons = (listOf(primaryReason) + reasonCodes.map { "Semnal audio: $it" }).distinct(),
+        reasons = (listOf(primaryReason, coverageReason) + reasonCodes.map { "Semnal audio: $it" }).distinct(),
         safeActions = actions,
         keyDangers = if (verdict == AudioEvidenceVerdict.DANGEROUS) {
             listOf("Cerere riscantă detectată în conversația audio.")

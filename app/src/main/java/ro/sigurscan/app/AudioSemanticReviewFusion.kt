@@ -3,7 +3,8 @@ package ro.sigurscan.app
 interface AudioSemanticReviewer {
     suspend fun review(
         redactedTranscript: String,
-        localEvidence: AudioEvidenceResult?
+        localEvidence: AudioEvidenceResult?,
+        coverage: AudioCoverageMetadata? = null
     ): AudioSemanticReviewResponse?
 }
 
@@ -13,7 +14,8 @@ class BackendAudioSemanticReviewer(
 ) : AudioSemanticReviewer {
     override suspend fun review(
         redactedTranscript: String,
-        localEvidence: AudioEvidenceResult?
+        localEvidence: AudioEvidenceResult?,
+        coverage: AudioCoverageMetadata?
     ): AudioSemanticReviewResponse? {
         if (redactedTranscript.isBlank()) return null
         return runCatching {
@@ -24,7 +26,8 @@ class BackendAudioSemanticReviewer(
                     localVerdict = localEvidence?.verdict?.name ?: AudioEvidenceVerdict.UNVERIFIED.name,
                     localReasonCodes = localEvidence?.reasonCodes.orEmpty(),
                     claimedIdentity = localEvidence?.claimedIdentity,
-                    arcFamily = localEvidence?.arcFamily
+                    arcFamily = localEvidence?.arcFamily,
+                    coverage = coverage?.toSemanticCoverage()
                 )
             )
         }.getOrNull()
@@ -34,8 +37,29 @@ class BackendAudioSemanticReviewer(
 object NoopAudioSemanticReviewer : AudioSemanticReviewer {
     override suspend fun review(
         redactedTranscript: String,
-        localEvidence: AudioEvidenceResult?
+        localEvidence: AudioEvidenceResult?,
+        coverage: AudioCoverageMetadata?
     ): AudioSemanticReviewResponse? = null
+}
+
+private fun AudioCoverageMetadata.toSemanticCoverage(): AudioSemanticCoverage {
+    return AudioSemanticCoverage(
+        status = status.wireValue,
+        sourceDurationMs = sourceDurationMs,
+        plannedDurationMs = plannedDurationMs,
+        decodedDurationMs = decodedDurationMs,
+        transcribedDurationMs = transcribedDurationMs,
+        sourceCoverageRatio = sourceCoverageRatio,
+        windowsPlanned = windowsPlanned,
+        windowsDecoded = windowsDecoded,
+        windowsSkippedByVad = windowsSkippedByVad,
+        windowsTranscribed = windowsTranscribed,
+        windowsFailed = windowsFailed,
+        transcriptCharsTotal = transcriptCharsTotal,
+        transcriptCharsSent = transcriptCharsSent,
+        transcriptTruncated = transcriptTruncated,
+        vadFallbackUsed = vadFallbackUsed
+    )
 }
 
 object AudioSemanticReviewFusion {

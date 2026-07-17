@@ -19,6 +19,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 
 enum class SpeakerGuardPhase {
@@ -34,6 +35,9 @@ data class SpeakerGuardUpdate(
     val active: Boolean,
     val chunksAnalyzed: Int = 0,
     val chunksDropped: Int = 0,
+    val windowsObserved: Int = 0,
+    val windowsSkippedByVad: Int = 0,
+    val windowsSampledByVadFallback: Int = 0,
     val result: LocalAsrResult? = null,
     val latencyMs: Long? = null,
     val reasonCode: String? = null,
@@ -173,7 +177,11 @@ class SpeakerGuardSession(
         }
 
         val chunks = SpeakerGuardChunkQueue(capacity = CHUNK_QUEUE_CAPACITY)
-        var chunksAnalyzed = 0
+        val chunksAnalyzed = AtomicInteger(0)
+        val windowsObserved = AtomicInteger(0)
+        val windowsSkippedByVad = AtomicInteger(0)
+        val windowsSampledByVadFallback = AtomicInteger(0)
+        var consecutiveVadSkips = 0
         val evidenceAggregator = AudioEvidenceSessionAggregator()
 
         try {
@@ -209,7 +217,44 @@ class SpeakerGuardSession(
                         consumed += copyCount
 
                         if (offset == chunk.size) {
-                            chunks.send(chunk)
+                            windowsObserved.incrementAndGet()
+                            val activity = AudioVoiceActivityDetector.analyze(chunk, SAMPLE_RATE_HZ)
+                            val decision = AudioVoiceWindowPolicy.decide(activity, consecutiveVadSkips)
+                            consecutiveVadSkips = decision.nextConsecutiveSkips
+                            if (decision.shouldTranscribe) {
+                                if (decision.usedRecallProbe) {
+                                    windowsSampledByVadFallback.incrementAndGet()
+                                    onUpdate(
+                                        SpeakerGuardUpdate(
+                                            phase = SpeakerGuardPhase.LISTENING,
+                                            active = true,
+                                            chunksAnalyzed = chunksAnalyzed.get(),
+                                            chunksDropped = chunks.chunksDropped,
+                                            windowsObserved = windowsObserved.get(),
+                                            windowsSkippedByVad = windowsSkippedByVad.get(),
+                                            windowsSampledByVadFallback = windowsSampledByVadFallback.get(),
+                                            reasonCode = "audio_vad_recall_probe",
+                                            status = "Vocea este slabă; verific și acest fragment pentru siguranță."
+                                        )
+                                    )
+                                }
+                                chunks.send(chunk)
+                            } else {
+                                windowsSkippedByVad.incrementAndGet()
+                                onUpdate(
+                                    SpeakerGuardUpdate(
+                                        phase = SpeakerGuardPhase.LISTENING,
+                                        active = true,
+                                        chunksAnalyzed = chunksAnalyzed.get(),
+                                        chunksDropped = chunks.chunksDropped,
+                                        windowsObserved = windowsObserved.get(),
+                                        windowsSkippedByVad = windowsSkippedByVad.get(),
+                                        windowsSampledByVadFallback = windowsSampledByVadFallback.get(),
+                                        reasonCode = "audio_vad_silence_window",
+                                        status = "Ascultă în continuare; ultimul fragment nu conținea voce clară."
+                                    )
+                                )
+                            }
                             chunk = ShortArray(chunkSamples)
                             offset = 0
                         }
@@ -223,8 +268,11 @@ class SpeakerGuardSession(
                         SpeakerGuardUpdate(
                             phase = SpeakerGuardPhase.PROCESSING,
                             active = true,
-                            chunksAnalyzed = chunksAnalyzed,
+                            chunksAnalyzed = chunksAnalyzed.get(),
                             chunksDropped = chunks.chunksDropped,
+                            windowsObserved = windowsObserved.get(),
+                            windowsSkippedByVad = windowsSkippedByVad.get(),
+                            windowsSampledByVadFallback = windowsSampledByVadFallback.get(),
                             status = "Analizează local ultimul fragment audio."
                         )
                     )
@@ -241,14 +289,17 @@ class SpeakerGuardSession(
                     }
                     val semanticResult = rawResult.withSemanticReview()
                     val result = semanticResult.withSessionEvidence(evidenceAggregator)
-                    chunksAnalyzed += 1
+                    val analyzedCount = chunksAnalyzed.incrementAndGet()
                     val latency = System.currentTimeMillis() - started
                     onUpdate(
                         SpeakerGuardUpdate(
                             phase = SpeakerGuardPhase.LISTENING,
                             active = true,
-                            chunksAnalyzed = chunksAnalyzed,
+                            chunksAnalyzed = analyzedCount,
                             chunksDropped = chunks.chunksDropped,
+                            windowsObserved = windowsObserved.get(),
+                            windowsSkippedByVad = windowsSkippedByVad.get(),
+                            windowsSampledByVadFallback = windowsSampledByVadFallback.get(),
                             result = result,
                             latencyMs = latency,
                             reasonCode = result.reasonCode,
@@ -270,8 +321,11 @@ class SpeakerGuardSession(
                 SpeakerGuardUpdate(
                     phase = SpeakerGuardPhase.STOPPED,
                     active = false,
-                    chunksAnalyzed = chunksAnalyzed,
+                    chunksAnalyzed = chunksAnalyzed.get(),
                     chunksDropped = chunks.chunksDropped,
+                    windowsObserved = windowsObserved.get(),
+                    windowsSkippedByVad = windowsSkippedByVad.get(),
+                    windowsSampledByVadFallback = windowsSampledByVadFallback.get(),
                     status = "Urechea este oprită."
                 )
             )

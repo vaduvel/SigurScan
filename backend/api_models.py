@@ -147,6 +147,24 @@ class LegalActionPlanRequest(BaseModel):
     document_type: Optional[str] = None
 
 
+class AudioSemanticCoverage(BaseModel):
+    status: Optional[str] = None
+    source_duration_ms: Optional[int] = None
+    planned_duration_ms: Optional[int] = None
+    decoded_duration_ms: Optional[int] = None
+    transcribed_duration_ms: Optional[int] = None
+    source_coverage_ratio: Optional[float] = None
+    windows_planned: Optional[int] = None
+    windows_decoded: Optional[int] = None
+    windows_skipped_by_vad: Optional[int] = None
+    windows_transcribed: Optional[int] = None
+    windows_failed: Optional[int] = None
+    transcript_chars_total: Optional[int] = None
+    transcript_chars_sent: Optional[int] = None
+    transcript_truncated: Optional[bool] = None
+    vad_fallback_used: Optional[bool] = None
+
+
 class AudioSemanticReviewRequest(BaseModel):
     transcript_redacted: str
     locale: Optional[str] = "ro-RO"
@@ -155,6 +173,7 @@ class AudioSemanticReviewRequest(BaseModel):
     local_reason_codes: Optional[List[str]] = None
     claimed_identity: Optional[str] = None
     arc_family: Optional[str] = None
+    coverage: Optional[AudioSemanticCoverage] = None
 
 
 class IntelStatusData(BaseModel):

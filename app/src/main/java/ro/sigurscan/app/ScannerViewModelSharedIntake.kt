@@ -562,7 +562,8 @@ internal fun ScannerViewModel.scanSharedAudioFile(uri: Uri, context: Context, fi
             val semanticReview = withContext(Dispatchers.IO) {
                 BackendAudioSemanticReviewer(scanStartApi, channel = "audio_share").review(
                     redactedTranscript = result.redactedTranscriptForSemanticReview,
-                    localEvidence = result.evidence
+                    localEvidence = result.evidence,
+                    coverage = result.coverage
                 )
             }
             val reviewedResult = result.copy(

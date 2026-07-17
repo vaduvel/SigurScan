@@ -146,7 +146,26 @@ data class AudioSemanticReviewRequest(
     @SerializedName("local_verdict") val localVerdict: String = "UNVERIFIED",
     @SerializedName("local_reason_codes") val localReasonCodes: List<String> = emptyList(),
     @SerializedName("claimed_identity") val claimedIdentity: String? = null,
-    @SerializedName("arc_family") val arcFamily: String? = null
+    @SerializedName("arc_family") val arcFamily: String? = null,
+    val coverage: AudioSemanticCoverage? = null
+)
+
+data class AudioSemanticCoverage(
+    val status: String = "unknown",
+    @SerializedName("source_duration_ms") val sourceDurationMs: Long? = null,
+    @SerializedName("planned_duration_ms") val plannedDurationMs: Long? = null,
+    @SerializedName("decoded_duration_ms") val decodedDurationMs: Long? = null,
+    @SerializedName("transcribed_duration_ms") val transcribedDurationMs: Long? = null,
+    @SerializedName("source_coverage_ratio") val sourceCoverageRatio: Double? = null,
+    @SerializedName("windows_planned") val windowsPlanned: Int? = null,
+    @SerializedName("windows_decoded") val windowsDecoded: Int? = null,
+    @SerializedName("windows_skipped_by_vad") val windowsSkippedByVad: Int? = null,
+    @SerializedName("windows_transcribed") val windowsTranscribed: Int? = null,
+    @SerializedName("windows_failed") val windowsFailed: Int? = null,
+    @SerializedName("transcript_chars_total") val transcriptCharsTotal: Int? = null,
+    @SerializedName("transcript_chars_sent") val transcriptCharsSent: Int? = null,
+    @SerializedName("transcript_truncated") val transcriptTruncated: Boolean? = null,
+    @SerializedName("vad_fallback_used") val vadFallbackUsed: Boolean? = null
 )
 
 data class AudioSemanticReviewPayload(
@@ -163,7 +182,8 @@ data class AudioSemanticReviewResponse(
     @SerializedName("reason_codes") val reasonCodes: List<String> = emptyList(),
     val escalates: Boolean = false,
     val model: String? = null,
-    val privacy: Map<String, Any>? = null
+    val privacy: Map<String, Any>? = null,
+    val coverage: AudioSemanticCoverage? = null
 )
 
 data class ExtractionResponse(
