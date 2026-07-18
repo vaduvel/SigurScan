@@ -421,6 +421,41 @@ class ScannerViewModelTest {
     }
 
     @Test
+    fun extractionRoundTripsPreRedactionEvidenceWithoutRawOcrText() {
+        val apiSource = File("src/main/java/ro/sigurscan/app/SigurScanApi.kt").readText()
+        val viewModelSource = viewModelSource()
+        val extractionFlowStart = viewModelSource.indexOf(
+            "internal suspend fun ScannerViewModel.runBackendOrchestratedScanFromExtraction"
+        )
+        val extractionFlowEnd = viewModelSource.indexOf(
+            "internal fun ScannerViewModel.providerStatesFromOrchestratedPillars",
+            extractionFlowStart
+        )
+        assertTrue(extractionFlowStart >= 0 && extractionFlowEnd > extractionFlowStart)
+
+        val extractionFlow = viewModelSource.substring(extractionFlowStart, extractionFlowEnd)
+        assertTrue(
+            "Android must pass server-extracted structured evidence into orchestration.",
+            extractionFlow.contains("preRedactionEvidence = response.preRedactionEvidence")
+        )
+        assertTrue(
+            "Both extraction and orchestration contracts must deserialize the structured evidence field.",
+            apiSource.split("@SerializedName(\"pre_redaction_evidence\")").size - 1 == 2
+        )
+
+        val evidence = mapOf<String, Any>(
+            "schema" to "sigurscan_pre_redaction_evidence_v1",
+            "identifiers" to mapOf("cuis" to listOf("22000460"))
+        )
+        val request = OrchestratedScanRequest(
+            inputType = "text",
+            text = "CUI [redactat]",
+            preRedactionEvidence = evidence
+        )
+        assertEquals(evidence, request.preRedactionEvidence)
+    }
+
+    @Test
     fun gateMappingPreservesFinalityInsteadOfCollapsingToActionOnly() {
         val source = File("src/main/java/ro/sigurscan/app/ScannerViewModelEvidenceGate.kt").readText()
         val start = source.indexOf("internal fun ScannerViewModel.withGate")

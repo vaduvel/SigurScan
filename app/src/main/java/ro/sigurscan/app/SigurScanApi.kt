@@ -178,7 +178,8 @@ data class ExtractionResponse(
     val buttons: List<Map<String, Any>>? = null,
     @SerializedName("email_auth") val emailAuth: Map<String, Any>? = null,
     @SerializedName("email_evidence_ledger") val emailEvidenceLedger: Map<String, Any>? = null,
-    @SerializedName("email_compound_active") val emailCompoundActive: Boolean = false
+    @SerializedName("email_compound_active") val emailCompoundActive: Boolean = false,
+    @SerializedName("pre_redaction_evidence") val preRedactionEvidence: Map<String, Any>? = null
 )
 
 data class OrchestratedScanRequest(
@@ -189,7 +190,8 @@ data class OrchestratedScanRequest(
     @SerializedName("source_channel") val sourceChannel: String = "android_native",
     @SerializedName("email_auth") val emailAuth: Map<String, Any>? = null,
     @SerializedName("email_evidence_ledger") val emailEvidenceLedger: Map<String, Any>? = null,
-    @SerializedName("email_compound_active") val emailCompoundActive: Boolean = false
+    @SerializedName("email_compound_active") val emailCompoundActive: Boolean = false,
+    @SerializedName("pre_redaction_evidence") val preRedactionEvidence: Map<String, Any>? = null
 )
 
 data class OrchestratedPillarState(

@@ -33,6 +33,7 @@ from core.url_intelligence import (
 )
 from services.google_vision_ocr import extract_text_from_pdf_with_vision, extract_text_with_vision
 from services.email_evidence_ledger import extract_email_compound_evidence
+from services.pre_redaction_evidence import extract_pre_redaction_evidence
 from services.pii_redactor import redact_pii
 from services.scam_atlas import BRAND_REGISTRY as SCAM_ATLAS_BRAND_REGISTRY
 from services.scan_helpers import _is_allowed_image_bytes, _validate_file_upload, extract_text_for_scan
@@ -89,6 +90,7 @@ async def extract_image_for_orchestration(
         ocr_text = ""
         ocr_warning = str(exc.detail)
     redacted_text = redact_pii(ocr_text)
+    pre_redaction_evidence = extract_pre_redaction_evidence(ocr_text)
     extracted_urls = _dedupe_preserve_order(
         extract_urls(ocr_text)
         + extract_urls(redacted_text)
@@ -103,6 +105,7 @@ async def extract_image_for_orchestration(
         "html_content": None,
         "warning": ocr_warning,
         "hidden_url_visibility": bool(qr_payloads),
+        "pre_redaction_evidence": pre_redaction_evidence,
     }
 
 
@@ -146,6 +149,7 @@ async def extract_pdf_for_orchestration(
     ocr_text = _merge_ocr_and_embedded_text((ocr_text or "").strip(), (embedded_text or "").strip())
 
     redacted_text = redact_pii(ocr_text)
+    pre_redaction_evidence = extract_pre_redaction_evidence(ocr_text)
     extracted_urls = _dedupe_preserve_order(
         annotation_urls
         + extract_urls(ocr_text)
@@ -161,6 +165,7 @@ async def extract_pdf_for_orchestration(
         "html_content": None,
         "warning": ocr_warning,
         "hidden_url_visibility": bool(annotation_urls or qr_payloads),
+        "pre_redaction_evidence": pre_redaction_evidence,
     }
 
 
@@ -286,6 +291,7 @@ async def extract_email_for_orchestration(
     warning = None
     if not html_to_parse.strip():
         warning = "Corpul e-mailului este gol sau nu a putut fi citit."
+    pre_redaction_evidence = extract_pre_redaction_evidence(content_for_analysis)
     return {
         "input_type": "email",
         "source_channel": source_channel,
@@ -310,6 +316,7 @@ async def extract_email_for_orchestration(
             EMAIL_COMPOUND_EVIDENCE_ACTIVE
             and (candidate_attachment_urls or candidate_attachment_qr)
         ),
+        "pre_redaction_evidence": pre_redaction_evidence,
     }
 
 

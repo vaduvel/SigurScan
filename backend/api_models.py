@@ -50,6 +50,10 @@ class OrchestratedScanRequest(BaseModel):
     # round-trip through Android, but is sanitized again before persistence.
     email_evidence_ledger: Optional[Dict[str, Any]] = None
     email_compound_active: Optional[bool] = False
+    # Structured OCR evidence extracted before PII redaction. The server
+    # sanitizes this again after the Android round-trip and never trusts it for
+    # a SAFE elevation by itself.
+    pre_redaction_evidence: Optional[Dict[str, Any]] = None
 
 
 class FeedbackRequest(BaseModel):

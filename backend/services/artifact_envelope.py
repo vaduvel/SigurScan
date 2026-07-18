@@ -13,6 +13,7 @@ from typing import Any, Dict, Iterable, Mapping, Optional, Sequence
 
 from core.url_intelligence import extract_urls
 from services.external_url_privacy import prepare_external_urls, sanitize_external_text
+from services.pre_redaction_evidence import pre_redaction_summary
 
 
 ARTIFACT_ENVELOPE_SCHEMA = "sigurscan_artifact_envelope_v1"
@@ -66,6 +67,7 @@ def build_artifact_envelope(
     email_auth: Optional[Mapping[str, Any]] = None,
     compound_evidence: Optional[Mapping[str, Any]] = None,
     extraction_warning: Optional[str] = None,
+    pre_redaction_evidence: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Build the canonical, persistable artifact contract.
 
@@ -123,6 +125,7 @@ def build_artifact_envelope(
             "status": "warning" if extraction_warning else "complete",
             "has_warning": bool(extraction_warning),
         },
+        "pre_redaction": pre_redaction_summary(pre_redaction_evidence),
     }
     envelope["envelope_hash"] = _stable_hash(envelope)
     return envelope

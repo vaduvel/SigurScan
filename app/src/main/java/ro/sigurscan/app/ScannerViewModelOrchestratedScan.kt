@@ -239,13 +239,15 @@ internal fun ScannerViewModel.orchestratedRequest(
     forcedInputType: String? = null,
     emailAuth: Map<String, Any>? = null,
     emailEvidenceLedger: Map<String, Any>? = null,
-    emailCompoundActive: Boolean = false
+    emailCompoundActive: Boolean = false,
+    preRedactionEvidence: Map<String, Any>? = null
 ): OrchestratedScanRequest {
     if (forcedInputType == "offer") {
         return OrchestratedScanRequest(
             inputType = "offer",
             text = rawInput.ifBlank { urls.joinToString("\n") },
-            sourceChannel = activeEvidenceChannel(rawInput) ?: "android_offer_scan"
+            sourceChannel = activeEvidenceChannel(rawInput) ?: "android_offer_scan",
+            preRedactionEvidence = preRedactionEvidence
         )
     }
 
@@ -257,12 +259,14 @@ internal fun ScannerViewModel.orchestratedRequest(
             sourceChannel = activeEvidenceChannel(rawInput) ?: "android_html_share",
             emailAuth = emailAuth,
             emailEvidenceLedger = emailEvidenceLedger,
-            emailCompoundActive = emailCompoundActive
+            emailCompoundActive = emailCompoundActive,
+            preRedactionEvidence = preRedactionEvidence
         )
         urls.isNotEmpty() && looksLikeUrlOnly(rawInput.trim(), urls.first()) -> OrchestratedScanRequest(
             inputType = "url",
             url = normalizeUrl(urls.first()),
-            sourceChannel = activeEvidenceChannel(rawInput) ?: "android_url_scan"
+            sourceChannel = activeEvidenceChannel(rawInput) ?: "android_url_scan",
+            preRedactionEvidence = preRedactionEvidence
         )
         else -> OrchestratedScanRequest(
             inputType = if (emailAuth != null) "email" else "text",
@@ -270,7 +274,8 @@ internal fun ScannerViewModel.orchestratedRequest(
             sourceChannel = activeEvidenceChannel(rawInput) ?: "android_native",
             emailAuth = emailAuth,
             emailEvidenceLedger = emailEvidenceLedger,
-            emailCompoundActive = emailCompoundActive
+            emailCompoundActive = emailCompoundActive,
+            preRedactionEvidence = preRedactionEvidence
         )
     }
 }
@@ -338,7 +343,8 @@ internal suspend fun ScannerViewModel.runBackendOrchestratedScanFromExtraction(
         forcedInputType = forcedInputType,
         emailAuth = response.emailAuth,
         emailEvidenceLedger = response.emailEvidenceLedger,
-        emailCompoundActive = response.emailCompoundActive
+        emailCompoundActive = response.emailCompoundActive,
+        preRedactionEvidence = response.preRedactionEvidence
     )
 }
 
@@ -656,7 +662,8 @@ internal suspend fun ScannerViewModel.runBackendOrchestratedScan(
     forcedInputType: String? = null,
     emailAuth: Map<String, Any>? = null,
     emailEvidenceLedger: Map<String, Any>? = null,
-    emailCompoundActive: Boolean = false
+    emailCompoundActive: Boolean = false,
+    preRedactionEvidence: Map<String, Any>? = null
 ) {
     val cacheMaterial = if (forcedInputType.isNullOrBlank()) rawInput else "input_type=$forcedInputType\n$rawInput"
     val resultCacheKey = scanResultCacheKey(cacheMaterial, htmlPayload, urls)
@@ -669,7 +676,8 @@ internal suspend fun ScannerViewModel.runBackendOrchestratedScan(
             forcedInputType,
             emailAuth,
             emailEvidenceLedger,
-            emailCompoundActive
+            emailCompoundActive,
+            preRedactionEvidence
         )
     )
     publishOrchestratedResponse(response, rawInput, urls, preliminary?.scanId, resultCacheKey)

@@ -36,6 +36,7 @@ def evaluate_cross_scan_knowledge(
     cui: Optional[str] = None,
     source_channel: Optional[str] = None,
     fraud_flags: Optional[list[str]] = None,
+    evidence_provenance: str = "direct_input",
 ) -> dict[str, Any]:
     flags = list(fraud_flags or [])
     b2b_signals: dict[str, Any] = {"flags": [], "warnings": [], "metadata": {}}
@@ -52,6 +53,11 @@ def evaluate_cross_scan_knowledge(
     payment_destinations: list[dict[str, Any]] = []
     for iban in _extract_ibans(text):
         payment = match_payment_destination(iban, claimed_brand=claimed_brand, cui=cui)
+        payment["evidence_provenance"] = evidence_provenance
+        if evidence_provenance == "client_roundtrip_unattested":
+            # Client-returned structured values may still expose mismatches, but
+            # cannot provide the positive proof required by a SAFE verdict.
+            payment["can_contribute_to_safe"] = False
         payment_destinations.append(payment)
         if (
             payment.get("matched")

@@ -24,6 +24,11 @@ from services.reputation_enrich import _attach_reputation_lookup_hashes, _attach
 from services.external_url_privacy import prepare_external_url, prepare_external_urls, prepare_reputation_lookup_url
 from services.artifact_envelope import build_artifact_envelope
 from services.email_evidence_ledger import sanitize_email_evidence_ledger
+from services.pre_redaction_evidence import (
+    pre_redaction_context_text,
+    pre_redaction_primary_cui,
+    sanitize_pre_redaction_evidence,
+)
 from services.threat_enrichment import build_threat_enrichment
 from services.scan_helpers import _invoice_payment_destination_for_client, _validate_text_input
 from services.url_reputation import reputation_url_hash_variants
@@ -1314,27 +1319,43 @@ class OrchestratedScanEngine:
             privacy_entry = privacy_by_hash.get(hashlib.sha256(raw_url.encode("utf-8")).hexdigest(), {})
             safe_url = str(privacy_entry.get("external_url") or "")
             privacy_safe_text = privacy_safe_text.replace(raw_url, safe_url)
+        artifact_metadata = artifact_metadata if isinstance(artifact_metadata, dict) else {}
+        if isinstance(artifact_metadata.get("pre_redaction_evidence"), dict):
+            pre_redaction_evidence = sanitize_pre_redaction_evidence(
+                artifact_metadata.get("pre_redaction_evidence"),
+                transport="server_extracted",
+            )
+            pre_redaction_provenance = "server_extracted"
+        else:
+            pre_redaction_evidence = sanitize_pre_redaction_evidence(payload.pre_redaction_evidence)
+            pre_redaction_provenance = (
+                "client_roundtrip_unattested"
+                if pre_redaction_evidence
+                else "direct_input"
+            )
+        structured_context = pre_redaction_context_text(pre_redaction_evidence)
+        knowledge_text = "\n".join(part for part in (privacy_safe_text, structured_context) if part)
         cross_scan_knowledge: Dict[str, Any] = {}
         try:
             from services.brand_registry import detect_claimed_brand, BRAND_REGISTRY
             from services.cross_scan_knowledge import evaluate_cross_scan_knowledge
             from services.invoice_parser import CUI_PATTERN
 
-            cui_match = CUI_PATTERN.search(privacy_safe_text)
-            cui = None
+            cui_match = CUI_PATTERN.search(knowledge_text)
+            cui = pre_redaction_primary_cui(pre_redaction_evidence)
             if cui_match:
-                cui = "".join(ch for ch in (cui_match.group("label") or cui_match.group("bare") or "") if ch.isdigit())
-            claimed_brand = detect_claimed_brand(None, privacy_safe_text, raw_urls)
+                cui = cui or "".join(ch for ch in (cui_match.group("label") or cui_match.group("bare") or "") if ch.isdigit())
+            claimed_brand = detect_claimed_brand(None, knowledge_text, raw_urls)
             cross_scan_knowledge = evaluate_cross_scan_knowledge(
-                text=privacy_safe_text,
+                text=knowledge_text,
                 claimed_brand=claimed_brand,
                 cui=cui,
                 source_channel=payload.source_channel,
+                evidence_provenance=pre_redaction_provenance,
             )
         except Exception:
             cross_scan_knowledge = {}
         redacted_text = redact_pii(privacy_safe_text)
-        artifact_metadata = artifact_metadata if isinstance(artifact_metadata, dict) else {}
         if not isinstance(artifact_metadata.get("email_evidence_ledger"), dict):
             roundtrip_ledger = sanitize_email_evidence_ledger(payload.email_evidence_ledger)
             if isinstance(roundtrip_ledger, dict):
@@ -1366,6 +1387,7 @@ class OrchestratedScanEngine:
             extraction_warning=(
                 "present" if artifact_metadata.get("extraction_warning") else None
             ),
+            pre_redaction_evidence=pre_redaction_evidence,
         )
         scan_id = _new_scan_id("orch")
         extra_fields = dict(context.get("extra_fields") or {})
@@ -2775,6 +2797,9 @@ class OrchestratedScanEngine:
                 if isinstance(extraction.get("email_evidence_ledger"), dict)
                 else None,
                 email_compound_active=bool(extraction.get("email_compound_active")),
+                pre_redaction_evidence=extraction.get("pre_redaction_evidence")
+                if isinstance(extraction.get("pre_redaction_evidence"), dict)
+                else None,
             ),
             artifact_metadata={
                 "artifact_type": extraction.get("input_type") or default_input_type,
@@ -2791,6 +2816,9 @@ class OrchestratedScanEngine:
                 else None,
                 "email_compound_active": bool(extraction.get("email_compound_active")),
                 "extraction_warning": extraction.get("warning"),
+                "pre_redaction_evidence": extraction.get("pre_redaction_evidence")
+                if isinstance(extraction.get("pre_redaction_evidence"), dict)
+                else None,
             },
         )
         response = self._orchestrated_status_payload(job)
