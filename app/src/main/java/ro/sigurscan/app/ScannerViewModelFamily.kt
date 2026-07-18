@@ -62,7 +62,6 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 import javax.net.ssl.SSLException
-import kotlin.math.roundToInt
 import kotlin.math.max
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -94,7 +93,6 @@ internal fun ScannerViewModel.loadFamilyState() {
         }
     }
 
-    refreshFamilyResilienceScore()
 }
 
 internal fun ScannerViewModel.saveFamilyState() {
@@ -102,17 +100,15 @@ internal fun ScannerViewModel.saveFamilyState() {
     val alertType = object : TypeToken<List<FamilyAlert>>() {}.type
     prefs.edit().putString("family_members_state", gson.toJson(familyMembers.toList(), memberType)).apply()
     prefs.edit().putString("family_alerts_state", gson.toJson(familyAlerts.toList(), alertType)).apply()
-    refreshFamilyResilienceScore()
 }
 
-internal fun ScannerViewModel.refreshFamilyResilienceScore() {
-    familyResilienceScore = if (familyMembers.isEmpty()) {
-        75
+internal fun familyProtectionSummary(members: List<FamilyMember>): String =
+    if (members.isEmpty()) {
+        "Protecția familiei nu este configurată."
     } else {
-        val protectedMembers = familyMembers.count { it.isProtected }
-        ((45 + (protectedMembers.toFloat() / familyMembers.size.toFloat()) * 55).roundToInt()).coerceIn(0, 100)
+        val protectedMembers = members.count { it.isProtected }
+        "Protecție activă pentru $protectedMembers din ${members.size} membri."
     }
-}
 
 fun ScannerViewModel.addFamilyMember(name: String, contact: String) {
     if (name.isBlank() || contact.isBlank()) return

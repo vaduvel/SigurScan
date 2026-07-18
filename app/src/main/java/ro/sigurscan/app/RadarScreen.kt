@@ -101,6 +101,11 @@ import kotlin.math.pow
 @Composable
 fun RadarTab(viewModel: ScannerViewModel) {
     val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        if (viewModel.campaignsLoadState == CampaignLoadState.NOT_LOADED) {
+            viewModel.loadCampaigns()
+        }
+    }
     LaunchedEffect(BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR) {
         if (BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR) {
             viewModel.refreshAudioReadiness()
@@ -144,6 +149,10 @@ fun RadarTab(viewModel: ScannerViewModel) {
     val campaignPins = remember(viewModel.campaigns.toList()) {
         viewModel.campaigns.filter { it.lat != null && it.lon != null }
     }
+    val campaignPresentation = campaignFeedPresentation(
+        loadState = viewModel.campaignsLoadState,
+        hasCampaigns = viewModel.campaigns.isNotEmpty(),
+    )
     val heroGradient = androidx.compose.ui.graphics.Brush.linearGradient(
         colors = listOf(Color(0xFF14BE86), SigurColors.Brand, Color(0xFF06875A))
     )
@@ -177,7 +186,7 @@ fun RadarTab(viewModel: ScannerViewModel) {
                     Icon(Icons.Default.Sync, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        if (viewModel.campaignsLoading) "Se actualizează…" else "Actualizat acum",
+                        campaignPresentation.statusLabel,
                         color = Color.White,
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.Bold
@@ -273,8 +282,21 @@ fun RadarTab(viewModel: ScannerViewModel) {
                 CircularProgressIndicator(color = SigurColors.Brand)
             }
         } else if (viewModel.campaigns.isEmpty()) {
-            Text("Nicio campanie majoră semnalată acum.", color = SigurColors.TextMuted, fontSize = 13.sp, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp))
+            Text(
+                campaignPresentation.emptyLabel.orEmpty(),
+                color = SigurColors.TextMuted,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+            )
         } else {
+            campaignPresentation.supportingLabel?.let { label ->
+                Text(
+                    label,
+                    color = SigurColors.Suspect,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+                )
+            }
             viewModel.campaigns.forEach { campaign ->
                 CampaignRowV2(campaign = campaign, onClick = { selectedCampaign = campaign })
                 Spacer(modifier = Modifier.height(10.dp))
@@ -290,7 +312,6 @@ fun RadarTab(viewModel: ScannerViewModel) {
                 .clip(RoundedCornerShape(16.dp))
                 .background(SigurColors.BackgroundCard)
                 .border(1.dp, SigurColors.GlassBorder, RoundedCornerShape(16.dp))
-                .clickable { viewModel.loadCampaigns() }
                 .padding(horizontal = 15.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -302,8 +323,14 @@ fun RadarTab(viewModel: ScannerViewModel) {
             Column(modifier = Modifier.weight(1f)) {
                 Text("Branduri verificate", color = SigurColors.TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
                 Text("Domeniile și IBAN-urile oficiale ale firmelor cunoscute, ca să le deosebești de imitații.", color = SigurColors.TextMuted, fontSize = 12.sp, lineHeight = 17.sp)
+                Text(
+                    "Folosit automat în scanări",
+                    color = SigurColors.Safe,
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 5.dp),
+                )
             }
-            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = SigurColors.TextMuted, modifier = Modifier.size(22.dp))
         }
 
         Spacer(modifier = Modifier.height(8.dp))

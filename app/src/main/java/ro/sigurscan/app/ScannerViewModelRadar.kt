@@ -73,14 +73,17 @@ import retrofit2.HttpException
 // extension functions operating on the ViewModel's observable state.
 
 fun ScannerViewModel.loadCampaigns() {
+    if (campaignsLoading) return
     campaignsLoading = true
+    campaignsLoadState = CampaignLoadState.LOADING
     viewModelScope.launch {
         try {
             val list = api.getCampaigns()
             campaigns.clear()
             campaigns.addAll(list)
+            campaignsLoadState = CampaignLoadState.READY
         } catch (_: Exception) {
-            campaigns.clear()
+            campaignsLoadState = CampaignLoadState.ERROR
         } finally {
             campaignsLoading = false
         }

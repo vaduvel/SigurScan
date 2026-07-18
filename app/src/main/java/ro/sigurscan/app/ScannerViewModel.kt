@@ -145,6 +145,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     var liveCampaignEvent by mutableStateOf<String?>(null)
     var campaigns = mutableStateListOf<ScamCampaign>()
     var campaignsLoading by mutableStateOf(false)
+    var campaignsLoadState by mutableStateOf(CampaignLoadState.NOT_LOADED)
     var radarHotCache by mutableStateOf<RadarHotCacheSnapshot?>(null)
     var radarHotCacheLoading by mutableStateOf(false)
     var radarHotCacheStatus by mutableStateOf<String?>(null)
@@ -181,7 +182,6 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     // Family protection
     var familyMembers = mutableStateListOf<FamilyMember>()
     var familyAlerts = mutableStateListOf<FamilyAlert>()
-    var familyResilienceScore by mutableStateOf(75)
 
     // Triage + education state
     var triageStepProgress by mutableStateOf<Map<String, Set<Int>>>(emptyMap())
@@ -365,7 +365,6 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         familyMembers.addAll(state.familyMembers)
         familyAlerts.clear()
         familyAlerts.addAll(state.familyAlerts)
-        refreshFamilyResilienceScore()
         calculateStats()
     }
 

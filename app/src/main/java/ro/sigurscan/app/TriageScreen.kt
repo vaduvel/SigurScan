@@ -164,7 +164,7 @@ fun TriageTab(viewModel: ScannerViewModel) {
                 .clip(RoundedCornerShape(14.dp))
                 .background(SigurColors.BackgroundCard)
                 .border(1.dp, SigurColors.GlassBorder, RoundedCornerShape(14.dp))
-                .clickable { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.dnsc.ro"))) }
+                .clickable { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://pnrisc.dnsc.ro"))) }
                 .padding(horizontal = 15.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -175,7 +175,7 @@ fun TriageTab(viewModel: ScannerViewModel) {
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text("Raportează oficial", color = SigurColors.TextPrimary, fontSize = 14.5.sp, fontWeight = FontWeight.ExtraBold)
-                Text("Trimite cazul la DNSC și, dacă e nevoie, la poliție — completăm noi datele.", color = SigurColors.TextMuted, fontSize = 12.sp, lineHeight = 17.sp)
+                Text("Deschide canalul oficial DNSC pentru raportare. Dacă ai pierdut bani sau ești amenințat, contactează și poliția.", color = SigurColors.TextMuted, fontSize = 12.sp, lineHeight = 17.sp)
             }
             Icon(Icons.Default.ChevronRight, contentDescription = null, tint = SigurColors.TextMuted, modifier = Modifier.size(22.dp))
         }

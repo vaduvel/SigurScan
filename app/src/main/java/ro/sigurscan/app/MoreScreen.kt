@@ -256,7 +256,7 @@ fun SecurityFamilySection(viewModel: ScannerViewModel) {
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                "Scor protecție: ${viewModel.familyResilienceScore}/100",
+                familyProtectionSummary(viewModel.familyMembers),
                 color = SigurColors.TextSecondary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold

@@ -207,6 +207,39 @@ data class PendingSharedFile(
     val sourceLabel: String
 )
 
+enum class CampaignLoadState {
+    NOT_LOADED,
+    LOADING,
+    READY,
+    ERROR,
+}
+
+data class CampaignFeedPresentation(
+    val statusLabel: String,
+    val emptyLabel: String? = null,
+    val supportingLabel: String? = null,
+)
+
+internal fun campaignFeedPresentation(
+    loadState: CampaignLoadState,
+    hasCampaigns: Boolean,
+): CampaignFeedPresentation = when (loadState) {
+    CampaignLoadState.NOT_LOADED -> CampaignFeedPresentation(
+        statusLabel = "Neverificat încă",
+        emptyLabel = if (hasCampaigns) null else "Campaniile active nu au fost încă verificate.",
+    )
+    CampaignLoadState.LOADING -> CampaignFeedPresentation(statusLabel = "Se actualizează…")
+    CampaignLoadState.READY -> CampaignFeedPresentation(
+        statusLabel = "Actualizat acum",
+        emptyLabel = if (hasCampaigns) null else "Nicio campanie majoră semnalată acum.",
+    )
+    CampaignLoadState.ERROR -> CampaignFeedPresentation(
+        statusLabel = "Actualizare indisponibilă",
+        emptyLabel = if (hasCampaigns) null else "Nu am putut verifica acum campaniile active. Reîncearcă.",
+        supportingLabel = if (hasCampaigns) "Afișăm ultima listă disponibilă." else null,
+    )
+}
+
 data class FamilyMember(
     val id: String = UUID.randomUUID().toString(),
     val name: String,

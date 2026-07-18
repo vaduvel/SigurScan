@@ -325,6 +325,12 @@ fun ScanInputCard(
                             color = SigurColors.TextMuted
                         )
                     },
+                    label = {
+                        Text(
+                            "Text sau link de verificat",
+                            color = SigurColors.TextSecondary,
+                        )
+                    },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = Color.White.copy(alpha = 0.94f),
                         unfocusedContainerColor = Color.White.copy(alpha = 0.90f),
