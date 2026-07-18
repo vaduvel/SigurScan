@@ -55,6 +55,26 @@ def _extract_compat_fn(name: str, fallback):
     return fallback
 
 
+def _invoice_decision_scope(invoice_truth: dict | None) -> dict[str, str]:
+    """Describe what the invoice verdict does and does not establish."""
+    truth = invoice_truth if isinstance(invoice_truth, dict) else {}
+    if str(truth.get("verdict") or "") == "NU_PLATI":
+        payment_assurance = "DO_NOT_AUTHORIZE"
+    elif truth.get("safe_to_pay") is True:
+        payment_assurance = "CONFIRMED"
+    elif truth:
+        payment_assurance = "USER_VERIFICATION_REQUIRED"
+    else:
+        payment_assurance = "UNKNOWN"
+    return {
+        "primary_verdict_scope": "DOCUMENT_AUTHENTICITY_AND_FRAUD_RISK",
+        # SigurScan has no bank account or SPV access and never claims to know
+        # whether the invoice has already been paid.
+        "payment_status": "NOT_ASSESSED",
+        "payment_assurance": payment_assurance,
+    }
+
+
 async def scan_text(request: TextScanRequest):
     """
     Compatibility wrapper. Starts the product-grade orchestrated scan and returns scan_id/status.
@@ -281,6 +301,7 @@ async def scan_invoice_endpoint(
         sanb_attestation=normalized_sanb_attestation,
     )
     client_payment_destination = _invoice_payment_destination_for_client(result, invoice_gate)
+    invoice_truth = invoice_gate.get("invoice_truth")
 
     return {
         "source_type": source_type,
@@ -332,7 +353,8 @@ async def scan_invoice_endpoint(
         "fraud_flags": result.fraud_flags,
         "evidence_bundle": invoice_gate["bundle"],
         "verdict_gate": invoice_gate["gate"],
-        "invoice_truth": invoice_gate.get("invoice_truth"),
+        "decision_scope": _invoice_decision_scope(invoice_truth),
+        "invoice_truth": invoice_truth,
         "sanb_attestation": normalized_sanb_attestation,
         "warnings": result.warnings,
         "error": result.error,

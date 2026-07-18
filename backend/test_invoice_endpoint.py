@@ -147,6 +147,7 @@ def test_scan_invoice_pdf_merges_embedded_text_when_ocr_misses_cui(monkeypatch):
     assert response.status_code == 200
     payload = response.json()
     assert payload["fields"]["cui"] == "45758405"
+    assert payload["fields"]["nr_factura"] == "MGH 0013"
     assert payload["fields"]["iban"] == "RO42INGB0000999912242622"
     assert payload["anaf"]["checked"] is True
     assert payload["evidence_bundle"]["identity"]["status"] == "coherent"
@@ -154,6 +155,11 @@ def test_scan_invoice_pdf_merges_embedded_text_when_ocr_misses_cui(monkeypatch):
     assert payload["beneficiary_name_check"]["recommended"] is True
     assert payload["verdict_gate"]["label"] == "UNVERIFIED"
     assert payload["verdict_gate"]["risk_level"] == "info"
+    assert payload["decision_scope"] == {
+        "primary_verdict_scope": "DOCUMENT_AUTHENTICITY_AND_FRAUD_RISK",
+        "payment_status": "NOT_ASSESSED",
+        "payment_assurance": "USER_VERIFICATION_REQUIRED",
+    }
     assert payload["invoice_truth"]["verdict"] == "VERIFY_BEFORE_PAYING"
     assert payload["invoice_truth"]["safe_to_pay"] is False
     assert payload["invoice_truth"]["display"]["title"] == "Verifică înainte să plătești"

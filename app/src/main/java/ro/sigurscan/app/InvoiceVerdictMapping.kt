@@ -5,9 +5,9 @@ import java.util.Locale
 /**
  * FIX-10 — invoice signals -> one of the app's four verdicts, for the result card.
  *
- * The invoice card answers one question: should the user pay or not? It speaks the
- * same four words as every other scan — Sigur / Neverificat / Suspect / Periculos —
- * so the verdict is consistent across the app.
+ * The invoice card answers whether the document looks authentic or fraudulent. It
+ * speaks the same four words as every other scan — Sigur / Neverificat / Suspect /
+ * Periculos. Payment status is not assessed; payment assurance is separate guidance.
  *
  * Display-layer only: this never re-judges the engine. Current backend responses are
  * rendered from verdict_gate, the single source of truth. The invoice_truth/field-based
@@ -27,6 +27,8 @@ data class InvoiceVerdictResult(
     val verdict: InvoiceVerdict,
     /** Periculos was (also) reached because payment beneficiary != issuer — copy adds the cession caveat. */
     val beneficiaryMismatch: Boolean,
+    /** True only when the invoice engine confirmed the payment destination and required proofs. */
+    val paymentAssuranceConfirmed: Boolean = false,
 )
 
 /** primary_reason_code values the engine uses for the two fraud-grade pattern families. */
@@ -97,10 +99,12 @@ private fun verdictFromGate(gate: InvoiceVerdictGateResponse?): InvoiceVerdict? 
 
 fun invoiceVerdict(result: InvoiceScanResponse): InvoiceVerdictResult {
     val beneficiaryMismatch = invoiceBeneficiaryMismatch(result.fields)
+    val paymentAssuranceConfirmed = result.invoiceTruth?.safeToPay == true
     verdictFromGate(result.verdictGate)?.let { gateVerdict ->
         return InvoiceVerdictResult(
             verdict = gateVerdict,
             beneficiaryMismatch = gateVerdict == InvoiceVerdict.PERICULOS && beneficiaryMismatch,
+            paymentAssuranceConfirmed = paymentAssuranceConfirmed,
         )
     }
 
@@ -117,7 +121,11 @@ fun invoiceVerdict(result: InvoiceScanResponse): InvoiceVerdictResult {
     // 2) Sigur — the engine confirmed the destination (atlas/SANB + name match). A confirmed
     //    safe_to_pay wins over a bare beneficiary name mismatch (e.g. legit factoring in atlas).
     if (truth?.safeToPay == true) {
-        return InvoiceVerdictResult(InvoiceVerdict.SIGUR, beneficiaryMismatch = false)
+        return InvoiceVerdictResult(
+            InvoiceVerdict.SIGUR,
+            beneficiaryMismatch = false,
+            paymentAssuranceConfirmed = true,
+        )
     }
 
     // 3) Periculos (beneficiary) — beneficiary != issuer escalates only when not confirmed safe.
@@ -150,12 +158,16 @@ private const val CESSION_DOOR =
 fun invoiceVerdictPresentation(result: InvoiceVerdictResult): InvoiceVerdictPresentation = when (result.verdict) {
     InvoiceVerdict.SIGUR -> InvoiceVerdictPresentation(
         headline = "Sigur",
-        action = "Poți plăti. Pentru siguranță, confirmă și în SANB.",
+        action = if (result.paymentAssuranceConfirmed) {
+            "Factura și datele de plată sunt confirmate. Dacă urmează să plătești, verifică suma înainte de autorizare."
+        } else {
+            "Factura pare autentică. Dacă ți se cere plata, verifică suma și beneficiarul în aplicația bancară."
+        },
         tone = DSChipTone.Safe,
     )
     InvoiceVerdict.NEVERIFICAT -> InvoiceVerdictPresentation(
         headline = "Neverificat",
-        action = "Firma e reală, dar n-am putut confirma contul — verifică IBAN-ul în SANB înainte să plătești.",
+        action = "Nu am putut confirma toate datele. Dacă ți se cere plata, verifică beneficiarul în aplicația bancară.",
         tone = DSChipTone.Pending,
     )
     InvoiceVerdict.SUSPECT -> InvoiceVerdictPresentation(

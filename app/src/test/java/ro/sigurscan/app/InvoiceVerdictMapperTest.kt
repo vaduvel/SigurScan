@@ -223,7 +223,7 @@ class InvoiceVerdictMapperTest {
         )
         assertEquals(InvoiceVerdict.SIGUR, r.verdict)
         assertEquals(
-            "Poți plăti. Pentru siguranță, confirmă și în SANB.",
+            "Factura și datele de plată sunt confirmate. Dacă urmează să plătești, verifică suma înainte de autorizare.",
             invoiceVerdictPresentation(r).action,
         )
     }
@@ -312,23 +312,40 @@ class InvoiceVerdictMapperTest {
     // ---- Presentation: app verdict word as headline + locked decision copy ----
 
     @Test
-    fun sigurPresentsSigurHeadlineAndCanPayCopyInSafeTone() {
+    fun sigurWithoutPaymentAssuranceDoesNotTellUserToPay() {
         val p = invoiceVerdictPresentation(
             InvoiceVerdictResult(InvoiceVerdict.SIGUR, beneficiaryMismatch = false)
         )
         assertEquals("Sigur", p.headline)
         assertEquals(DSChipTone.Safe, p.tone)
-        assertTrue(p.action.contains("Poți plăti"))
+        assertTrue(p.action.contains("Factura pare autentică"))
+        assertTrue(p.action.contains("Dacă ți se cere plata"))
+        assertFalse(p.action.contains("Poți plăti"))
     }
 
     @Test
-    fun neverificatPresentsNeverificatHeadlineAndConfirmIbanCopyInPendingTone() {
+    fun sigurWithPaymentAssuranceUsesConditionalAuthorizationCopy() {
+        val p = invoiceVerdictPresentation(
+            InvoiceVerdictResult(
+                InvoiceVerdict.SIGUR,
+                beneficiaryMismatch = false,
+                paymentAssuranceConfirmed = true,
+            )
+        )
+        assertTrue(p.action.contains("datele de plată sunt confirmate"))
+        assertTrue(p.action.contains("Dacă urmează să plătești"))
+        assertFalse(p.action.contains("Poți plăti"))
+    }
+
+    @Test
+    fun neverificatPresentsNeutralBankVerificationCopyInPendingTone() {
         val p = invoiceVerdictPresentation(
             InvoiceVerdictResult(InvoiceVerdict.NEVERIFICAT, beneficiaryMismatch = false)
         )
         assertEquals("Neverificat", p.headline)
         assertEquals(DSChipTone.Pending, p.tone)
-        assertTrue(p.action.contains("SANB"))
+        assertTrue(p.action.contains("aplicația bancară"))
+        assertFalse(p.action.contains("Poți plăti"))
     }
 
     @Test

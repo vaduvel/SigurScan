@@ -81,6 +81,25 @@ class TestInvoiceIbanParser:
         assert fields.payment_beneficiary is None
         assert fields.all_ibans == ["DE89370400440532013000"]
 
+    def test_explicit_payment_beneficiary_wins_over_generic_instruction(self):
+        fields = parse_invoice(
+            "Furnizor: SC REAL SRL\n"
+            "Plata se face catre beneficiarul indicat.\n"
+            "Beneficiar plata: Popescu Ion Marian\n"
+            "IBAN RO83BTRLRONCRT0299335701"
+        )
+
+        assert fields.payment_beneficiary == "Popescu Ion Marian"
+
+    def test_generic_payment_beneficiary_placeholder_is_not_a_name(self):
+        fields = parse_invoice(
+            "Furnizor: SC REAL SRL\n"
+            "Plata se face catre beneficiarul indicat.\n"
+            "IBAN RO83BTRLRONCRT0299335701"
+        )
+
+        assert fields.payment_beneficiary is None
+
     def test_collects_spaced_iban_from_ocr(self):
         fields = parse_invoice(
             "Furnizor: SC REAL SRL\n"

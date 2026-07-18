@@ -568,6 +568,12 @@ data class InvoiceTruthResponse(
     @SerializedName("next_action") val nextAction: InvoiceTruthNextActionResponse? = null,
 )
 
+data class InvoiceDecisionScopeResponse(
+    @SerializedName("primary_verdict_scope") val primaryVerdictScope: String? = null,
+    @SerializedName("payment_status") val paymentStatus: String? = null,
+    @SerializedName("payment_assurance") val paymentAssurance: String? = null,
+)
+
 data class SanbCheckResponse(
     @SerializedName("payee_bank_participant") val payeeBankParticipant: Boolean = false,
     @SerializedName("participant_name") val participantName: String? = null,
@@ -621,6 +627,7 @@ data class InvoiceScanResponse(
     val anaf: Map<String, Any>? = null,
     @SerializedName("fraud_flags") val fraudFlags: List<String>? = null,
     @SerializedName("verdict_gate") val verdictGate: InvoiceVerdictGateResponse? = null,
+    @SerializedName("decision_scope") val decisionScope: InvoiceDecisionScopeResponse? = null,
     @SerializedName("invoice_truth") val invoiceTruth: InvoiceTruthResponse? = null,
     @SerializedName("sanb_attestation") val sanbAttestation: String? = null,
     val warnings: List<String>? = null,

@@ -72,3 +72,62 @@ def test_column_layout_does_not_capture_next_label_as_number():
 
 def test_digit_guard_keeps_numeric_only_invoice_numbers():
     assert _extract_invoice_number("Factura nr: 2026") == "2026"
+
+
+# ── 4. invoice number: label variants and heading-style identifiers ────────
+
+def test_invoice_number_serie_slash_numar_same_line():
+    text = "FACTURA\nSerie / numar TEST-0001\nData emiterii: 12.05.2026"
+    assert _extract_invoice_number(text) == "TEST-0001"
+
+
+def test_invoice_number_heading_with_series_and_number():
+    text = "FACTURA MGH 0013\nData facturii: 12.05.2026\nTotal: 119,00 RON"
+    assert _extract_invoice_number(text) == "MGH 0013"
+
+
+def test_invoice_number_after_plain_factura_label():
+    assert _extract_invoice_number("Factura: EF-2026-05-001\nTotal: 119 RON") == "EF-2026-05-001"
+
+
+def test_invoice_number_after_inflected_number_label():
+    assert _extract_invoice_number("Nr. facturii: ABC/2026/42\nTotal: 119 RON") == "ABC/2026/42"
+
+
+def test_invoice_heading_description_is_not_an_invoice_number():
+    assert _extract_invoice_number("Factura fiscala\nData 12.05.2026") is None
+    assert _extract_invoice_number("Factura restanta 30 zile\nTotal 100 RON") is None
+
+
+# ── 5. amount labels: table headers must not become subtotals ──────────────
+
+def test_bare_valoare_table_header_does_not_capture_quantity_as_subtotal():
+    text = (
+        "Denumire articol\n"
+        "Valoare\n"
+        "Cant.\n"
+        "1\n"
+        "Total de plata:\n"
+        "119,00 RON"
+    )
+    fields = parse_invoice(text)
+    assert fields.subtotal is None
+    assert fields.total == 119.0
+
+
+def test_qualified_net_value_label_remains_a_subtotal():
+    fields = parse_invoice(
+        "Valoare fara TVA: 100,00 RON\n"
+        "TVA: 19,00 RON\n"
+        "Total de plata: 119,00 RON"
+    )
+    assert fields.subtotal == 100.0
+    assert fields.tva == 19.0
+    assert fields.total == 119.0
+
+
+def test_vat_value_label_is_tax_not_subtotal():
+    fields = parse_invoice("Valoare TVA: 19,00 RON\nTotal de plata: 119,00 RON")
+    assert fields.subtotal is None
+    assert fields.tva == 19.0
+    assert fields.total == 119.0

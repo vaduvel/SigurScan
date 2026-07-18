@@ -22,11 +22,16 @@ RO_IBAN_OCR_PATTERN = re.compile(
     r"\bR[0O][ \t-]*\d{2}(?:[ \t-]*[A-Z0-9]){20}\b",
     re.IGNORECASE,
 )
-BENEFICIAR_PATTERN = re.compile(
-    r"(?:beneficiar(?:[^\S\n]+(?:plat[ăa]|plata|cont|final))?|"
-    r"titular(?:[^\S\n]*cont)?|c[ăa]tre|in[^\S\n]*contul(?:[^\S\n]*lui)?|"
-    r"[iî]n[^\S\n]*contul(?:[^\S\n]*lui)?)"
-    r"[^\S\n]*[:\-]?[^\S\n]*([^\n\r,;]+)",
+BENEFICIAR_EXPLICIT_PATTERN = re.compile(
+    r"^[ \t]*(?:nume[ \t]+)?(?:"
+    r"beneficiar(?:ul|ului)?(?:[ \t]+(?:plat[ăa]|plata|cont|final))?|"
+    r"titular(?:ul|ului)?(?:[ \t]+cont)?"
+    r")[ \t]*[:\-]?[ \t]*([^\n\r,;]+)",
+    re.IGNORECASE | re.MULTILINE,
+)
+BENEFICIAR_CONTEXT_PATTERN = re.compile(
+    r"(?:c[ăa]tre|in[ \t]*contul(?:[ \t]*lui)?|[iî]n[ \t]*contul(?:[ \t]*lui)?)"
+    r"[ \t]*[:\-]?[ \t]*([^\n\r,;]+)",
     re.IGNORECASE,
 )
 # Numele băncii tipărit pe factură ("Banca: BRD", "Banca Transilvania",
@@ -111,7 +116,16 @@ SCADENTA_LABEL = re.compile(r"scaden[ţt][aă]|\bdue date\b|\bdate due\b|\bpayme
 ISSUE_DATE_LABEL = re.compile(r"\bdata\b|\bdate of issue\b|\bissued on\b|\binvoice date\b", re.IGNORECASE)
 TOTAL_LABEL = re.compile(r"\btotal\b(?!\s*(?:tva|net))|\bamount due\b|\bbalance due\b|\btotal due\b", re.IGNORECASE)
 TVA_LABEL = re.compile(r"\btva\b|\btax\b", re.IGNORECASE)
-SUBTOTAL_LABEL = re.compile(r"\bsubtotal\b|^[ \t]*valoare\b|\btotal excluding tax\b", re.IGNORECASE)
+SUBTOTAL_LABEL = re.compile(
+    r"\bsubtotal\b|\bvaloare[ \t]+(?:net[ăa]|f[ăa]r[ăa][ \t]+tva|fara[ \t]+tva)\b|"
+    r"^[ \t]*valoare[ \t]*(?::|[€$£]?\d)|\btotal excluding tax\b|\bnet amount\b",
+    re.IGNORECASE,
+)
+QUALIFIED_SUBTOTAL_LABEL = re.compile(
+    r"\bsubtotal\b|\bvaloare[ \t]+(?:net[ăa]|f[ăa]r[ăa][ \t]+tva|fara[ \t]+tva)\b|"
+    r"\btotal excluding tax\b|\bnet amount\b",
+    re.IGNORECASE,
+)
 EMITENT_LABEL = re.compile(
     r"(?:furnizor|emitent|prestator|vânzător|vanzator|societatea)\s*[:\s]+(.+?)(?:\n|$)",
     re.IGNORECASE,
@@ -254,19 +268,46 @@ def _extract_cui_zone_aware(text: str) -> str | None:
     return _extract_cui(text)  # no clear emitter zone -> conservative fallback
 
 
-def _extract_payment_beneficiary(text: str) -> str | None:
-    match = BENEFICIAR_PATTERN.search(text or "")
-    if not match:
-        return None
-    candidate = match.group(1).strip(" \t\r\n.:-")
+def _normalize_lookup_text(value: str) -> str:
+    return value.lower().translate(str.maketrans("ăâîșşțţ", "aaisstt"))
+
+
+def _clean_payment_beneficiary_candidate(raw: str) -> str | None:
+    candidate = re.split(
+        r"[ \t]+(?:IBAN|CUI|CIF|SWIFT|BIC|banc[ăa]|bank)[ \t]*[:\-]?",
+        raw,
+        maxsplit=1,
+        flags=re.IGNORECASE,
+    )[0].strip(" \t\r\n.:-")
     if len(candidate) < 3:
         return None
     if ANY_IBAN_PATTERN.search(candidate) or re.fullmatch(r"[\d\s./-]+", candidate):
         return None
-    lower = candidate.lower()
-    if lower in {"iban", "cont", "cont bancar", "cui", "cif", "factura"}:
+    normalized = _normalize_lookup_text(candidate)
+    if normalized in {"iban", "cont", "cont bancar", "cui", "cif", "factura"}:
+        return None
+    if re.fullmatch(
+        r"(?:(?:beneficiar(?:ul|ului)?|titular(?:ul|ului)?|cont(?:ul|ului)?)[ -]+)?"
+        r"(?:(?:indicat|mentionat|specificat)(?:[ -]+(?:mai sus|in factura|din factura))?|"
+        r"de mai sus|din factura)",
+        normalized,
+    ):
+        return None
+    if not re.search(r"[A-Za-zĂÂÎȘŞȚŢăâîșşțţ]{2,}", candidate):
         return None
     return candidate
+
+
+def _extract_payment_beneficiary(text: str) -> str | None:
+    source = text or ""
+    # An explicit field label is stronger evidence than prose such as
+    # "plătiți către beneficiarul indicat", regardless of document order.
+    for pattern in (BENEFICIAR_EXPLICIT_PATTERN, BENEFICIAR_CONTEXT_PATTERN):
+        for match in pattern.finditer(source):
+            candidate = _clean_payment_beneficiary_candidate(match.group(1))
+            if candidate:
+                return candidate
+    return None
 
 
 def _extract_printed_bank_name(text: str) -> str | None:
@@ -377,6 +418,16 @@ def _parse_amounts(text: str) -> dict:
             continue
         values = _extract_amount_values(line)
         next_values = _next_amount_values(lines, i)
+        is_subtotal = bool(SUBTOTAL_LABEL.search(lower))
+        if is_subtotal:
+            if values:
+                amounts["subtotal"].append(values[-1])
+                continue
+            # Bare "Valoare" is commonly a table header. Only qualified
+            # summary labels are allowed to borrow a value from a later line.
+            if QUALIFIED_SUBTOTAL_LABEL.search(lower) and next_values:
+                amounts["subtotal"].append(next_values[-1])
+            continue
         if TVA_LABEL.search(lower) and "total" not in lower:
             if lower in {"tax", "tva"} or "unit price" in lower or lower.startswith("description"):
                 continue
@@ -402,13 +453,6 @@ def _parse_amounts(text: str) -> dict:
                 if val is not None:
                     amounts["tva"].append(val)
                     break
-        if SUBTOTAL_LABEL.search(lower):
-            if values:
-                amounts["subtotal"].append(values[-1])
-                continue
-            if next_values:
-                amounts["subtotal"].append(next_values[-1])
-                continue
         if TOTAL_LABEL.search(lower) and "net" not in lower and "excluding" not in lower:
             if values:
                 amounts["total"].append(values[-1])
@@ -593,13 +637,42 @@ def _is_emitent_candidate(line: str) -> bool:
     return bool(re.search(r"[A-Za-zĂÂÎȘŞȚŢăâîșşțţ]{3,}", candidate))
 
 
-def _plausible_invoice_number(candidate: str) -> bool:
+def _plausible_invoice_number(candidate: str, *, heading: bool = False) -> bool:
     # Un număr de factură conține practic întotdeauna cel puțin o cifră. Fără
     # guard, pe layout-uri OCR pe coloane ("Număr factură  Data emiterii" cu
     # valorile pe rândul următor) `\s` traversează newline-ul și capturează
     # următorul CUVÂNT-etichetă ("Data") drept număr — un câmp corupt silențios,
     # mai rău decât unul lipsă.
-    return any(ch.isdigit() for ch in candidate)
+    if not candidate or len(candidate) > 64 or not any(ch.isdigit() for ch in candidate):
+        return False
+    if not re.fullmatch(r"[A-Z0-9][A-Z0-9._/-]*(?:[ \t]+[A-Z0-9][A-Z0-9._/-]*){0,2}", candidate, re.IGNORECASE):
+        return False
+    tokens = {_normalize_lookup_text(token).strip("._/-") for token in candidate.split()}
+    descriptive_tokens = {
+        "copie", "curenta", "data", "exemplar", "fiscala", "original", "proforma",
+        "restanta", "scadenta", "storno", "zile",
+    }
+    if tokens & descriptive_tokens:
+        return False
+    if heading:
+        compact = re.sub(r"\s+", "", candidate)
+        # A bare four-digit year is too ambiguous after the word "Factura".
+        if compact.isdigit() and len(compact) < 6:
+            return False
+    return True
+
+
+def _clean_invoice_number_candidate(raw: str, *, allow_spaces: bool = False, heading: bool = False) -> str | None:
+    candidate = re.split(
+        r"[ \t]+(?:din|data|date|emis[ăa]?|issued|scaden[țt][ăa]?|due|total)\b",
+        raw,
+        maxsplit=1,
+        flags=re.IGNORECASE,
+    )[0].strip(" \t\r\n,;:#")
+    candidate = re.sub(r"[ \t]+", " ", candidate).rstrip(".")
+    if not allow_spaces and re.search(r"[ \t]", candidate):
+        candidate = candidate.split()[0]
+    return candidate if _plausible_invoice_number(candidate, heading=heading) else None
 
 
 def _extract_invoice_number(text: str) -> str | None:
@@ -607,37 +680,52 @@ def _extract_invoice_number(text: str) -> str | None:
         r"\binvoice\s+(?:number|no\.?|#)\s*[:#]?\s*([A-Z0-9][A-Z0-9._/-]+)",
         r"\bfactura\s+seri[aă]\s+\S+\s*/\s*nr[.\s]*\s*([A-Z0-9][A-Z0-9._/-]+)",
         r"\bseri[aă]\s+\S+\s+nr[.\s]*\s*([A-Z0-9][A-Z0-9._/-]+)",
-        r"\bnr[.\s]*factur[ai]\s*[.:\s]*\s*([A-Z0-9][A-Z0-9._/-]+)",
-        r"\bnum[aă]r[.\s]*factur[ăa]\s*[.:\s]*\s*([A-Z0-9][A-Z0-9._/-]+)",
+        r"\bnr[.\s]*factur(?:a|ă|ii)\s*[.:\s]*\s*([A-Z0-9][A-Z0-9._/-]+)",
+        r"\bnum[aă]r(?:ul)?[.\s]*factur(?:a|ă|ii)\s*[.:\s]*\s*([A-Z0-9][A-Z0-9._/-]+)",
         r"\bfactura\s+nr[.\s]*[:#]?\s*([A-Z0-9][A-Z0-9._/-]+)",
+        r"^\s*seri[eaă]?\s*/\s*num[aă]r\s*[:#.]?\s*([A-Z0-9][A-Z0-9._/-]+)",
+        r"^\s*factur[ăa]\s*[:#]\s*([A-Z0-9][A-Z0-9._/-]+)",
     ]
-    for pattern in patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            candidate = match.group(1).strip().rstrip(".,")
-            if _plausible_invoice_number(candidate):
-                return candidate
+    lines = [line.strip() for line in (text or "").splitlines()]
+    for line in lines:
+        for pattern in patterns:
+            match = re.search(pattern, line, re.IGNORECASE)
+            if match:
+                candidate = _clean_invoice_number_candidate(match.group(1))
+                if candidate:
+                    return candidate
     # Layout pe coloane/etichetă singură pe rând: valoarea vine pe unul din
     # rândurile imediat următoare (lookahead 3, ca la sume).
     label_re = re.compile(
         r"^(?:"
         r"serie\s*(?:(?:si|și|şi)\s*)?(?:nr\.?|num[aă]r)|"
-        r"nr\.?\s*factur[ăa]|num[aă]r\s*factur[ăa]|"
+        r"nr\.?\s*factur(?:a|ă|ii)|num[aă]r(?:ul)?\s*factur(?:a|ă|ii)|"
         r"invoice\s*(?:number|no\.?|#)"
         r")\s*[:#.]?\s*$",
         re.IGNORECASE,
     )
     value_re = re.compile(r"^[A-Z0-9][A-Z0-9._/-]{2,}$", re.IGNORECASE)
-    lines = [line.strip() for line in (text or "").splitlines()]
     for i, line in enumerate(lines[:-1]):
         if not label_re.match(line):
             continue
         for next_line in lines[i + 1 : i + 4]:
-            candidate = next_line.strip().rstrip(".,")
-            if value_re.match(candidate) and _plausible_invoice_number(candidate):
+            raw_candidate = next_line.strip().rstrip(".,")
+            candidate = _clean_invoice_number_candidate(raw_candidate)
+            if value_re.match(raw_candidate) and candidate:
                 return candidate
-            if candidate:
+            if raw_candidate:
                 break
+    # Compact invoice headings often contain only the document word followed
+    # by a series and number (for example "Factura MGH 0013"). Descriptive
+    # headings are rejected by the candidate validator above.
+    heading_re = re.compile(r"^\s*factur[ăa]?\s+(.+?)\s*$", re.IGNORECASE)
+    for line in lines:
+        match = heading_re.match(line)
+        if not match:
+            continue
+        candidate = _clean_invoice_number_candidate(match.group(1), allow_spaces=True, heading=True)
+        if candidate:
+            return candidate
     return None
 
 
