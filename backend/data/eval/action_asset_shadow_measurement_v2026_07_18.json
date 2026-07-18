@@ -1,0 +1,375 @@
+{
+  "schema": "sigurscan_action_asset_shadow_measurement_v1",
+  "base_commit": "37fa2473b77424cc450e3dae2ab6afc32b27e863",
+  "implementation_sha256": "d2ef2ef03cd782987043767fc03870a85d885a80f76bc8eb2007fa421f71a069",
+  "mode": "offline_current_gate_plus_action_asset_shadow_no_live_providers_no_mistral",
+  "privacy": "Aggregate counts only; no text, URL, hostname, case id, provider payload, or extracted secret is stored.",
+  "corpus": {
+    "deduplicated_case_count": 2294,
+    "evaluated_cases": 2294,
+    "labeled_cases": 2250,
+    "errors": {},
+    "route_counts": {
+      "generic": 2030,
+      "invoice": 264
+    },
+    "expected_counts": {
+      "SAFE": 510,
+      "DANGEROUS": 891,
+      "UNVERIFIED": 353,
+      "SUSPECT": 496
+    }
+  },
+  "results": {
+    "actual_counts": {
+      "UNVERIFIED": 1474,
+      "DANGEROUS": 668,
+      "SUSPECT": 152
+    },
+    "candidate_floor_counts": {
+      "NONE": 2034,
+      "SUSPECT": 217,
+      "DANGEROUS": 43
+    },
+    "effective_shadow_counts": {
+      "UNVERIFIED": 1396,
+      "DANGEROUS": 671,
+      "SUSPECT": 227
+    },
+    "transitions": {
+      "UNVERIFIED->UNVERIFIED": 1396,
+      "DANGEROUS->DANGEROUS": 668,
+      "UNVERIFIED->SUSPECT": 75,
+      "UNVERIFIED->DANGEROUS": 3,
+      "SUSPECT->SUSPECT": 152
+    },
+    "expected_transitions": {
+      "SAFE:UNVERIFIED->UNVERIFIED": 476,
+      "DANGEROUS:DANGEROUS->DANGEROUS": 529,
+      "UNVERIFIED:UNVERIFIED->UNVERIFIED": 301,
+      "DANGEROUS:UNVERIFIED->UNVERIFIED": 265,
+      "SUSPECT:DANGEROUS->DANGEROUS": 133,
+      "SUSPECT:UNVERIFIED->UNVERIFIED": 319,
+      "DANGEROUS:UNVERIFIED->SUSPECT": 11,
+      "SAFE:UNVERIFIED->SUSPECT": 31,
+      "UNVERIFIED:UNVERIFIED->SUSPECT": 26,
+      "UNVERIFIED:UNVERIFIED->DANGEROUS": 1,
+      "DANGEROUS:SUSPECT->SUSPECT": 85,
+      "SUSPECT:SUSPECT->SUSPECT": 38,
+      "UNVERIFIED:SUSPECT->SUSPECT": 25,
+      "DANGEROUS:UNVERIFIED->DANGEROUS": 1,
+      "SAFE:SUSPECT->SUSPECT": 3,
+      "SUSPECT:UNVERIFIED->SUSPECT": 6
+    },
+    "requested_action_counts": {
+      "install_app": 16,
+      "transfer_money": 169,
+      "enter_card_data": 21,
+      "transfer_crypto": 16,
+      "enter_code": 13,
+      "share_code": 7,
+      "change_payment_destination": 5,
+      "enter_credentials": 8,
+      "grant_remote_access": 1,
+      "pay_to_receive": 1,
+      "buy_gift_card": 2,
+      "approve_transaction": 15,
+      "submit_identity": 3,
+      "share_identity": 4
+    },
+    "protected_action_counts": {
+      "install_app": 16,
+      "transfer_money": 169,
+      "share_card_data": 21,
+      "transfer_alternative_value": 18,
+      "share_authentication_secret": 20,
+      "change_payment_destination": 5,
+      "grant_remote_access": 1,
+      "pay_to_receive": 1,
+      "approve_transaction": 15,
+      "share_identity": 7
+    },
+    "composition_counts": {
+      "credential_exfiltration": 7,
+      "transfer_to_changed_destination": 6,
+      "remote_access_install": 1,
+      "advance_fee": 1
+    },
+    "candidate_reason_counts": {
+      "protected_action_requires_proof": 217,
+      "protected_action_identity_mismatch": 37,
+      "transfer_to_changed_unconfirmed_destination": 6
+    },
+    "proof_status_counts": {
+      "not_required": 2034,
+      "blocked": 260
+    },
+    "channel_counts": {
+      "app": 15,
+      "phone": 52,
+      "email": 666,
+      "sms": 184,
+      "social": 77,
+      "web": 87,
+      "whatsapp": 88,
+      "unknown": 817,
+      "invoice": 224,
+      "text": 54,
+      "qr": 30
+    },
+    "protected_positive_cases": 260,
+    "protected_floor_covered_cases": 260,
+    "protected_floor_coverage": 1.0,
+    "protected_expected_risk_cases": 200,
+    "protected_expected_risk_false_safe_after_shadow": 0,
+    "expected_safe_cases": 510,
+    "expected_safe_candidate_dangerous": 0,
+    "expected_safe_candidate_dangerous_rate": 0.0,
+    "expected_safe_candidate_suspect": 31,
+    "expected_dangerous_recovered_safe_to_dangerous": 0,
+    "expected_dangerous_recovered_below_floor_to_at_least_suspect": 12
+  },
+  "by_source_aggregate": {
+    "backend/data/eval_dataset.jsonl": {
+      "total": 9,
+      "protected_positive": 0,
+      "changed": 0,
+      "candidate_none": 9,
+      "expected_dangerous": 5,
+      "expected_safe": 4
+    },
+    "backend/data/evaluation_dataset_v1.jsonl": {
+      "total": 345,
+      "protected_positive": 50,
+      "changed": 4,
+      "candidate_none": 295,
+      "expected_safe": 110,
+      "expected_dangerous": 145,
+      "expected_unverified": 25,
+      "candidate_suspect": 30,
+      "candidate_dangerous": 20,
+      "expected_suspect": 65
+    },
+    "backend/data/hard_eval.jsonl": {
+      "total": 12,
+      "protected_positive": 0,
+      "changed": 0,
+      "candidate_none": 12,
+      "expected_dangerous": 7,
+      "expected_safe": 5
+    },
+    "backend/data/verdict_testset_ro.jsonl": {
+      "total": 65,
+      "protected_positive": 11,
+      "changed": 3,
+      "candidate_none": 54,
+      "expected_safe": 15,
+      "candidate_dangerous": 5,
+      "expected_dangerous": 36,
+      "candidate_suspect": 6,
+      "expected_unverified": 6,
+      "expected_suspect": 8
+    },
+    "backend/testdata/web_redteam_scam_fixtures_2026_06_16.json": {
+      "total": 12,
+      "protected_positive": 2,
+      "changed": 0,
+      "candidate_dangerous": 1,
+      "expected_dangerous": 11,
+      "candidate_none": 10,
+      "candidate_suspect": 1,
+      "expected_suspect": 1
+    },
+    "sigurscan_adversarial_negation_contrastive_ro_2026_06_17.zip:sigurscan_adversarial_negation_contrastive_ro_2026_06_17.json": {
+      "total": 166,
+      "protected_positive": 37,
+      "changed": 3,
+      "candidate_none": 129,
+      "expected_safe": 12,
+      "candidate_suspect": 31,
+      "expected_dangerous": 83,
+      "expected_unverified": 71,
+      "candidate_dangerous": 6
+    },
+    "sigurscan_imm_b2b_invoice_fraud_pack_2026_06_15.zip:sigurscan_imm_b2b_invoice_fraud_pack_2026_06_15/b2b_acceptance_tests_120.json": {
+      "total": 120,
+      "protected_positive": 0,
+      "changed": 0,
+      "candidate_none": 120,
+      "expected_dangerous": 30,
+      "expected_suspect": 30,
+      "expected_unverified": 30,
+      "expected_safe": 30
+    },
+    "sigurscan_imm_b2b_invoice_fraud_pack_2026_06_15.zip:sigurscan_imm_b2b_invoice_fraud_pack_2026_06_15/vendor_payment_trust_registry_ro_imm_2026_06_15.json": {
+      "total": 120,
+      "protected_positive": 0,
+      "changed": 0,
+      "candidate_none": 120,
+      "expected_dangerous": 30,
+      "expected_suspect": 30,
+      "expected_unverified": 30,
+      "expected_safe": 30
+    },
+    "sigurscan_imm_b2b_invoice_fraud_round2_2026_06_15.zip:sigurscan_imm_b2b_invoice_fraud_round2_2026_06_15/b2b_round2_acceptance_tests_160.json": {
+      "total": 160,
+      "protected_positive": 7,
+      "changed": 0,
+      "candidate_suspect": 7,
+      "expected_dangerous": 40,
+      "candidate_none": 153,
+      "expected_suspect": 40,
+      "expected_unverified": 40,
+      "expected_safe": 40
+    },
+    "sigurscan_imm_b2b_invoice_fraud_round2_2026_06_15.zip:sigurscan_imm_b2b_invoice_fraud_round2_2026_06_15/b2b_round2_signals.json": {
+      "total": 12,
+      "protected_positive": 0,
+      "changed": 0,
+      "candidate_none": 12
+    },
+    "sigurscan_imm_b2b_invoice_fraud_round2_2026_06_15.zip:sigurscan_imm_b2b_invoice_fraud_round2_2026_06_15/imm_b2b_round2_pack_2026_06_15.json": {
+      "total": 160,
+      "protected_positive": 7,
+      "changed": 0,
+      "candidate_suspect": 7,
+      "expected_dangerous": 40,
+      "candidate_none": 153,
+      "expected_suspect": 40,
+      "expected_unverified": 40,
+      "expected_safe": 40
+    },
+    "sigurscan_imm_b2b_invoice_fraud_round3_2026_06_15.zip:sigurscan_imm_b2b_invoice_fraud_round3_2026_06_15/b2b_round3_acceptance_tests_200.json": {
+      "total": 200,
+      "protected_positive": 37,
+      "changed": 25,
+      "candidate_none": 163,
+      "expected_dangerous": 50,
+      "candidate_suspect": 37,
+      "expected_suspect": 50,
+      "expected_unverified": 50,
+      "expected_safe": 50
+    },
+    "sigurscan_imm_b2b_invoice_fraud_round3_2026_06_15.zip:sigurscan_imm_b2b_invoice_fraud_round3_2026_06_15/b2b_round3_signals.json": {
+      "total": 12,
+      "protected_positive": 1,
+      "changed": 1,
+      "candidate_none": 11,
+      "candidate_suspect": 1
+    },
+    "sigurscan_imm_b2b_invoice_fraud_round3_2026_06_15.zip:sigurscan_imm_b2b_invoice_fraud_round3_2026_06_15/imm_b2b_round3_pack_2026_06_15.json": {
+      "total": 200,
+      "protected_positive": 37,
+      "changed": 25,
+      "candidate_none": 163,
+      "expected_dangerous": 50,
+      "candidate_suspect": 37,
+      "expected_suspect": 50,
+      "expected_unverified": 50,
+      "expected_safe": 50
+    },
+    "sigurscan_novel_zero_day_holdout_ro_2026_06_18.zip:sigurscan_novel_zero_day_holdout_ro_2026_06_18/answer_key/cases.json": {
+      "total": 63,
+      "protected_positive": 8,
+      "changed": 1,
+      "candidate_none": 55,
+      "expected_dangerous": 42,
+      "candidate_suspect": 7,
+      "candidate_dangerous": 1,
+      "expected_suspect": 7,
+      "expected_unverified": 7,
+      "expected_safe": 7
+    },
+    "sigurscan_real_b2b_scam_cases_ro_eu_2026_round3_98_cases.zip:real_b2b_scam_cases_ro_eu_2026_round3_98_cases.json": {
+      "total": 98,
+      "protected_positive": 10,
+      "changed": 1,
+      "candidate_none": 88,
+      "expected_dangerous": 75,
+      "expected_suspect": 15,
+      "candidate_suspect": 10,
+      "expected_safe": 6,
+      "expected_unverified": 2
+    },
+    "sigurscan_real_scam_cases_ro_2026_round1.zip:sigurscan_real_scam_cases_ro_2026_round1/real_scam_cases_ro_2026_pack.json": {
+      "total": 34,
+      "protected_positive": 7,
+      "changed": 1,
+      "candidate_dangerous": 6,
+      "expected_dangerous": 34,
+      "candidate_none": 27,
+      "candidate_suspect": 1
+    },
+    "sigurscan_real_scam_cases_ro_2026_round2_b2b_invoice.zip:real_scam_cases_ro_2026_round2_b2b_invoice_pack.json": {
+      "total": 36,
+      "protected_positive": 5,
+      "changed": 1,
+      "candidate_suspect": 4,
+      "expected_dangerous": 23,
+      "candidate_none": 31,
+      "expected_suspect": 7,
+      "candidate_dangerous": 1,
+      "expected_safe": 4,
+      "expected_unverified": 2
+    },
+    "sigurscan_ro_research_test_pack_2025_2026_v1.zip:sigurscan_ro_research_test_pack_2025_2026_v1/false_positive_guard_tests.json": {
+      "total": 50,
+      "protected_positive": 2,
+      "changed": 2,
+      "candidate_none": 48,
+      "expected_safe": 46,
+      "candidate_suspect": 2,
+      "expected_suspect": 4
+    },
+    "sigurscan_ro_research_test_pack_2025_2026_v1.zip:sigurscan_ro_research_test_pack_2025_2026_v1/html_email_parser_torture_tests.json": {
+      "total": 40,
+      "protected_positive": 0,
+      "changed": 0,
+      "candidate_none": 40,
+      "expected_safe": 11,
+      "expected_dangerous": 16,
+      "expected_suspect": 13
+    },
+    "sigurscan_ro_research_test_pack_2025_2026_v1.zip:sigurscan_ro_research_test_pack_2025_2026_v1/live_provider_smoke_tests.json": {
+      "total": 20,
+      "protected_positive": 1,
+      "changed": 1,
+      "candidate_none": 19,
+      "candidate_dangerous": 1
+    },
+    "sigurscan_romania_minor_scam_families_addendum_2025_2026.zip:sigurscan_romania_minor_scam_families_addendum_2025_2026/acceptance_tests_minor_families.json": {
+      "total": 180,
+      "protected_positive": 19,
+      "changed": 5,
+      "candidate_none": 161,
+      "expected_dangerous": 87,
+      "candidate_suspect": 18,
+      "expected_suspect": 68,
+      "expected_safe": 25,
+      "candidate_dangerous": 1
+    },
+    "sigurscan_romania_minor_scam_families_addendum_2025_2026.zip:sigurscan_romania_minor_scam_families_addendum_2025_2026/sigurscan_romania_minor_scam_families_addendum_2025_2026.json": {
+      "total": 180,
+      "protected_positive": 19,
+      "changed": 5,
+      "candidate_none": 161,
+      "expected_dangerous": 87,
+      "candidate_suspect": 18,
+      "expected_suspect": 68,
+      "expected_safe": 25,
+      "candidate_dangerous": 1
+    }
+  },
+  "acceptance": {
+    "protected_expected_risk_false_safe_target": 0,
+    "protected_expected_risk_false_safe_pass": true,
+    "expected_safe_candidate_dangerous_rate_target_lt": 0.01,
+    "expected_safe_candidate_dangerous_rate_pass": true
+  },
+  "decision": {
+    "shadow_only": true,
+    "active_flag_default": false,
+    "activation_authorized": false,
+    "requires_manual_fp_fn_review": true
+  }
+}

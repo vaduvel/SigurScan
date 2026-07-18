@@ -240,6 +240,37 @@ def test_email_compound_measurement_is_shadow_only_and_aggregate_by_default():
     assert sum(report["source_set_case_counts"].values()) == report["case_count"]
 
 
+def test_action_asset_measurement_is_shadow_only_private_and_meets_stage_two_gates():
+    report = json.loads(
+        (
+            ROOT_DIR
+            / "backend"
+            / "data"
+            / "eval"
+            / "action_asset_shadow_measurement_v2026_07_18.json"
+        ).read_text(encoding="utf-8")
+    )
+    serialized = json.dumps(report, ensure_ascii=False)
+
+    assert report["schema"] == "sigurscan_action_asset_shadow_measurement_v1"
+    assert len(report["implementation_sha256"]) == 64
+    assert report["corpus"]["deduplicated_case_count"] == 2294
+    assert report["corpus"]["evaluated_cases"] == 2294
+    assert report["corpus"]["errors"] == {}
+    assert report["results"]["protected_floor_coverage"] == 1.0
+    assert report["results"]["protected_expected_risk_false_safe_after_shadow"] == 0
+    assert report["results"]["expected_safe_candidate_dangerous"] == 0
+    assert report["acceptance"]["protected_expected_risk_false_safe_pass"] is True
+    assert report["acceptance"]["expected_safe_candidate_dangerous_rate_pass"] is True
+    assert report["decision"]["shadow_only"] is True
+    assert report["decision"]["active_flag_default"] is False
+    assert report["decision"]["activation_authorized"] is False
+    assert "rows" not in report
+    assert "text_preview" not in serialized
+    assert "raw_text" not in serialized
+    assert "case_id" not in serialized
+
+
 def test_backend_ci_guards_tracked_local_secrets_before_tests():
     workflow = (ROOT_DIR / ".github" / "workflows" / "backend-ci.yml").read_text(
         encoding="utf-8"

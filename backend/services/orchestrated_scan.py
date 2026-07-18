@@ -23,10 +23,15 @@ from services.provider_gate import _apply_decision_contract_result, _apply_provi
 from services.reputation_enrich import _attach_reputation_lookup_hashes, _attach_reputation_lookup_urls, _has_bad_provider_verdict
 from services.external_url_privacy import prepare_external_url, prepare_external_urls, prepare_reputation_lookup_url
 from services.artifact_envelope import build_artifact_envelope
+from services.protected_action_shadow import (
+    build_action_asset_shadow,
+    evaluate_protected_action_shadow,
+)
 from services.email_evidence_ledger import sanitize_email_evidence_ledger
 from services.pre_redaction_evidence import (
     pre_redaction_context_text,
     pre_redaction_primary_cui,
+    pre_redaction_summary,
     sanitize_pre_redaction_evidence,
 )
 from services.threat_enrichment import build_threat_enrichment
@@ -416,6 +421,7 @@ class OrchestratedScanEngine:
             "claim_verifier_required",
             "offer_web_claim",
             "invoice_analysis_text",
+            "action_asset_shadow",
         ):
             local_value = local.get(key)
             if local_value not in (None, "", [], {}) and merged.get(key) in (None, "", [], {}):
@@ -1089,6 +1095,20 @@ class OrchestratedScanEngine:
             _apply_final_url_unresolved_shortener_fail_safe(job, analysis)
         evidence = analysis.get("evidence", {}) if isinstance(analysis.get("evidence"), dict) else {}
         gate = evidence.get("verdict_gate") if isinstance(evidence.get("verdict_gate"), dict) else {}
+        decision_bundle = evidence.get("decision_bundle") if isinstance(evidence.get("decision_bundle"), dict) else {}
+        job["action_asset_shadow"] = evaluate_protected_action_shadow(
+            job.get("action_asset_shadow"),
+            decision_bundle=decision_bundle,
+            actual_label=str(gate.get("label") or "") or None,
+        )
+        self._emit_orchestrated_telemetry(
+            "orchestrated_action_asset_shadow",
+            job,
+            candidate_min_label=job["action_asset_shadow"].get("candidate_min_label"),
+            actual_label=job["action_asset_shadow"].get("actual_label"),
+            would_raise_actual=job["action_asset_shadow"].get("would_raise_actual"),
+            protected_actions=job["action_asset_shadow"].get("contract", {}).get("protected_actions", []),
+        )
         if str(gate.get("label") or "").upper() == "UNVERIFIED" and not self._orchestrated_result_is_final(job, analysis):
             if existing_result and existing_result.get("is_final", True) is not False:
                 self._emit_orchestrated_telemetry("orchestrated_verdict_pending_preserved_final", job)
@@ -1412,6 +1432,11 @@ class OrchestratedScanEngine:
             ),
             pre_redaction_evidence=pre_redaction_evidence,
         )
+        action_asset_shadow = build_action_asset_shadow(
+            privacy_safe_text,
+            source_channel=str(context["source_channel"]),
+            pre_redaction_summary=pre_redaction_summary(pre_redaction_evidence),
+        )
         scan_id = _new_scan_id("orch")
         extra_fields = dict(context.get("extra_fields") or {})
         for key in ("input_url", "canonical_url"):
@@ -1446,6 +1471,7 @@ class OrchestratedScanEngine:
             "input_type": context["input_type"],
             "source_channel": context["source_channel"],
             "artifact_envelope": artifact_envelope,
+            "action_asset_shadow": action_asset_shadow,
             "threat_enrichment": build_threat_enrichment(
                 artifact_envelope=artifact_envelope,
                 resolved_urls=[],
