@@ -149,43 +149,47 @@ fun RadarTab(viewModel: ScannerViewModel) {
         Text("Radar Scam", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = SigurColors.TextPrimary)
         Spacer(modifier = Modifier.height(16.dp))
 
-        RadarCallProtectionCard(
-            cache = viewModel.radarHotCache,
-            audit = viewModel.radarScreeningAudit,
-            loading = viewModel.radarHotCacheLoading,
-            status = viewModel.radarHotCacheStatus,
-            hasCallPromptNotificationPermission = hasCallPromptNotificationPermission,
-            reportPhoneInput = viewModel.radarReportPhoneInput,
-            reportPhoneLoading = viewModel.radarReportPhoneLoading,
-            reportPhoneStatus = viewModel.radarReportPhoneStatus,
-            onSync = { viewModel.syncRadarHotCache() },
-            onRefreshAudit = { viewModel.refreshRadarScreeningAudit() },
-            onEnableRole = { requestCallScreeningRole(context) },
-            onEnableCallPromptNotification = {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    callPromptNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                } else {
-                    hasCallPromptNotificationPermission = true
-                }
-            },
-            onReportPhoneInputChange = { viewModel.radarReportPhoneInput = it },
-            onReportPhone = { viewModel.reportRadarPhoneNumber() }
-        )
-        Spacer(modifier = Modifier.height(16.dp))
+        if (BuildConfig.SIGURSCAN_ENABLE_LIVE_CALL) {
+            RadarCallProtectionCard(
+                cache = viewModel.radarHotCache,
+                audit = viewModel.radarScreeningAudit,
+                loading = viewModel.radarHotCacheLoading,
+                status = viewModel.radarHotCacheStatus,
+                hasCallPromptNotificationPermission = hasCallPromptNotificationPermission,
+                reportPhoneInput = viewModel.radarReportPhoneInput,
+                reportPhoneLoading = viewModel.radarReportPhoneLoading,
+                reportPhoneStatus = viewModel.radarReportPhoneStatus,
+                onSync = { viewModel.syncRadarHotCache() },
+                onRefreshAudit = { viewModel.refreshRadarScreeningAudit() },
+                onEnableRole = { requestCallScreeningRole(context) },
+                onEnableCallPromptNotification = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        callPromptNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        hasCallPromptNotificationPermission = true
+                    }
+                },
+                onReportPhoneInputChange = { viewModel.radarReportPhoneInput = it },
+                onReportPhone = { viewModel.reportRadarPhoneNumber() }
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         if (BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR) {
-            val speakerGuardPrompt = viewModel.radarScreeningAudit
-                ?.let {
-                    RadarCallDecision(
-                        action = it.action,
-                        reason = it.reason,
-                        family = it.family,
-                        isKnownContact = it.isKnownContact
-                    )
-                }
-                ?.takeIf { SpeakerGuardCallPromptPolicy.shouldOffer(it) && !viewModel.speakerGuardSnapshot.active }
-                ?.let {
-                    speakerGuardCallPrompt(it)
+            val speakerGuardPrompt = if (BuildConfig.SIGURSCAN_ENABLE_LIVE_CALL) {
+                viewModel.radarScreeningAudit
+                    ?.let {
+                        RadarCallDecision(
+                            action = it.action,
+                            reason = it.reason,
+                            family = it.family,
+                            isKnownContact = it.isKnownContact
+                        )
+                    }
+                    ?.takeIf { SpeakerGuardCallPromptPolicy.shouldOffer(it) && !viewModel.speakerGuardSnapshot.active }
+                    ?.let { speakerGuardCallPrompt(it) }
+            } else {
+                null
             }
             val startSpeakerGuardWithConsent = {
                 viewModel.acceptSpeakerGuardConsent()

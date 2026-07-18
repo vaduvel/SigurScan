@@ -90,6 +90,10 @@ class RadarHotCacheTest {
         val foregroundServiceSource = java.io.File("src/main/java/ro/sigurscan/app/SpeakerGuardForegroundService.kt").takeIf { it.exists() }?.readText().orEmpty()
 
         assertTrue(
+            "The compiled V2 call-screening service must be inert unless the dedicated live-call flag is enabled.",
+            serviceSource.contains("BuildConfig.SIGURSCAN_ENABLE_LIVE_CALL")
+        )
+        assertTrue(
             "CallScreeningService must hand call-time Speaker Guard prompts to a foreground service so the app-closed case is covered.",
             serviceSource.contains("SpeakerGuardForegroundService.startForCallPrompt(applicationContext, decision)")
         )
@@ -104,8 +108,10 @@ class RadarHotCacheTest {
             notifierSource.contains(".setFullScreenIntent(pendingIntent, true)")
         )
         assertTrue(
-            "The prompt must be gated behind the reviewed local ASR feature flag.",
-            notifierSource.contains("BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR")
+            "The prompt must require both the reviewed audio feature and the separate live-call feature.",
+            notifierSource.contains("BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR") &&
+                notifierSource.contains("BuildConfig.SIGURSCAN_ENABLE_LIVE_CALL") &&
+                foregroundServiceSource.contains("BuildConfig.SIGURSCAN_ENABLE_LIVE_CALL")
         )
         assertTrue(
             "Speaker Guard call prompt eligibility must use the unknown-contact policy, not only Radar WARN.",

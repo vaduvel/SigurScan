@@ -495,7 +495,7 @@ internal fun AudioAsrReadinessCard(
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Urechea SigurScan", color = SigurColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text("Pentru apeluri nesigure: pui pe difuzor, apeși start, iar analiza rămâne pe telefon.", color = SigurColors.TextMuted, fontSize = 11.sp, lineHeight = 15.sp)
+                    Text("Pe alt telefon, pune conversația pe difuzor. Pornește Urechea aici; audio-ul rămâne pe acest telefon.", color = SigurColors.TextMuted, fontSize = 11.sp, lineHeight = 15.sp)
                 }
                 DSChip(if (speakerGuard.active) "live" else if (blocked) "nepregătit" else "pregătit", tone = if (speakerGuard.active) DSChipTone.Brand else if (blocked) DSChipTone.Suspect else DSChipTone.Safe)
             }
@@ -534,7 +534,7 @@ internal fun AudioAsrReadinessCard(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    if (speakerGuard.active) "Oprește Urechea" else "Ascultă pe difuzor",
+                    if (speakerGuard.active) "Oprește Urechea" else "Pornește ascultarea",
                     color = if (speakerGuard.active) SigurColors.Dangerous else SigurColors.Safe,
                     fontSize = 11.sp
                 )
@@ -912,6 +912,7 @@ internal fun RadarCallProtectionCard(
 }
 
 internal fun requestCallScreeningRole(context: Context) {
+    if (!BuildConfig.SIGURSCAN_ENABLE_LIVE_CALL) return
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         val roleManager = context.getSystemService(RoleManager::class.java)
         val intent = roleManager?.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING)

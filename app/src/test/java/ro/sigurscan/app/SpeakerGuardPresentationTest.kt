@@ -12,17 +12,17 @@ class SpeakerGuardPresentationTest {
             active = true,
             phase = SpeakerGuardPhase.LISTENING,
             latestVerdict = null,
-            status = "Ascultă prin microfon. Ține apelul pe difuzor.",
+            status = "Ascultă prin microfon conversația redată de celălalt telefon.",
             startedAtEpochMillis = 1_000L
         )
 
         val presentation = speakerGuardPresentation(snapshot, evidence = null, nowMillis = 43_000L)
 
         assertEquals("Urechea ascultă", presentation.title)
-        assertEquals("Ascult pe difuzor", presentation.listeningLabel)
+        assertEquals("Ascult conversația", presentation.listeningLabel)
         assertEquals("0:42", presentation.elapsedLabel)
         assertEquals("Analizez pe telefonul tău. Nimic nu pleacă de pe el.", presentation.privacyLine)
-        assertEquals("Ascultă prin microfon. Ține apelul pe difuzor.", presentation.status)
+        assertEquals("Ascultă prin microfon conversația redată de celălalt telefon.", presentation.status)
         assertFalse(presentation.showHangUpCta)
     }
 
@@ -87,7 +87,7 @@ class SpeakerGuardPresentationTest {
 
         assertEquals("Oprit", presentation.listeningLabel)
         assertEquals("Ascult conversația", presentation.verdictTitle)
-        assertEquals("Pune apelul pe difuzor și lasă analiza locală pornită.", presentation.primaryAction)
+        assertEquals("Pune celălalt telefon pe difuzor și lasă analiza locală pornită.", presentation.primaryAction)
         assertFalse(presentation.showHangUpCta)
     }
 

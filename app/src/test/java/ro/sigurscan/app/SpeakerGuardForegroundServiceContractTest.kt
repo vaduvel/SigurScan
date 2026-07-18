@@ -7,19 +7,19 @@ import java.io.File
 
 class SpeakerGuardForegroundServiceContractTest {
     @Test
-    fun viewModelDelegatesLiveCaptureToMicrophoneForegroundService() {
+    fun viewModelDelegatesManualListenerCaptureToMicrophoneForegroundService() {
         val viewModelAudioSource = File("src/main/java/ro/sigurscan/app/ScannerViewModelAudio.kt").readText()
 
         assertTrue(
-            "Starting live-call Speaker Guard must enter the microphone foreground service after consent.",
+            "Starting the manual Urechea listener must enter the microphone foreground service after consent.",
             viewModelAudioSource.contains("SpeakerGuardForegroundService.startCapture(")
         )
         assertTrue(
-            "Stopping live-call Speaker Guard must explicitly stop the microphone foreground service.",
+            "Stopping the manual Urechea listener must explicitly stop the microphone foreground service.",
             viewModelAudioSource.contains("SpeakerGuardForegroundService.stopCapture(")
         )
         assertFalse(
-            "The ViewModel must not own AudioRecord capture in viewModelScope; Android can background-limit it behind the dialer.",
+            "The ViewModel must not own AudioRecord capture in viewModelScope; Activity recreation must not kill the listener.",
             viewModelAudioSource.contains("SpeakerGuardSession(")
         )
     }
@@ -40,6 +40,44 @@ class SpeakerGuardForegroundServiceContractTest {
             "Prompt action must stay separated from capture action so call screening cannot start the mic before consent.",
             serviceSource.contains("ACTION_SHOW_CALL_PROMPT") &&
                 serviceSource.contains("ACTION_START_CAPTURE")
+        )
+    }
+
+    @Test
+    fun callPromptEntryIsSeparatelyGatedFromManualListenerCapture() {
+        val serviceSource = File("src/main/java/ro/sigurscan/app/SpeakerGuardForegroundService.kt").readText()
+        val sharedIntentSource = File("src/main/java/ro/sigurscan/app/SharedIntentHandling.kt").readText()
+
+        assertTrue(
+            "Automatic call prompts must require the dedicated live-call feature flag.",
+            serviceSource.contains("BuildConfig.SIGURSCAN_ENABLE_LIVE_CALL")
+        )
+        assertTrue(
+            "The call-screening autostart deep link must not start the microphone in V1.",
+            sharedIntentSource.contains("autoStartSpeakerGuard") &&
+                sharedIntentSource.contains("BuildConfig.SIGURSCAN_ENABLE_LIVE_CALL")
+        )
+        assertTrue(
+            "Manual listener capture must remain available independently through ACTION_START_CAPTURE.",
+            serviceSource.contains("ACTION_START_CAPTURE") &&
+                serviceSource.contains("fun startCapture(")
+        )
+    }
+
+    @Test
+    fun v1ListenerCopyRequiresASecondPhoneAndUsesItsOwnSemanticChannel() {
+        val cardSource = File("src/main/java/ro/sigurscan/app/RadarCards.kt").readText()
+        val sessionSource = File("src/main/java/ro/sigurscan/app/SpeakerGuardSession.kt").readText()
+        val serviceSource = File("src/main/java/ro/sigurscan/app/SpeakerGuardForegroundService.kt").readText()
+
+        assertTrue(
+            "V1 must explain that Urechea listens to a conversation played from another phone.",
+            cardSource.contains("Pe alt telefon") &&
+                sessionSource.contains("celălalt telefon")
+        )
+        assertTrue(
+            "Manual listener telemetry must not be mislabeled as same-phone live-call traffic.",
+            serviceSource.contains("channel = \"speaker_listener\"")
         )
     }
 

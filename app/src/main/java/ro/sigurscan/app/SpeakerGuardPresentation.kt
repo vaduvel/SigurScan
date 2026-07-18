@@ -41,7 +41,7 @@ fun speakerGuardPresentation(
     }
     return SpeakerGuardPresentation(
         title = "Urechea ascultă",
-        listeningLabel = if (snapshot.active) "Ascult pe difuzor" else "Oprit",
+        listeningLabel = if (snapshot.active) "Ascult conversația" else "Oprit",
         elapsedLabel = elapsedLabel(snapshot.startedAtEpochMillis, nowMillis),
         privacyLine = "Analizez pe telefonul tău. Nimic nu pleacă de pe el.",
         status = snapshot.status,
@@ -84,7 +84,7 @@ private fun primaryAction(verdict: AudioEvidenceVerdict?): String {
         AudioEvidenceVerdict.DANGEROUS -> "Închide apelul. Nu da date și nu transfera bani."
         AudioEvidenceVerdict.SUSPECT -> "Nu da date sau bani până nu verifici pe canal oficial."
         AudioEvidenceVerdict.UNVERIFIED -> "Continuă doar dacă ești sigur. Nu oferi date sensibile."
-        null -> "Pune apelul pe difuzor și lasă analiza locală pornită."
+        null -> "Pune celălalt telefon pe difuzor și lasă analiza locală pornită."
     }
 }
 

@@ -36,6 +36,12 @@ val enableAudioAsr = (
         ?: "false"
     ).trim().lowercase() in setOf("1", "true", "yes", "on")
 
+val enableLiveCall = (
+    localProperties.getProperty("SIGURSCAN_ENABLE_LIVE_CALL")
+        ?: System.getenv("SIGURSCAN_ENABLE_LIVE_CALL")
+        ?: "false"
+    ).trim().lowercase() in setOf("1", "true", "yes", "on")
+
 if (enableAudioAsr) {
     val whisperCMake = rootProject.file("third_party/whisper.cpp/CMakeLists.txt")
     val whisperModel = file("src/audioAsr/assets/asr/whispercpp/ggml-model.bin")
@@ -128,6 +134,7 @@ android {
             "\"\""
         )
         buildConfigField("Boolean", "SIGURSCAN_ENABLE_AUDIO_ASR", enableAudioAsr.toString())
+        buildConfigField("Boolean", "SIGURSCAN_ENABLE_LIVE_CALL", enableLiveCall.toString())
         buildConfigField("Boolean", "SIGURSCAN_ENABLE_PLAY_INTEGRITY", enablePlayIntegrity.toString())
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -151,6 +158,7 @@ android {
             buildConfigField("String", "URLSCAN_API_KEY", "\"\"")
             buildConfigField("String", "GOOGLE_WEB_RISK_API_KEY", "\"\"")
             buildConfigField("Boolean", "SIGURSCAN_ENABLE_AUDIO_ASR", enableAudioAsr.toString())
+            buildConfigField("Boolean", "SIGURSCAN_ENABLE_LIVE_CALL", enableLiveCall.toString())
             buildConfigField("Boolean", "SIGURSCAN_ENABLE_PLAY_INTEGRITY", enablePlayIntegrity.toString())
             if (hasReleaseKeystore) {
                 signingConfig = signingConfigs.getByName("release")
@@ -188,6 +196,41 @@ android {
         }
         getByName("androidTest") {
             assets.srcDirs(rootProject.file("e2e_fixtures"))
+        }
+    }
+}
+
+tasks.register("verifyV1ReleaseManifest") {
+    dependsOn("processReleaseMainManifest")
+    doLast {
+        val mergedManifest = layout.buildDirectory
+            .file("intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml")
+            .get()
+            .asFile
+        check(mergedManifest.isFile) {
+            "Merged V1 release manifest is missing: ${mergedManifest.absolutePath}"
+        }
+        val manifestText = mergedManifest.readText()
+        check("android.permission.READ_PHONE_STATE" !in manifestText) {
+            "V1 release must not request READ_PHONE_STATE."
+        }
+        check("android.permission.USE_FULL_SCREEN_INTENT" !in manifestText) {
+            "V1 release must not request USE_FULL_SCREEN_INTENT."
+        }
+        check("SigurScanCallScreeningService" !in manifestText) {
+            "V1 release must not package CallScreeningService."
+        }
+        check("android.permission.RECORD_AUDIO" in manifestText) {
+            "V1 release must keep RECORD_AUDIO for the explicit Urechea listener."
+        }
+        check("SpeakerGuardForegroundService" in manifestText) {
+            "V1 release must keep the explicit Urechea foreground service."
+        }
+        check("android:foregroundServiceType=\"microphone\"" in manifestText) {
+            "V1 Urechea foreground service must retain microphone type."
+        }
+        check("android:mimeType=\"audio/*\"" in manifestText) {
+            "V1 release must remain available for user-shared audio files."
         }
     }
 }

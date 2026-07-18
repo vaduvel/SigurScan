@@ -19,6 +19,7 @@ jobs:
     env:
       GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8"
       SIGURSCAN_ENABLE_AUDIO_ASR: "false"
+      SIGURSCAN_ENABLE_LIVE_CALL: "false"
       SIGURSCAN_ENABLE_DIRECT_PROVIDER_KEYS: "false"
     steps:
       - name: Checkout with native submodules
@@ -44,6 +45,9 @@ jobs:
 
       - name: Run Android unit tests
         run: ./gradlew testDebugUnitTest
+
+      - name: Verify V1 release manifest
+        run: ./gradlew verifyV1ReleaseManifest
 
       - name: Build release APK
         run: ./gradlew assembleRelease

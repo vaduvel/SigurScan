@@ -7,6 +7,10 @@ import android.util.Log
 
 class SigurScanCallScreeningService : CallScreeningService() {
     override fun onScreenCall(callDetails: Call.Details) {
+        if (!BuildConfig.SIGURSCAN_ENABLE_LIVE_CALL) {
+            respondToCall(callDetails, CallResponse.Builder().build())
+            return
+        }
         val number = callDetails.handle?.schemeSpecificPart
         val cache = RadarHotCacheStore.fromContext(applicationContext).load()
         val decision = RadarCallDecider.decide(number, cache)

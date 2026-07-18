@@ -247,7 +247,7 @@ class SpeakerGuardSession(
                 SpeakerGuardUpdate(
                     phase = SpeakerGuardPhase.LISTENING,
                     active = true,
-                    status = "Ascultă prin microfon. Ține apelul pe difuzor."
+                    status = "Ascultă prin microfon conversația redată de celălalt telefon."
                 )
             )
 
@@ -422,7 +422,7 @@ class SpeakerGuardSession(
     private fun statusFor(result: LocalAsrResult): String {
         val evidence = result.evidence
         return when {
-            !result.success && result.reasonCode == "empty_transcript" -> "Nu am prins voce clară în ultimul fragment. Ține telefonul aproape de difuzor."
+            !result.success && result.reasonCode == "empty_transcript" -> "Nu am prins voce clară în ultimul fragment. Ține acest telefon aproape de difuzorul celuilalt telefon."
             !result.success -> "Nu am putut transcrie fragmentul: ${result.reasonCode ?: "eroare ASR"}."
             evidence?.verdict == AudioEvidenceVerdict.DANGEROUS -> "Semnale puternice de fraudă în conversație."
             evidence?.verdict == AudioEvidenceVerdict.SUSPECT -> "Semnale suspecte în conversație. Verifică înainte să continui."

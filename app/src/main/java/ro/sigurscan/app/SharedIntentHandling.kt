@@ -122,7 +122,11 @@ internal fun handleIncomingIntent(context: Context, intent: Intent?, viewModel: 
                     }
                     SharedIntentDestination.SPEAKER_GUARD -> {
                         viewModel.currentTab = "radar"
-                        if (autoStartSpeakerGuard && BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR) {
+                        if (
+                            autoStartSpeakerGuard &&
+                            BuildConfig.SIGURSCAN_ENABLE_LIVE_CALL &&
+                            BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR
+                        ) {
                             viewModel.acceptSpeakerGuardConsent()
                             val microphoneGranted = ContextCompat.checkSelfPermission(
                                 context,
@@ -131,10 +135,10 @@ internal fun handleIncomingIntent(context: Context, intent: Intent?, viewModel: 
                             if (microphoneGranted) {
                                 viewModel.startSpeakerGuard()
                             } else {
-                                viewModel.audioReadinessStatus = "Permite microfonul, pune apelul pe difuzor, apoi pornește Urechea."
+                                viewModel.audioReadinessStatus = "Permite microfonul, pune celălalt telefon pe difuzor, apoi pornește Urechea aici."
                             }
                         } else {
-                            viewModel.audioReadinessStatus = "Pune apelul pe difuzor, apoi apasă Ascultă pe difuzor."
+                            viewModel.audioReadinessStatus = "Pune celălalt telefon pe difuzor, apoi apasă Pornește ascultarea."
                         }
                     }
                 }

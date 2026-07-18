@@ -63,7 +63,14 @@ class SpeakerGuardForegroundService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         return when (intent?.action) {
-            ACTION_SHOW_CALL_PROMPT -> handleCallPrompt(intent, startId)
+            ACTION_SHOW_CALL_PROMPT -> {
+                if (BuildConfig.SIGURSCAN_ENABLE_LIVE_CALL) {
+                    handleCallPrompt(intent, startId)
+                } else {
+                    stopSelf(startId)
+                    START_NOT_STICKY
+                }
+            }
             ACTION_START_CAPTURE -> handleStartCapture(intent, startId)
             ACTION_STOP_CAPTURE -> {
                 stopCaptureSession()
@@ -115,7 +122,7 @@ class SpeakerGuardForegroundService : Service() {
 
         val session = SpeakerGuardSession(
             context = applicationContext,
-            semanticReviewer = BackendAudioSemanticReviewer(audioSemanticApi, channel = "call_live")
+            semanticReviewer = BackendAudioSemanticReviewer(audioSemanticApi, channel = "speaker_listener")
         )
         captureSession = session
         session.start(serviceScope, modelPath) { update ->
@@ -136,7 +143,7 @@ class SpeakerGuardForegroundService : Service() {
             "Urechea SigurScan",
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Serviciu vizibil pentru promptul Urechea în timpul apelurilor."
+            description = "Serviciu vizibil pentru ascultarea pornită explicit de utilizator."
         }
         manager.createNotificationChannel(channel)
     }
@@ -187,7 +194,7 @@ class SpeakerGuardForegroundService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("Urechea ascultă")
-            .setContentText("Analiza rulează local. Ține apelul pe difuzor.")
+            .setContentText("Analiza rulează local. Ține acest telefon lângă difuzorul celuilalt telefon.")
             .setStyle(NotificationCompat.BigTextStyle().bigText("Analiza rulează local. Nimic audio brut nu pleacă de pe telefon."))
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
@@ -238,6 +245,7 @@ class SpeakerGuardForegroundService : Service() {
         private const val DEEP_LINK = "sigurscan://speaker-guard?autostart=1&source=call_screening"
 
         fun startForCallPrompt(context: Context, decision: RadarCallDecision) {
+            if (!BuildConfig.SIGURSCAN_ENABLE_LIVE_CALL) return
             if (!BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR) return
             if (!SpeakerGuardCallPromptPolicy.shouldOffer(decision)) return
             val intent = Intent(context, SpeakerGuardForegroundService::class.java).apply {

@@ -124,7 +124,7 @@ fun ScannerViewModel.startSpeakerGuard() {
         speakerGuardSnapshot = SpeakerGuardSnapshot(
             active = true,
             phase = SpeakerGuardPhase.LISTENING,
-            status = "Pornește serviciul vizibil de microfon. Ține apelul pe difuzor.",
+            status = "Pornește serviciul vizibil de microfon și apropie acest telefon de difuzorul celuilalt telefon.",
             rawAudioStored = false
         )
         audioReadinessStatus = speakerGuardSnapshot.status
@@ -262,7 +262,7 @@ private fun audioReadinessReasonLabels(reasons: List<String>): List<String> {
             "asr_model_missing" -> "modelul audio local lipsește"
             "native_runtime_missing" -> "runtime-ul audio local lipsește"
             "privacy_disclosure_missing" -> "confirmă că analiza rămâne pe telefon"
-            "explicit_consent_missing" -> "apasă Ascultă pe difuzor ca să pornești"
+            "explicit_consent_missing" -> "apasă Pornește ascultarea"
             "microphone_permission_missing" -> "permite microfonul"
             else -> reason.replace('_', ' ')
         }

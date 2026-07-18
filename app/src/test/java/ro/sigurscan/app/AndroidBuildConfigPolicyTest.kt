@@ -17,6 +17,8 @@ class AndroidBuildConfigPolicyTest {
             .joinToString("\n") { it.readText() }
     private val manifest: String
         get() = File("src/main/AndroidManifest.xml").readText()
+    private val releaseManifest: String
+        get() = File("src/release/AndroidManifest.xml").readText()
 
     @Test
     fun directProviderKeysAreOptInAndProviderBuildConfigFieldsStayEmpty() {
@@ -71,6 +73,30 @@ class AndroidBuildConfigPolicyTest {
             "Public release must not show the Speaker Guard/ASR surface while the audio flag is disabled.",
             mainActivityFile.contains("""if (BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR)""") &&
                 mainActivityFile.contains("""AudioAsrReadinessCard(""")
+        )
+    }
+
+    @Test
+    fun liveCallFeatureFlagDefaultsOffAndV1ReleaseStripsItsManifestSurface() {
+        assertTrue(
+            "Same-phone live-call automation must default off independently from manual audio listening.",
+            gradleFile.contains("""localProperties.getProperty("SIGURSCAN_ENABLE_LIVE_CALL")""") &&
+                gradleFile.contains("""?: "false"""")
+        )
+        assertTrue(
+            "Debug and release must use the same reviewed live-call gate.",
+            Regex(
+                """buildConfigField\("Boolean",\s*"SIGURSCAN_ENABLE_LIVE_CALL",\s*enableLiveCall\.toString\(\)\)"""
+            ).findAll(gradleFile).count() >= 2
+        )
+        assertTrue(
+            "V1 release must remove CallScreeningService from the merged manifest.",
+            releaseManifest.contains(".SigurScanCallScreeningService") &&
+                releaseManifest.contains("tools:node=\"remove\"")
+        )
+        assertTrue(
+            "V1 release must remove full-screen call-prompt permission.",
+            releaseManifest.contains("android.permission.USE_FULL_SCREEN_INTENT")
         )
     }
 

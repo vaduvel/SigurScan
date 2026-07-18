@@ -18,6 +18,7 @@ class SpeakerGuardCallPromptNotifier private constructor(
     private val context: Context
 ) {
     fun showIfNeeded(decision: RadarCallDecision) {
+        if (!BuildConfig.SIGURSCAN_ENABLE_LIVE_CALL) return
         if (!BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR) return
         if (!SpeakerGuardCallPromptPolicy.shouldOffer(decision)) return
         if (!notificationsAllowed()) return

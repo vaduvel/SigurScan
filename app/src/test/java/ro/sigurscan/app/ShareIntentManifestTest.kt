@@ -44,27 +44,32 @@ class ShareIntentManifestTest {
     }
 
     @Test
-    fun sensitiveBackgroundPermissionsStayOutOfReleaseOverlay() {
+    fun v1ReleaseKeepsManualListenerButRemovesLiveCallSurface() {
         val releaseOverlay = File("src/release/AndroidManifest.xml").readText()
-        assertTrue(
-            "Public release must remove RECORD_AUDIO until Speaker Guard has final Play policy coverage.",
+        assertFalse(
+            "V1 must keep RECORD_AUDIO for the explicit Urechea listener; only same-phone live-call automation is deferred.",
             releaseOverlay.contains("""android:name="android.permission.RECORD_AUDIO"""") &&
                 releaseOverlay.contains("""tools:node="remove"""")
         )
         assertTrue(
-            "Public release must remove READ_PHONE_STATE; Radar uses the official opt-in CallScreening role, not broad phone-state access.",
+            "V1 must remove READ_PHONE_STATE because same-phone live-call detection is deferred.",
             releaseOverlay.contains("""android:name="android.permission.READ_PHONE_STATE"""") &&
                 releaseOverlay.contains("""tools:node="remove"""")
         )
         assertTrue(
-            "Main manifest must declare the official CallScreeningService for opt-in Radar caller protection.",
+            "Main manifest may retain the compiled V2 CallScreeningService behind its own feature flag.",
             manifest.contains("""android:name=".SigurScanCallScreeningService"""") &&
                 manifest.contains("""android.permission.BIND_SCREENING_SERVICE""") &&
                 manifest.contains("""android.telecom.CallScreeningService""")
         )
-        assertFalse(
-            "Public release must not remove CallScreeningService now that Radar caller protection is opt-in and number-only.",
+        assertTrue(
+            "The V1 release manifest must remove CallScreeningService entirely, not merely disable it.",
             releaseOverlay.contains("""android:name=".SigurScanCallScreeningService"""")
+        )
+        assertTrue(
+            "The V1 release manifest must remove USE_FULL_SCREEN_INTENT with the live-call prompt.",
+            releaseOverlay.contains("""android:name="android.permission.USE_FULL_SCREEN_INTENT""") &&
+                releaseOverlay.contains("""tools:node="remove""")
         )
     }
 
@@ -90,37 +95,37 @@ class ShareIntentManifestTest {
     }
 
     @Test
-    fun callTimeSpeakerGuardPromptCanUseNotificationsButNotOverlays() {
+    fun manualSpeakerGuardListenerUsesVisibleMicrophoneServiceWithoutOverlays() {
         assertTrue(
-            "Incoming-call Speaker Guard needs a user-visible system prompt; Android 13+ requires POST_NOTIFICATIONS for that prompt.",
+            "The manual Urechea listener needs a visible foreground notification on Android 13+.",
             manifest.contains("""android:name="android.permission.POST_NOTIFICATIONS"""")
         )
         assertTrue(
-            "Speaker Guard call-time prompts must run through a foreground service before any microphone flow can start.",
+            "The manual Urechea listener must run through a foreground service.",
             manifest.contains("""android:name="android.permission.FOREGROUND_SERVICE"""")
         )
         assertTrue(
-            "Live-call Speaker Guard must declare the microphone foreground-service permission so Android keeps capture alive behind the dialer.",
+            "The manual Urechea listener must declare the microphone foreground-service permission.",
             manifest.contains("""android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"""")
         )
         assertTrue(
-            "The call-time prompt may need a full-screen intent when the app is closed and the phone is ringing.",
+            "The source manifest may retain the V2 full-screen permission only because the V1 release overlay removes it.",
             manifest.contains("""android:name="android.permission.USE_FULL_SCREEN_INTENT"""")
         )
         val speakerGuardForegroundService = Regex(
             """<service[\s\S]*?android:name="\.SpeakerGuardForegroundService"[\s\S]*?/?>"""
         ).find(manifest)?.value.orEmpty()
         assertTrue(
-            "SpeakerGuardForegroundService must be declared as an internal prompt carrier.",
+            "SpeakerGuardForegroundService must remain internal to the explicit listener flow.",
             speakerGuardForegroundService.contains("""android:name=".SpeakerGuardForegroundService"""") &&
                 speakerGuardForegroundService.contains("""android:exported="false"""")
         )
         assertTrue(
-            "After user consent, SpeakerGuardForegroundService must claim microphone foreground type for live-call capture.",
+            "After user consent, SpeakerGuardForegroundService must claim microphone foreground type for listener capture.",
             speakerGuardForegroundService.contains("""android:foregroundServiceType="microphone"""")
         )
         assertFalse(
-            "Speaker Guard must not use overlay permission for call-time prompts.",
+            "Urechea must not use overlay permission.",
             manifest.contains("""android:name="android.permission.SYSTEM_ALERT_WINDOW"""")
         )
     }
