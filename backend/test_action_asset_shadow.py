@@ -96,6 +96,37 @@ def test_protective_sentence_cannot_hide_a_later_positive_request():
     assert "protected_authentication_secret_wrong_channel" in shadow["reason_codes"]
 
 
+def test_educational_message_intro_cannot_bind_to_negated_transfer_after_colon():
+    contract = build_action_asset_contract(
+        (
+            "ING Business trimite un mesaj educational: nu te loga prin linkuri primite, "
+            "nu transfera bani in cont seif, suna banca pe numarul oficial."
+        ),
+        source_channel="sms",
+    )
+    shadow = evaluate_protected_action_shadow(contract, identity_status="official")
+
+    assert contract["protective_warning"] is True
+    assert contract["positive_request"] is False
+    assert contract["requested_actions"] == []
+    assert shadow["candidate_min_label"] is None
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Mama, mi s-a stricat telefonul. Trimite urgent 1.800 lei in contul acesta.",
+        "Trimite acum 1.800 lei pentru garantia de externare; iti explic dupa.",
+        "Trimite avansul de 12.000 EUR catre noul nostru partener.",
+    ],
+)
+def test_ambiguous_send_verb_keeps_nearby_payment_requests(text):
+    contract = build_action_asset_contract(text, source_channel="whatsapp")
+
+    assert "transfer_money" in contract["requested_actions"]
+    assert "transfer_money" in contract["protected_actions"]
+
+
 def test_official_store_install_is_not_promoted_to_dangerous_without_remote_access():
     contract = build_action_asset_contract(
         "Instalează aplicația oficială din Google Play pentru a vedea factura.",
@@ -123,6 +154,62 @@ def test_entering_code_on_official_page_is_not_treated_as_sharing_it_with_sender
     assert "share_code" not in contract["requested_actions"]
     assert shadow["candidate_min_label"] == "SUSPECT"
     assert "protected_authentication_secret_wrong_channel" not in shadow["reason_codes"]
+
+
+def test_explicit_web_destination_wins_over_ambiguous_account_wording():
+    contract = build_action_asset_contract(
+        (
+            "Factura este disponibila in cont. Plateste din contul tau pe "
+            "https://www.digi.ro/asistenta/modalitati-de-plata"
+        ),
+        source_channel="email",
+    )
+
+    assert contract["destination"]["type"] == "link"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Plateste taxele locale din cont pe https://www.ghiseul.ro/.",
+        "Pentru activare introdu codul primit pe https://www.digi.ro/. Nu trimite codul nimanui.",
+    ],
+)
+def test_confirmed_official_web_destination_satisfies_proof_before_safe(text):
+    contract = build_action_asset_contract(text, source_channel="sms")
+    shadow = evaluate_protected_action_shadow(
+        contract,
+        decision_bundle={
+            "identity": {"status": "official"},
+            "provenance": {"official_domain_match": True},
+            "resolution": {"status": "resolved", "final_url": "https://www.digi.ro/"},
+            "providers": {"verdict": "clean", "completeness": True},
+        },
+        actual_label="SAFE",
+    )
+
+    assert shadow["proof_before_safe"]["status"] == "satisfied"
+    assert shadow["candidate_min_label"] is None
+
+
+def test_unknown_web_destination_still_requires_proof_for_protected_action():
+    contract = build_action_asset_contract(
+        "Pentru activare introdu codul primit pe https://digi-confirmare.example/.",
+        source_channel="sms",
+    )
+    shadow = evaluate_protected_action_shadow(
+        contract,
+        decision_bundle={
+            "identity": {"status": "unknown"},
+            "provenance": {"official_domain_match": False},
+            "resolution": {"status": "resolved", "final_url": "https://digi-confirmare.example/"},
+            "providers": {"verdict": "clean", "completeness": True},
+        },
+        actual_label="SAFE",
+    )
+
+    assert shadow["proof_before_safe"]["status"] == "blocked"
+    assert shadow["candidate_min_label"] == "SUSPECT"
 
 
 def test_plain_conversation_is_not_mislabeled_as_descriptive_artifact():

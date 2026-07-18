@@ -15,6 +15,13 @@ PROTECTED_ACTION_SHADOW_SCHEMA = "sigurscan_protected_action_shadow_v1"
 _RISKY_CHANNELS = {"phone", "sms", "whatsapp", "social", "email", "audio"}
 _TRUSTED_IDENTITIES = {"official", "delegated", "coherent", "official_match"}
 _BAD_IDENTITIES = {"lookalike", "unrelated", "mismatch", "spoofed"}
+_CLEAN_PROVIDER_VERDICTS = {"clean"}
+_OFFICIAL_WEB_ENTRY_ACTIONS = {
+    "enter_code",
+    "enter_credentials",
+    "enter_card_data",
+    "submit_identity",
+}
 _LABEL_RANK = {"SAFE": 0, "UNVERIFIED": 1, "SUSPECT": 2, "DANGEROUS": 3}
 
 
@@ -49,6 +56,30 @@ def _payment_trust(payment_destination: Optional[Mapping[str, Any]]) -> str:
     return "unknown"
 
 
+def _official_web_destination_confirmed(
+    normalized: Mapping[str, Any],
+    decision_bundle: Mapping[str, Any],
+    *,
+    identity_confirmed: bool,
+) -> bool:
+    destination = normalized.get("destination")
+    destination = destination if isinstance(destination, Mapping) else {}
+    if destination.get("type") != "link" or not identity_confirmed:
+        return False
+    provenance = decision_bundle.get("provenance")
+    provenance = provenance if isinstance(provenance, Mapping) else {}
+    resolution = decision_bundle.get("resolution")
+    resolution = resolution if isinstance(resolution, Mapping) else {}
+    providers = decision_bundle.get("providers")
+    providers = providers if isinstance(providers, Mapping) else {}
+    return bool(
+        provenance.get("official_domain_match") is True
+        and str(resolution.get("status") or "").strip().lower() == "resolved"
+        and str(providers.get("verdict") or "").strip().lower()
+        in _CLEAN_PROVIDER_VERDICTS
+    )
+
+
 def evaluate_protected_action_shadow(
     contract: Any,
     *,
@@ -80,6 +111,11 @@ def evaluate_protected_action_shadow(
     proof_required = bool(positive and (protected or "guided_banking" in compositions))
     identity_confirmed = resolved_identity in _TRUSTED_IDENTITIES
     identity_mismatched = resolved_identity in _BAD_IDENTITIES
+    official_web_destination = _official_web_destination_confirmed(
+        normalized,
+        bundle,
+        identity_confirmed=identity_confirmed,
+    )
     money_related = bool(
         protected.intersection(
             {
@@ -98,14 +134,25 @@ def evaluate_protected_action_shadow(
         proof_status = (
             "satisfied"
             if identity_confirmed
-            and destination.get("trust") == "confirmed"
             and not destination.get("changed")
+            and (
+                destination.get("trust") == "confirmed"
+                or official_web_destination
+            )
             else "blocked"
         )
     else:
         proof_status = (
             "satisfied"
-            if identity_confirmed and normalized["channel"] not in _RISKY_CHANNELS
+            if identity_confirmed
+            and (
+                normalized["channel"] not in _RISKY_CHANNELS
+                or (
+                    official_web_destination
+                    and bool(requested_actions)
+                    and requested_actions.issubset(_OFFICIAL_WEB_ENTRY_ACTIONS)
+                )
+            )
             else "blocked"
         )
 

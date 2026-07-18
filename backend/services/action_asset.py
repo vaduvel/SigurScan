@@ -95,6 +95,9 @@ _PROTECTED_ORDER = (
 )
 
 _RISKY_CHANNELS = {"phone", "sms", "whatsapp", "social", "email", "audio"}
+_WEB_DESTINATION_RE = re.compile(
+    r"(?:https?://|www\.|(?<!@)\b(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,63}\b)"
+)
 
 
 def _fold(value: Any) -> str:
@@ -133,9 +136,10 @@ _DIRECT_ENTRY_VERB = (
     r"(?:introdu(?:ce|ceti)?|tasteaza|completeaza|scrie|foloseste|confirma)"
 )
 _DIRECT_PAYMENT_VERB = (
-    r"(?:transfera|muta|trimite|depune|alimenteaza|plateste|achita|efectueaza|"
-    r"pune|vireaza|virezi|varsa)"
+    r"(?:transfera|muta|depune|alimenteaza|plateste|achita|efectueaza|"
+    r"vireaza|virezi|varsa)"
 )
+_AMBIGUOUS_PAYMENT_VERB = r"(?:trimite|pune)"
 _CODE_TARGET = (
     r"(?:otp|pin(?:-ul)?|parola|password|cod(?:ul)?\s+(?:otp|unic|nou|de\s+verificare|"
     r"primit|din\s+sms|de\s+securitate|din\s+aplicatia\s+bancara))"
@@ -224,6 +228,10 @@ _ACTION_PATTERNS: Dict[str, tuple[re.Pattern[str], ...]] = {
         re.compile(
             rf"\b{_DIRECT_PAYMENT_VERB}\b.{{0,90}}\b(?:banii|bani|suma|sold(?:ul)?|"
             r"lei|ron|eur|euro|cont(?:ul)?|iban|factura|plata)\b"
+        ),
+        re.compile(
+            rf"\b{_AMBIGUOUS_PAYMENT_VERB}\b.{{0,55}}\b(?:banii|bani|suma|"
+            r"sold(?:ul)?|lei|ron|eur|euro|cont(?:ul)?|iban|factura|plata)\b"
         ),
     ),
     "change_payment_destination": (
@@ -440,12 +448,14 @@ def _destination(text: str, observed_assets: set[str]) -> Dict[str, Any]:
         destination_type = "crypto_wallet"
     elif "gift_card" in observed_assets:
         destination_type = "gift_card"
-    elif "iban" in observed_assets or re.search(r"\bcont(?:ul)?\b", text):
+    elif "iban" in observed_assets:
         destination_type = "iban"
+    elif _WEB_DESTINATION_RE.search(text):
+        destination_type = "link"
     elif re.search(r"\b(?:aplicatia\s+bancara|internet\s+banking|mobile\s+banking)\b", text):
         destination_type = "banking_app"
-    elif re.search(r"https?://|\blink\b", text):
-        destination_type = "link"
+    elif re.search(r"\bcont(?:ul)?\b", text):
+        destination_type = "bank_account"
     elif re.search(r"\b(?:google\s+play|app\s+store)\b", text):
         destination_type = "app_store"
     else:
