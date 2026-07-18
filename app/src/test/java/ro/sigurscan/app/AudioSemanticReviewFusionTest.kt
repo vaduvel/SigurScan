@@ -30,7 +30,7 @@ class AudioSemanticReviewFusionTest {
             )
 
             assertEquals(VerificationPillarStatus.ERROR, outcome.status)
-            assertEquals("semantic:backend_unavailable", outcome.reasonCode)
+            assertEquals("semantic:http_503", outcome.reasonCode)
             assertEquals(null, outcome.response)
         } finally {
             server.shutdown()

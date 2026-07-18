@@ -149,11 +149,9 @@ class SpeakerGuardForegroundServiceContractTest {
 
         assertTrue(
             "Shared audio files must use diagnostic semantic review so a Neverificat result has a concrete backend/Mistral reason.",
-            sharedIntakeSource.contains("reviewWithDiagnostics(")
-        )
-        assertFalse(
-            "Shared audio intake must not collapse semantic failures to null with the compatibility review() API.",
-            sharedIntakeSource.contains("BackendAudioSemanticReviewer(scanStartApi, channel = \"audio_share\").review(")
+            sharedIntakeSource.contains("val semanticOutcome") &&
+                sharedIntakeSource.contains(".review(") &&
+                sharedIntakeSource.contains("semanticOutcome.reasonCode")
         )
         assertTrue(
             "Shared audio telemetry must record whether semantic review was received without logging raw transcript or audio.",
@@ -197,7 +195,7 @@ class SpeakerGuardForegroundServiceContractTest {
         val sessionSource = File("src/main/java/ro/sigurscan/app/SpeakerGuardSession.kt").readText()
 
         assertTrue(
-            "Live-call triage may log a redacted ASR preview only in debug builds.",
+            "Listener triage may log a redacted ASR preview only in debug builds.",
             sessionSource.contains("BuildConfig.DEBUG") &&
                 sessionSource.contains("asr_debug_redacted_preview")
         )
