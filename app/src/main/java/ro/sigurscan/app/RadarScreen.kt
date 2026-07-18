@@ -95,6 +95,11 @@ import kotlin.math.pow
 @Composable
 fun RadarTab(viewModel: ScannerViewModel) {
     val context = LocalContext.current
+    LaunchedEffect(BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR) {
+        if (BuildConfig.SIGURSCAN_ENABLE_AUDIO_ASR) {
+            viewModel.refreshAudioReadiness()
+        }
+    }
     var hasMicrophonePermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(

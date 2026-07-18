@@ -82,6 +82,18 @@ class SpeakerGuardForegroundServiceContractTest {
     }
 
     @Test
+    fun radarRefreshesAudioReadinessWhenListenerSurfaceEntersComposition() {
+        val radarSource = File("src/main/java/ro/sigurscan/app/RadarScreen.kt").readText()
+
+        assertTrue(
+            "Radar must evaluate the packaged model and native runtime on entry instead of showing stale missing-state labels.",
+            Regex(
+                """LaunchedEffect\(BuildConfig\.SIGURSCAN_ENABLE_AUDIO_ASR\)\s*\{\s*if \(BuildConfig\.SIGURSCAN_ENABLE_AUDIO_ASR\) \{\s*viewModel\.refreshAudioReadiness\(\)"""
+            ).containsMatchIn(radarSource)
+        )
+    }
+
+    @Test
     fun foregroundServiceEventsReplayLatestUpdateForActivityRebind() {
         val serviceSource = File("src/main/java/ro/sigurscan/app/SpeakerGuardForegroundService.kt").readText()
 
