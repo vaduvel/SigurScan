@@ -94,6 +94,8 @@ PUBLIC_PATHS = {
     "/privacy-policy",
     "/terms",
     "/terms-of-service",
+    "/v1/voice/twilio/incoming",
+    "/v1/voice/twilio/transcription",
 }
 
 # GET-only screenshot proxy consumed by image loaders (Coil) that cannot attach
