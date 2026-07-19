@@ -155,6 +155,17 @@ def _normalize_atlas_family(raw: Any) -> Optional[Dict[str, Any]]:
         "examples": _dedupe_preserve_order(examples),
     }
 
+    required_token_groups = raw.get("required_token_groups")
+    if isinstance(required_token_groups, list):
+        normalized_groups = [
+            _dedupe_preserve_order(_coerce_str_list(group))
+            for group in required_token_groups
+            if isinstance(group, list)
+        ]
+        normalized_groups = [group for group in normalized_groups if group]
+        if normalized_groups:
+            normalized["required_token_groups"] = normalized_groups
+
     # Preserve auditable knowledge metadata in evidence without turning the
     # atlas into a second verdict engine. verdict_gate does not consume these
     # fields unless they are explicitly mapped through the evidence contract.
@@ -576,9 +587,23 @@ SEED_PATH = _resolve_path(
 )
 DEFAULT_EXTRA_SEED_PATHS = ("data/scam_atlas_impersonation_seed.json",)
 
+# Offer-advance subfamilies (romance/stranded advance-fee + marketplace seller
+# advance). They correct broad family labels on cleanly-written money requests.
+# Classification changes can alter user-facing explanations, so the seed loads
+# only behind this default-OFF flag until the shared offer ThreatEnrichment path
+# and rollout measurement are both accepted.
+OFFER_ADVANCE_SEED_PATH = "data/scam_atlas_offer_advance_seed.json"
+
+
+def _offer_advance_families_enabled() -> bool:
+    value = str(os.getenv("SCAM_ATLAS_OFFER_ADVANCE_FAMILIES", "0")).strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
 
 def _extra_seed_paths() -> List[str]:
     raw_paths = list(DEFAULT_EXTRA_SEED_PATHS)
+    if _offer_advance_families_enabled():
+        raw_paths.append(OFFER_ADVANCE_SEED_PATH)
     env_value = os.getenv("SCAM_ATLAS_EXTRA_SEED_PATHS")
     if env_value:
         raw_paths.extend(item.strip() for item in env_value.split(os.pathsep) if item.strip())
@@ -1410,6 +1435,24 @@ class ScamAtlasEngine:
 
         text_words = semantic_tokens(text)
         for family in self.families:
+            required_token_groups = family.get("required_token_groups") or []
+            if required_token_groups:
+                folded_text_words = semantic_tokens(_morph_fold(text))
+                required_groups_match = all(
+                    bool(
+                        folded_text_words.intersection(
+                            {
+                                token
+                                for value in group
+                                for token in semantic_tokens(_morph_fold(str(value)))
+                            }
+                        )
+                    )
+                    for group in required_token_groups
+                )
+                if not required_groups_match:
+                    continue
+
             score = 0.0
             family_name = family.get("family", "").lower()
             hook = family.get("match_text", family.get("hook", "")).lower()

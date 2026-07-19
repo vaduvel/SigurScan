@@ -1,0 +1,136 @@
+{
+  "metadata": {
+    "name": "scam_atlas_offer_advance_seed",
+    "version": "2026.07.10-v1",
+    "description": "Familii pentru scam-uri de tip avans pe oferte scrise curat (marketplace auto/bunuri, romance/blocat in strainatate). Masurate pe prod 2026-07-10 ca cele mai slabe clase: anuntul auto cu avans = doar SUSPECT, romance/stranded = UNVERIFIED. Se incarca DOAR sub flag-ul SCAM_ATLAS_OFFER_ADVANCE_FAMILIES (default OFF).",
+    "notes": "Textul acestor scam-uri e deliberat plauzibil (povestea e adevarata sau banala); semnatura e structurala: cerere de avans/bani inainte de orice verificare posibila + refuzul explicit al verificarii (proba, vizionare, intalnire) + expeditor de neatins. FP guards: ofertele legitime ofera verificare (proba, vizionare, notariat, plata la livrare/ramburs la primire) si nu cer transfer catre persoane."
+  },
+  "scam_families": [
+    {
+      "id": "RO-ADV-01",
+      "title": "Avans marketplace / vânzător fantomă (auto, bunuri)",
+      "family": "offer_advance/marketplace_seller_advance",
+      "hook": "masina masinii anunt anuntul olx autovit publi24 vand vanzare vanzatorul avans avansul transport transportul curier curierul firma livrare rezervare rezervarea plec plecat strainatate germania anglia italia spania urgent pret redus proba vizionare verificare destinatie restul contul",
+      "asks_for": [
+        "achitati avansul",
+        "achita avansul",
+        "plata transportului in avans",
+        "avans pentru transport",
+        "avans de rezervare",
+        "avansul pentru rezervare",
+        "trimit prin firma de transport",
+        "trimit masina prin curier",
+        "nu pot face proba",
+        "nu se poate vedea",
+        "plata in avans",
+        "restul la livrare"
+      ],
+      "safe_actions": [
+        "Nu plăti niciodată avans pentru un bun de pe site-uri de anunțuri — avansul nu se justifică la tranzacții între persoane.",
+        "Vezi bunul personal înainte de orice plată; refuzul probei sau al vizionării este semnalul clasic de țeapă.",
+        "Dacă vânzătorul e «plecat din țară» și bunul «vine cu transportul», oprește-te: este tiparul documentat al fraudei cu avans.",
+        "Folosește plata la livrare cu verificare la destinație, prin platformă, nu transfer direct."
+      ],
+      "channels": ["sms", "whatsapp", "email", "text", "social_dm"],
+      "claimed_brand_or_role": "vanzator particular anunt marketplace",
+      "required_token_groups": [
+        ["masina", "autoturism", "vehicul", "anunt", "marketplace", "olx", "autovit", "bun"],
+        ["avans", "transport", "rezervare", "plata in avans"]
+      ],
+      "requested_asset": ["money_transfer", "avans", "bank transfer to person"],
+      "signals": [
+        "URGENT_CASH_REQUEST",
+        "DO_NOT_VERIFY_PRESSURE",
+        "vanzator_refuza_proba_sau_vizionarea",
+        "avans_cerut_inainte_de_orice_verificare",
+        "vanzator_plecat_din_tara_bun_trimis_prin_transport"
+      ],
+      "sources": [
+        "src_politiaromana_advance_vehicle",
+        "src_europol_operation_moto"
+      ],
+      "source_refs": [
+        {
+          "source_id": "src_politiaromana_advance_vehicle",
+          "url": "https://vs.politiaromana.ro/ro/prevenirea-criminalitatii/prevenirea-inselaciunilor",
+          "publisher": "Politia Romana - IPJ Vaslui",
+          "source_type": "official",
+          "confidence": "high",
+          "basis": "Recomandare explicita sa nu fie trimisi bani in avans persoanelor necunoscute pentru aducerea unui autoturism sau alt bun."
+        },
+        {
+          "source_id": "src_europol_operation_moto",
+          "url": "https://www.europol.europa.eu/media-press/newsroom/news/9-arrested-for-online-payment-scams-in-joint-operation-polish-police-and-europol",
+          "publisher": "Europol",
+          "source_type": "official",
+          "confidence": "high",
+          "basis": "Retea care publica online autoturisme si utilaje inexistente, incasa plati in avans si nu livra bunurile."
+        }
+      ]
+    },
+    {
+      "id": "RO-ADV-02",
+      "title": "Cunoștință online / persoană blocată în străinătate cere bani",
+      "family": "offer_advance/romance_stranded_advance_fee",
+      "hook": "blocat blocata aeroport aeroportul vama vamal retinut retinuta bagaj bagajul documente pasaport pasaportul taxa eliberare eliberarea returnez inapoiez ajung rusine nimanui draga iubita iubitul iubire strainatate istanbul dubai urgent bani spital operatie accident consulat",
+      "asks_for": [
+        "taxa de eliberare",
+        "taxa de vama",
+        "taxa vamala",
+        "nu spune nimanui",
+        "iti returnez",
+        "iti dau inapoi tot",
+        "trimite-mi bani",
+        "trimite banii urgent"
+      ],
+      "safe_actions": [
+        "Nu trimite bani unei persoane cunoscute doar online, indiferent de poveste — «taxa de eliberare» și «bagajul reținut» sunt tipare documentate de fraudă.",
+        "Cere o verificare independentă: apel video spontan, o instituție oficială (consulat, poliție) care confirmă situația.",
+        "Secretul cerut («nu spune nimănui», «mi-e rușine») este mecanismul care te izolează de oamenii care te-ar putea avertiza — exact invers: întreabă pe cineva apropiat.",
+        "Ia legătura cu consulatul României din țara respectivă dacă povestea pare reală — ei confirmă sau infirmă oficial."
+      ],
+      "channels": ["sms", "whatsapp", "email", "text", "social_dm"],
+      "claimed_brand_or_role": "cunostinta online partener romantic prieten aflat in strainatate",
+      "required_token_groups": [
+        ["draga", "iubita", "iubitul", "iubire", "partener", "romantic", "cunostinta"],
+        ["aeroport", "vama", "bagaj", "pasaport", "strainatate", "istanbul", "dubai", "consulat", "calatorie"],
+        ["bani", "eur", "euro", "taxa", "trimite", "transfer"]
+      ],
+      "requested_asset": ["money_transfer", "bani"],
+      "signals": [
+        "URGENT_CASH_REQUEST",
+        "FAMILY_EMERGENCY_CLAIM",
+        "persoana_blocata_in_strainatate_cere_taxa",
+        "secret_cerut_explicit_izolare_de_apropiati",
+        "promisiune_de_returnare_la_intoarcere"
+      ],
+      "sources": [
+        "src_europol_romance_2026",
+        "igpr_romance_scam"
+      ],
+      "source_refs": [
+        {
+          "source_id": "src_europol_romance_2026",
+          "url": "https://www.europol.europa.eu/operations-services-and-innovation/public-awareness-and-prevention-guides/romance-scams-recognising-manipulation-it-escalates",
+          "publisher": "Europol",
+          "source_type": "official",
+          "confidence": "high",
+          "basis": "Dupa castigarea increderii apar cereri de bani pentru calatorii, urgente sau taxe, insotite de urgenta si evitarea verificarilor."
+        },
+        {
+          "source_id": "igpr_romance_scam",
+          "url": "https://politiaromana.ro/ro/prevenire/recomandari-preventive/prevenirea-criminalitatii-informatice/prevenirea-inselaciunilor-romantice-romance-scam",
+          "publisher": "Politia Romana",
+          "source_type": "official",
+          "confidence": "high",
+          "basis": "Prevenire oficiala pentru inselaciuni romantice si solicitari financiare venite de la persoane cunoscute online."
+        }
+      ]
+    }
+  ],
+  "false_positive_guards": [
+    "Vânzător care OFERĂ proba/vizionarea sau întâlnirea personală nu se potrivește acestor familii.",
+    "Împrumuturi obișnuite între rude/prieteni (fără poveste de blocaj în străinătate, fără secret cerut) nu se potrivesc.",
+    "Confirmări descriptive de plăți deja făcute («am plătit avansul ieri») nu sunt cereri și sunt protejate de analiza de intenție."
+  ]
+}
