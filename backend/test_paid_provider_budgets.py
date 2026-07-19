@@ -48,6 +48,48 @@ def test_web_risk_lookup_reports_budget_exhaustion_without_calling_api(monkeypat
     assert result[key]["details"]["status"] == "budget_exhausted"
 
 
+def test_web_risk_lookup_preserves_google_error_status(monkeypatch):
+    from services import google_web_risk
+
+    url = "https://example.test/login"
+    key = google_web_risk.hashlib.sha256(url.encode("utf-8")).hexdigest()
+
+    monkeypatch.setenv("GOOGLE_WEB_RISK_API_KEY", "fake-key")
+    monkeypatch.setenv("WEB_RISK_MONTHLY_BUDGET", "10")
+
+    class Response:
+        status_code = 400
+
+        def json(self):
+            return {
+                "error": {
+                    "code": 400,
+                    "message": "API key not valid. Please pass a valid API key.",
+                    "status": "INVALID_ARGUMENT",
+                    "details": [
+                        {
+                            "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                            "reason": "API_KEY_INVALID",
+                            "domain": "googleapis.com",
+                        }
+                    ],
+                }
+            }
+
+    monkeypatch.setattr(google_web_risk.requests, "get", lambda *_args, **_kwargs: Response())
+
+    result = google_web_risk.check_urls_against_web_risk([url])
+
+    assert result[key]["status"] == "error"
+    assert result[key]["error"] == "http_400"
+    assert result[key]["consulted"] is True
+    assert result[key]["details"]["status"] == "http_400"
+    assert result[key]["details"]["http_status"] == 400
+    assert result[key]["details"]["api_status"] == "INVALID_ARGUMENT"
+    assert result[key]["details"]["api_reason"] == "API_KEY_INVALID"
+    assert result[key]["details"]["api_message"].startswith("API key not valid")
+
+
 def test_zero_budget_disables_provider(monkeypatch):
     monkeypatch.setenv("MISTRAL_MONTHLY_BUDGET", "0")
     assert consume_mistral() is False
