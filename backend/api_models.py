@@ -54,6 +54,12 @@ class OrchestratedScanRequest(BaseModel):
     # sanitizes this again after the Android round-trip and never trusts it for
     # a SAFE elevation by itself.
     pre_redaction_evidence: Optional[Dict[str, Any]] = None
+    # Opt-in only: ordinary scans must not create retained Payment Case artifacts.
+    payment_case_active: Optional[bool] = False
+
+
+class PaymentCaseArtifactRequest(BaseModel):
+    artifact_ref: str
 
 
 class FeedbackRequest(BaseModel):

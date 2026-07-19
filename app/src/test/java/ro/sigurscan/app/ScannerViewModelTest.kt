@@ -506,17 +506,17 @@ class ScannerViewModelTest {
     }
 
     @Test
-    fun resultCacheHitShortCircuitsBackendUnlessUserForcesRefresh() {
+    fun resultCacheHitShortCircuitsBackendUnlessRefreshOrPaymentCaseNeedsANewArtifact() {
         val viewModelSource = viewModelSource()
         val scanStart = viewModelSource.indexOf("fun ScannerViewModel.onScanClick(forceRefresh: Boolean = false)")
         val scanEnd = viewModelSource.indexOf("internal fun ScannerViewModel.isTrustedOfficialUrl", scanStart)
         assertTrue("onScanClick must exist.", scanStart >= 0 && scanEnd > scanStart)
 
         val scanFlow = viewModelSource.substring(scanStart, scanEnd)
-        val cacheGuardIndex = scanFlow.indexOf("if (!forceRefresh)")
+        val cacheGuardIndex = scanFlow.indexOf("if (shouldUseCachedScanResult(forceRefresh, paymentCaseActive))")
         val cacheHitIndex = scanFlow.indexOf("cachedAssessmentFor(cacheKey)?.let")
         val backendScanIndex = scanFlow.indexOf("runBackendOrchestratedScan(rawInput, htmlPayload, urls)")
-        assertTrue("Result cache must be guarded by forceRefresh=false.", cacheGuardIndex >= 0)
+        assertTrue("Result cache must be disabled for refreshes and active Payment Cases.", cacheGuardIndex >= 0)
         assertTrue("Result cache hit must be checked before backend orchestration.", cacheHitIndex > cacheGuardIndex)
         assertTrue("Backend orchestration must still run on cache miss or forced refresh.", backendScanIndex > cacheHitIndex)
 

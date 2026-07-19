@@ -38,6 +38,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.Serializable
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -116,6 +117,15 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
     var invoiceResult by mutableStateOf<InvoiceScanResponse?>(null)
     var invoiceSanbStatus by mutableStateOf<String?>(null)
     internal var lastInvoiceScanSource: PendingInvoiceScanSource? = null
+    var paymentCaseActive by mutableStateOf(false)
+    var paymentCaseResult by mutableStateOf<PaymentCaseResponse?>(null)
+    var paymentCaseStatus by mutableStateOf<String?>(null)
+    var paymentCaseLoading by mutableStateOf(false)
+    internal var paymentCaseId: String? = null
+    internal var paymentCaseGeneration: Long = 0
+    internal val attachedPaymentCaseArtifactRefs = mutableSetOf<String>()
+    internal val pendingPaymentCaseArtifactRefs = linkedSetOf<String>()
+    internal val paymentCaseMutex = Mutex()
     var pendingOfferConfirmation by mutableStateOf<PendingOfferConfirmation?>(null)
     var pendingSharedInput by mutableStateOf<String?>(null)
     var pendingSharedSourceLabel by mutableStateOf("Conținut partajat")
@@ -545,6 +555,7 @@ class ScannerViewModel(application: Application) : AndroidViewModel(application)
         officialReportStatus = null
         text = ""
         clearAllPendingShared()
+        clearPaymentCaseLocalState()
     }
 
     override fun onCleared() {

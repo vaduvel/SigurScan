@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import List, Optional
+import urllib.parse
 
 from fastapi import File, Form, HTTPException, UploadFile
 import importlib
@@ -42,6 +43,9 @@ from services.scan_helpers import (
     extract_text_for_scan,
 )
 from services.orchestrated_scan import orchestrated_engine
+from services.payment_case import build_payment_case_facts
+from services.pre_redaction_evidence import extract_pre_redaction_evidence
+from services import payment_case_store
 
 
 def _extract_compat_fn(name: str, fallback):
@@ -183,6 +187,8 @@ async def scan_invoice_endpoint(
     official_xml_file: Optional[UploadFile] = File(None),
     source_channel: Optional[str] = Form("android_native"),
     sanb_attestation: Optional[str] = Form(None),
+    client_instance_id: str | None = None,
+    payment_case_active: bool = Form(False),
 ):
     """
     Invoice-specific scan endpoint.
@@ -303,7 +309,7 @@ async def scan_invoice_endpoint(
     client_payment_destination = _invoice_payment_destination_for_client(result, invoice_gate)
     invoice_truth = invoice_gate.get("invoice_truth")
 
-    return {
+    response = {
         "source_type": source_type,
         "fields": {
             "emitent": result.fields.emitent,
@@ -361,3 +367,40 @@ async def scan_invoice_endpoint(
         "ocr_warning": ocr_warning,
         "qr_payloads": qr_payloads,
     }
+    if payment_case_active is True and str(client_instance_id or "").strip():
+        gate = invoice_gate.get("gate") if isinstance(invoice_gate.get("gate"), dict) else {}
+        primary_reason = str((invoice_truth or {}).get("primary_reason_code") or "")
+        signals = list(result.fraud_flags or [])
+        if primary_reason:
+            signals.append(primary_reason)
+        facts = build_payment_case_facts(
+            artifact_type="invoice",
+            pre_redaction_evidence=extract_pre_redaction_evidence(result.raw_text),
+            entity_name=result.fields.emitent or result.fields.payment_beneficiary,
+            cui=result.fields.cui,
+            amount=result.fields.total,
+            currency=result.fields.currency,
+            requested_actions=["pay_invoice"] if result.fields.iban or result.fields.total is not None else [],
+            signals=signals,
+            domains=[
+                host
+                for url in extracted_urls
+                if (host := (urllib.parse.urlparse(url).hostname or "").lower())
+            ],
+            evidence_provenance="server_extracted",
+        )
+        try:
+            artifact = payment_case_store.register_server_artifact(
+                client_instance_id=client_instance_id,
+                artifact_type="invoice",
+                verdict=str(gate.get("label") or "UNVERIFIED"),
+                is_final=True,
+                reason_codes=gate.get("reason_codes") if isinstance(gate.get("reason_codes"), list) else [],
+                facts=facts,
+            )
+            response["payment_case_artifact_ref"] = artifact["artifact_ref"]
+        except Exception:
+            # The invoice verdict remains usable if the optional case store is
+            # temporarily unavailable; the UI simply cannot combine it yet.
+            pass
+    return response

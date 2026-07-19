@@ -4,6 +4,7 @@ import com.google.gson.annotations.SerializedName
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.POST
@@ -59,7 +60,8 @@ data class ScanResponse(
     @SerializedName("extracted_urls") val extractedUrls: List<Map<String, Any>>? = null,
     @SerializedName("resolved_urls") val resolvedUrls: List<Map<String, Any>>? = null,
     @SerializedName("buttons") val buttons: List<Map<String, Any>>? = null,
-    @SerializedName("email_auth") val emailAuth: Map<String, Any>? = null
+    @SerializedName("email_auth") val emailAuth: Map<String, Any>? = null,
+    @SerializedName("payment_case_artifact_ref") val paymentCaseArtifactRef: String? = null,
 )
 
 // Strat educativ „Ce spune legea" (PR5). Clientul randează verbatim, sub verdict;
@@ -179,7 +181,7 @@ data class ExtractionResponse(
     @SerializedName("email_auth") val emailAuth: Map<String, Any>? = null,
     @SerializedName("email_evidence_ledger") val emailEvidenceLedger: Map<String, Any>? = null,
     @SerializedName("email_compound_active") val emailCompoundActive: Boolean = false,
-    @SerializedName("pre_redaction_evidence") val preRedactionEvidence: Map<String, Any>? = null
+    @SerializedName("pre_redaction_evidence") val preRedactionEvidence: Map<String, Any>? = null,
 )
 
 data class OrchestratedScanRequest(
@@ -191,7 +193,8 @@ data class OrchestratedScanRequest(
     @SerializedName("email_auth") val emailAuth: Map<String, Any>? = null,
     @SerializedName("email_evidence_ledger") val emailEvidenceLedger: Map<String, Any>? = null,
     @SerializedName("email_compound_active") val emailCompoundActive: Boolean = false,
-    @SerializedName("pre_redaction_evidence") val preRedactionEvidence: Map<String, Any>? = null
+    @SerializedName("pre_redaction_evidence") val preRedactionEvidence: Map<String, Any>? = null,
+    @SerializedName("payment_case_active") val paymentCaseActive: Boolean = false,
 )
 
 data class OrchestratedPillarState(
@@ -218,7 +221,30 @@ data class OrchestratedScanResponse(
     @SerializedName("poll_after_ms") val pollAfterMs: Long? = null,
     val pillars: Map<String, OrchestratedPillarState>? = null,
     val preview: OrchestratedPreview? = null,
-    val result: ScanResponse? = null
+    val result: ScanResponse? = null,
+    @SerializedName("payment_case_artifact_ref") val paymentCaseArtifactRef: String? = null,
+)
+
+data class PaymentCaseArtifactRequest(
+    @SerializedName("artifact_ref") val artifactRef: String,
+)
+
+data class PaymentCaseContradictionResponse(
+    val code: String? = null,
+    val severity: String? = null,
+    val message: String? = null,
+)
+
+data class PaymentCaseResponse(
+    val schema: String? = null,
+    @SerializedName("case_id") val caseId: String,
+    val status: String? = null,
+    @SerializedName("artifact_count") val artifactCount: Int = 0,
+    @SerializedName("artifact_types") val artifactTypes: List<String> = emptyList(),
+    val verdict: String = "UNVERIFIED",
+    @SerializedName("reason_codes") val reasonCodes: List<String> = emptyList(),
+    val contradictions: List<PaymentCaseContradictionResponse> = emptyList(),
+    val message: String? = null,
 )
 
 data class ReadinessResponse(
@@ -639,9 +665,22 @@ data class InvoiceScanResponse(
     val warnings: List<String>? = null,
     val error: String? = null,
     @SerializedName("ocr_warning") val ocrWarning: String? = null,
+    @SerializedName("payment_case_artifact_ref") val paymentCaseArtifactRef: String? = null,
 )
 
 interface SigurScanApi {
+    @POST("v1/payment-cases")
+    suspend fun createPaymentCase(): PaymentCaseResponse
+
+    @POST("v1/payment-cases/{case_id}/artifacts")
+    suspend fun attachPaymentCaseArtifact(
+        @Path("case_id") caseId: String,
+        @Body request: PaymentCaseArtifactRequest,
+    ): PaymentCaseResponse
+
+    @DELETE("v1/payment-cases/{case_id}")
+    suspend fun deletePaymentCase(@Path("case_id") caseId: String)
+
     @POST("v1/scan/orchestrated")
     suspend fun startOrchestratedScan(@Body request: OrchestratedScanRequest): OrchestratedScanResponse
 
@@ -688,6 +727,7 @@ interface SigurScanApi {
         @retrofit2.http.Part("source_channel") sourceChannel: okhttp3.RequestBody,
         @retrofit2.http.Part officialXmlFile: okhttp3.MultipartBody.Part? = null,
         @retrofit2.http.Part("sanb_attestation") sanbAttestation: okhttp3.RequestBody? = null,
+        @retrofit2.http.Part("payment_case_active") paymentCaseActive: okhttp3.RequestBody? = null,
     ): InvoiceScanResponse
 
     @POST("v1/community/report")

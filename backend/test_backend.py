@@ -3408,10 +3408,10 @@ def test_scan_url_legacy_endpoint_starts_orchestrated_without_final_verdict(monk
 def test_scan_email_legacy_endpoint_extracts_then_starts_orchestrated_without_final_verdict(monkeypatch):
     client = TestClient(app_main.app)
 
-    async def fake_extract_email_for_orchestration(**kwargs):
+    async def fake_extract_email_for_orchestration(email_file=None, html_content=None, source_channel=None):
         return {
             "input_type": "email_html",
-            "source_channel": kwargs.get("source_channel") or "email",
+            "source_channel": source_channel or "email",
             "redacted_text": "Comanda ta poate fi urmarita.",
             "extracted_urls": ["https://example.com/tracking"],
             "html_content": '<a href="https://example.com/tracking">Urmareste coletul</a>',
@@ -3443,10 +3443,10 @@ def test_scan_email_legacy_endpoint_extracts_then_starts_orchestrated_without_fi
 def test_scan_image_legacy_endpoint_extracts_then_starts_orchestrated_without_final_verdict(monkeypatch):
     client = TestClient(app_main.app)
 
-    async def fake_extract_image_for_orchestration(**kwargs):
+    async def fake_extract_image_for_orchestration(image_file=None, source_channel=None):
         return {
             "input_type": "image_ocr",
-            "source_channel": kwargs.get("source_channel") or "image_upload",
+            "source_channel": source_channel or "image_upload",
             "redacted_text": "Verifica oferta pe https://example.com",
             "extracted_urls": ["https://example.com"],
             "html_content": None,
@@ -3475,10 +3475,10 @@ def test_scan_image_legacy_endpoint_extracts_then_starts_orchestrated_without_fi
 def test_scan_pdf_legacy_endpoint_extracts_then_starts_orchestrated_without_final_verdict(monkeypatch):
     client = TestClient(app_main.app)
 
-    async def fake_extract_pdf_for_orchestration(**kwargs):
+    async def fake_extract_pdf_for_orchestration(pdf_file=None, source_channel=None):
         return {
             "input_type": "pdf_ocr",
-            "source_channel": kwargs.get("source_channel") or "pdf_upload",
+            "source_channel": source_channel or "pdf_upload",
             "redacted_text": "Factura contine plata catre https://example.com/pay",
             "extracted_urls": ["https://example.com/pay"],
             "html_content": None,

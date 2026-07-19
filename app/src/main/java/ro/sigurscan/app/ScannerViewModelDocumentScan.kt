@@ -139,7 +139,11 @@ fun ScannerViewModel.scanInvoiceFromDocument(
                 MultipartBody.Part.createFormData("official_xml_file", xmlFileName, xmlRequest)
             }
 
-            invoiceResult = uploadApi.scanInvoice(body, source, officialPart, sanbPart)
+            val paymentCasePart = paymentCaseActive.toString()
+                .toRequestBody("text/plain".toMediaTypeOrNull())
+            val response = uploadApi.scanInvoice(body, source, officialPart, sanbPart, paymentCasePart)
+            attachPaymentCaseArtifact(response.paymentCaseArtifactRef)
+            invoiceResult = response
             invoiceSanbStatus = when (sanbAttestation) {
                 "match", "close_match" -> "Ai confirmat în bancă faptul că beneficiarul se potrivește."
                 "no_match" -> "Ai confirmat în bancă faptul că beneficiarul nu se potrivește."

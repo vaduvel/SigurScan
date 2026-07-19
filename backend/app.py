@@ -7,7 +7,7 @@ from core.request_security import security_guard
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import analytics, audio, circle, community, extract, intel, orchestrated, pages, scan, sandbox
+from routers import analytics, audio, circle, community, extract, intel, orchestrated, pages, payment_cases, scan, sandbox
 
 
 
@@ -40,6 +40,7 @@ def create_app() -> FastAPI:
         analytics,
         extract,
         orchestrated,
+        payment_cases,
         sandbox,
         scan,
     ):

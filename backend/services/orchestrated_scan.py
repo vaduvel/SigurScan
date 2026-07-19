@@ -23,6 +23,12 @@ from services.provider_gate import _apply_decision_contract_result, _apply_provi
 from services.reputation_enrich import _attach_reputation_lookup_hashes, _attach_reputation_lookup_urls, _has_bad_provider_verdict
 from services.external_url_privacy import prepare_external_url, prepare_external_urls, prepare_reputation_lookup_url
 from services.artifact_envelope import build_artifact_envelope
+from services.payment_case import (
+    build_payment_case_facts_from_scan,
+    client_owner_fingerprint,
+    enrich_payment_case_facts_with_final_gate,
+)
+from services import payment_case_store
 from services.protected_action_shadow import (
     build_action_asset_shadow,
     evaluate_protected_action_shadow,
@@ -674,6 +680,46 @@ class OrchestratedScanEngine:
         }
 
 
+    def _attach_payment_case_artifact_ref(
+        self,
+        job: Dict[str, Any],
+        response_payload: Dict[str, Any],
+        gate: Dict[str, Any],
+    ) -> None:
+        payment_case_owner = str(job.get("payment_case_owner_fingerprint") or "")
+        payment_case_facts = job.get("payment_case_facts")
+        if (
+            response_payload.get("is_final") is not True
+            or not payment_case_owner
+            or not isinstance(payment_case_facts, dict)
+        ):
+            return
+        artifact_ref = str(job.get("payment_case_artifact_ref") or "")
+        if not artifact_ref:
+            try:
+                artifact = payment_case_store.register_server_artifact_for_owner(
+                    owner_fingerprint=payment_case_owner,
+                    artifact_type=str(
+                        (job.get("artifact_envelope") or {}).get("artifact_type")
+                        if isinstance(job.get("artifact_envelope"), dict)
+                        else job.get("input_type") or "unknown"
+                    ),
+                    verdict=str(gate.get("label") or response_payload.get("user_risk_label") or "UNVERIFIED"),
+                    is_final=True,
+                    reason_codes=gate.get("reason_codes") if isinstance(gate.get("reason_codes"), list) else [],
+                    facts=enrich_payment_case_facts_with_final_gate(
+                        payment_case_facts,
+                        gate.get("reason_codes") if isinstance(gate.get("reason_codes"), list) else [],
+                    ),
+                )
+                artifact_ref = str(artifact.get("artifact_ref") or "")
+                job["payment_case_artifact_ref"] = artifact_ref
+            except Exception:
+                self._emit_orchestrated_telemetry("payment_case_artifact_persist_failed", job)
+        if artifact_ref:
+            response_payload["payment_case_artifact_ref"] = artifact_ref
+
+
     def _orchestrated_revision(self, job: Dict[str, Any]) -> int:
         revision = job.get("_storage_revision")
         if revision is None:
@@ -1149,6 +1195,7 @@ class OrchestratedScanEngine:
             )
             and not deferred_explanation
         )
+        self._attach_payment_case_artifact_ref(job, response_payload, gate)
         job["result"] = response_payload
         job["result_fingerprint"] = fingerprint
         self._emit_orchestrated_telemetry(
@@ -1311,6 +1358,7 @@ class OrchestratedScanEngine:
         payload: OrchestratedScanRequest,
         *,
         artifact_metadata: Optional[Dict[str, Any]] = None,
+        client_instance_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         context = self._build_orchestrated_text_context(payload)
         raw_urls = [str(url) for url in (context.get("urls") or []) if str(url).strip()]
@@ -1414,6 +1462,23 @@ class OrchestratedScanEngine:
             source_channel=str(context["source_channel"]),
             pre_redaction_summary=pre_redaction_summary(pre_redaction_evidence),
         )
+        payment_case_owner = (
+            client_owner_fingerprint(client_instance_id)
+            if payload.payment_case_active is True and str(client_instance_id or "").strip()
+            else None
+        )
+        payment_case_facts = (
+            build_payment_case_facts_from_scan(
+                artifact_type=str(artifact_metadata.get("artifact_type") or context["input_type"]),
+                analysis_input_type=str(context["input_type"]),
+                raw_text=privacy_safe_text,
+                pre_redaction_evidence=pre_redaction_evidence,
+                action_asset=action_asset_shadow,
+                urls=raw_urls,
+            )
+            if payment_case_owner
+            else None
+        )
         scan_id = _new_scan_id("orch")
         extra_fields = dict(context.get("extra_fields") or {})
         for key in ("input_url", "canonical_url"):
@@ -1449,6 +1514,8 @@ class OrchestratedScanEngine:
             "source_channel": context["source_channel"],
             "artifact_envelope": artifact_envelope,
             "action_asset_shadow": action_asset_shadow,
+            "payment_case_facts": payment_case_facts,
+            "payment_case_owner_fingerprint": payment_case_owner,
             "threat_enrichment": build_threat_enrichment(
                 artifact_envelope=artifact_envelope,
                 resolved_urls=[],

@@ -113,6 +113,7 @@ fun ScanTab(
 ) {
     val context = LocalContext.current
     val hasActiveScanContext = viewModel.loading ||
+        viewModel.paymentCaseActive ||
         viewModel.assessment != null ||
         viewModel.invoiceResult != null ||
         viewModel.pendingOfferConfirmation != null ||
@@ -143,11 +144,32 @@ fun ScanTab(
             val pendingOfferConfirmation = viewModel.pendingOfferConfirmation
             val invoiceResult = viewModel.invoiceResult
             val assessment = viewModel.assessment
+            val paymentCaseResult = viewModel.paymentCaseResult
             when {
                 pendingOfferConfirmation != null -> OfferConfirmationCard(
                     draft = pendingOfferConfirmation,
                     onConfirm = { viewModel.confirmOfferAndScan(it) },
                     onCancel = { viewModel.cancelOfferConfirmation() }
+                )
+                viewModel.paymentCaseActive && paymentCaseResult != null -> PaymentCaseResultCard(
+                    result = paymentCaseResult,
+                    loading = viewModel.paymentCaseLoading || viewModel.loading,
+                    status = viewModel.paymentCaseStatus ?: viewModel.loadingMsg.takeIf { viewModel.loading },
+                    onAddOffer = onScanOffer,
+                    onAddFile = onPickFile,
+                    onClose = { viewModel.discardPaymentCase() },
+                )
+                viewModel.paymentCaseActive -> PaymentCaseSetupCard(
+                    status = viewModel.paymentCaseStatus,
+                    loading = viewModel.loading || viewModel.paymentCaseLoading,
+                    canRetry = nextPaymentCaseRetryRef(
+                        viewModel.pendingPaymentCaseArtifactRefs,
+                        viewModel.attachedPaymentCaseArtifactRefs,
+                    ) != null,
+                    onRetry = { viewModel.retryPaymentCaseAttach() },
+                    onCaptureInvoice = onCaptureInvoicePhoto,
+                    onPickInvoice = onScanInvoice,
+                    onClose = { viewModel.discardPaymentCase() },
                 )
                 invoiceResult != null -> InvoiceResultCard(
                     result = invoiceResult,
@@ -156,11 +178,15 @@ fun ScanTab(
                         viewModel.submitInvoiceBeneficiaryAttestation(attestation, context)
                     },
                     onOfficialXmlCheck = onInvoiceOfficialXmlCheck,
-                    onBack = { viewModel.reset() }
+                    onBack = {
+                        if (viewModel.paymentCaseActive) viewModel.discardPaymentCase() else viewModel.reset()
+                    }
                 )
                 assessment != null -> ResultCard(
                     assessment = assessment,
-                    onBack = { viewModel.reset() },
+                    onBack = {
+                        if (viewModel.paymentCaseActive) viewModel.discardPaymentCase() else viewModel.reset()
+                    },
                     onRescan = { viewModel.onScanClick(forceRefresh = true) },
                     onReport = { viewModel.onCommunityReport() },
                     officialReportPackage = viewModel.officialReportPackage,
@@ -255,6 +281,7 @@ fun ScanInputCard(
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
     var showInvoiceSourceChooser by remember { mutableStateOf(false) }
+    var showPaymentCaseSourceChooser by remember { mutableStateOf(false) }
 
     if (showInvoiceSourceChooser) {
         InvoiceSourceChooserDialog(
@@ -267,6 +294,23 @@ fun ScanInputCard(
                 showInvoiceSourceChooser = false
                 onScanInvoice()
             }
+        )
+    }
+
+    if (showPaymentCaseSourceChooser) {
+        InvoiceSourceChooserDialog(
+            title = "Verifică o plată",
+            onDismiss = { showPaymentCaseSourceChooser = false },
+            onCapturePhoto = {
+                showPaymentCaseSourceChooser = false
+                viewModel.beginPaymentCase()
+                onCaptureInvoicePhoto()
+            },
+            onPickDocument = {
+                showPaymentCaseSourceChooser = false
+                viewModel.beginPaymentCase()
+                onScanInvoice()
+            },
         )
     }
 
@@ -586,6 +630,13 @@ fun ScanInputCard(
                 onClick = onScanOffer,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            PaymentCaseEntryRow(
+                onClick = { showPaymentCaseSourceChooser = true },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
@@ -661,6 +712,7 @@ internal fun SharedContentFidelityCard(fidelity: SharedContentFidelity, sourceLa
 
 @Composable
 fun InvoiceSourceChooserDialog(
+    title: String = "Scanează factura",
     onDismiss: () -> Unit,
     onCapturePhoto: () -> Unit,
     onPickDocument: () -> Unit
@@ -669,7 +721,7 @@ fun InvoiceSourceChooserDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Scanează factura",
+                text = title,
                 color = SigurColors.TextPrimary,
                 fontWeight = FontWeight.Bold
             )
@@ -709,7 +761,8 @@ internal fun InvoiceSourceAction(
     onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = SigurColors.Canvas),
         border = BorderStroke(1.dp, SigurColors.GlassBorder),
         shape = DSCardShape

@@ -6,7 +6,7 @@ import asyncio
 
 from fastapi import HTTPException, Request
 from config import ORCHESTRATED_CLOUD_TASKS_CONTINUE_DELAY_SECONDS
-from core.request_security import _require_internal_worker_auth
+from core.request_security import _extract_client_instance_id, _require_internal_worker_auth
 
 from services.orchestrated_scan import orchestrated_engine
 
@@ -62,13 +62,22 @@ async def advance_orchestrated_scan_worker(scan_id: str, request: Request, max_s
     return payload
 
 
-async def start_orchestrated_scan(payload, request: Request):
+async def start_orchestrated_scan(payload, request: Request | None):
     """
     Starts the product-grade scan pipeline:
     intake -> persistent queued scan_id. Provider work is advanced idempotently by GET polling.
     """
     orchestrated_engine._prune_orchestrated_jobs()
-    job = await orchestrated_engine._create_orchestrated_job(payload)
+    client_instance_id = _extract_client_instance_id(request) if request is not None else ""
+    if client_instance_id:
+        job = await orchestrated_engine._create_orchestrated_job(
+            payload,
+            client_instance_id=client_instance_id,
+        )
+    else:
+        # Preserve the internal compatibility seam used by workers and tests
+        # that start a scan without an HTTP request object.
+        job = await orchestrated_engine._create_orchestrated_job(payload)
     response = orchestrated_engine._orchestrated_status_payload(job)
     job = orchestrated_engine._persist_orchestrated_job(job)
     orchestrated_engine._enqueue_orchestrated_worker_task(job["scan_id"], request, delay_seconds=0, max_steps=1)

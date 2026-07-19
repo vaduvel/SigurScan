@@ -247,7 +247,8 @@ internal fun ScannerViewModel.orchestratedRequest(
             inputType = "offer",
             text = rawInput.ifBlank { urls.joinToString("\n") },
             sourceChannel = activeEvidenceChannel(rawInput) ?: "android_offer_scan",
-            preRedactionEvidence = preRedactionEvidence
+            preRedactionEvidence = preRedactionEvidence,
+            paymentCaseActive = paymentCaseActive,
         )
     }
 
@@ -260,13 +261,15 @@ internal fun ScannerViewModel.orchestratedRequest(
             emailAuth = emailAuth,
             emailEvidenceLedger = emailEvidenceLedger,
             emailCompoundActive = emailCompoundActive,
-            preRedactionEvidence = preRedactionEvidence
+            preRedactionEvidence = preRedactionEvidence,
+            paymentCaseActive = paymentCaseActive,
         )
         urls.isNotEmpty() && looksLikeUrlOnly(rawInput.trim(), urls.first()) -> OrchestratedScanRequest(
             inputType = "url",
             url = normalizeUrl(urls.first()),
             sourceChannel = activeEvidenceChannel(rawInput) ?: "android_url_scan",
-            preRedactionEvidence = preRedactionEvidence
+            preRedactionEvidence = preRedactionEvidence,
+            paymentCaseActive = paymentCaseActive,
         )
         else -> OrchestratedScanRequest(
             inputType = if (emailAuth != null) "email" else "text",
@@ -275,7 +278,8 @@ internal fun ScannerViewModel.orchestratedRequest(
             emailAuth = emailAuth,
             emailEvidenceLedger = emailEvidenceLedger,
             emailCompoundActive = emailCompoundActive,
-            preRedactionEvidence = preRedactionEvidence
+            preRedactionEvidence = preRedactionEvidence,
+            paymentCaseActive = paymentCaseActive,
         )
     }
 }
@@ -608,6 +612,7 @@ internal suspend fun ScannerViewModel.publishOrchestratedResponse(
     } ?: buildPendingAssessmentFromOrchestratedResponse(response, rawInput, urls)
     publishAssessmentResult(existingScanId ?: response.scanId, updated)
     if (response.result != null && updated.gateResult?.finality == GateFinality.FINAL) {
+        attachPaymentCaseArtifact(paymentCaseArtifactRef(response))
         loading = false
         if (!resultCacheKey.isNullOrBlank()) {
             if (shouldCacheFinalAssessment(response, updated)) {
@@ -844,7 +849,7 @@ fun ScannerViewModel.onScanClick(forceRefresh: Boolean = false) {
         val urls = activeEvidenceLinks(rawInput).ifEmpty { extractUrls(rawInput) }
         try {
             val cacheKey = scanResultCacheKey(rawInput, htmlPayload, urls)
-            if (!forceRefresh) {
+            if (shouldUseCachedScanResult(forceRefresh, paymentCaseActive)) {
                 cachedAssessmentFor(cacheKey)?.let { cached ->
                     assessment = cached
                     loading = false

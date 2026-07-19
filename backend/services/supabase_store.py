@@ -886,6 +886,24 @@ def load_scan_job(scan_id: str) -> Optional[Dict[str, Any]]:
     return scan_job_from_record(rows[0])
 
 
+def delete_scan_job(scan_id: str) -> bool:
+    if not scan_id or not is_supabase_enabled():
+        return True
+    try:
+        response = requests.delete(
+            _table_url("scan_jobs"),
+            headers=_headers("return=minimal"),
+            params={"scan_id": f"eq.{scan_id}"},
+            timeout=SUPABASE_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        return True
+    except Exception as exc:
+        if not SUPABASE_SUPPRESS_LOGS:
+            _LOGGER.warning("Supabase delete_scan_job failed for scan_id=%s", scan_id, exc_info=exc)
+        return False
+
+
 def claim_scan_job(
     scan_id: str,
     *,
